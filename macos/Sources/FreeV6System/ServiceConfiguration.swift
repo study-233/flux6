@@ -70,7 +70,7 @@ public struct AssembledServiceConfiguration: CustomStringConvertible, CustomDebu
 /// System policy is owned by the service. This function only assembles bytes;
 /// it never starts the core, creates a session directory or alters networking.
 public enum ServiceConfigurationAssembler {
-    public static let policyVersion = 1
+    public static let policyVersion = 2
     public static let sessions = "/Library/Application Support/dev.freev6.desktop/sessions"
 
     public static func assemble(_ business: BusinessConfiguration, sessionID: UUID) throws -> AssembledServiceConfiguration {
@@ -107,9 +107,10 @@ public enum ServiceConfigurationAssembler {
             "profile": ["store-fake-ip": true, "store-selected": true],
             "tun": ["enable": true, "stack": "mixed", "auto-route": true,
                     "auto-detect-interface": true, "dns-hijack": ["any:53", "tcp://any:53"]],
-            "dns": ["enable": true, "ipv6": true, "listen": "127.0.0.1:1053", "enhanced-mode": "fake-ip",
+            "hosts": [DNSResolverPolicy.hostsPattern(sessionID): DNSResolverPolicy.checkAnswer],
+            "dns": ["enable": true, "use-hosts": true, "ipv6": true, "listen": DNSResolverPolicy.listener, "enhanced-mode": "fake-ip",
                     "fake-ip-range": "198.18.0.1/16",
-                    "fake-ip-filter": ["+.lan", "+.local", "*.msftconnecttest.com", "*.msftncsi.com"],
+                    "fake-ip-filter": [DNSResolverPolicy.hostsPattern(sessionID), "+.lan", "+.local", "*.msftconnecttest.com", "*.msftncsi.com"],
                     "default-nameserver": ["223.5.5.5", "119.29.29.29", "2606:4700:4700::1111", "2606:4700:4700::1001", "2400:3200::1", "2400:3200:baba::1"],
                     "nameserver": ["https://223.5.5.5/dns-query", "https://1.12.12.12/dns-query", "2606:4700:4700::1111", "2606:4700:4700::1001", "2400:3200::1", "2400:3200:baba::1"],
                     "nameserver-policy": ["geosite:cn,private": chinaDNS, "geosite:geolocation-!cn": foreignDNS],

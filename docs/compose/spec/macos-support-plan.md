@@ -110,7 +110,7 @@ SwiftUI 的分栏导航适合本项目的状态、节点、配置和日志页面
 
 这里有一个需要准确区分的细节：固定版本 mihomo 会检查 Darwin 设备名，对 FreeV6TUN 这类不合法名称警告并重新生成 utun 名称。因此这一配置不能直接判定为必然启动失败，但依赖 Windows 固定名称的上层逻辑不能沿用。[固定版本 TUN 实现](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/listener/sing_tun/server.go)
 
-DNS 是实际功能风险：发往局域网 DNS 的请求不能假定被 dns-hijack 自动接管；strict-route 的 Windows 行为也不能当作 Mac 的泄漏防护。当前 DNS 监听 0.0.0.0:1053，系统 DNS 设置通常只接受地址，不能简单把系统 DNS 写成 127.0.0.1 就假设请求会到 1053。[mihomo TUN 文档](https://wiki.metacubex.one/en/config/inbound/tun/)
+DNS 是实际功能风险：发往局域网 DNS 的请求不能假定被 dns-hijack 自动接管；strict-route 的 Windows 行为也不能当作 Mac 的泄漏防护。当前 DNS 监听 0.0.0.0:1053，只设置系统 DNS 地址 127.0.0.1 会遗漏核心使用的 1053 端口。[mihomo TUN 文档](https://wiki.metacubex.one/en/config/inbound/tun/)
 
 当前上游文档出现的 dns-mode 不能直接抄入本项目：检查 v1.19.31 的配置结构没有该字段。Mac 方案必须基于锁定核心做真实解析和流量测试；升级核心应作为单独决策。[v1.19.31 配置源码](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/config/config.go)
 
@@ -242,12 +242,9 @@ Keychain 接入需要抽象现有 Go 凭据读写接口，避免注册时再次�
 
 RenderOptions 增加显式平台能力参数，避免渲染函数隐式依赖当前编译主机。Windows 保留 FreeV6TUN；Mac 让核心选择 utun，并读取实际运行结果。macOS 首版不自动修改系统 HTTP 或 SOCKS 代理，因为当前目标是 TUN；若以后增加系统代理模式，再单独实现其快照和恢复。
 
-DNS 原型比较两条路径，选定一条后固定到实现和测试：
+首选路径使用 SystemConfiguration 同时设置活动物理网络服务的 `ServerAddresses` 和 `ServerPort`，将请求交给核心已有的 `127.0.0.1:1053`。Apple 的 configd 用端口字段构造系统解析器。在 macOS 13 和当前系统上都要通过默认及按接口查询、IPv4/IPv6、局域网与切网实测。如系统实测无法可靠使用该端口，再比较 TUN 专用 DNS 地址和受控 loopback 53 转发器。[Apple configd 解析器构造](https://github.com/apple-oss-distributions/configd/blob/main/Plugins/IPMonitor/dns-configuration.c)
 
-- 把活动网络服务的 DNS 指向可由 TUN 接收的专用地址，由 mihomo 的端口 53 劫持交给内部 DNS；必须验证 IPv4、IPv6、LAN DNS 和启动时序。
-- 若锁定核心无法可靠处理上述路径，则在 loopback 的 53 端口提供受控 DNS 入口，转交内部 1053；先检查 TCP 和 UDP 53 占用，避免与其他 DNS 软件冲突。
-
-系统 DNS 由 Swift 服务调用 SystemConfiguration，按网络服务标识读取与设置；networksetup、scutil 可作为原型和诊断工具。保存的是用户显式 DNS 配置及“未手动配置、由 DHCP 提供”的区别，而不是将 scutil 的有效解析器列表原样写回。保存 search domains 和本次实际修改的服务，尊重 VPN 的 scoped resolver，避免粗暴覆盖全部网卡。
+服务按网络服务 ID 保存 DHCP 自动、显式空配置或手工 DNS。写入前核对物理主服务、已登记核心对 TCP/UDP 的监听及本次会话的本地应答，写入意图先于提交落盘。应用后用系统解析器查询新生成的会话专属 `.test` 名称，失败即进入恢复。恢复仅撤回仍归本次会话的地址与端口，保留外部编辑，再检查 configd 已发布的设置和状态。服务内部事务已有隔离验证，启动/停止协调器、真实系统写入和恢复后的应用联网验证仍需接入。[测试专用域名语义](https://www.rfc-editor.org/rfc/rfc6761#section-6.2)
 
 ### 网络事务
 

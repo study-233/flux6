@@ -70,6 +70,9 @@ final class ServiceConfigurationTests: XCTestCase {
         XCTAssertEqual(document["geo-auto-update"] as? Bool, false)
         let dns = document["dns"] as! [String: Any]
         XCTAssertEqual(dns["listen"] as? String, "127.0.0.1:1053")
+        let check = DNSResolverPolicy.hostsPattern(id)
+        XCTAssertEqual(document["hosts"] as? [String: String], [check: DNSResolverPolicy.checkAnswer])
+        XCTAssertTrue((dns["fake-ip-filter"] as? [String])?.contains(check) == true)
         XCTAssertNotNil(dns["nameserver-policy"])
         let tun = document["tun"] as! [String: Any]
         XCTAssertEqual(tun["enable"] as? Bool, true)

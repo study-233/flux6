@@ -261,12 +261,15 @@ do {
     case "xpc": try probeXPC(reject: false)
     case "xpc-reject": try probeXPC(reject: true)
     case "keychain": try probeKeychain()
+    case "dns-targets":
+        let preview = try DNSConfiguration.previewTargets()
+        print("Eligible physical primary services: \(preview.count); DNS endpoint in published configuration: \(preview.endpointInUse)")
     case "dns":
         let snapshots = try DNSConfiguration.capture()
         // Do not include resolver addresses or service names in console output.
         print("PASS: captured configured DNS for \(snapshots.count) network services; no settings changed")
     default:
-        print("Usage: freev6-probe identity [path]|registration <service>|mach <probe-name> <hash>|xpc|xpc-reject|dns|keychain")
+        print("Usage: freev6-probe identity [path]|registration <service>|mach <probe-name> <hash>|xpc|xpc-reject|dns|dns-targets|keychain")
         exit(2)
     }
 } catch {

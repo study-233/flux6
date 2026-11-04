@@ -177,12 +177,17 @@ python3 scripts/macos/probe-installer.py
 probe_dir="$(bash scripts/macos/swift.sh build --show-bin-path)"
 "$probe_dir/freev6-probe" identity
 "$probe_dir/freev6-probe" dns
+"$probe_dir/freev6-probe" dns-targets
 "$probe_dir/freev6-probe" xpc
 "$probe_dir/freev6-probe" xpc-reject
 "$probe_dir/freev6-probe" keychain
 ```
 
-DNS 探针只读。XPC 探针使用同一用户下的匿名 listener，分别验证允许的 CDHash 和错误 CDHash；必须先确认可信连接成功，才能将拒绝测试解释为身份校验有效。受限沙箱可能禁止 Mach IPC，需在正常用户环境运行。此探针不证明 root daemon 的安装、重启和升级已通过。
+DNS 探针只读。`dns-targets` 统计可选的活动物理服务，并检查 configd 已发布的 DNS 配置有无使用核心端点。
+
+运行 `FREEV6_RUNTIME_FIXTURES_DIR="$PWD/build/macos-probes" bash scripts/macos/swift.sh test --filter SessionDNSTests` 可验证服务内部 DNS 事务。测试使用独立配置树并模拟系统写锁、提交和发布，其中两个边界由测试宿主实际接收 SIGKILL。固定核心在临时端口回答会话专属查询，TUN 关闭。系统级应用、解析器接管和恢复后联网需要单独验收。
+
+XPC 探针使用同一用户下的匿名 listener，分别验证允许的 CDHash 和错误 CDHash；必须先确认可信连接成功，才能将拒绝测试解释为身份校验有效。受限沙箱可能禁止 Mach IPC，需在正常用户环境运行。此探针不证明 root daemon 的安装、重启和升级已通过。
 
 Keychain 探针只创建、读取并删除一个随机标识的 `dev.freev6.probe` 测试项，不读取已有凭据。当前仅验证单次读写；升级后的访问行为单独验收。
 
