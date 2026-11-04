@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -35,6 +36,10 @@ func NewClient(httpClient *http.Client) *Client {
 }
 
 func (c *Client) Register(ctx context.Context, deviceName string) (Device, error) {
+	return c.RegisterWithProgress(ctx, deviceName, nil)
+}
+
+func (c *Client) RegisterWithProgress(ctx context.Context, deviceName string, progress func(string)) (Device, error) {
 	wgKey, err := randomBase64(32)
 	if err != nil {
 		return Device{}, fmt.Errorf("generate registration key: %w", err)
@@ -50,10 +55,13 @@ func (c *Client) Register(ctx context.Context, deviceName string) (Device, error
 		"key_type": "curve25519", "tunnel_type": "wireguard", "locale": "en-US",
 	}
 	var account registerResponse
+	if progress != nil {
+		progress("registering")
+	}
 	if err := c.doJSON(ctx, http.MethodPost, "/reg", "", registration, &account); err != nil {
 		return Device{}, fmt.Errorf("register WARP device: %w", err)
 	}
-	if account.ID == "" || account.Token == "" {
+	if !validDeviceID(account.ID) || !validToken(account.Token) {
 		return Device{}, fmt.Errorf("register WARP device: response missing id or token")
 	}
 
@@ -63,7 +71,10 @@ func (c *Client) Register(ctx context.Context, deviceName string) (Device, error
 	}
 	update := enrollRequest{Key: publicKey, KeyType: "secp256r1", TunnelType: "masque", Name: deviceName}
 	var enrolled registerResponse
-	if err := c.doJSON(ctx, http.MethodPatch, "/reg/"+account.ID, account.Token, update, &enrolled); err != nil {
+	if progress != nil {
+		progress("enrolling")
+	}
+	if err := c.doJSON(ctx, http.MethodPatch, "/reg/"+url.PathEscape(account.ID), account.Token, update, &enrolled); err != nil {
 		return Device{}, fmt.Errorf("enroll MASQUE key: %w", err)
 	}
 	peerKey := ""
@@ -98,20 +109,32 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, input, 
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := c.HTTPClient.Do(req)
+	// Registration and bearer credentials must never follow a remote redirect.
+	client := *c.HTTPClient
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("WARP API request failed")
 	}
 	defer resp.Body.Close()
-	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 	if err != nil {
-		return err
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("read WARP API response failed")
+	}
+	if len(responseBody) > 1<<20 {
+		return fmt.Errorf("WARP API response exceeds size limit")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
+		return fmt.Errorf("WARP API returned HTTP %d", resp.StatusCode)
 	}
 	if err := json.Unmarshal(responseBody, output); err != nil {
-		return fmt.Errorf("decode response: %w", err)
+		return fmt.Errorf("invalid WARP API response")
 	}
 	return nil
 }

@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前推进 P0 技术验证、P1 共用业务与 P2 原生应用。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、仅支持握手的网络服务、安装工具和系统探针。原生配置页已接入真实设置读写，核心面板已接入检查、下载进度和取消；连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+当前推进 P0 技术验证、P1 共用业务与 P2 原生应用。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、仅支持握手的网络服务、安装工具和系统探针。原生页面已接入设置读写、核心准备和 WARP 注册/钥匙串存储；真实 Cloudflare 注册尚待实测。连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
 
 ## 构建
 
@@ -28,7 +28,7 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写，以及固定平台核心安装包的检查、下载和进度；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。WARP、订阅、GeoSite 准备、配置生成和网络控制尚未接入这些页面。
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包准备及 WARP 注册；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。订阅、GeoSite 准备、配置生成和网络控制尚未接入这些页面。
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
@@ -49,6 +49,22 @@ python3 scripts/macos/probe-worker.py
 探针使用 `build/worker-probes/<UUID>` 中的独立测试目录，验证分片握手、保存、版本冲突、核心方法参数限制、重复 worker 拒绝、父进程 EOF、SIGTERM、输出背压和坏帧。加 `--download-runtime` 会通过正式镜像下载原生核心，并记录进度和最终摘要。所有测试子进程在结束时回收，结果写入该目录的 `result.json`。不读取个人凭据，不安装网络服务。
 
 普通 `swift.sh test` 在未传 `FREEV6_WORKER_TEST_BINARY` 时跳过真实 Go 集成项；官方核心测试还需要 `FREEV6_RUNTIME_FIXTURES_DIR` 指向包含清单中官方 ZIP/gzip 的目录。该变量也用于 Go 的真实资产验证；测试仍独立核验所有摘要，不信任目录中的文件名。不得把跳过视为集成通过。
+
+## WARP 与 Keychain
+
+概览及设置的 WARP 页提供检查、注册、重新注册、删除本机凭据和保存失败重试。启动时不自动读取私钥；点击检查或注册后，Security API 在独立串行队列执行，授权交由系统窗口处理。保存失败保留旧记录和待保存的新结果，不自动创建第二个 WARP 设备。
+
+凭据放在当前用户的文件式 Keychain 中，generic-password 的 service 为 `dev.freev6.desktop.warp`、account 为 `credentials-v1`。使用创建应用的默认代码访问控制，不增加共享访问组、不允许所有应用读取、不添加 Apple 签名 entitlement。Data Protection Keychain 的共享访问组和签名配置不在此无 Developer ID 首版中使用；ad-hoc 更新后的再次授权仍需实测。[Apple Keychain 访问控制](https://developer.apple.com/documentation/security/access-control-lists)、[代码签名与 Keychain 身份](https://developer.apple.com/library/archive/technotes/tn2206/)
+
+条目以随机 revision 保护替换和删除；损坏内容或版本冲突保留原记录。Go worker 不写 `warp.json`；Windows helper 继续使用原有凭据文件。删除本机记录不等于注销 Cloudflare 设备，取消注册也不能保证服务端没有创建设备。新结果仅保留在内存时，正常退出要求先保存或明确放弃。
+
+独立真实 Keychain 测试：
+
+```sh
+FREEV6_TEST_PRIVATE_KEYCHAIN=1 bash scripts/macos/swift.sh test --filter WarpCredentialTests
+```
+
+测试创建仅含合成数据的临时钥匙串并清理，不读取登录钥匙串。为了测试文件式 Keychain，测试夹具使用已弃用的 `SecKeychainCreate/Delete` 等隔离 API；产品通过 `SecItem` API 访问条目。未设置开关时该项跳过。Go/Swift 共用合成凭据样本，仅用于验证协议和密钥编码，不能用于实际连接。
 
 ## 服务安装与事务
 

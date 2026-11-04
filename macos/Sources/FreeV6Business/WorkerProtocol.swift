@@ -59,8 +59,9 @@ public struct WorkerRemoteError: Error, Decodable, LocalizedError, Sendable {
         case -32004: return "设置已被更新。请重新载入后再保存。"
         case -32005: return "无法读写配置。原文件已保留，请检查磁盘或重新载入确认状态。"
         case -32006: return "核心准备失败：\(message)"
+        case -32007: return "WARP 注册未完成，请检查网络后重试。"
         case -32003: return "业务操作仍在处理或清理中，请稍后重试。"
-        case -32602: return "设置内容无效：\(message)"
+        case -32602: return "请求内容无效：\(message)"
         case -32800: return "操作已取消或超时。请重新载入确认结果。"
         default: return "业务服务返回错误（\(code)）：\(message)"
         }

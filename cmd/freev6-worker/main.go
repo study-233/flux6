@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/yourname/freev6/internal/paths"
+	"github.com/yourname/freev6/internal/warp"
 	"github.com/yourname/freev6/internal/worker"
 )
 
@@ -45,7 +46,8 @@ func run() error {
 		return err
 	}
 	handler := worker.BusinessHandler(worker.NewSettingsStore(root), worker.NewRuntimeManager(dirs.Cache))
-	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download"}})
+	handler = worker.WarpHandler(worker.NewWarpManager(warp.NewClient(nil)), handler)
+	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register"}})
 }
 
 func main() {

@@ -7,11 +7,11 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 技术验证 | 进行中 | 原生构建、当前系统 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 离线配置、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
-| P1 共用业务与协议 | 进行中 | 已提取共享设置、固定平台核心下载与进度协议；Swift→Go 握手/保存/重启及真实下载通过；WARP、订阅、GeoSite 与配置生成仍待提取 |
+| P1 共用业务与协议 | 进行中 | 已接入共享设置、核心准备、WARP 注册契约与 Keychain 存储；注册的模拟 API 与存储测试通过；真实注册、订阅、GeoSite 与配置生成待完成 |
 | P2 原生应用骨架 | 未完成 | 已有导航、共用顶部栏命令、窗口焦点、服务与核心准备入口、真实配置客户端；正式 Xcode targets、完整菜单能力与页面交互验收待完成 |
 | P3 原生网络服务 | 未完成 | 已有握手服务、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，核心管理与完整协议待实现 |
 | P4 TUN 与恢复 | 未开始 | 尚未修改系统 DNS、路由或启动 TUN |
-| P5 功能完整与原生体验 | 进行中 | 已接入代理规则编辑、保存和核心准备面板，界面实测待解锁；其他业务页面与真实网络状态未接入，连接按钮禁用，无模拟连接成功状态 |
+| P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心准备、WARP 凭据和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
 | P6 DMG 与升级 | 未完成 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
 | P7 回归与交付 | 未完成 | 当前 Mac Go 回归已通过；Windows 运行测试、macOS 13、Intel 及实际校园网络待验收 |
 
@@ -124,13 +124,34 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 此轮未操作 GUI：先前锁屏阻碍尚待用户解锁。顶部菜单顺序、设置入口、焦点切换、工具栏溢出、确认框、窗口恢复、退出主线程流程、VoiceOver 和 macOS 13 仍需实机验证。命令模型和子进程测试只覆盖各自边界，UI-01 至 UI-06 不据此标为全部完成。退出流程尚不包含真实 TUN/DNS 清理。
 
+## 2026-11-05：WARP 注册与用户钥匙串
+
+- Go worker 增加 `warp.register`，共用既有 WARP 客户端，通过固定 API 执行注册与 MASQUE 密钥登记。请求仅接受设备名，单任务互斥、45 秒期限和两个阶段的进度；不接受服务地址、令牌或输出路径，不写 Mac `warp.json`。
+- 注册结果采用 schema 1 的凭据契约。Go 与 Swift 对 P-256 SEC1/SPKI 编码、账户字段、地址、日期和大小进行校验，使用同一份公开合成样本验证互通。错误不包含私钥或上游响应正文；共用 HTTP 客户端拒绝重定向，响应限制 1 MiB，Windows 成功接口和凭据文件位置保留。
+- 新增当前用户的 Keychain 适配及凭据工作流。系统操作在独立串行队列执行，不在启动时自动读取私钥；使用默认应用代码 ACL，无共享访问组或放宽 entitlement。条目通过随机 revision 执行条件替换和删除，旧版本操作拒绝。
+- 注册前检查现有凭据与替换意图。保存失败保留原记录和内存中的新结果；重试只保存，不重新注册。正常退出遇到凭据操作或待保存结果会暂缓，明确保存或放弃后才能继续；强退仍可能丢失未保存结果。
+- 概览与设置新增 WARP 页，接入检查、注册、重新注册、取消、删除本机凭据、重试保存和放弃待保存结果。界面只保存非敏感摘要，不显示私钥。删除本机记录、取消或放弃结果均不承诺撤销远端注册。
+- 42 项 Swift 测试通过：27 项系统、10 项业务与 5 项桌面命令。真实临时独立 Keychain 的读取、条件替换、错误 revision 拒绝、删除和清理通过；未读取登录钥匙串。注册 HTTP 使用本地模拟服务，完整验证 POST 注册 → PATCH 登记、凭据契约及错误脱敏。
+- Go 全量回归及 Windows amd64 交叉编译通过，相关包竞态检查通过；新的实际 Swift→Go 调用验证非法注册参数在联网前被拒绝。Release App 构建与签名通过，打包 worker 的 EOF、SIGTERM、背压与坏帧验证通过，测试子进程全部退出。
+
+| 验证 | 证据 |
+| --- | --- |
+| Swift 全量及凭据工作流 | [Swift tests](/Users/andy/Study/free-v6/build/macos-worker/warp-swift-tests.log) |
+| 独立 Keychain 与清理 | [Keychain tests](/Users/andy/Study/free-v6/build/macos-worker/warp-keychain-cleanup.log) |
+| Go 模拟注册与竞态 | [race tests](/Users/andy/Study/free-v6/build/macos-worker/warp-go-tests.log)、[HTTP integration](/Users/andy/Study/free-v6/build/macos-worker/warp-http-race.log) |
+| 真实 Swift→Go 参数拒绝 | [worker integration](/Users/andy/Study/free-v6/build/macos-worker/warp-worker-integration.log) |
+| Go 全量与 Windows 交叉编译 | [Go tests](/Users/andy/Study/free-v6/build/macos-worker/warp-go-full.log)、[Windows build](/Users/andy/Study/free-v6/build/macos-worker/warp-windows-build.log) |
+| Release 与打包 worker | [Release build](/Users/andy/Study/free-v6/build/macos-worker/warp-release-build.log)、[process result](/Users/andy/Study/free-v6/build/worker-probes/5b0b82c7-7f46-4910-abb1-1144329f0207/result.json) |
+
+尚未验证真实 Cloudflare 注册、产品 App 的系统授权交互、ad-hoc 升级/回退后的 Keychain 访问、macOS 13 和 UI 操作。临时钥匙串测试使用已弃用的隔离创建/删除 API，不能代替产品的登录钥匙串及代码身份测试。后续接入实际连接时还需限制运行中凭据替换/删除，并验证凭据向受控配置流程的交接。未安装 root 服务，未启动真实 TUN。
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
 2. 实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
 3. 验证 Keychain 在升级/回退后的访问行为；明确 macOS 13 与 Intel 的测试设备路径。
 4. 按已经验证的机制接入产品 Swift 更新助手，并补齐 quarantine 分发与网络服务升级事务。
-5. 在现有 worker 上继续提取 WARP、订阅、GeoSite 与配置生成，接入凭据存储；完善共用顶部栏命令与其余页面。解锁后验证代理规则表单及核心准备面板；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
+5. 在现有 worker 上继续提取订阅、GeoSite 与配置生成，接入受控凭据交接；完善共用顶部栏命令与其余页面。解锁后验证配置、核心和 WARP 面板及实际钥匙串授权；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
 
 ## 可重复验证入口
 

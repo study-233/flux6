@@ -16,9 +16,9 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`。WARP、订阅、GeoSite 准备和配置生成仍待迁移，不在能力列表中宣称可用。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`。订阅、GeoSite 准备和配置生成仍待迁移，不在能力列表中宣称可用。
 
-最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 为 180 秒；Swift 握手/设置调用期限为 10 秒，核心检查为 35 秒，下载为 190 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长下载的总期限。
+最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心检查为 35 秒，下载为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
 
 取消使用通知：
 
@@ -68,6 +68,18 @@ Mac 的 patch 契约与 Windows 历史 PUT 契约分开。Windows 继续保持�
 
 同一 worker 只允许一个核心检查/准备任务。取消后清理尚未结束时，新调用可能收到 -32003；稍后重新检查即可确认缓存结果。取消晚于原子替换时，已完成安装包可以保留，不能承诺所有取消都撤回磁盘提交。
 
+## WARP 注册与凭据交接
+
+`warp.register` 接受 `{ "name": "freev6-macos" }`，空名称使用 `freev6-macos`。规范化后最多 128 个 UTF-8 字节，拒绝控制字符和未知参数；不能指定 API 地址、输出路径或令牌。单个 worker 同时只允许一次注册，不自动重试创建账户的请求。
+
+成功返回 `{ "schemaVersion": 1, "device": { ... } }`。`device` 包含 `deviceId`、`token`、`privateKey`、`peerPublicKey`、`ipv4`、`ipv6`、`registeredAt`，字段与共享 `warp.Device` 对应。Go 检查账户标识、令牌长度、P-256 SEC1/SPKI 密钥、地址和日期；Swift 在存储前再次检查契约。该结果包含敏感信息，只通过私有管道交给 App；不得进入日志、普通配置文件、下载缓存或诊断导出。
+
+进度复用 `$/progress`，阶段为 `registering`、`enrolling`；字节计数为 0，总数为 -1，线路字段为 0。上游响应最大 1 MiB，重定向拒绝，错误正文不返回给 UI。注册成功只表示获得凭据，App 必须在 Keychain 写入确认后才能显示“凭据已保存”。
+
+App 在用户操作后访问钥匙串；先确认已有凭据的版本和替换意图，再发起注册。Keychain 条目以随机 revision 执行条件替换或删除，版本冲突不覆盖。保存失败时保留原记录及内存中的新结果，“重试保存”不再调用注册接口。待保存结果需要保存或明确放弃后才能正常退出；强制结束进程仍会丢失该内存结果。
+
+取消是尽力而为，可能发生在服务端已创建设备之后，不能承诺撤销远端注册。删除本机凭据或放弃待保存结果同样不会删除 Cloudflare 设备。没有确认的远端结果不写入本地，不自动反复注册。
+
 ## 错误
 
 | code | 含义 |
@@ -83,6 +95,7 @@ Mac 的 patch 契约与 Windows 历史 PUT 契约分开。Windows 继续保持�
 | -32004 | 设置版本冲突 |
 | -32005 | 配置读写失败，需要重新载入确认状态 |
 | -32006 | 核心下载、校验或缓存操作失败 |
+| -32007 | WARP 注册或返回凭据校验失败；不回传上游错误正文 |
 | -32800 | 请求被取消或超时 |
 
 ## 验证
@@ -90,3 +103,5 @@ Mac 的 patch 契约与 Windows 历史 PUT 契约分开。Windows 继续保持�
 Go 测试覆盖 Windows 字段保留、原生 patch、原子保存和版本冲突、损坏配置保留、握手/方法/参数拒绝、并发、取消、父进程断开和帧限制。Swift 测试覆盖分片帧、截断及同一共享样本。设置样本位于 `shared/fixtures/worker-settings.json`，两端直接读取同一文件。
 
 真实 Swift→Go 测试需要先构建 worker，再给 Swift 测试传入 `FREEV6_WORKER_TEST_BINARY`。它验证并发握手、保存/规范化、冲突拒绝、非法配置拒绝、worker 退出及重启后读取；另外传入 `FREEV6_RUNTIME_FIXTURES_DIR` 可验证真实官方核心安装包与进度分发。`probe-worker.py --download-runtime` 验证正式镜像下载链路。测试不注册 WARP，不安装系统服务，不修改 DNS。
+
+WARP 的 Go 测试使用本机 HTTP 服务器验证两阶段请求与错误处理；Swift 使用共享的 `shared/fixtures/warp-credential.json` 验证编码、密钥格式与存储流程。该样本使用公开可重复的合成密钥和假令牌，禁止用于真实连接。设置 `FREEV6_TEST_PRIVATE_KEYCHAIN=1` 可创建临时独立钥匙串，验证实际读取、条件替换及删除后清理；测试不访问登录钥匙串，未开启时该项明确跳过。此实验不代表 ad-hoc 应用升级授权或真实 Cloudflare 注册已通过。

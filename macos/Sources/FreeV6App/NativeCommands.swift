@@ -115,6 +115,7 @@ struct StatusMenu: View {
     var body: some View {
         Text(model.serviceState.title)
         Text(model.core.status)
+        Text(model.warp.status)
         if let preferences = model.business.snapshot?.settings {
             Text("已保存配置：\(preferences.mode.title)")
         }

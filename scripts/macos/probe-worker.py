@@ -80,7 +80,7 @@ def call(child, method, params=None, fragmented=False, timeout=5, progress=None)
 def initialize(child):
     result = call(child, "initialize", {"protocolVersion": 1}, fragmented=True)["result"]
     assert result["protocolVersion"] == 1 and result["platform"] == "darwin"
-    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download"]
+    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register"]
     return result
 
 
@@ -96,6 +96,7 @@ try:
     resource = call(child, "runtime.status")["result"]
     assert not resource["available"] and resource["architecture"] == handshake["architecture"]
     assert call(child, "runtime.download", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
+    assert call(child, "warp.register", {"name": "test", "url": "https://example.com/arbitrary"})["error"]["code"] == -32602
     runtime_progress = []
     if args.download_runtime:
         resource_reply = call(child, "runtime.download", timeout=190, progress=runtime_progress)

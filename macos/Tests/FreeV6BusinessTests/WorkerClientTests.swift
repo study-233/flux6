@@ -153,6 +153,11 @@ final class WorkerClientTests: XCTestCase {
             let (one, two) = try await (first, second)
             XCTAssertEqual(one.protocolVersion, two.protocolVersion)
             XCTAssertEqual(one.platform, "darwin")
+            XCTAssertTrue(one.capabilities.contains("warp.register"))
+            do {
+                _ = try await client.registerWarp(name: "invalid\nname") { _ in }
+                XCTFail("invalid registration name reached network")
+            } catch let error as WorkerRemoteError { XCTAssertEqual(error.code, -32602) }
             let defaults = try await client.settings()
             XCTAssertEqual(defaults.revision, 0)
             XCTAssertEqual(defaults.settings.mode, .rule)

@@ -14,21 +14,22 @@ import (
 )
 
 const (
-	ProtocolVersion = 1
-	MaxFrameBytes   = 1024 * 1024
-	MaxInFlight     = 8
-	ParseError      = -32700
-	InvalidRequest  = -32600
-	MethodNotFound  = -32601
-	InvalidParams   = -32602
-	InternalError   = -32603
-	NotInitialized  = -32001
-	VersionMismatch = -32002
-	Busy            = -32003
-	Conflict        = -32004
-	StorageError    = -32005
-	Canceled        = -32800
-	ResourceError   = -32006
+	ProtocolVersion   = 1
+	MaxFrameBytes     = 1024 * 1024
+	MaxInFlight       = 8
+	ParseError        = -32700
+	InvalidRequest    = -32600
+	MethodNotFound    = -32601
+	InvalidParams     = -32602
+	InternalError     = -32603
+	NotInitialized    = -32001
+	VersionMismatch   = -32002
+	Busy              = -32003
+	Conflict          = -32004
+	StorageError      = -32005
+	Canceled          = -32800
+	ResourceError     = -32006
+	RegistrationError = -32007
 )
 
 type RPCError struct {
@@ -247,6 +248,9 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 		timeout := 30 * time.Second
 		if request.Method == "runtime.download" {
 			timeout = 3 * time.Minute
+		}
+		if request.Method == "warp.register" {
+			timeout = 45 * time.Second
 		}
 		requestCtx, stop := context.WithTimeout(ctx, timeout)
 		active[id] = stop

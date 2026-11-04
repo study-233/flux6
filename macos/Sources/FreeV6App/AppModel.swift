@@ -19,6 +19,7 @@ typealias Page = DesktopPage
     @Published private(set) var terminating = false
     let business: BusinessModel
     let core: RuntimeModel
+    let warp: WarpModel
     private let session: BusinessSession
     private let defaults: UserDefaults
     private var observations: Set<AnyCancellable> = []
@@ -29,9 +30,11 @@ typealias Page = DesktopPage
         session = BusinessSession()
         business = BusinessModel(session: session)
         core = RuntimeModel(session: session)
+        warp = WarpModel(session: session)
         // Commands depend on nested models, including text edits and progress.
         business.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         core.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
+        warp.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         Task { await refreshService() }
         Task { await business.reload() }
         Task { await core.refresh() }
@@ -48,6 +51,8 @@ typealias Page = DesktopPage
         state.settingsChanged = business.hasChanges
         state.promptActive = promptActive
         state.terminating = terminating
+        state.credentialsBusy = warp.busy
+        state.credentialsPending = warp.hasPending
         return state
     }
 
@@ -110,7 +115,7 @@ typealias Page = DesktopPage
     }
 
     func manageService(_ action: ServiceInstallationAction) async {
-        guard !serviceBusy, !terminating else { return }
+        guard !serviceBusy, !warp.busy, !terminating else { return }
         serviceBusy = true; serviceState = .managing; error = nil
         serviceStatus = "正在等待管理员授权…"
         defer { serviceBusy = false }

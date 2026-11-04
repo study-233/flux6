@@ -25,7 +25,7 @@ final class DesktopCommandsTests: XCTestCase {
         var state = DesktopCommandState()
         state.settingsLoaded = true; state.settingsChanged = true
         for context in [CommandContext.application, .main(.overview), .main(.nodes), .main(.logs),
-                        .preferences(.general), .preferences(.core), .preferences(.service)] {
+                        .preferences(.general), .preferences(.account), .preferences(.core), .preferences(.service)] {
             XCTAssertFalse(state.availability(.saveConfiguration, in: context).enabled)
             XCTAssertFalse(state.availability(.reloadConfiguration, in: context).enabled)
         }
@@ -63,5 +63,17 @@ final class DesktopCommandsTests: XCTestCase {
         for command in commands { XCTAssertFalse(state.availability(command).enabled) }
         state.promptActive = false; state.terminating = true
         for command in commands { XCTAssertFalse(state.availability(command).enabled) }
+    }
+
+    func testQuitCannotDiscardPendingCredentialOrInterruptAuthorization() {
+        var state = DesktopCommandState()
+        state.service = .ready
+        state.credentialsBusy = true
+        XCTAssertFalse(state.availability(.quit).enabled)
+        state.credentialsBusy = false; state.credentialsPending = true
+        XCTAssertFalse(state.availability(.quit).enabled)
+        XCTAssertTrue(state.availability(.showMain).enabled)
+        state.credentialsPending = false
+        XCTAssertTrue(state.availability(.quit).enabled)
     }
 }

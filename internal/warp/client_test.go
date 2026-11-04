@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -51,5 +52,45 @@ func TestRegisterUsesRegistrationAndEnrollRequests(t *testing.T) {
 	}
 	if strings.TrimSpace(device.PrivateKey) == "" {
 		t.Fatal("private key should be present")
+	}
+}
+
+func TestRegistrationNeverFollowsRedirectsOrEchoesResponseSecrets(t *testing.T) {
+	var redirected atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { redirected.Add(1) }))
+	defer target.Close()
+	for _, status := range []int{307, 400, 500} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Location", target.URL)
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte("sensitive-token-and-key"))
+		}))
+		client := NewClient(server.Client())
+		client.BaseURL = server.URL
+		_, err := client.Register(context.Background(), "test")
+		server.Close()
+		if err == nil || strings.Contains(err.Error(), "sensitive-token-and-key") {
+			t.Fatal("upstream error was accepted or exposed")
+		}
+	}
+	if redirected.Load() != 0 {
+		t.Fatal("registration followed redirect")
+	}
+}
+
+func TestRegistrationRejectsOversizedResponseAndUnsafeAccountPath(t *testing.T) {
+	for _, body := range []string{strings.Repeat("x", (1<<20)+1), `{"id":"../../outside","token":"token"}`} {
+		var calls atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			_, _ = w.Write([]byte(body))
+		}))
+		client := NewClient(server.Client())
+		client.BaseURL = server.URL
+		_, err := client.Register(context.Background(), "test")
+		server.Close()
+		if err == nil || calls.Load() != 1 {
+			t.Fatal("unsafe account response accepted")
+		}
 	}
 }

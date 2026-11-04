@@ -104,6 +104,15 @@ public actor WorkerClient {
         return try validateRuntime(result)
     }
 
+    public func registerWarp(name: String, progress: @escaping @Sendable (WorkerProgress) -> Void) async throws -> WarpCredential {
+        struct Registration: Encodable { let name: String }
+        let handshake = try await connect()
+        guard handshake.capabilities.contains("warp.register") else { throw WorkerClientError.incompatible }
+        let result: WarpCredential = try await request("warp.register", params: Registration(name: name),
+                                                       timeout: 50_000_000_000, progress: progress)
+        return try result.validated()
+    }
+
     private func validateRuntime(_ result: RuntimePackageInfo) throws -> RuntimePackageInfo {
         guard result.platform == "darwin", result.architecture == Self.architecture,
               result.sha256.count == 64, result.binarySha256.count == 64,
@@ -156,7 +165,7 @@ public actor WorkerClient {
             guard method == "$/progress" else { return }
             let update = try JSONDecoder().decode(ProgressReply.self, from: data).params
             guard update.received >= 0, update.total >= -1, update.attempt >= 0, update.attempts >= update.attempt,
-                  update.attempts <= 16, ["checking", "downloading", "verifying"].contains(update.phase) else {
+                  update.attempts <= 16, ["checking", "downloading", "verifying", "registering", "enrolling"].contains(update.phase) else {
                 throw WorkerClientError.invalidResponse
             }
             guard var item = pending[update.requestId], update.sequence > item.lastSequence else { return }

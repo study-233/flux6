@@ -22,7 +22,7 @@ public enum DesktopPage: String, CaseIterable, Identifiable, Sendable {
 }
 
 public enum PreferencesPage: String, Sendable {
-    case general, rules, core, service
+    case general, rules, account, core, service
 }
 
 public enum CommandContext: Equatable, Sendable {
@@ -122,6 +122,8 @@ public struct DesktopCommandState: Sendable {
     public var settingsChanged = false
     public var promptActive = false
     public var terminating = false
+    public var credentialsBusy = false
+    public var credentialsPending = false
     public init() {}
 
     public var primaryCommand: DesktopCommand {
@@ -155,6 +157,8 @@ public struct DesktopCommandState: Sendable {
             }
             return .available
         case .quit:
+            if credentialsBusy { return .unavailable("请等待凭据操作结束；系统授权可在弹窗中取消") }
+            if credentialsPending { return .unavailable("新凭据尚未保存，请先保存或放弃本次注册结果") }
             return service.busy || settingsBusy ? .unavailable("请等待配置读写或网络服务操作结束") : .available
         case .connect:
             return .unavailable("真实网络连接与恢复功能尚未接入")

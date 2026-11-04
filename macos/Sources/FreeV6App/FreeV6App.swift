@@ -95,6 +95,7 @@ struct MainView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             ServiceOverviewView(model: model)
+                            WarpAccountView(model: model.warp).disabled(model.serviceBusy)
                             RuntimePreparationView(model: model.core)
                         }
                     }
@@ -127,7 +128,7 @@ private struct ServiceOverviewView: View {
                 HStack {
                     Button(model.serviceInstalled ? "修复 / 重新登记服务…" : "安装网络服务…") {
                         Task { await model.manageService(.install) }
-                    }.disabled(model.serviceBusy)
+                    }.disabled(model.serviceBusy || model.warp.busy)
                     DesktopCommandButton(.refreshService, model: model)
                     if model.serviceBusy { ProgressView().controlSize(.small) }
                 }
@@ -154,13 +155,14 @@ struct SettingsView: View {
             }
         }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
         BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)
+        ScrollView { WarpAccountView(model: model.warp).padding(24).disabled(model.serviceBusy) }.tabItem { Label("WARP", systemImage: "key") }.tag(PreferencesPage.account)
         ScrollView { RuntimePreparationView(model: model.core).padding(24) }.tabItem { Label("核心", systemImage: "shippingbox") }.tag(PreferencesPage.core)
         Form {
             Section("网络服务") {
                 Text(model.serviceStatus)
-                Button("恢复未完成的安装…") { Task { await model.manageService(.recover) } }.disabled(model.serviceBusy)
+                Button("恢复未完成的安装…") { Task { await model.manageService(.recover) } }.disabled(model.serviceBusy || model.warp.busy)
                 Button("卸载网络服务…") { confirmUninstall = true }
-                    .disabled(model.serviceBusy || !model.serviceInstalled)
+                    .disabled(model.serviceBusy || model.warp.busy || !model.serviceInstalled)
                 if let error = model.error { Text(error).font(.callout).foregroundStyle(.red) }
             }
         }.padding(24).tabItem { Label("网络服务", systemImage: "network") }.tag(PreferencesPage.service)
