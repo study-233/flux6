@@ -11,7 +11,7 @@ final class ServiceSession: NSObject, NetworkServiceProtocol {
     func handshake(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
         do {
             let request = try ServiceMessages.decodeHandshake(data)
-            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p3-resources", privileged: geteuid() == 0)
+            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p3-configuration", privileged: geteuid() == 0)
             reply(try JSONEncoder().encode(response), nil)
         } catch { reply(nil, error.localizedDescription) }
     }
@@ -30,6 +30,11 @@ final class ServiceSession: NSObject, NetworkServiceProtocol {
             let installed = try resources.install(id: request.resourceID!, source: source, clientUID: clientUID)
             reply(try JSONEncoder().encode(ResourceReply(requestID: request.requestID, resources: [installed])), nil)
         } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func checkConfiguration(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
+        do { reply(try JSONEncoder().encode(resources.checkConfiguration(data, clientUID: clientUID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
     }
 }
 

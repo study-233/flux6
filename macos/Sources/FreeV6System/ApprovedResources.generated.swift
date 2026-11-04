@@ -3,10 +3,10 @@ extension ApprovedResourceCatalog {
     static let pinned: [ApprovedResource] = [
         .init(id: "mihomo-darwin-arm64-v1.19.31", filename: "mihomo-darwin-arm64-v1.19.31",
               sha256: "fae1f37e28ee53fcf5be7a8bb121099db1fe442e44205734ed49c62579364090", size: nil,
-              archiveSHA256: "d131f44b3deb2a8356f7ac75048ad67a10d53243323951c4f3cda7b672922963", architecture: "arm64"),
+              archiveSHA256: "d131f44b3deb2a8356f7ac75048ad67a10d53243323951c4f3cda7b672922963", architecture: "arm64", archiveName: "mihomo-darwin-arm64-v1.19.31.gz"),
         .init(id: "mihomo-darwin-amd64-v1.19.31", filename: "mihomo-darwin-amd64-v1.19.31",
               sha256: "a039858aad20b9a253dec3449e20b3008781f96107674061a344547f572df996", size: nil,
-              archiveSHA256: "b914c5a1713807202f3319eacef8c33afecb0adc5cf232d7b7ba3713186fe2ba", architecture: "amd64"),
+              archiveSHA256: "b914c5a1713807202f3319eacef8c33afecb0adc5cf232d7b7ba3713186fe2ba", architecture: "amd64", archiveName: "mihomo-darwin-amd64-v1-v1.19.31.gz"),
         .init(id: "geodata-fb6bd25ca61dd918d36b0f61b4bad67dfc278bcf/GeoSite.dat", filename: "geodata-fb6bd25ca61dd918d36b0f61b4bad67dfc278bcf-GeoSite.dat",
               sha256: "da89d85fa3b6fc28f3878432f28e78c1e5bb9f603449fa2f0ec2deaddbb0b733", size: 4355984,
               archiveSHA256: nil, architecture: nil),

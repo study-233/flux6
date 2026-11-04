@@ -32,7 +32,7 @@ App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
-核心缓存：`~/Library/Caches/dev.freev6.desktop/runtime/<archive-sha256>/<archive-name>`。平台资产统一从编译时嵌入的清单选择，压缩包与解压后的二进制均校验固定 SHA256、大小和架构。worker 只保留安装包；服务已有独立复验与安装接口，App 的资源交接尚待接入，不能把“核心安装包已校验”当作“代理已运行”。主界面与设置共用一个 worker，避免竞争数据目录锁。
+核心缓存：`~/Library/Caches/dev.freev6.desktop/runtime/<archive-sha256>/<archive-name>`。平台资产统一从编译时嵌入的清单选择，压缩包与解压后的二进制均校验固定 SHA256、大小和架构。worker 只保留安装包；App 在服务就绪后的配置检查中交接资源，服务再独立复验与安装，不能把“核心安装包已校验”当作“代理已运行”。主界面与设置共用一个 worker，避免竞争数据目录锁。
 
 以下命令完成 Go 业务/协议竞态测试、真实 Swift→Go 集成测试，以及独立 worker 进程探针：
 
@@ -88,9 +88,9 @@ FREEV6_TEST_PRIVATE_KEYCHAIN=1 bash scripts/macos/swift.sh test --filter WarpCre
 
 保存规则、检查已保存凭据并准备核心/规则数据后，可从概览页、工具栏或“连接”菜单执行“检查连接配置”。该操作按需访问 Keychain，将四项隧道材料经私有管道交给 worker；账户 token 和设备 ID 不参与配置生成。准备时防止替换/删除凭据和保存其他设置，完成前重新核对设置与凭据 revision。
 
-worker 只生成节点、分组、规则、规则提供者和模式。新 `FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。根服务将自行提供系统网络配置；目前尚未连接这个启动接口，检查成功不能视为代理运行。当前输入仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
+worker 只生成节点、分组、规则、规则提供者和模式。`FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。服务就绪时，App 交接缺少的固定资源并提交配置，服务独立复验后在内存中组装系统字段，返回仅含版本和统计的摘要。服务未就绪时只完成本机检查，两种结果在界面中区分。检查成功不能视为代理运行；当前仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
 
-UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。共享的 `warp-business-configuration.json` 含合成公开密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 会把同一业务生成结果与测试用系统字段组合，再供真实核心 `-t` 检查；它不代表 root 服务配置组装已经实现。
+UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。交接期间保持凭据互斥，并在服务完成后重新核对 worker 设置与 Keychain revision。共享的 `warp-business-configuration.json` 含公开合成密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 验证 Go 侧生成配置；下述独立服务探针另用 Swift 服务组装器生成完整配置并执行核心 `-t`。产品的配置检查方法本身不会启动核心或写会话文件。
 
 ## 服务安装与事务
 
@@ -140,7 +140,7 @@ python3 scripts/macos/probe-service.py
 
 在正常登录用户环境运行，不能以 root 运行。脚本构建 Debug 服务和探针，在 `build/service-probes/<UUID>` 内复制并启用 Hardened Runtime，然后注册一个随机名称的用户级 launchd job。验证双向 CDHash、UID 绑定、重启、客户端摘要更换后的重新登记与旧摘要撤销，最后移除该 job。只有可信调用在拒绝测试前后均成功，才记录拒绝通过。结果保存在该目录的 `result.json`。
 
-服务读取权限受控的登记文件，提供版本握手、资源状态与固定资源安装，详见 [XPC v2 协议](../shared/protocol/service-v2.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
+服务读取权限受控的登记文件，提供版本握手、资源状态、固定资源安装和配置检查，详见 [XPC v3 协议](../shared/protocol/service-v3.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
 
 使用本地官方文件验证跨进程资源交接：
 
@@ -150,7 +150,15 @@ python3 scripts/macos/probe-service.py \
   --geodata-fixtures build/macos-geodata
 ```
 
-探针按服务内置清单安装当前架构核心和三份数据，检查权限、错误摘要不覆盖旧文件、未知资源和未登记客户端被拒绝，并在服务重启后复验资源和清理中断暂存。目录参数只用于普通用户测试宿主，不属于生产 XPC 协议。文件需先通过前述下载探针准备；没有文件时明确失败，不静默跳过。
+探针使用 App 的交接逻辑安装当前架构核心和三份数据，检查权限、错误摘要不覆盖旧文件、未知资源和未登记客户端被拒绝，并在服务重启后复验资源和清理中断暂存。还检查缺资源与系统字段注入拒绝、纯摘要回复、资源复用及完整服务配置的真实核心 `-t`。目录参数只用于普通用户测试宿主，不属于生产 XPC 协议。文件需先通过前述下载探针准备；没有文件时明确失败，不静默跳过。
+
+仅验证核心的 Unix 控制接口：
+
+```sh
+python3 scripts/macos/probe-controller.py --core build/macos-probes/mihomo-darwin-arm64
+```
+
+此探针使用普通用户、私有临时目录和空的直连配置，关闭 TUN、DNS、代理及所有 IP listener，验证 100 字节路径、版本接口与正常退出回收。固定核心的 Unix listener 忽略 secret 且 socket 为 0666，生产实现必须依靠预先创建并验证的 root/0700 父目录隔离访问；该探针不证明跨用户隔离或 TUN 运行已经通过。
 
 ## 原生更新验证
 

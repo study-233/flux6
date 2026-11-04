@@ -68,6 +68,11 @@ public enum ServiceSetupError: Error, LocalizedError {
 
 public enum InstalledServiceStatus {
     public static func check() throws -> HandshakeReply? {
+        guard let identity = try identity() else { return nil }
+        return try ServiceClient.handshake(identity: identity)
+    }
+
+    public static func identity() throws -> CodeIdentity? {
         let paths = [ServicePaths.executable, ServicePaths.registration, ServicePaths.launchDaemon,
                      "/Library/PrivilegedHelperTools/dev.freev6.service-installer"]
         let present = paths.map { FileManager.default.fileExists(atPath: $0) }
@@ -75,6 +80,6 @@ public enum InstalledServiceStatus {
         guard present.allSatisfy({ $0 }) else { throw InstallationError.inconsistentInstallation }
         let identity = try CodeIdentity.protectedFile(at: URL(fileURLWithPath: ServicePaths.executable), identifier: ServiceProtocolVersion.machService)
         _ = try RegistrationFile.load(path: ServicePaths.registration, owner: 0, service: identity)
-        return try ServiceClient.handshake(identity: identity)
+        return identity
     }
 }

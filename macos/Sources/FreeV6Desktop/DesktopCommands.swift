@@ -128,6 +128,7 @@ public struct DesktopCommandState: Sendable {
     public var credentialsBusy = false
     public var credentialsPending = false
     public var configurationReady = false
+    public var configurationBusy = false
     public init() {}
 
     public var primaryCommand: DesktopCommand {
@@ -141,6 +142,14 @@ public struct DesktopCommandState: Sendable {
     public func availability(_ command: DesktopCommand, in context: CommandContext = .application) -> CommandAvailability {
         if terminating { return .unavailable("正在退出并回收业务进程…") }
         if promptActive { return .unavailable("请先处理当前确认窗口") }
+        if configurationBusy {
+            switch command {
+            case .configureService, .refreshService, .checkCore, .downloadCore, .prepareConfiguration,
+                 .saveConfiguration, .reloadConfiguration, .quit:
+                return .unavailable("连接配置检查正在进行，请等待完成")
+            default: break
+            }
+        }
         switch command {
         case .showMain, .showPage, .showCore, .help:
             return .available

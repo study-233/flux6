@@ -1,6 +1,24 @@
 import Foundation
 
 public enum ServiceClient {
+    public static func checkConfiguration(_ request: ConfigurationCheckRequest, identity: CodeIdentity,
+                                          name: String = ServiceProtocolVersion.machService,
+                                          privileged: Bool = true) throws -> ConfigurationCheckReply {
+        let payload = try JSONEncoder().encode(request)
+        guard payload.count <= ServiceMessages.maximumConfigurationBytes else { throw ServiceMessageError.oversized }
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged) { proxy, reply in
+            proxy.checkConfiguration(payload, reply: reply)
+        }
+        guard data.count <= ServiceMessages.maximumHandshakeBytes else { throw ServiceMessageError.oversized }
+        let response = try JSONDecoder().decode(ConfigurationCheckReply.self, from: data)
+        guard response.protocolVersion == ServiceProtocolVersion.current, response.requestID == request.requestID,
+              response.policyVersion == ServiceConfigurationAssembler.policyVersion,
+              response.settingsRevision == request.settingsRevision, response.credentialRevision == request.credentialRevision,
+              response.mode == request.configuration.mode, response.proxyCount == request.configuration.proxyCount,
+              response.ruleCount == request.configuration.ruleCount else { throw ServiceClientError.invalidReply }
+        return response
+    }
+
     public static func resources(identity: CodeIdentity, name: String = ServiceProtocolVersion.machService,
                                  privileged: Bool = true) throws -> [ResourceAvailability] {
         let request = ResourceRequest()

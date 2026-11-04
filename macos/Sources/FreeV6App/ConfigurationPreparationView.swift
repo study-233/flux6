@@ -10,7 +10,7 @@ struct ConfigurationPreparationView: View {
                 } else if let result = model.configurationSummary {
                     if result.settingsRevision == model.business.snapshot?.revision,
                        result.credentialRevision == model.warp.summary?.revision, !model.business.hasChanges {
-                        Text("连接配置已生成").font(.headline)
+                        Text(model.configurationCheckedByService ? "配置已通过服务复验" : "本机配置已检查").font(.headline)
                         Text("\(result.proxyCount) 个接入点 · \(result.ruleCount) 条规则").font(.callout)
                     } else { Text("设置或凭据已变化，需要重新检查。") }
                 }
@@ -19,7 +19,9 @@ struct ConfigurationPreparationView: View {
                     Text(reason).font(.callout).foregroundStyle(.secondary)
                 }
                 if let error = model.configurationError { Text(error).font(.callout).foregroundStyle(.red) }
-                Text("按需读取钥匙串并检查配置结构，不会开启代理。连接与网络恢复功能仍在接入中。")
+                Text(model.serviceState == .ready
+                     ? "按需读取钥匙串，将缺少的核心与规则数据交给服务复验安装，再检查业务配置与系统字段。此操作不会开启代理。"
+                     : "按需读取钥匙串并检查本机配置结构。网络服务就绪后再次检查，可完成资源交接与服务复验。此操作不会开启代理。")
                     .font(.callout).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
         }

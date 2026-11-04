@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ServiceProtocolVersion {
-    public static let current = 2
+    public static let current = 3
     public static let machService = "dev.freev6.network-service"
 }
 
@@ -11,6 +11,7 @@ public enum ServiceProtocolVersion {
     func handshake(_ request: Data, reply: @escaping (Data?, String?) -> Void)
     func resourceStatus(_ request: Data, reply: @escaping (Data?, String?) -> Void)
     func installApprovedResource(_ request: Data, source: FileHandle, reply: @escaping (Data?, String?) -> Void)
+    func checkConfiguration(_ request: Data, reply: @escaping (Data?, String?) -> Void)
 }
 
 public struct ResourceRequest: Codable {

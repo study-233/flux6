@@ -123,6 +123,51 @@ def main():
             assets.append((group + "/" + a["name"], args.geodata_fixtures / a["name"], group + "-" + a["name"], a["sha256"]))
         if any(a["available"] for a in resources()):
             raise RuntimeError("Fresh service unexpectedly has resources")
+        request = {
+            "protocolVersion": 3, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
+            "credentialRevision": str(uuid.uuid4()), "runtimeID": core_id,
+            "geodataID": "geodata-" + geo["revision"],
+            "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text()),
+        }
+        request_file = work / "configuration-request.json"
+        request_file.write_text(json.dumps(request))
+        absent = run([probe, "check-configuration", label, service_hash, request_file], check=False)
+        if absent.returncode != 1 or "固定摘要" not in absent.stderr:
+            raise RuntimeError("Service accepted configuration before its resources were installed")
+        cache = work / "client-cache"
+        cached_core = cache / "runtime" / core["sha256"] / core["archive"]
+        cached_core.parent.mkdir(parents=True, mode=0o700)
+        shutil.copyfile(args.runtime_fixtures / core["archive"], cached_core)
+        cached_core.chmod(0o600)
+        cached_geo = cache / "geodata" / geo["revision"]
+        cached_geo.mkdir(parents=True, mode=0o700)
+        for a in geo["assets"]:
+            destination = cached_geo / a["name"]
+            shutil.copyfile(args.geodata_fixtures / a["name"], destination)
+            destination.chmod(0o600)
+        prepared = json.loads(run([probe, "prepare-configuration", label, service_hash, cache, request_file], timeout=150).stdout)
+        expected_keys = {"protocolVersion", "requestID", "policyVersion", "settingsRevision", "credentialRevision", "mode", "proxyCount", "ruleCount"}
+        if set(prepared) != expected_keys or prepared["requestID"].lower() != request["requestID"].lower() or prepared["proxyCount"] != 28:
+            raise RuntimeError("Unexpected configuration acknowledgement")
+        original = json.loads(json.dumps(request))
+        for key, value in [("external-controller", "0.0.0.0:9090"), ("tun", {"enable": False}), ("secret", "rejected-secret-marker")]:
+            bad = json.loads(json.dumps(original)); bad["configuration"][key] = value
+            request_file.write_text(json.dumps(bad))
+            rejected = run([probe, "check-configuration", label, service_hash, request_file], check=False)
+            if rejected.returncode != 1 or "字段无效" not in rejected.stderr or "rejected-secret-marker" in rejected.stderr:
+                raise RuntimeError("System configuration injection not rejected safely")
+        request_file.write_text(json.dumps(original))
+        result = json.loads(run([probe, "check-configuration", label, service_hash, request_file]).stdout)
+        if result["settingsRevision"] != original["settingsRevision"]:
+            raise RuntimeError("Configuration revision mismatch")
+        core_config = work / "core-config"
+        core_config.mkdir(mode=0o700)
+        run([probe, "assemble-configuration", request_file, core_config / "config.json"])
+        for a in geo["assets"]:
+            shutil.copyfile(work / "resources" / ("geodata-" + geo["revision"] + "-" + a["name"]), core_config / a["name"])
+        check = run([work / "resources" / core_id, "-t", "-d", core_config, "-f", core_config / "config.json"])
+        (work / "core-check.log").write_text(check.stdout + check.stderr)
+        case("App resource transfer and service configuration validation succeed; system-field injection rejected; assembled policy passes real core -t")
         for resource_id, source, destination, digest in assets:
             incoming = work / "incoming"
             shutil.copyfile(source, incoming)
@@ -153,6 +198,12 @@ def main():
         if any(p.name.startswith(".staging-") for p in (work / "resources").iterdir()):
             raise RuntimeError("Resource staging files remained")
         source.unlink()
+        stored_names = {p.name for p in (work / "resources").iterdir()}
+        if stored_names != {a[2] for a in assets} | {"resources.lock"}:
+            raise RuntimeError("Unexpected file written by service configuration check")
+        # A ready service can reuse its verified assets after user cache removal.
+        shutil.rmtree(cache)
+        run([probe, "prepare-configuration", label, service_hash, cache, request_file], timeout=45)
         case("real XPC file descriptors install pinned core/geodata; corrupt, unknown and unregistered requests rejected")
 
     installed = False

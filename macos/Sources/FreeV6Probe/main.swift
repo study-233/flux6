@@ -1,8 +1,10 @@
 import Foundation
 import Security
 import FreeV6System
+import FreeV6Configuration
 
 final class ProbeService: NSObject, NetworkServiceProtocol {
+    func checkConfiguration(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func resourceStatus(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func installApprovedResource(_ request: Data, source: FileHandle, reply: @escaping (Data?, String?) -> Void) {
         try? source.close(); reply(nil, "Handshake-only probe")
@@ -132,6 +134,43 @@ func probeResources(name: String, hash: String, install: (String, String)? = nil
     print(String(decoding: try JSONEncoder().encode(resources), as: UTF8.self))
 }
 
+func readConfigurationRequest(_ path: String) throws -> Data {
+    let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+    defer { try? handle.close() }
+    let data = try handle.read(upToCount: ServiceMessages.maximumConfigurationBytes + 1) ?? Data()
+    guard data.count <= ServiceMessages.maximumConfigurationBytes else { throw ServiceMessageError.oversized }
+    return data
+}
+
+func probeConfiguration(name: String, hash: String, path: String, cache: String? = nil) throws {
+    guard geteuid() != 0, name.hasPrefix("dev.freev6.probe."), name.utf8.count <= 128 else { throw ServiceMessageError.invalid }
+    let identity = try CodeIdentity(identifier: "probe-service", cdHash: hash)
+    let payload = try readConfigurationRequest(path)
+    if let cache {
+        let request = try ServiceMessages.decodeConfiguration(payload)
+        try ServiceResourceTransfer.prepare(cache: URL(fileURLWithPath: cache), runtimeID: request.runtimeID,
+                                            geodataID: request.geodataID, identity: identity, name: name, privileged: false)
+        let result = try ServiceClient.checkConfiguration(request, identity: identity, name: name, privileged: false)
+        print(String(decoding: try JSONEncoder().encode(result), as: UTF8.self))
+        return
+    }
+    // Send raw bytes for server-side rejection tests, without client decoding.
+    let connection = NSXPCConnection(machServiceName: name)
+    connection.setCodeSigningRequirement(identity.requirement)
+    connection.remoteObjectInterface = NSXPCInterface(with: NetworkServiceProtocol.self)
+    connection.resume()
+    defer { connection.invalidate() }
+    let completion = HandshakeCompletion()
+    guard let proxy = connection.remoteObjectProxyWithErrorHandler({ completion.complete(.failure($0)) }) as? NetworkServiceProtocol else {
+        throw ServiceClientError.unavailable
+    }
+    proxy.checkConfiguration(payload) { data, error in
+        if let data { completion.complete(.success(data)) }
+        else { completion.complete(.failure(ServiceClientError.rejected(error ?? "Missing response"))) }
+    }
+    print(String(decoding: try completion.wait(), as: UTF8.self))
+}
+
 func probeKeychain() throws {
     let account = UUID().uuidString
     let query: [String: Any] = [
@@ -176,6 +215,16 @@ do {
         try probeResources(name: arguments[1], hash: arguments[2])
     case "install-resource" where arguments.count == 5:
         try probeResources(name: arguments[1], hash: arguments[2], install: (arguments[3], arguments[4]))
+    case "check-configuration" where arguments.count == 4:
+        try probeConfiguration(name: arguments[1], hash: arguments[2], path: arguments[3])
+    case "prepare-configuration" where arguments.count == 5:
+        try probeConfiguration(name: arguments[1], hash: arguments[2], path: arguments[4], cache: arguments[3])
+    case "assemble-configuration" where arguments.count == 3:
+        guard geteuid() != 0 else { throw ServiceMessageError.invalid }
+        let request = try ServiceMessages.decodeConfiguration(readConfigurationRequest(arguments[1]))
+        let assembled = try ServiceConfigurationAssembler.assemble(request.configuration, sessionID: UUID())
+        try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
+        print("PASS: service policy assembled for a local configuration probe; no network changes")
     case "payload" where arguments.count == 4:
         guard geteuid() != 0 else { throw InstallationError.invalidPayload }
         let app = URL(fileURLWithPath: arguments[1])

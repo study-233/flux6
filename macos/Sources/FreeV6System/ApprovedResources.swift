@@ -9,6 +9,7 @@ struct ApprovedResource {
     let size: Int?
     let archiveSHA256: String?
     let architecture: String?
+    var archiveName: String? = nil
     var limit: Int { size ?? ApprovedResourceCatalog.maximumBytes }
     var mode: mode_t { architecture == nil ? 0o400 : 0o500 }
 }
@@ -30,6 +31,13 @@ enum ApprovedResourceCatalog {
     static func asset(_ id: String) throws -> ApprovedResource {
         guard let asset = native.first(where: { $0.id == id }) else { throw ResourceStoreError.unapproved }
         return asset
+    }
+    static func requirePair(runtimeID: String, geodataID: String) throws {
+        let geodata = native.filter { $0.architecture == nil }
+        guard native.first(where: { $0.architecture != nil })?.id == runtimeID,
+              geodata.count == 3, geodata.allSatisfy({ $0.id.hasPrefix(geodataID + "/") }) else {
+            throw ResourceStoreError.unapproved
+        }
     }
 }
 

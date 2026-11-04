@@ -95,7 +95,7 @@ public struct WorkerRemoteError: Error, Decodable, LocalizedError, Sendable {
 }
 
 public enum WorkerClientError: Error, LocalizedError, Sendable, Equatable {
-    case notAvailable, invalidFrame, invalidResponse, disconnected, timeout, busy, incompatible
+    case notAvailable, invalidFrame, invalidResponse, disconnected, timeout, busy, incompatible, staleConfiguration
     public var errorDescription: String? {
         switch self {
         case .notAvailable: return "应用内的业务组件不可用，请重新构建或安装完整应用。"
@@ -104,6 +104,7 @@ public enum WorkerClientError: Error, LocalizedError, Sendable, Equatable {
         case .timeout: return "业务组件响应超时。请重新载入确认保存结果。"
         case .busy: return "业务组件正在处理其他操作，请稍后重试。"
         case .incompatible: return "应用与业务组件的协议版本不兼容，请重新安装完整应用。"
+        case .staleConfiguration: return "代理规则已变化，请重新检查连接配置。"
         }
     }
 }

@@ -96,8 +96,8 @@ struct MainView: View {
                         VStack(alignment: .leading, spacing: 20) {
                             ServiceOverviewView(model: model)
                             WarpAccountView(model: model.warp).disabled(model.serviceBusy)
-                            RuntimePreparationView(model: model.core)
-                            GeodataPreparationView(model: model.geodata)
+                            RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
+                            GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
                             ConfigurationPreparationView(model: model)
                         }
                     }
@@ -125,7 +125,7 @@ private struct ServiceOverviewView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 Label(model.serviceStatus, systemImage: "wrench.and.screwdriver").font(.headline)
-                Text("网络服务负责后续的 TUN 与网络恢复。当前版本只验证服务安装和身份，连接功能仍在开发。")
+                Text("网络服务负责后续的 TUN 与网络恢复。当前支持服务身份、资源与配置检查，连接功能仍在开发。")
                     .foregroundStyle(.secondary)
                 HStack {
                     Button(model.serviceInstalled ? "修复 / 重新登记服务…" : "安装网络服务…") {
@@ -160,8 +160,8 @@ struct SettingsView: View {
         ScrollView { WarpAccountView(model: model.warp).padding(24).disabled(model.serviceBusy) }.tabItem { Label("WARP", systemImage: "key") }.tag(PreferencesPage.account)
         ScrollView {
             VStack(spacing: 20) {
-                RuntimePreparationView(model: model.core)
-                GeodataPreparationView(model: model.geodata)
+                RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
+                GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
             }.padding(24)
         }.tabItem { Label("核心与数据", systemImage: "shippingbox") }.tag(PreferencesPage.core)
         Form {

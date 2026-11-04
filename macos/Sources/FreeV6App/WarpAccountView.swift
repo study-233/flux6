@@ -24,15 +24,19 @@ import FreeV6Business
         }
     }
 
-    func prepareConfiguration(settings: SettingsSnapshot, runtimeId: String, geodataId: String) async throws -> PreparedConfiguration {
+    func withPreparedConfiguration<T: Sendable>(settings: SettingsSnapshot, runtimeId: String, geodataId: String,
+                                                perform: @escaping @Sendable (PreparedConfiguration) async throws -> T) async throws -> T {
         guard !busy, !hasPending, let revision = summary?.revision else { throw RegistrationWorkflowError.busy }
         busy = true; error = nil; status = "正在读取连接所需凭据…"
         defer { busy = false }
         do {
             let worker = try session.worker()
             let result = try await workflow.withSavedTunnel(revision: revision) { tunnel in
-                try await worker.prepareConfiguration(settings: settings, credentialRevision: revision,
+                let prepared = try await worker.prepareConfiguration(settings: settings, credentialRevision: revision,
                     tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId)
+                let result = try await perform(prepared)
+                guard try await worker.settings().revision == settings.revision else { throw WorkerClientError.staleConfiguration }
+                return result
             }
             status = "WARP 凭据已保存"
             return result

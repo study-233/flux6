@@ -2,6 +2,20 @@ import XCTest
 @testable import FreeV6Desktop
 
 final class DesktopCommandsTests: XCTestCase {
+    func testConfigurationHandoffBlocksConflictingCommandsButKeepsNavigation() {
+        var state = DesktopCommandState()
+        state.service = .ready; state.settingsLoaded = true; state.settingsChanged = true
+        state.configurationReady = true; state.configurationBusy = true
+        for command: DesktopCommand in [.prepareConfiguration, .configureService, .refreshService, .checkCore,
+                                         .downloadCore, .saveConfiguration, .reloadConfiguration, .quit] {
+            XCTAssertFalse(state.availability(command, in: .main(.configuration)).enabled)
+        }
+        for command: DesktopCommand in [.showMain, .showPage(.overview), .help] {
+            XCTAssertTrue(state.availability(command).enabled)
+        }
+        state.configurationBusy = false
+        XCTAssertTrue(state.availability(.prepareConfiguration).enabled)
+    }
     func testServiceHandshakeAndCoreCacheNeverEnableNetworkCommands() {
         var state = DesktopCommandState()
         for service in [DesktopServiceState.checking, .missing, .ready, .managing, .needsRepair] {

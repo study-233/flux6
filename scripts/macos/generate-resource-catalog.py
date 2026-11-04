@@ -20,7 +20,7 @@ def render():
         resource_id = f"mihomo-darwin-{asset['arch']}-{runtime['version']}"
         lines.append(f"        .init(id: {quote(resource_id)}, filename: {quote(resource_id)},")
         lines.append(f"              sha256: {quote(asset['binarySha256'])}, size: nil,")
-        lines.append(f"              archiveSHA256: {quote(asset['sha256'])}, architecture: {quote(asset['arch'])}),")
+        lines.append(f"              archiveSHA256: {quote(asset['sha256'])}, architecture: {quote(asset['arch'])}, archiveName: {quote(asset['archive'])}),")
     group = "geodata-" + geodata["revision"]
     for asset in geodata["assets"]:
         lines.append(f"        .init(id: {quote(group + '/' + asset['name'])}, filename: {quote(group + '-' + asset['name'])},")

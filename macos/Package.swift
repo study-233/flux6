@@ -18,7 +18,7 @@ let package = Package(
         .library(name: "FreeV6System", targets: ["FreeV6System"]),
     ],
     targets: [
-        .target(name: "FreeV6System"),
+        .target(name: "FreeV6System", dependencies: ["FreeV6Configuration"]),
         .target(name: "FreeV6Configuration"),
         .target(name: "FreeV6Business", dependencies: ["FreeV6Configuration"]),
         .target(name: "FreeV6Desktop"),

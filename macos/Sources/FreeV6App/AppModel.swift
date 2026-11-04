@@ -21,6 +21,7 @@ typealias Page = DesktopPage
     @Published private(set) var configurationBusy = false
     @Published private(set) var configurationSummary: ConfigurationSummary?
     @Published private(set) var configurationError: String?
+    @Published private(set) var configurationCheckedByService = false
     let business: BusinessModel
     let core: RuntimeModel
     let geodata: GeodataModel
@@ -51,7 +52,7 @@ typealias Page = DesktopPage
     var commandState: DesktopCommandState {
         var state = DesktopCommandState()
         state.service = serviceState
-        state.coreBusy = core.busy
+        state.coreBusy = core.busy || configurationBusy
         state.coreAvailable = core.package?.available == true
         state.coreCancelable = core.canCancel
         state.settingsBusy = business.busy || configurationBusy
@@ -62,11 +63,12 @@ typealias Page = DesktopPage
         state.credentialsBusy = warp.busy || configurationBusy
         state.credentialsPending = warp.hasPending
         state.configurationReady = configurationPrerequisite == nil
+        state.configurationBusy = configurationBusy
         return state
     }
 
     var configurationPrerequisite: String? {
-        if configurationBusy || warp.busy || business.busy || serviceBusy { return "请等待当前操作结束。" }
+        if configurationBusy || warp.busy || business.busy || serviceBusy || core.busy || geodata.busy { return "请等待当前操作结束。" }
         if business.snapshot == nil { return "请先载入代理规则。" }
         if business.hasChanges { return "请先保存代理规则，再检查连接配置。" }
         if warp.hasPending || warp.summary == nil { return "请先检查或注册已保存的 WARP 凭据。" }
@@ -78,14 +80,29 @@ typealias Page = DesktopPage
     func prepareConfiguration() async {
         guard !terminating, configurationPrerequisite == nil, let settings = business.snapshot,
               let runtime = core.package, let data = geodata.package else { return }
-        configurationBusy = true; configurationError = nil; configurationSummary = nil
+        configurationBusy = true; configurationError = nil; configurationSummary = nil; configurationCheckedByService = false
+        let useService = serviceState == .ready
         defer { configurationBusy = false }
         do {
-            let prepared = try await warp.prepareConfiguration(settings: settings, runtimeId: runtime.resourceId, geodataId: data.resourceId)
-            guard business.snapshot?.revision == settings.revision, !business.hasChanges else { throw CredentialError.conflict }
-            // Do not publish or retain the secret-bearing document in UI state.
-            // The future start coordinator will pass it directly to the service.
-            configurationSummary = ConfigurationSummary(prepared)
+            let cache = try WorkerLocation.application().cache
+            let summary = try await warp.withPreparedConfiguration(settings: settings, runtimeId: runtime.resourceId,
+                                                                   geodataId: data.resourceId) { prepared in
+                if useService {
+                    try await Task.detached {
+                        guard let identity = try InstalledServiceStatus.identity() else { throw ServiceClientError.unavailable }
+                        try ServiceResourceTransfer.prepare(cache: cache, runtimeID: prepared.runtimeId,
+                                                            geodataID: prepared.geodataId, identity: identity)
+                        let request = ConfigurationCheckRequest(runtimeID: prepared.runtimeId, geodataID: prepared.geodataId,
+                            settingsRevision: prepared.settingsRevision, credentialRevision: prepared.credentialRevision,
+                            configuration: prepared.configuration)
+                        _ = try ServiceClient.checkConfiguration(request, identity: identity)
+                    }.value
+                }
+                return ConfigurationSummary(prepared)
+            }
+            guard business.snapshot?.revision == settings.revision, !business.hasChanges else { throw WorkerClientError.staleConfiguration }
+            configurationSummary = summary
+            configurationCheckedByService = useService
         } catch { configurationError = error.localizedDescription }
     }
 
@@ -129,8 +146,8 @@ typealias Page = DesktopPage
     }
 
     func refreshService() async {
-        guard !serviceBusy, !terminating else { return }
-        serviceBusy = true; serviceState = .checking; error = nil
+        guard !serviceBusy, !configurationBusy, !terminating else { return }
+        serviceBusy = true; serviceState = .checking; error = nil; configurationCheckedByService = false
         serviceStatus = "正在检查网络服务…"
         defer { serviceBusy = false }
         await readServiceStatus()
@@ -152,7 +169,7 @@ typealias Page = DesktopPage
 
     func manageService(_ action: ServiceInstallationAction) async {
         guard !serviceBusy, !warp.busy, !configurationBusy, !terminating else { return }
-        serviceBusy = true; serviceState = .managing; error = nil
+        serviceBusy = true; serviceState = .managing; error = nil; configurationCheckedByService = false
         serviceStatus = "正在等待管理员授权…"
         defer { serviceBusy = false }
         do {

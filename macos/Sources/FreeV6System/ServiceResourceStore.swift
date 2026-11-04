@@ -55,6 +55,21 @@ public final class ServiceResourceStore {
     public func status() throws -> [ResourceAvailability] {
         guard lock.try() else { throw ResourceStoreError.busy }
         defer { lock.unlock() }
+        return try statusUnlocked()
+    }
+
+    public func checkConfiguration(_ data: Data, clientUID: uid_t) throws -> ConfigurationCheckReply {
+        guard clientUID != 0 else { throw ResourceStoreError.invalidSource }
+        guard lock.try() else { throw ResourceStoreError.busy }
+        defer { lock.unlock() }
+        let request = try ServiceMessages.decodeConfiguration(data)
+        guard try statusUnlocked().allSatisfy(\.available) else { throw ResourceStoreError.integrity }
+        _ = try ServiceConfigurationAssembler.assemble(request.configuration, sessionID: UUID())
+        // No private key, socket path, random secret, or assembled config escapes.
+        return ConfigurationCheckReply(request)
+    }
+
+    private func statusUnlocked() throws -> [ResourceAvailability] {
         let deadline = ResourceIO.deadline()
         return try ApprovedResourceCatalog.native.map { asset in
             try ResourceIO.checkDeadline(deadline)
