@@ -41,6 +41,13 @@ cp "$binary_dir/freev6-service-installer" "$bundle/Contents/Helpers/freev6-servi
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product FreeV6
 cp "$binary_dir/FreeV6" "$bundle/Contents/MacOS/FreeV6"
 cp "$project_root/macos/Resources/Info.plist" "$bundle/Contents/Info.plist"
+notices="$bundle/Contents/Resources/Notices"
+mkdir -p "$notices"
+go_root="$("$go_bin" env GOROOT)"
+cp "$go_root/LICENSE" "$notices/Go-LICENSE.txt"
+cp "$project_root/LICENSE" "$notices/FreeV6-LICENSE.txt"
+cp "$project_root/src-tauri/LICENSES/yaml.v3-LICENSE.txt" "$project_root/src-tauri/LICENSES/Apache-2.0.txt" "$notices/"
+cp "$project_root/docs/agreement.md" "$project_root/docs/privacy.md" "$notices/"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.desktop "$bundle"
 /usr/bin/codesign --verify --deep --strict "$bundle"
 "$bundle/Contents/Helpers/freev6-service-installer" manifest

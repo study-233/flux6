@@ -494,7 +494,7 @@ Swift UI 状态采用 macOS 13 可用的 ObservableObject/@Published 与 async/a
 
 Xcode 工程包含 App、网络服务、bootstrap/恢复工具与测试 target；Swift Package Manager 固定第三方依赖。构建脚本先生成指定 GOOS/GOARCH 的 worker，再放入 bundle 固定位置；构建设置统一最低 macOS 13。Mac 不打包 Web 页面、Tauri Rust 壳或 Windows helper。使用系统 hdiutil 制作 DMG，提供 Applications 拖放入口和简短安装说明。
 
-首版使用 ad-hoc 签名，按内部组件到外层 bundle 的顺序签名并验证完整性；这不等同于 Developer ID 或公证。安装测试必须来自实际下载、带 quarantine 的 DMG，覆盖系统允许的首次打开流程。检测直接从只读 DMG 或转移路径启动，引导完成安装后再安装网络服务。
+目前可用 `python3 scripts/macos/build-dmg.py` 构建带 `-preview` 标记的开发镜像，验证拖放副本、签名、最低部署目标与安装载荷。首版使用 ad-hoc 签名，按内部组件到外层 bundle 的顺序签名并验证完整性；这不等同于 Developer ID 或公证。安装测试必须来自实际下载、带 quarantine 的 DMG，覆盖系统允许的首次打开流程。检测直接从只读 DMG 或转移路径启动，引导完成安装后再安装网络服务。
 
 mihomo 保持首次下载：按架构取得锁定资产、检查摘要与解压上限、设置执行位，再交服务复验安装。项目的 THIRD-PARTY 明确把运行时下载的 mihomo 与随包分发区分，本轮不把核心直接加入 DMG；分发方式变更时需同步更新许可与源码交付材料。[当前第三方说明](/Users/andy/Study/free-v6/THIRD-PARTY.txt:78)
 
