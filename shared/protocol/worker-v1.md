@@ -16,9 +16,9 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本不兼容时不得继续发送业务请求；重复握手拒绝。当前能力仅为 `settings.get`、`settings.patch`。WARP、订阅、下载和配置生成仍待迁移，不在能力列表中宣称可用。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`。WARP、订阅、GeoSite 准备和配置生成仍待迁移，不在能力列表中宣称可用。
 
-最多同时处理 8 个请求，输出队列最多 16 个回复。Swift 客户端的消息与写入队列也有上限。worker 为每个业务请求设置 30 秒期限；当前 Swift 设置调用在 10 秒无响应时断开连接并回收 worker，重新载入时启动新进程。后续下载方法需要单独定义长任务期限及进度协议。
+最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 为 180 秒；Swift 握手/设置调用期限为 10 秒，核心检查为 35 秒，下载为 190 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长下载的总期限。
 
 取消使用通知：
 
@@ -48,6 +48,26 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 
 Mac 的 patch 契约与 Windows 历史 PUT 契约分开。Windows 继续保持原有基本字段替换、部分字段省略即保留的行为；平台登录项、热点开关和敏感配置来源不通过 Mac 的代理规则方法写入。
 
+## 核心安装包与进度
+
+`runtime.status` 和 `runtime.download` 仅接受空参数对象。worker 从编译时嵌入的 `internal/mihomo/runtime-assets.json` 选择自身操作系统与架构对应的固定资产，不接受调用方指定 URL、目标平台、文件路径或摘要。Windows amd64 保留 v3 核心，Darwin Intel 使用 v1 基线。
+
+`runtime.status` 校验已有缓存；`runtime.download` 先检查缓存，缺失或摘要损坏时依次尝试固定镜像。两者返回 `resourceId`、`version`、`platform`、`architecture`、`archive`、`sha256`、`binarySha256`、`available`。`available` 仅表示安装包已准备并校验，不表示 root 核心已安装或网络已连接。绝对缓存路径不通过协议返回。
+
+缓存位置为显式 CacheDir 下的 `runtime/<archive-sha256>/<archive-name>`。压缩包和解压内容分别限制为 150 MiB，分别校验固定摘要，并检查 Mach-O/PE 的架构与可执行类型。ZIP 仅允许预期的单个普通文件；gzip 文件名不参与输出路径。校验用的临时二进制会删除，只保留完整安装包。失败和取消清理本次临时文件，完成验证后原子替换缓存。后续网络服务必须独立复验固定摘要和架构，再安装到 root 所有的目录。
+
+下载每条镜像的无进展期限为 10 秒，硬期限为 60 秒，总期限仍为请求的 180 秒。切换镜像时已接收字节数可以回到零；未知总长度为 -1。
+
+进度使用无 `id` 的通知：
+
+```json
+{"jsonrpc":"2.0","method":"$/progress","params":{"requestId":"download-1","sequence":2,"phase":"downloading","received":4096,"total":10000,"attempt":1,"attempts":6}}
+```
+
+阶段为 `checking`、`downloading`、`verifying`。同一请求的序号严格递增但可以跳号；同一阶段和线路的通知合并至最多每 200 ms 一次。输出拥堵时允许丢弃进度，不阻塞下载、取消或最终结果；成功只能依据最终回复确认，不能依据百分比推断。Swift 仅分发当前请求的新序号，忽略已经取消或完成的请求进度。
+
+同一 worker 只允许一个核心检查/准备任务。取消后清理尚未结束时，新调用可能收到 -32003；稍后重新检查即可确认缓存结果。取消晚于原子替换时，已完成安装包可以保留，不能承诺所有取消都撤回磁盘提交。
+
 ## 错误
 
 | code | 含义 |
@@ -62,10 +82,11 @@ Mac 的 patch 契约与 Windows 历史 PUT 契约分开。Windows 继续保持�
 | -32003 | 请求 ID 正在执行或达到并发上限 |
 | -32004 | 设置版本冲突 |
 | -32005 | 配置读写失败，需要重新载入确认状态 |
+| -32006 | 核心下载、校验或缓存操作失败 |
 | -32800 | 请求被取消或超时 |
 
 ## 验证
 
 Go 测试覆盖 Windows 字段保留、原生 patch、原子保存和版本冲突、损坏配置保留、握手/方法/参数拒绝、并发、取消、父进程断开和帧限制。Swift 测试覆盖分片帧、截断及同一共享样本。设置样本位于 `shared/fixtures/worker-settings.json`，两端直接读取同一文件。
 
-真实 Swift→Go 测试需要先构建 worker，再给 Swift 测试传入 `FREEV6_WORKER_TEST_BINARY`。它验证并发握手、保存/规范化、冲突拒绝、非法配置拒绝、worker 退出及重启后读取；不注册 WARP，不安装系统服务，不修改 DNS。
+真实 Swift→Go 测试需要先构建 worker，再给 Swift 测试传入 `FREEV6_WORKER_TEST_BINARY`。它验证并发握手、保存/规范化、冲突拒绝、非法配置拒绝、worker 退出及重启后读取；另外传入 `FREEV6_RUNTIME_FIXTURES_DIR` 可验证真实官方核心安装包与进度分发。`probe-worker.py --download-runtime` 验证正式镜像下载链路。测试不注册 WARP，不安装系统服务，不修改 DNS。

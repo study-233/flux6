@@ -30,6 +30,27 @@ public struct WorkerHandshake: Decodable, Sendable {
     public let maxInFlight: Int
 }
 
+public struct RuntimePackageInfo: Decodable, Sendable, Equatable {
+    public let resourceId: String
+    public let version: String
+    public let platform: String
+    public let architecture: String
+    public let archive: String
+    public let sha256: String
+    public let binarySha256: String
+    public let available: Bool
+}
+
+public struct WorkerProgress: Decodable, Sendable {
+    public let requestId: String
+    public let sequence: UInt64
+    public let phase: String
+    public let received: Int64
+    public let total: Int64
+    public let attempt: Int
+    public let attempts: Int
+}
+
 public struct WorkerRemoteError: Error, Decodable, LocalizedError, Sendable {
     public let code: Int
     public let message: String
@@ -37,6 +58,8 @@ public struct WorkerRemoteError: Error, Decodable, LocalizedError, Sendable {
         switch code {
         case -32004: return "设置已被更新。请重新载入后再保存。"
         case -32005: return "无法读写配置。原文件已保留，请检查磁盘或重新载入确认状态。"
+        case -32006: return "核心准备失败：\(message)"
+        case -32003: return "业务操作仍在处理或清理中，请稍后重试。"
         case -32602: return "设置内容无效：\(message)"
         case -32800: return "操作已取消或超时。请重新载入确认结果。"
         default: return "业务服务返回错误（\(code)）：\(message)"

@@ -7,11 +7,11 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 技术验证 | 进行中 | 原生构建、当前系统 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 离线配置、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
-| P1 共用业务与协议 | 进行中 | 已提取共享设置规则、实现 Mac worker/stdin-stdout 协议与原子配置存储；Swift→Go 真实握手/保存/重启通过；WARP、订阅、资源下载与配置生成等业务仍待提取 |
+| P1 共用业务与协议 | 进行中 | 已提取共享设置、固定平台核心下载与进度协议；Swift→Go 握手/保存/重启及真实下载通过；WARP、订阅、GeoSite 与配置生成仍待提取 |
 | P2 原生应用骨架 | 未完成 | 可构建应用已有导航、部分顶部栏、服务入口和真实配置客户端；正式 Xcode targets、完整菜单与页面交互验收待完成 |
 | P3 原生网络服务 | 未完成 | 已有握手服务、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，核心管理与完整协议待实现 |
 | P4 TUN 与恢复 | 未开始 | 尚未修改系统 DNS、路由或启动 TUN |
-| P5 功能完整与原生体验 | 进行中 | 已接入代理规则编辑与保存，界面实测待解锁；其他业务页面与真实网络状态未接入，连接按钮禁用，无模拟连接成功状态 |
+| P5 功能完整与原生体验 | 进行中 | 已接入代理规则编辑、保存和核心准备面板，界面实测待解锁；其他业务页面与真实网络状态未接入，连接按钮禁用，无模拟连接成功状态 |
 | P6 DMG 与升级 | 未完成 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
 | P7 回归与交付 | 未完成 | 当前 Mac Go 回归已通过；Windows 运行测试、macOS 13、Intel 及实际校园网络待验收 |
 
@@ -92,13 +92,32 @@
 
 当前仍未安装 root 服务、修改 DNS/路由或建立真实 TUN。P1、P2、P5 均未完成；代理配置页接入不等于全部业务迁移完成。原生顶部栏的完整命令与状态联动仍按 UI-01～UI-06 推进。
 
+## 2026-11-05：平台核心准备与原生下载进度
+
+- 核心资产改为编译时嵌入的固定清单，按 Windows amd64、Darwin arm64、Darwin amd64 选择。Windows 保留 v3，Intel Mac 使用 v1。三种官方压缩包均通过锁定摘要，再计算并记录二进制 SHA256；生产下载器校验两层摘要和 Mach-O/PE 架构。
+- 修复按临时文件扩展名解压及固定 Windows 输出名的问题。下载和解压分别限制体积；ZIP 拒绝多余文件、符号链接与路径穿越；失败不覆盖旧核心，取消后清理临时文件。镜像保留停滞和总时限，生产重定向只允许 HTTPS。
+- Mac worker 新增 `runtime.status`、`runtime.download` 和有请求标识、递增序号的进度通知。不接受任意 URL、路径或平台参数；只保留已验证的用户缓存安装包，不执行核心。之后 root 服务仍需独立验证并安装。
+- 原生概览与设置新增下载、检查、进度、错误和取消操作，复用同一个 worker。界面显示“核心安装包已校验”，不将其描述为代理连接成功。取消后的最终缓存状态可以再次检查。
+- 全量 Go 回归和 Windows amd64 测试程序交叉编译通过；核心竞态测试包含三种真实官方资产；新增 ZIP 拒绝案例另行通过。32 项 XCTest 全部通过，包含真实 Swift→Go 核心缓存与进度验证，无跳过。
+- 独立 worker 使用正式镜像实际下载 20,701,178 字节的 Darwin arm64 核心包，收到检查、下载和校验阶段的 35 条进度通知；随后再次确认缓存可用，所有测试子进程退出。Release bundle 构建、签名和只读安装 payload 校验通过。
+
+| 验证 | 证据 |
+| --- | --- |
+| 正式镜像下载与进度 | [download result](/Users/andy/Study/free-v6/build/worker-probes/5bb48f23-808e-4ad0-870c-1691319aeeb4/result.json) |
+| 三种官方资产与竞态测试 | [asset tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-assets-tests.log)、[ZIP tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-zip-tests.log) |
+| Swift 与真实 Go 集成 | [Swift tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-swift-tests.log) |
+| 全量 Go 与 Windows 交叉编译 | [Go tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-go-full.log)、[Windows build](/Users/andy/Study/free-v6/build/macos-worker/runtime-windows-build.log) |
+| Release 与签名 payload | [build log](/Users/andy/Study/free-v6/build/macos-worker/runtime-build-app.log)、[payload result](/Users/andy/Study/free-v6/build/installer-probes/54f7f705-5365-430a-adf8-bf8cd6173455/result.json) |
+
+UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运行验收。当前仍未安装 root 服务或执行实际 TUN/DNS 变更，P1、P2、P5 保持进行中。
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
 2. 实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
 3. 验证 Keychain 在升级/回退后的访问行为；明确 macOS 13 与 Intel 的测试设备路径。
 4. 按已经验证的机制接入产品 Swift 更新助手，并补齐 quarantine 分发与网络服务升级事务。
-5. 在现有 worker 上继续提取 WARP、订阅、下载和配置生成，补充凭据存储、长任务进度与取消协议；接入完整顶部栏和其余页面。解锁后验证代理规则表单的保存/错误/重开行为；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
+5. 在现有 worker 上继续提取 WARP、订阅、GeoSite 与配置生成，接入凭据存储；完善共用顶部栏命令与其余页面。解锁后验证代理规则表单及核心准备面板；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
 
 ## 可重复验证入口
 

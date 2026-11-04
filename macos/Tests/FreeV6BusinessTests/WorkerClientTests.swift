@@ -2,6 +2,58 @@ import XCTest
 @testable import FreeV6Business
 
 final class WorkerClientTests: XCTestCase {
+    private final class ProgressRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [WorkerProgress] = []
+        func append(_ update: WorkerProgress) { lock.lock(); values.append(update); lock.unlock() }
+        func snapshot() -> [WorkerProgress] { lock.lock(); defer { lock.unlock() }; return values }
+    }
+
+    func testRealRuntimeArchiveAndProgress() async throws {
+        guard let binary = ProcessInfo.processInfo.environment["FREEV6_WORKER_TEST_BINARY"],
+              let fixtures = ProcessInfo.processInfo.environment["FREEV6_RUNTIME_FIXTURES_DIR"] else {
+            throw XCTSkip("Set worker binary and official runtime fixtures to exercise real runtime verification")
+        }
+        struct Catalog: Decodable { let assets: [Asset] }
+        struct Asset: Decodable { let os: String; let arch: String; let archive: String; let sha256: String }
+        let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let catalog = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: repository.appendingPathComponent("internal/mihomo/runtime-assets.json")))
+        #if arch(arm64)
+        let architecture = "arm64"
+        #else
+        let architecture = "amd64"
+        #endif
+        let asset = try XCTUnwrap(catalog.assets.first { $0.os == "darwin" && $0.arch == architecture })
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("freev6-runtime-test-\(UUID().uuidString)")
+        let resources = root.appendingPathComponent("resources")
+        let cache = root.appendingPathComponent("cache")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let client = WorkerClient(location: WorkerLocation(executable: URL(fileURLWithPath: binary),
+            data: root.appendingPathComponent("data"), resources: resources, cache: cache, logs: root.appendingPathComponent("logs")))
+        do {
+            let empty = try await client.runtimeStatus()
+            XCTAssertFalse(empty.available)
+            XCTAssertEqual(empty.architecture, architecture)
+            let artifact = cache.appendingPathComponent("runtime/\(asset.sha256)/\(asset.archive)")
+            try FileManager.default.createDirectory(at: artifact.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: URL(fileURLWithPath: fixtures).appendingPathComponent(asset.archive), to: artifact)
+            let recorder = ProgressRecorder()
+            let prepared = try await client.downloadRuntime { recorder.append($0) }
+            XCTAssertTrue(prepared.available)
+            XCTAssertEqual(prepared.sha256, asset.sha256)
+            let updates = recorder.snapshot()
+            XCTAssertEqual(updates.first?.phase, "checking")
+            XCTAssertTrue(updates.allSatisfy { !$0.requestId.isEmpty && $0.sequence > 0 })
+            let status = try await client.runtimeStatus()
+            XCTAssertEqual(status, prepared)
+            let files = try FileManager.default.contentsOfDirectory(atPath: artifact.deletingLastPathComponent().path)
+            XCTAssertEqual(files, [asset.archive])
+            await client.shutdown()
+        } catch { await client.shutdown(); throw error }
+    }
+
     func testFramesAcrossEveryBoundaryAndTruncation() throws {
         let first = Data(#"{"id":"first"}"#.utf8)
         let second = Data(#"{"id":"second"}"#.utf8)

@@ -4,6 +4,8 @@ public actor WorkerClient {
     private struct Pending {
         let continuation: CheckedContinuation<Data, Error>
         let timeout: Task<Void, Never>
+        let progress: (@Sendable (WorkerProgress) -> Void)?
+        var lastSequence: UInt64 = 0
     }
     private struct Empty: Encodable {}
     private struct Initialization: Encodable { let protocolVersion = 1 }
@@ -16,6 +18,15 @@ public actor WorkerClient {
         let params: Params
     }
     private struct Reply<Value: Decodable>: Decodable { let result: Value }
+    private struct ProgressReply: Decodable { let params: WorkerProgress }
+
+    private static var architecture: String {
+        #if arch(arm64)
+        return "arm64"
+        #else
+        return "amd64"
+        #endif
+    }
 
     private let location: WorkerLocation
     private var generation = UUID()
@@ -60,7 +71,7 @@ public actor WorkerClient {
         }
         do {
             let handshake: WorkerHandshake = try await request("initialize", params: Initialization())
-            guard handshake.protocolVersion == 1, handshake.platform == "darwin",
+            guard handshake.protocolVersion == 1, handshake.platform == "darwin", handshake.architecture == Self.architecture,
                   handshake.maxFrameBytes == WorkerFrameDecoder.maximum, handshake.maxInFlight == 8,
                   handshake.capabilities.contains("settings.get"), handshake.capabilities.contains("settings.patch") else {
                 throw WorkerClientError.incompatible
@@ -81,6 +92,25 @@ public actor WorkerClient {
         return try validate(snapshot)
     }
 
+    public func runtimeStatus() async throws -> RuntimePackageInfo {
+        try await connect()
+        let result: RuntimePackageInfo = try await request("runtime.status", params: Empty(), timeout: 35_000_000_000)
+        return try validateRuntime(result)
+    }
+
+    public func downloadRuntime(progress: @escaping @Sendable (WorkerProgress) -> Void) async throws -> RuntimePackageInfo {
+        try await connect()
+        let result: RuntimePackageInfo = try await request("runtime.download", params: Empty(), timeout: 190_000_000_000, progress: progress)
+        return try validateRuntime(result)
+    }
+
+    private func validateRuntime(_ result: RuntimePackageInfo) throws -> RuntimePackageInfo {
+        guard result.platform == "darwin", result.architecture == Self.architecture,
+              result.sha256.count == 64, result.binarySha256.count == 64,
+              !result.resourceId.isEmpty, result.resourceId.count <= 128 else { throw WorkerClientError.invalidResponse }
+        return result
+    }
+
     public func shutdown() async {
         disconnect(WorkerClientError.disconnected, session: generation)
         if let previous = retiring { await previous.waitForExit() }
@@ -93,7 +123,8 @@ public actor WorkerClient {
         return snapshot
     }
 
-    private func request<Params: Encodable, Value: Decodable>(_ method: String, params: Params) async throws -> Value {
+    private func request<Params: Encodable, Value: Decodable>(_ method: String, params: Params, timeout: UInt64 = 10_000_000_000,
+                                                            progress: (@Sendable (WorkerProgress) -> Void)? = nil) async throws -> Value {
         let id = UUID().uuidString
         let session = generation
         let frame = try WorkerFrameDecoder.encode(JSONEncoder().encode(Request(id: id, method: method, params: params)))
@@ -103,11 +134,11 @@ public actor WorkerClient {
                 guard let transport else { continuation.resume(throwing: WorkerClientError.disconnected); return }
                 guard pending.count < 8 else { continuation.resume(throwing: WorkerClientError.busy); return }
                 let timer = Task {
-                    do { try await Task.sleep(nanoseconds: 10_000_000_000) }
+                    do { try await Task.sleep(nanoseconds: timeout) }
                     catch { return }
                     if pending[id] != nil { disconnect(WorkerClientError.timeout, session: session) }
                 }
-                pending[id] = Pending(continuation: continuation, timeout: timer)
+                pending[id] = Pending(continuation: continuation, timeout: timer, progress: progress)
                 transport.send(frame) { failure in
                     if let failure { Task { await self.disconnect(failure, session: session) } }
                 }
@@ -120,7 +151,21 @@ public actor WorkerClient {
     private func receive(_ data: Data, session: UUID) throws {
         guard generation == session else { return }
         guard let response = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              response["jsonrpc"] as? String == "2.0", let id = response["id"] as? String,
+              response["jsonrpc"] as? String == "2.0" else { throw WorkerClientError.invalidResponse }
+        if let method = response["method"] as? String, response["id"] == nil {
+            guard method == "$/progress" else { return }
+            let update = try JSONDecoder().decode(ProgressReply.self, from: data).params
+            guard update.received >= 0, update.total >= -1, update.attempt >= 0, update.attempts >= update.attempt,
+                  update.attempts <= 16, ["checking", "downloading", "verifying"].contains(update.phase) else {
+                throw WorkerClientError.invalidResponse
+            }
+            guard var item = pending[update.requestId], update.sequence > item.lastSequence else { return }
+            item.lastSequence = update.sequence
+            pending[update.requestId] = item
+            item.progress?(update)
+            return
+        }
+        guard let id = response["id"] as? String,
               (response["error"] == nil) != (response["result"] == nil) else { throw WorkerClientError.invalidResponse }
         guard let item = pending.removeValue(forKey: id) else { return } // canceled request's late reply
         item.timeout.cancel()

@@ -66,6 +66,8 @@ def main():
             temporary = Path(file.name)
             with gzip.open(archive, "rb") as source:
                 copy_limited(source, file)
+        if hashlib.sha256(temporary.read_bytes()).hexdigest() != asset["binarySha256"]:
+            raise ValueError("Expanded runtime checksum mismatch")
         temporary.chmod(0o700)
         os.replace(temporary, binary)
     finally:

@@ -44,7 +44,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	return worker.Serve(ctx, input, output, worker.SettingsHandler(worker.NewSettingsStore(root)))
+	handler := worker.BusinessHandler(worker.NewSettingsStore(root), worker.NewRuntimeManager(dirs.Cache))
+	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download"}})
 }
 
 func main() {

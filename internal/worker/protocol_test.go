@@ -105,6 +105,77 @@ func TestCancellationConcurrencyAndParentLoss(t *testing.T) {
 
 type singleByteReader struct{ io.Reader }
 
+func TestProgressCorrelatesAndCancellationStillWorks(t *testing.T) {
+	started := make(chan struct{})
+	client, done := testConnection(t, func(ctx context.Context, method string, params json.RawMessage) (any, error) {
+		ReportProgress(ctx, Progress{Phase: "checking", Total: -1})
+		for i := 0; i < 10000; i++ {
+			ReportProgress(ctx, Progress{Phase: "downloading", Received: int64(i), Total: 10000, Attempt: 1, Attempts: 1})
+		}
+		close(started)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	request(t, client, `{"jsonrpc":"2.0","id":"init","method":"initialize","params":{"protocolVersion":1}}`)
+	if err := WriteFrame(client, []byte(`{"jsonrpc":"2.0","id":"download","method":"runtime.download"}`)); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if err := WriteFrame(client, []byte(`{"jsonrpc":"2.0","method":"$/cancelRequest","params":{"id":"download"}}`)); err != nil {
+		t.Fatal(err)
+	}
+	var sequence uint64
+	notifications := 0
+	for {
+		data, err := ReadFrame(client)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var message struct {
+			Method string    `json:"method"`
+			ID     string    `json:"id"`
+			Params Progress  `json:"params"`
+			Error  *RPCError `json:"error"`
+		}
+		if err := json.Unmarshal(data, &message); err != nil {
+			t.Fatal(err)
+		}
+		if message.Method != "" {
+			if message.Method != "$/progress" || message.Params.RequestID != "download" || message.Params.Sequence <= sequence {
+				t.Fatalf("invalid progress: %s", data)
+			}
+			sequence = message.Params.Sequence
+			notifications++
+			continue
+		}
+		if message.ID != "download" || message.Error == nil || message.Error.Code != Canceled {
+			t.Fatalf("missing cancellation: %s", data)
+		}
+		break
+	}
+	if notifications < 1 || notifications > 4 {
+		t.Fatalf("unbounded/missing progress: %d", notifications)
+	}
+	client.Close()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not exit")
+	}
+}
+
+func TestRuntimeMethodsRejectUntrustedPathsAndURLs(t *testing.T) {
+	store, _ := testStore(t)
+	handler := BusinessHandler(store, NewRuntimeManager(t.TempDir()))
+	for _, params := range []string{`{"url":"https://example.com/core"}`, `{"path":"/tmp/core"}`, `{"arch":"amd64"}`} {
+		_, err := handler(context.Background(), "runtime.download", json.RawMessage(params))
+		failure, ok := err.(*RPCError)
+		if !ok || failure.Code != InvalidParams {
+			t.Fatalf("accepted runtime parameters: %s %v", params, err)
+		}
+	}
+}
+
 func (r singleByteReader) Read(p []byte) (int, error) { return r.Reader.Read(p[:1]) }
 
 func TestFramingBoundsAndFragmentation(t *testing.T) {

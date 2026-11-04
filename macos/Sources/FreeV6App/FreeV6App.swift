@@ -21,11 +21,16 @@ enum Page: String, CaseIterable, Identifiable {
     @Published var serviceStatus = "网络服务尚未安装"
     @Published var serviceBusy = false
     @Published var serviceInstalled = false
-    let business = BusinessModel()
+    let business: BusinessModel
+    let core: RuntimeModel
 
     init() {
+        let session = BusinessSession()
+        business = BusinessModel(session: session)
+        core = RuntimeModel(session: session)
         Task { await refreshService() }
         Task { await business.reload() }
+        Task { await core.refresh() }
     }
 
     func refreshService() async {
@@ -191,6 +196,8 @@ struct MainView: View {
                 Label(model.page?.rawValue ?? "概览", systemImage: model.page?.symbol ?? "network")
                     .font(.largeTitle.bold())
                 if model.page == .overview {
+                    ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
                     GroupBox {
                         VStack(alignment: .leading, spacing: 12) {
                             Label(model.serviceStatus, systemImage: "wrench.and.screwdriver")
@@ -210,6 +217,9 @@ struct MainView: View {
                             Text("当前未启动代理，也未修改系统 DNS。")
                                 .font(.callout).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                    }
+                    RuntimePreparationView(model: model.core)
+                    }
                     }
                 } else if model.page == .configuration {
                     BusinessSettingsView(model: model.business)
@@ -249,6 +259,7 @@ struct SettingsView: View {
             }
         }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }
         BusinessSettingsView(model: model.business).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }
+        ScrollView { RuntimePreparationView(model: model.core).padding(24) }.tabItem { Label("核心", systemImage: "shippingbox") }
         Form {
             Section("网络服务") {
                 Text(model.serviceStatus)

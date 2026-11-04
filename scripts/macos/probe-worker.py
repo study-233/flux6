@@ -18,6 +18,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser()
 parser.add_argument("--binary", type=Path, default=ROOT / "dist/macos/FreeV6.app/Contents/Helpers/freev6-worker")
+parser.add_argument("--download-runtime", action="store_true", help="download the pinned native core via production mirror selection")
 args = parser.parse_args()
 binary = args.binary.resolve(strict=True)
 directory = ROOT / "build/worker-probes" / str(uuid.uuid4())
@@ -36,9 +37,9 @@ def launch(suffix="main"):
     return child
 
 
-def read_exact(child, count):
+def read_exact(child, count, timeout=5):
     result = bytearray()
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + timeout
     while len(result) < count:
         remaining = deadline - time.monotonic()
         if remaining <= 0 or not select.select([child.stdout], [], [], remaining)[0]:
@@ -50,7 +51,7 @@ def read_exact(child, count):
     return bytes(result)
 
 
-def call(child, method, params=None, fragmented=False):
+def call(child, method, params=None, fragmented=False, timeout=5, progress=None):
     identity = str(uuid.uuid4())
     body = json.dumps({"jsonrpc": "2.0", "id": identity, "method": method, "params": params or {}}).encode()
     frame = struct.pack(">I", len(body)) + body
@@ -61,9 +62,16 @@ def call(child, method, params=None, fragmented=False):
     else:
         child.stdin.write(frame)
         child.stdin.flush()
-    size = struct.unpack(">I", read_exact(child, 4))[0]
-    assert 0 < size <= 1048576
-    response = json.loads(read_exact(child, size))
+    deadline = time.monotonic() + timeout
+    while True:
+        size = struct.unpack(">I", read_exact(child, 4, deadline-time.monotonic()))[0]
+        assert 0 < size <= 1048576
+        response = json.loads(read_exact(child, size, deadline-time.monotonic()))
+        if response.get("method") != "$/progress":
+            break
+        assert response["params"]["requestId"] == identity
+        if progress is not None:
+            progress.append(response["params"])
     assert response["jsonrpc"] == "2.0" and response["id"] == identity
     assert ("result" in response) != ("error" in response)
     return response
@@ -72,7 +80,7 @@ def call(child, method, params=None, fragmented=False):
 def initialize(child):
     result = call(child, "initialize", {"protocolVersion": 1}, fragmented=True)["result"]
     assert result["protocolVersion"] == 1 and result["platform"] == "darwin"
-    assert result["capabilities"] == ["settings.get", "settings.patch"]
+    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download"]
     return result
 
 
@@ -85,6 +93,17 @@ try:
     child = launch()
     assert call(child, "settings.get")["error"]["code"] == -32001
     handshake = initialize(child)
+    resource = call(child, "runtime.status")["result"]
+    assert not resource["available"] and resource["architecture"] == handshake["architecture"]
+    assert call(child, "runtime.download", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
+    runtime_progress = []
+    if args.download_runtime:
+        resource_reply = call(child, "runtime.download", timeout=190, progress=runtime_progress)
+        assert "result" in resource_reply, resource_reply
+        resource = resource_reply["result"]
+        assert resource["available"] and any(p["phase"] == "downloading" for p in runtime_progress)
+        assert call(child, "runtime.status", timeout=35)["result"] == resource
+        checks.append("production runtime download, pinned archive/binary hashes, architecture and progress")
     defaults = call(child, "settings.get")["result"]
     assert defaults["revision"] == 0 and defaults["settings"]["mode"] == "rule"
     saved = call(child, "settings.patch", {"expectedRevision": 0, "changes": {"mode": "global", "campusCidrs": [" EDU.CN "]}})["result"]
@@ -150,6 +169,7 @@ try:
     checks.append("oversized and truncated frames rejected")
     result = {"binary": str(binary), "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "handshake": handshake, "checks": checks, "backpressure": backpressure,
+              "runtime": resource, "runtimeProgress": runtime_progress,
               "allChildrenExited": all(p.poll() is not None for p in children)}
     assert result["allChildrenExited"]
     (directory / "result.json").write_text(json.dumps(result, indent=2) + "\n")

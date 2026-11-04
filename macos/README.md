@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前推进 P0 技术验证、P1 共用业务与 P2 原生应用。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、仅支持握手的网络服务、安装工具和系统探针。原生配置页已接入真实设置读写；连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+当前推进 P0 技术验证、P1 共用业务与 P2 原生应用。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、仅支持握手的网络服务、安装工具和系统探针。原生配置页已接入真实设置读写，核心面板已接入检查、下载进度和取消；连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
 
 ## 构建
 
@@ -18,9 +18,11 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供模式、开发者模式、校园白名单和自定义黑名单的读取、校验与保存；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。WARP、订阅、下载、配置生成和网络控制尚未接入这些页面。
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写，以及固定平台核心安装包的检查、下载和进度；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。WARP、订阅、GeoSite 准备、配置生成和网络控制尚未接入这些页面。
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
+
+核心缓存：`~/Library/Caches/dev.freev6.desktop/runtime/<archive-sha256>/<archive-name>`。平台资产统一从编译时嵌入的清单选择，压缩包与解压后的二进制均校验固定 SHA256、大小和架构。Mac 当前只保留安装包；网络服务接入时还要独立复验并安装，不能把“核心安装包已校验”当作“代理已运行”。主界面与设置共用一个 worker，避免竞争数据目录锁。
 
 以下命令完成 Go 业务/协议竞态测试、真实 Swift→Go 集成测试，以及独立 worker 进程探针：
 
@@ -34,7 +36,9 @@ bash scripts/macos/test-worker.sh
 python3 scripts/macos/probe-worker.py
 ```
 
-探针使用 `build/worker-probes/<UUID>` 中的独立测试目录，验证分片握手、保存、版本冲突、重复 worker 拒绝、父进程 EOF、SIGTERM、输出背压和坏帧。所有测试子进程在结束时回收，结果写入该目录的 `result.json`。不读取个人凭据，不安装网络服务。普通 `swift.sh test` 在未传 `FREEV6_WORKER_TEST_BINARY` 时会跳过真实 Go 集成项；不得把该跳过视为集成测试通过。
+探针使用 `build/worker-probes/<UUID>` 中的独立测试目录，验证分片握手、保存、版本冲突、核心方法参数限制、重复 worker 拒绝、父进程 EOF、SIGTERM、输出背压和坏帧。加 `--download-runtime` 会通过正式镜像下载原生核心，并记录进度和最终摘要。所有测试子进程在结束时回收，结果写入该目录的 `result.json`。不读取个人凭据，不安装网络服务。
+
+普通 `swift.sh test` 在未传 `FREEV6_WORKER_TEST_BINARY` 时跳过真实 Go 集成项；官方核心测试还需要 `FREEV6_RUNTIME_FIXTURES_DIR` 指向包含清单中官方 ZIP/gzip 的目录。该变量也用于 Go 的真实资产验证；测试仍独立核验所有摘要，不信任目录中的文件名。不得把跳过视为集成通过。
 
 ## 服务安装与事务
 
@@ -105,6 +109,6 @@ go run ./cmd/macos-probe
 python3 scripts/macos/probe-runtime.py --check-config build/macos-probes/config/offline-config.json
 ```
 
-核心资产与摘要锁定在 `internal/mihomo/runtime-assets.json`，来源是对应上游 release。探针校验压缩包摘要、限制解压体积，仅执行版本与配置检查。
+核心资产与压缩包摘要锁定在 `internal/mihomo/runtime-assets.json`，来源是对应上游 release。`binarySha256` 从已通过固定压缩包摘要的官方内容计算；生产下载器与探针均校验它。探针限制解压体积，仅执行版本与配置检查。Windows/Intel 资产的摘要和格式校验不等同于相应系统的运行验收。
 
 配置探针生成合成的 P-256 凭据，不向 Cloudflare 注册，也无法建立真实 WARP 会话。`full-config.json` 保留完整业务配置；`offline-config.json` 移除依赖远端 GeoSite/规则集的配置，用于隔离验证 JSON 和 MASQUE 解析。离线检查成功不能替代完整规则、DNS、TUN 与实际出口验证。

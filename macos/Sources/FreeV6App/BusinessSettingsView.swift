@@ -1,6 +1,16 @@
 import SwiftUI
 import FreeV6Business
 
+@MainActor final class BusinessSession {
+    private var client: WorkerClient?
+    func worker() throws -> WorkerClient {
+        if let client { return client }
+        let client = WorkerClient(location: try WorkerLocation.application())
+        self.client = client
+        return client
+    }
+}
+
 @MainActor final class BusinessModel: ObservableObject {
     @Published var snapshot: SettingsSnapshot?
     @Published var mode: ProxyMode = .rule
@@ -10,7 +20,8 @@ import FreeV6Business
     @Published var busy = false
     @Published var error: String?
     @Published var status = "正在连接业务组件…"
-    private var client: WorkerClient?
+    private let session: BusinessSession
+    init(session: BusinessSession) { self.session = session }
 
     var hasChanges: Bool {
         guard let snapshot else { return false }
@@ -36,8 +47,7 @@ import FreeV6Business
         status = "正在读取配置…"
         defer { busy = false }
         do {
-            if client == nil { client = WorkerClient(location: try WorkerLocation.application()) }
-            guard let client else { throw WorkerClientError.notAvailable }
+            let client = try session.worker()
             accept(try await client.settings())
             status = "配置已载入"
         } catch {
@@ -47,11 +57,12 @@ import FreeV6Business
     }
 
     func save() async {
-        guard !busy, let snapshot, let preferences = draft, let client else { return }
+        guard !busy, let snapshot, let preferences = draft else { return }
         busy = true; error = nil
         status = "正在保存…"
         defer { busy = false }
         do {
+            let client = try session.worker()
             accept(try await client.save(preferences, revision: snapshot.revision))
             status = "配置已保存"
         } catch {

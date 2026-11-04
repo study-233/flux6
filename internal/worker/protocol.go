@@ -28,6 +28,7 @@ const (
 	Conflict        = -32004
 	StorageError    = -32005
 	Canceled        = -32800
+	ResourceError   = -32006
 )
 
 type RPCError struct {
@@ -52,6 +53,26 @@ type Response struct {
 }
 
 type Handler func(context.Context, string, json.RawMessage) (any, error)
+
+type ServerOptions struct{ Capabilities []string }
+
+type Progress struct {
+	RequestID string `json:"requestId"`
+	Sequence  uint64 `json:"sequence"`
+	Phase     string `json:"phase"`
+	Received  int64  `json:"received"`
+	Total     int64  `json:"total"`
+	Attempt   int    `json:"attempt"`
+	Attempts  int    `json:"attempts"`
+}
+
+type progressContextKey struct{}
+
+func ReportProgress(ctx context.Context, progress Progress) {
+	if emit, ok := ctx.Value(progressContextKey{}).(func(Progress)); ok {
+		emit(progress)
+	}
+}
 
 func ReadFrame(reader io.Reader) ([]byte, error) {
 	var header [4]byte
@@ -108,10 +129,14 @@ func decodeObject(data []byte, target any) error {
 // Serve owns both streams. Closing either side cancels outstanding operations
 // and closes the other side. All writes are serialized through a bounded queue;
 // a parent which stops consuming output cannot create an unbounded backlog.
-func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, handler Handler) error {
+func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, handler Handler, options ...ServerOptions) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	responses := make(chan Response, MaxInFlight*2)
+	responses := make(chan any, MaxInFlight*2)
+	capabilities := []string{"settings.get", "settings.patch"}
+	if len(options) > 0 {
+		capabilities = options[0].Capabilities
+	}
 	writerDone := make(chan error, 1)
 	go func() {
 		var failure error
@@ -204,7 +229,7 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 			ready = true
 			send(Response{JSONRPC: "2.0", ID: &id, Result: map[string]any{
 				"protocolVersion": ProtocolVersion, "workerVersion": "0.1.0", "platform": runtime.GOOS, "architecture": runtime.GOARCH,
-				"capabilities": []string{"settings.get", "settings.patch"}, "maxFrameBytes": MaxFrameBytes, "maxInFlight": MaxInFlight,
+				"capabilities": capabilities, "maxFrameBytes": MaxFrameBytes, "maxInFlight": MaxInFlight,
 			}})
 			continue
 		}
@@ -219,14 +244,48 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 			replyError(&id, Busy, "request already active or concurrency limit reached")
 			continue
 		}
-		requestCtx, stop := context.WithTimeout(ctx, 30*time.Second)
+		timeout := 30 * time.Second
+		if request.Method == "runtime.download" {
+			timeout = 3 * time.Minute
+		}
+		requestCtx, stop := context.WithTimeout(ctx, timeout)
 		active[id] = stop
 		mu.Unlock()
 		tasks.Add(1)
 		go func(request Request) {
 			defer tasks.Done()
 			defer func() { stop(); mu.Lock(); delete(active, request.ID); mu.Unlock() }()
-			result, err := handler(requestCtx, request.Method, request.Params)
+			var progressMu sync.Mutex
+			var sequence uint64
+			var last time.Time
+			var lastPhase string
+			var lastAttempt int
+			withProgress := context.WithValue(requestCtx, progressContextKey{}, func(progress Progress) {
+				progressMu.Lock()
+				defer progressMu.Unlock()
+				if requestCtx.Err() != nil {
+					return
+				}
+				if progress.Phase == lastPhase && progress.Attempt == lastAttempt && time.Since(last) < 200*time.Millisecond {
+					return
+				}
+				sequence++
+				progress.RequestID = request.ID
+				progress.Sequence = sequence
+				notification := struct {
+					JSONRPC string   `json:"jsonrpc"`
+					Method  string   `json:"method"`
+					Params  Progress `json:"params"`
+				}{"2.0", "$/progress", progress}
+				select {
+				case responses <- notification:
+					last = time.Now()
+					lastPhase = progress.Phase
+					lastAttempt = progress.Attempt
+				default: // Droppable progress must never block transfer or cancellation.
+				}
+			})
+			result, err := handler(withProgress, request.Method, request.Params)
 			if result == nil && err == nil {
 				result = json.RawMessage("null")
 			}
