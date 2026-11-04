@@ -330,7 +330,7 @@ root 服务的状态仍是 UI 的权威来源。GUI 意外消失后默认在短�
 
 表中快捷键均为应用内命令；全局唤出快捷键单独配置。主窗口的红色关闭按钮和 ⌘W 隐藏主窗口，保留后台连接与草稿；设置、帮助等辅助窗口的 ⌘W 只关闭当前窗口，草稿按对应编辑页规则处理。⌘Q 执行完整退出，标题栏不另加退出按钮。功能暂不可用时，由同一命令模型决定禁用状态，并在对应页面说明所缺条件。
 
-当前代码已有 [NativeCommands.swift](/Users/andy/Study/free-v6/macos/Sources/FreeV6App/NativeCommands.swift) 中的菜单、工具栏和状态菜单骨架，以及 [DesktopCommands.swift](/Users/andy/Study/free-v6/macos/Sources/FreeV6Desktop/DesktopCommands.swift) 中的共用命令模型。后续在这些入口上补齐本设计：真实连接状态、模式与最近节点切换、流量摘要、状态栏显示偏好及交互验收仍属待完成项。已有菜单结构不表示上述命令已经全部可用。
+当前代码已有 [NativeCommands.swift](/Users/andy/Study/free-v6/macos/Sources/FreeV6App/NativeCommands.swift) 中的菜单、工具栏和状态菜单骨架，以及 [DesktopCommands.swift](/Users/andy/Study/free-v6/macos/Sources/FreeV6Desktop/DesktopCommands.swift) 中的共用命令模型。通用设置现已绑定菜单栏图标的显示偏好。后续需接入真实连接状态、工作模式、最近节点与流量摘要，并验收后台操作和窗口重开。
 
 #### 原生组件与实现落点
 
@@ -340,7 +340,7 @@ root 服务的状态仍是 UI 的权威来源。GUI 意外消失后默认在短�
 | --- | --- | --- |
 | 屏幕顶部应用菜单 | SwiftUI Commands、CommandGroup、CommandMenu，焦点通过 FocusedValue 传递 | NativeCommands.swift：补齐模式与节点命令；保存、导出和搜索根据当前窗口与页面启用 |
 | 标题栏和工具栏 | 系统红黄绿按钮、统一工具栏样式、ToolbarItem；需要时使用 NSToolbar | FreeV6App.swift、NativeCommands.swift：连接当前页标题、搜索、过滤和真实连接按钮，验证收窄及隐藏后的操作入口 |
-| 右上角状态菜单 | MenuBarExtra 的菜单样式和显示偏好；需要时使用 NSStatusItem | FreeV6App.swift、NativeCommands.swift：补齐真实状态、速率、模式、最近节点和显示开关；后台操作保持窗口焦点 |
+| 右上角状态菜单 | MenuBarExtra 的菜单样式和显示偏好；需要时使用 NSStatusItem | FreeV6App.swift、NativeCommands.swift：显示开关已接入，待验证隐藏与重开。补齐真实状态、速率、模式与最近节点并验证后台焦点 |
 | 共享命令与状态 | DesktopCommand、命令可用性、AppModel 与连接协调器 | DesktopCommands.swift、AppModel.swift：三处使用同一请求与状态；重复触发、超时和失败按同一规则处理 |
 | 窗口和退出 | NSApplicationDelegate、NSWindowDelegate 与标准 Settings 场景 | FreeV6App.swift、AppModel.swift：区分主窗口隐藏、辅助窗口关闭、Dock 重开和完整退出；连接退出接入网络恢复事务 |
 
@@ -600,7 +600,7 @@ Windows 的 src-tauri 和 web 保持各自的平台入口。本阶段不新增 t
 | UI-01 共用命令 / P2 | 已有 DesktopCommand、可用性判断和场景焦点 | 补充连接/断开、模式和节点命令；三处共用执行入口；保存跟随编辑上下文，标准编辑快捷键跟随输入焦点 |
 | UI-02 应用菜单 / P2 | 已有文件、显示、连接、帮助等命令骨架；未接入能力禁用 | 补齐模式/节点子菜单、搜索和日志命令；验证菜单顺序、分组、快捷键与勾选；无主窗口时仍可打开主窗口、设置和退出 |
 | UI-03 标题栏与工具栏 / P2 | 已有统一工具栏、按页面切换的操作、服务状态和主要按钮 | 按上方四页布局接入搜索、过滤、导入及真实连接状态；验证收窄、隐藏、拖动、全屏与系统窗口按钮；所有动作有应用菜单入口 |
-| UI-04 状态菜单 / P2、P5 | 已有 MenuBarExtra、准备状态、主窗口与设置入口 | 补齐真实连接、速率、工作模式、最近节点及显示偏好；关闭窗口后可控制连接；隐藏图标后可从 Dock 恢复；后台操作不无故抢焦点 |
+| UI-04 状态菜单 / P2、P5 | 已有 MenuBarExtra、准备状态、主窗口与设置入口，显示开关已绑定持久偏好 | 补齐真实连接、速率、工作模式与最近节点；关闭窗口后可控制连接；隐藏图标后可从 Dock 恢复；后台操作不无故抢焦点 |
 | UI-05 状态联动 / P5 | 已有配置检查互斥和部分迟到结果保护，尚无运行会话状态 | 接入会话标识与递增版本；统一忙碌、失败、失联和恢复反馈；勾选只随确认结果变化；启动重新查询，旧事件不覆盖新状态 |
 | UI-06 交互验收 / P5、P7 | 早期窗口与快捷键已有部分实测，完整连接流程待验证 | 在 macOS 13 和当前系统执行[顶部栏交互交付检查](#顶部栏交互交付检查)，记录从窗口连接、后台切换节点、断开到退出后的服务状态，并覆盖静默启动、全屏、多显示器、键盘与 VoiceOver |
 

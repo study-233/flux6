@@ -49,6 +49,7 @@ private final class MainWindowAnchor: NSView {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var delegate
     @StateObject private var model = AppModel()
     @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
 
     private var colorScheme: ColorScheme? {
         appearance == "dark" ? .dark : appearance == "light" ? .light : nil
@@ -65,15 +66,17 @@ private final class MainWindowAnchor: NSView {
         .windowToolbarStyle(.unified)
         .commands { NativeCommands(model: model) }
         Settings {
-            SettingsView(model: model)
+            SettingsView(model: model, showMenuBarExtra: $showMenuBarExtra)
                 .preferredColorScheme(colorScheme)
         }
         Window("FreeV6 使用说明", id: "help") {
             NativeHelpView().preferredColorScheme(colorScheme)
         }
         .defaultSize(width: 560, height: 520)
-        MenuBarExtra("FreeV6 — \(model.serviceState.title)", systemImage: model.serviceState.symbol) {
+        MenuBarExtra(isInserted: $showMenuBarExtra) {
             StatusMenu(model: model)
+        } label: {
+            Label("FreeV6 — \(model.serviceState.title)", systemImage: model.serviceState.symbol)
         }.menuBarExtraStyle(.menu)
     }
 }
@@ -144,6 +147,7 @@ private struct ServiceOverviewView: View {
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
+    @Binding var showMenuBarExtra: Bool
     @AppStorage("appearance") private var appearance = "system"
     @State private var confirmUninstall = false
     @State private var selectedTab = PreferencesPage.general
@@ -154,6 +158,10 @@ struct SettingsView: View {
                 Text("跟随系统").tag("system")
                 Text("浅色").tag("light")
                 Text("深色").tag("dark")
+            }
+            Toggle("在菜单栏中显示 FreeV6", isOn: $showMenuBarExtra)
+            if !showMenuBarExtra {
+                Text("可以从程序坞重新打开主窗口。").font(.callout).foregroundStyle(.secondary)
             }
         }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
         BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)
