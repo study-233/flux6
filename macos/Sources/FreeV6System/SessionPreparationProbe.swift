@@ -5,6 +5,16 @@ import Foundation
 /// Ordinary-user test host only. Release has no preparation/recovery probe
 /// entry points, and the service XPC protocol does not expose these operations.
 public enum SessionPreparationProbe {
+    public static func holdGroup(executable: String, directory: String) throws {
+        guard geteuid() != 0 else { throw ServiceMessageError.invalid }
+        let origin = try ServiceProcessOrigin.current()
+        let child = try OwnedChildProcess(executable: executable, arguments: ["ignore-term", directory + "/child-ready"],
+            directory: directory, group: .inheritService)
+        let data = try JSONSerialization.data(withJSONObject: ["hostPID": getpid(), "childPID": child.pid, "groupID": origin.groupID])
+        FileHandle.standardOutput.write(data + Data([10]))
+        withExtendedLifetime(child) { DispatchSemaphore(value: 0).wait() }
+    }
+
     public static func hold(path: String, request: Data, partial: Bool) throws {
         guard geteuid() != 0 else { throw ServiceMessageError.invalid }
         let store = try PreparedSessionStore(path: path, owner: geteuid())

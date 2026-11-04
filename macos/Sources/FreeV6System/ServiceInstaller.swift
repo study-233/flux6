@@ -245,7 +245,8 @@ final class ServiceInstaller {
                     let plist: [String: Any] = ["Label": ServiceProtocolVersion.machService,
                         "ProgramArguments": [layout.helpers + "/" + ServiceProtocolVersion.machService],
                         "MachServices": [ServiceProtocolVersion.machService: true],
-                        "RunAtLoad": true, "KeepAlive": true, "ProcessType": "Background", "ThrottleInterval": 10]
+                        "RunAtLoad": true, "KeepAlive": true, "ProcessType": "Background", "ThrottleInterval": 10,
+                        "AbandonProcessGroup": false]
                     try put("recovery", payload.recovery)
                     try put("service", payload.service)
                     try put("registration", JSONEncoder().encode(proposedRegistration!))

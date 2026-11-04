@@ -51,6 +51,7 @@ final class ServiceInstallerTests: XCTestCase {
             let plist = try Data(contentsOf: URL(fileURLWithPath: layout.daemons + "/" + ServiceProtocolVersion.machService + ".plist"))
             let value = try PropertyListSerialization.propertyList(from: plist, format: nil) as! [String: Any]
             XCTAssertEqual(value["ProgramArguments"] as? [String], [layout.helpers + "/" + ServiceProtocolVersion.machService])
+            XCTAssertEqual(value["AbandonProcessGroup"] as? Bool, false)
             try installer.uninstall()
             try installer.uninstall()
             XCTAssertFalse(controller.loaded)

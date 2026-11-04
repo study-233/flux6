@@ -29,10 +29,13 @@ struct ChildStop: Equatable {
 /// must validate the executable/configuration and retain this object until
 /// its network cleanup and explicit stop have completed.
 final class OwnedChildProcess {
+    enum Group { case isolated, inheritService }
     private let state: ChildState
     var pid: pid_t { state.pid }
 
-    init(executable: String, arguments: [String], directory: String) throws {
+    init(executable: String, arguments: [String], directory: String, group: Group = .isolated,
+         standardOutput: FileHandle? = nil) throws {
+        if group == .inheritService { _ = try ServiceProcessOrigin.current() }
         let strings = [executable, directory] + arguments
         guard executable.hasPrefix("/"), directory.hasPrefix("/"), arguments.count <= 32,
               strings.allSatisfy({ !$0.contains("\0") && $0.utf8.count <= 8192 }),
@@ -43,6 +46,11 @@ final class OwnedChildProcess {
         // Open standard descriptors explicitly. Dropping output prevents a
         // configuration parser from leaking credentials into daemon logs.
         for fd in [STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO] {
+            if fd == STDOUT_FILENO, let output = standardOutput {
+                guard output.fileDescriptor > STDERR_FILENO else { throw ChildProcessError.invalidRequest }
+                try Self.check(posix_spawn_file_actions_adddup2(&actions, output.fileDescriptor, fd))
+                continue
+            }
             try Self.check(posix_spawn_file_actions_addopen(&actions, fd, "/dev/null", fd == STDIN_FILENO ? O_RDONLY : O_WRONLY, 0))
         }
         if #available(macOS 26, *) {
@@ -58,9 +66,12 @@ final class OwnedChildProcess {
         sigdelset(&defaults, SIGKILL); sigdelset(&defaults, SIGSTOP)
         try Self.check(posix_spawnattr_setsigmask(&attributes, &mask))
         try Self.check(posix_spawnattr_setsigdefault(&attributes, &defaults))
-        try Self.check(posix_spawnattr_setpgroup(&attributes, 0))
-        try Self.check(posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGMASK |
-                                                                  POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETPGROUP)))
+        var flags = POSIX_SPAWN_CLOEXEC_DEFAULT | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF
+        if group == .isolated {
+            try Self.check(posix_spawnattr_setpgroup(&attributes, 0))
+            flags |= POSIX_SPAWN_SETPGROUP
+        }
+        try Self.check(posix_spawnattr_setflags(&attributes, Int16(flags)))
         var child: pid_t = 0
         let environment = ["PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C", "LC_ALL=C"]
         try Self.withCStringArray([executable] + arguments) { argv in

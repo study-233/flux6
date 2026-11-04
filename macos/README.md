@@ -96,7 +96,7 @@ UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档�
 
 系统模块的 `OwnedChildProcess` 使用 `posix_spawn` 和专属 `waitid`/`waitpid` 观察者持有子进程。执行文件使用绝对路径、参数独立传递，不经过 shell；环境固定为 PATH/LANG/LC_ALL，关闭其他继承描述符，标准输入输出定向到 `/dev/null`。信号发送和最终回收共用锁，只有观察者能释放 PID；停止先 SIGTERM，超时后 SIGKILL，回收失败不得声明已停止。
 
-安装工具的固定 `launchctl` 调用已接入。实际核心 `-t` 已通过此入口验证，但产品服务尚未启动核心；可执行文件、私有会话目录、DNS 恢复和服务重启后的进程身份恢复仍需由上层协调器实现。该类型只管理当前服务持有的子进程，不接受客户端传来的 PID，也不代表网络恢复完成。
+安装工具的固定 `launchctl` 调用已接入。实际核心 `-t` 已通过此入口验证，但产品服务尚未启动核心。该类型只管理当前服务持有的子进程，不接受客户端传来的 PID；跨服务重启的核心管理采用下述独立 job，DNS 恢复仍需由上层协调器实现。固定系统命令需要输出时，通过 `CapturedCommand` 单独接管 stdout，容量和读取时间均有上限，stderr 仍丢弃。
 
 进程专项测试使用独立 C 夹具，验证继承隔离、正常/异常退出、超时、忽略 SIGTERM、并发停止与回收。夹具不进入 App 包。运行：
 
@@ -109,6 +109,20 @@ FREEV6_GEODATA_FIXTURES_DIR="$PWD/build/macos-geodata" \
 ```
 
 运行完整原生回归时也应传入 `FREEV6_PROCESS_TEST_BINARY`，连同已有 worker、资源与独立 Keychain 开关。未设置夹具变量的相关测试会跳过。以上测试不启用真实 TUN 或修改 DNS。
+
+## 核心独立 launchd job
+
+`ManagedCoreJob` 让 launchd 直接持有核心进程，以服务生成的 UUID 派生专属标签。注册 job 不会运行核心；开始前必须另行记录启动意图，停止后先持久化退出结果再移除 job。状态通过手册规定的 `launchctl list` 列读取，未知格式报错；不解析 `print` 诊断文本。SIGTERM/SIGKILL 都发给 job 标识，不向历史 PID 发送信号。核心用固定 `/usr/bin/env -i` 原位执行，显式环境且输出丢弃。
+
+普通用户集成探针使用生产管理模块的 Debug 域适配，验证控制宿主被 SIGKILL 后，新宿主可按任务标识完成停止和清理；另验证忽略 SIGTERM、非零退出、拒绝直接移除运行任务及官方固定核心的 `-t`。需要已有 `build/macos-probes` 和 `build/macos-geodata` 固定资源：
+
+```sh
+python3 scripts/macos/probe-core-jobs.py
+```
+
+结果位于 `build/core-job-probes/<UUID>/result.json`。测试仅使用公开合成配置，不进行 root 安装或修改网络；生产 RPC 尚未串联此模块，准备记录 v1 也尚未升级为 job 日志。Debug 的任意目录和用户域入口不进入 Release。
+
+`python3 scripts/macos/probe-process-group.py` 是独立对照实验：记录服务宿主退出后，继承同一进程组、忽略 SIGTERM 的子进程是否存活，并清理测试夹具。当前系统已观察到存活，因此 `AbandonProcessGroup=false` 不能单独作为核心生命周期保证。该脚本的通过结果只表示实验完成且夹具清理成功，不能当作产品崩溃恢复通过。
 
 ## 私有会话准备与恢复
 

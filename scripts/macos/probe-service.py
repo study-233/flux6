@@ -84,6 +84,7 @@ def main():
         "ProgramArguments": [str(service), "--probe", label, str(record)],
         "MachServices": {label: True},
         "ThrottleInterval": 1,
+        "AbandonProcessGroup": False,
         "StandardOutPath": str(work / "service.stdout"),
         "StandardErrorPath": str(work / "service.stderr"),
     }))

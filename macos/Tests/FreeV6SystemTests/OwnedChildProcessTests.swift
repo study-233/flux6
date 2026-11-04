@@ -170,4 +170,19 @@ final class OwnedChildProcessTests: XCTestCase {
     func testLaunchdReadOnlyQueryUsesControlledProcess() throws {
         XCTAssertNoThrow(try LaunchdController().isLoaded())
     }
+
+    func testCapturedOutputPreservesExitStatusAndExcludesStderr() throws {
+        try fixture { executable, root in
+            let result = try CapturedCommand.run(executable: executable, arguments: ["output"], directory: root.path, timeout: 3)
+            XCTAssertEqual(result.exit, .exited(37))
+            XCTAssertEqual(String(decoding: result.output, as: UTF8.self), "bounded output\n")
+            XCTAssertThrowsError(try CapturedCommand.run(executable: executable, arguments: ["flood"], directory: root.path, timeout: 3, limit: 1024)) { error in
+                guard case CapturedCommandError.outputTooLarge = error else { return XCTFail("Expected bounded-output rejection: \(error)") }
+            }
+            XCTAssertThrowsError(try CapturedCommand.run(executable: executable, arguments: ["wait"], directory: root.path, timeout: 0.05)) { error in
+                XCTAssertEqual(error as? ChildProcessError, .timedOut)
+            }
+            XCTAssertThrowsError(try CapturedCommand.run(executable: root.path + "/absent", arguments: [], timeout: 0.05))
+        }
+    }
 }

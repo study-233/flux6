@@ -226,6 +226,11 @@ do {
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
     #if DEBUG
+    case "core-job" where arguments.count == 4:
+        guard let sessionID = UUID(uuidString: arguments[2]) else { throw ServiceMessageError.invalid }
+        try CoreJobProbe.run(action: arguments[1], sessionID: sessionID, path: arguments[3])
+    case "hold-group" where arguments.count == 3:
+        try SessionPreparationProbe.holdGroup(executable: arguments[1], directory: arguments[2])
     case "hold-session" where arguments.count == 3, "hold-partial-session" where arguments.count == 3:
         try SessionPreparationProbe.hold(path: arguments[1], request: readConfigurationRequest(arguments[2]),
             partial: arguments[0] == "hold-partial-session")
