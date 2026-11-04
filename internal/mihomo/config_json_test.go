@@ -33,6 +33,18 @@ func TestDarwinConfigUsesDynamicTUNAndLoopbackDNS(t *testing.T) {
 	if config["mode"] != ModeGlobal || len(config["proxies"].([]any)) != 28 {
 		t.Fatal("business configuration changed")
 	}
+	if config["geo-auto-update"] != false {
+		t.Fatal("core must not update the pinned data set")
+	}
+	catalog, err := PinnedGeodata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range config["geox-url"].(map[string]any) {
+		if !strings.Contains(value.(string), catalog.Revision) || strings.Contains(value.(string), "latest") {
+			t.Fatal("unversioned Darwin geodata", value)
+		}
+	}
 }
 
 func TestJSONOutputPreservesBusinessConfiguration(t *testing.T) {

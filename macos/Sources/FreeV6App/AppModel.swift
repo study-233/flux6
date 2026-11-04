@@ -19,6 +19,7 @@ typealias Page = DesktopPage
     @Published private(set) var terminating = false
     let business: BusinessModel
     let core: RuntimeModel
+    let geodata: GeodataModel
     let warp: WarpModel
     private let session: BusinessSession
     private let defaults: UserDefaults
@@ -30,14 +31,17 @@ typealias Page = DesktopPage
         session = BusinessSession()
         business = BusinessModel(session: session)
         core = RuntimeModel(session: session)
+        geodata = GeodataModel(session: session)
         warp = WarpModel(session: session)
         // Commands depend on nested models, including text edits and progress.
         business.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         core.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
+        geodata.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         warp.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         Task { await refreshService() }
         Task { await business.reload() }
         Task { await core.refresh() }
+        Task { await geodata.refresh() }
     }
 
     var commandState: DesktopCommandState {
@@ -175,6 +179,7 @@ typealias Page = DesktopPage
                 }
             }
             core.cancel()
+            geodata.cancel()
             await session.shutdown()
             NSApp.reply(toApplicationShouldTerminate: true)
         }

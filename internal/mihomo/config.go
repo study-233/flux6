@@ -195,6 +195,17 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 	header := configHeader
 	if options.Platform == PlatformDarwin {
 		header = strings.Replace(header, "listen: 0.0.0.0:1053", "listen: 127.0.0.1:1053", 1)
+		catalog, err := PinnedGeodata()
+		if err != nil {
+			return "", err
+		}
+		for _, asset := range catalog.Assets {
+			legacy := "https://v6.gh-proxy.org/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/" + asset.SourceName
+			header = strings.Replace(header, legacy, catalog.SourceURLs(asset)[0], 1)
+		}
+		// Mac prepares a complete pinned set before launch. The service must
+		// verify its private copy; core-side automatic updates bypass that check.
+		header = "geo-auto-update: false\n" + header
 	}
 	b.WriteString(header)
 	if options.ControllerSecret != "" {

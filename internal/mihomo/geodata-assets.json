@@ -1,0 +1,24 @@
+{
+  "revision": "fb6bd25ca61dd918d36b0f61b4bad67dfc278bcf",
+  "source": "https://github.com/MetaCubeX/meta-rules-dat/tree/fb6bd25ca61dd918d36b0f61b4bad67dfc278bcf",
+  "assets": [
+    {
+      "name": "GeoSite.dat",
+      "sourceName": "geosite.dat",
+      "size": 4355984,
+      "sha256": "da89d85fa3b6fc28f3878432f28e78c1e5bb9f603449fa2f0ec2deaddbb0b733"
+    },
+    {
+      "name": "geoip.dat",
+      "sourceName": "geoip.dat",
+      "size": 16546071,
+      "sha256": "06c1d50d0013af57ffe78c5af93f0dc6aa998890f3ee231393816f9117810c4a"
+    },
+    {
+      "name": "country.mmdb",
+      "sourceName": "country.mmdb",
+      "size": 7650367,
+      "sha256": "f604d54eb3d5a6fdab9747c0c62f0b489134b6d94df9e9eb20f1c5e2a537dbfa"
+    }
+  ]
+}

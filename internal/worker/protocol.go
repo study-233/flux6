@@ -65,6 +65,7 @@ type Progress struct {
 	Total     int64  `json:"total"`
 	Attempt   int    `json:"attempt"`
 	Attempts  int    `json:"attempts"`
+	Asset     string `json:"asset,omitempty"`
 }
 
 type progressContextKey struct{}
@@ -246,7 +247,7 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 			continue
 		}
 		timeout := 30 * time.Second
-		if request.Method == "runtime.download" {
+		if request.Method == "runtime.download" || request.Method == "geodata.prepare" {
 			timeout = 3 * time.Minute
 		}
 		if request.Method == "warp.register" {
@@ -263,6 +264,7 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 			var sequence uint64
 			var last time.Time
 			var lastPhase string
+			var lastAsset string
 			var lastAttempt int
 			withProgress := context.WithValue(requestCtx, progressContextKey{}, func(progress Progress) {
 				progressMu.Lock()
@@ -270,7 +272,7 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 				if requestCtx.Err() != nil {
 					return
 				}
-				if progress.Phase == lastPhase && progress.Attempt == lastAttempt && time.Since(last) < 200*time.Millisecond {
+				if progress.Phase == lastPhase && progress.Asset == lastAsset && progress.Attempt == lastAttempt && time.Since(last) < 200*time.Millisecond {
 					return
 				}
 				sequence++
@@ -285,6 +287,7 @@ func Serve(parent context.Context, input io.ReadCloser, output io.WriteCloser, h
 				case responses <- notification:
 					last = time.Now()
 					lastPhase = progress.Phase
+					lastAsset = progress.Asset
 					lastAttempt = progress.Attempt
 				default: // Droppable progress must never block transfer or cancellation.
 				}

@@ -28,7 +28,7 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包准备及 WARP 注册；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。订阅、GeoSite 准备、配置生成和网络控制尚未接入这些页面。
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包、GeoSite/GeoIP 数据准备及 WARP 注册；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。订阅、配置生成和网络控制尚未接入这些页面。
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
@@ -49,6 +49,24 @@ python3 scripts/macos/probe-worker.py
 探针使用 `build/worker-probes/<UUID>` 中的独立测试目录，验证分片握手、保存、版本冲突、核心方法参数限制、重复 worker 拒绝、父进程 EOF、SIGTERM、输出背压和坏帧。加 `--download-runtime` 会通过正式镜像下载原生核心，并记录进度和最终摘要。所有测试子进程在结束时回收，结果写入该目录的 `result.json`。不读取个人凭据，不安装网络服务。
 
 普通 `swift.sh test` 在未传 `FREEV6_WORKER_TEST_BINARY` 时跳过真实 Go 集成项；官方核心测试还需要 `FREEV6_RUNTIME_FIXTURES_DIR` 指向包含清单中官方 ZIP/gzip 的目录。该变量也用于 Go 的真实资产验证；测试仍独立核验所有摘要，不信任目录中的文件名。不得把跳过视为集成通过。
+
+## GeoSite 与 GeoIP 数据
+
+概览页及设置的“核心与数据”页共用准备状态，提供检查、下载、取消与重试。`geodata.status/prepare` 从编译时清单选择固定提交的三份数据，只有全部校验通过才显示“规则数据已校验”；准备不启动核心。下载与运行时核心共用有界传输、无进展期限和摘要校验。
+
+缓存位于 `~/Library/Caches/dev.freev6.desktop/geodata/<revision>/`。可选种子只从显式 `Contents/Resources/Geodata/<revision>/` 读取；不再猜测可执行文件父目录，也不向 bundle 写入。当前构建通过首次准备下载数据，未将数据二进制加入应用包。上游仓库的声明许可证和输入数据来源见 [meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat)；分发数据时需同步核对对应来源材料，不能直接沿用原先的 Apache-2.0 标注。
+
+验证命令：
+
+```sh
+python3 scripts/macos/probe-worker.py --prepare-geodata
+go run ./cmd/macos-probe --out build/macos-probes/config
+python3 scripts/macos/probe-runtime.py \
+  --check-config build/macos-probes/config/full-config.json \
+  --geodata-dir /absolute/path/to/verified/geodata
+```
+
+第一次探针将数据留在其输出的结果目录下 `main-cache/geodata/<revision>`，可作为后两个命令的数据目录。设置 `FREEV6_GEODATA_FIXTURES_DIR` 为该目录，可运行 Go 官方摘要测试和 Swift→Go 种子、缓存损坏修复、重启验证。完整 `-t` 保留 GeoSite、DNS 策略和规则提供者定义，不代表提供者下载、实际 DNS 接管或 TUN 流量通过；这些仍由网络阶段验收。
 
 ## WARP 与 Keychain
 

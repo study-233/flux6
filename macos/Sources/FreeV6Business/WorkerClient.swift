@@ -113,6 +113,20 @@ public actor WorkerClient {
         return try result.validated()
     }
 
+    public func geodataStatus() async throws -> GeodataPackageInfo {
+        let handshake = try await connect()
+        guard handshake.capabilities.contains("geodata.status") else { throw WorkerClientError.incompatible }
+        let result: GeodataPackageInfo = try await request("geodata.status", params: Empty(), timeout: 35_000_000_000)
+        return try result.validated()
+    }
+
+    public func prepareGeodata(progress: @escaping @Sendable (WorkerProgress) -> Void) async throws -> GeodataPackageInfo {
+        let handshake = try await connect()
+        guard handshake.capabilities.contains("geodata.prepare") else { throw WorkerClientError.incompatible }
+        let result: GeodataPackageInfo = try await request("geodata.prepare", params: Empty(), timeout: 190_000_000_000, progress: progress)
+        return try result.validated()
+    }
+
     private func validateRuntime(_ result: RuntimePackageInfo) throws -> RuntimePackageInfo {
         guard result.platform == "darwin", result.architecture == Self.architecture,
               result.sha256.count == 64, result.binarySha256.count == 64,
@@ -165,7 +179,8 @@ public actor WorkerClient {
             guard method == "$/progress" else { return }
             let update = try JSONDecoder().decode(ProgressReply.self, from: data).params
             guard update.received >= 0, update.total >= -1, update.attempt >= 0, update.attempts >= update.attempt,
-                  update.attempts <= 16, ["checking", "downloading", "verifying", "registering", "enrolling"].contains(update.phase) else {
+                  update.attempts <= 16, ["checking", "copying", "downloading", "verifying", "registering", "enrolling"].contains(update.phase),
+                  update.asset == nil || ["GeoSite.dat", "geoip.dat", "country.mmdb"].contains(update.asset!) else {
                 throw WorkerClientError.invalidResponse
             }
             guard var item = pending[update.requestId], update.sequence > item.lastSequence else { return }

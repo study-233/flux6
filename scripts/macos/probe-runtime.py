@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download a pinned Darwin runtime and optionally validate an offline config.
+"""Download a pinned Darwin runtime and optionally validate a generated config.
 
 This probe only runs `mihomo -v` / `mihomo -t`. It never starts a TUN session.
 The production downloader will consume the same catalog during P1/P3.
@@ -33,11 +33,14 @@ def main():
     native_arch = {"arm64": "arm64", "x86_64": "amd64"}.get(platform.machine())
     parser.add_argument("--arch", choices=["arm64", "amd64"], default=native_arch)
     parser.add_argument("--check-config", type=Path)
+    parser.add_argument("--geodata-dir", type=Path, help="stage a verified pinned set beside the configuration")
     args = parser.parse_args()
     if platform.system() != "Darwin" or not args.arch:
         parser.error("This probe requires macOS on a supported architecture")
     if args.check_config and args.arch != native_arch:
         parser.error("Configuration checks require a native-architecture runtime")
+    if args.geodata_dir and not args.check_config:
+        parser.error("--geodata-dir requires --check-config")
     catalog = json.loads((ROOT / "internal/mihomo/runtime-assets.json").read_text())
     asset = next(x for x in catalog["assets"] if x["os"] == "darwin" and x["arch"] == args.arch)
     output = ROOT / "build/macos-probes"
@@ -78,6 +81,25 @@ def main():
         subprocess.run([str(binary), "-v"], check=True, timeout=10)
     if args.check_config:
         config = args.check_config.resolve(strict=True)
+        if args.geodata_dir:
+            geodata = json.loads((ROOT / "internal/mihomo/geodata-assets.json").read_text())
+            for asset in geodata["assets"]:
+                source = args.geodata_dir / asset["name"]
+                if source.is_symlink() or not source.is_file() or source.stat().st_size != asset["size"]:
+                    raise ValueError("Invalid geodata fixture: " + asset["name"])
+                data = source.read_bytes()
+                if hashlib.sha256(data).hexdigest() != asset["sha256"]:
+                    raise ValueError("Geodata checksum mismatch: " + asset["name"])
+                with tempfile.NamedTemporaryFile(dir=config.parent, delete=False) as file:
+                    temporary = Path(file.name)
+                    try:
+                        file.write(data)
+                        file.flush()
+                        os.fsync(file.fileno())
+                        os.replace(temporary, config.parent / asset["name"])
+                    finally:
+                        temporary.unlink(missing_ok=True)
+            print("Staged complete pinned geodata set:", geodata["revision"], flush=True)
         subprocess.run([str(binary), "-t", "-d", str(config.parent), "-f", str(config)], check=True, timeout=30)
 
 

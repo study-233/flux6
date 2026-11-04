@@ -17,8 +17,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/yourname/freev6/internal/stallhttp"
 )
 
 const maxRuntimeDownload = 150 << 20
@@ -55,13 +53,7 @@ type runtimeDownloader struct {
 }
 
 func newRuntimeDownloader(asset RuntimeAsset) runtimeDownloader {
-	return runtimeDownloader{asset: asset, urls: asset.SourceURLs(), client: &http.Client{
-		CheckRedirect: func(request *http.Request, via []*http.Request) error {
-			if len(via) >= 10 || request.URL.Scheme != "https" {
-				return fmt.Errorf("unsafe or excessive runtime redirect")
-			}
-			return nil
-		}}, stall: 10 * time.Second, hard: time.Minute, interval: time.Second,
+	return runtimeDownloader{asset: asset, urls: asset.SourceURLs(), client: pinnedHTTPClient(), stall: 10 * time.Second, hard: time.Minute, interval: time.Second,
 		archiveLimit: maxRuntimeDownload, binaryLimit: maxRuntimeDownload}
 }
 
@@ -232,62 +224,8 @@ func (d runtimeDownloader) download(ctx context.Context, temporaryDir string, pr
 }
 
 func (d runtimeDownloader) mirror(ctx context.Context, source, temporaryDir string, progress progressSink) (string, error) {
-	mirrorCtx, cancel := context.WithTimeout(ctx, d.hard)
-	defer cancel()
-	var received atomic.Int64
-	stop := stallhttp.StartWatchdog(mirrorCtx, cancel, &received, d.stall, d.interval)
-	defer stop()
-	request, err := http.NewRequestWithContext(mirrorCtx, http.MethodGet, source, nil)
-	if err != nil {
-		return "", err
-	}
-	request.Header.Set("User-Agent", "freev6")
-	response, err := d.client.Do(request)
-	if err != nil {
-		return "", fmt.Errorf("download: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download returned HTTP %s", response.Status)
-	}
-	if response.ContentLength > d.archiveLimit {
-		return "", fmt.Errorf("runtime archive exceeds size limit")
-	}
-	temporary, err := os.CreateTemp(temporaryDir, ".freev6-archive-*")
-	if err != nil {
-		return "", err
-	}
-	keep := false
-	defer func() {
-		temporary.Close()
-		if !keep {
-			os.Remove(temporary.Name())
-		}
-	}()
-	hash := sha256.New()
-	body := &stallhttp.CountingReader{Reader: response.Body, Counter: &received}
-	reader := &progressReportingReader{r: io.TeeReader(body, hash), received: &received, total: response.ContentLength, onProgress: progress}
-	count, err := io.Copy(temporary, io.LimitReader(reader, d.archiveLimit+1))
-	if err != nil {
-		return "", err
-	}
-	if count > d.archiveLimit {
-		return "", fmt.Errorf("runtime archive exceeds size limit")
-	}
-	if hex.EncodeToString(hash.Sum(nil)) != d.asset.SHA256 {
-		return "", fmt.Errorf("sha256 与固定值不符，镜像内容不可信")
-	}
-	if err := temporary.Sync(); err != nil {
-		return "", err
-	}
-	if err := temporary.Close(); err != nil {
-		return "", err
-	}
-	if err := ctx.Err(); err != nil {
-		return "", err
-	}
-	keep = true
-	return temporary.Name(), nil
+	return (pinnedTransfer{client: d.client, digest: d.asset.SHA256, limit: d.archiveLimit,
+		stall: d.stall, hard: d.hard, interval: d.interval}).download(ctx, source, temporaryDir, progress)
 }
 
 type progressReportingReader struct {

@@ -97,6 +97,7 @@ struct MainView: View {
                             ServiceOverviewView(model: model)
                             WarpAccountView(model: model.warp).disabled(model.serviceBusy)
                             RuntimePreparationView(model: model.core)
+                            GeodataPreparationView(model: model.geodata)
                         }
                     }
                 } else if model.page == .configuration {
@@ -156,7 +157,12 @@ struct SettingsView: View {
         }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
         BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)
         ScrollView { WarpAccountView(model: model.warp).padding(24).disabled(model.serviceBusy) }.tabItem { Label("WARP", systemImage: "key") }.tag(PreferencesPage.account)
-        ScrollView { RuntimePreparationView(model: model.core).padding(24) }.tabItem { Label("核心", systemImage: "shippingbox") }.tag(PreferencesPage.core)
+        ScrollView {
+            VStack(spacing: 20) {
+                RuntimePreparationView(model: model.core)
+                GeodataPreparationView(model: model.geodata)
+            }.padding(24)
+        }.tabItem { Label("核心与数据", systemImage: "shippingbox") }.tag(PreferencesPage.core)
         Form {
             Section("网络服务") {
                 Text(model.serviceStatus)

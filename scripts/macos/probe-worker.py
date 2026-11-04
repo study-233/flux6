@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser()
 parser.add_argument("--binary", type=Path, default=ROOT / "dist/macos/FreeV6.app/Contents/Helpers/freev6-worker")
 parser.add_argument("--download-runtime", action="store_true", help="download the pinned native core via production mirror selection")
+parser.add_argument("--prepare-geodata", action="store_true", help="download the pinned geodata set via production preparation")
 args = parser.parse_args()
 binary = args.binary.resolve(strict=True)
 directory = ROOT / "build/worker-probes" / str(uuid.uuid4())
@@ -80,7 +81,7 @@ def call(child, method, params=None, fragmented=False, timeout=5, progress=None)
 def initialize(child):
     result = call(child, "initialize", {"protocolVersion": 1}, fragmented=True)["result"]
     assert result["protocolVersion"] == 1 and result["platform"] == "darwin"
-    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register"]
+    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare"]
     return result
 
 
@@ -97,7 +98,25 @@ try:
     assert not resource["available"] and resource["architecture"] == handshake["architecture"]
     assert call(child, "runtime.download", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
     assert call(child, "warp.register", {"name": "test", "url": "https://example.com/arbitrary"})["error"]["code"] == -32602
+    geodata = call(child, "geodata.status")["result"]
+    assert not geodata["available"] and len(geodata["files"]) == 3
+    assert call(child, "geodata.prepare", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
     runtime_progress = []
+    geodata_progress = []
+    if args.prepare_geodata:
+        reply = call(child, "geodata.prepare", timeout=190, progress=geodata_progress)
+        assert "result" in reply, reply
+        geodata = reply["result"]
+        assert geodata["available"] and all(f["available"] for f in geodata["files"])
+        assert any(p["phase"] == "downloading" for p in geodata_progress)
+        assert call(child, "geodata.status", timeout=35)["result"] == geodata
+        catalog = json.loads((ROOT / "internal/mihomo/geodata-assets.json").read_text())
+        assert geodata["revision"] == catalog["revision"]
+        for asset in catalog["assets"]:
+            path = directory / "main-cache/geodata" / catalog["revision"] / asset["name"]
+            assert path.stat().st_size == asset["size"]
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == asset["sha256"]
+        checks.append("production geodata preparation, complete pinned set, independent digests and progress")
     if args.download_runtime:
         resource_reply = call(child, "runtime.download", timeout=190, progress=runtime_progress)
         assert "result" in resource_reply, resource_reply
@@ -171,6 +190,7 @@ try:
     result = {"binary": str(binary), "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "handshake": handshake, "checks": checks, "backpressure": backpressure,
               "runtime": resource, "runtimeProgress": runtime_progress,
+              "geodata": geodata, "geodataProgress": geodata_progress,
               "allChildrenExited": all(p.poll() is not None for p in children)}
     assert result["allChildrenExited"]
     (directory / "result.json").write_text(json.dumps(result, indent=2) + "\n")

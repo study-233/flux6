@@ -16,9 +16,9 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`。订阅、GeoSite 准备和配置生成仍待迁移，不在能力列表中宣称可用。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`。订阅和配置生成尚未通过 worker 提供，不在能力列表中宣称可用。
 
-最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心检查为 35 秒，下载为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
+最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 和 `geodata.prepare` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心及规则数据检查为 35 秒，准备为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
 
 取消使用通知：
 
@@ -68,6 +68,16 @@ Mac 的 patch 契约与 Windows 历史 PUT 契约分开。Windows 继续保持�
 
 同一 worker 只允许一个核心检查/准备任务。取消后清理尚未结束时，新调用可能收到 -32003；稍后重新检查即可确认缓存结果。取消晚于原子替换时，已完成安装包可以保留，不能承诺所有取消都撤回磁盘提交。
 
+## 规则数据
+
+`geodata.status` 和 `geodata.prepare` 只接受空对象，拒绝外部路径、URL 和摘要。固定清单位于 `internal/mihomo/geodata-assets.json`，包含上游完整提交、三个文件名、大小及 SHA256。当前锁定 `fb6bd25ca61dd918d36b0f61b4bad67dfc278bcf`；更新清单需要重新获取官方校验文件并通过真实核心检查，不跟随可变的 latest 标签。
+
+返回 `resourceId`、`revision`、`available`、`files`；每个文件包含 `name`、`size`、`sha256`、`available`。三个文件为 `GeoSite.dat`、`geoip.dat`、`country.mmdb`，全部通过摘要校验才返回整体可用。缓存目录为 `CacheDir/geodata/<revision>`，绝对路径不出现在返回值中。状态查询只读；准备先检查缓存，再尝试显式 `ResourceDir/Geodata/<revision>` 中的只读种子，最后下载固定提交的镜像数据。当前 Mac 构建不内置数据二进制，首次使用通过准备入口下载。
+
+文件在同目录临时写入、校验、fsync 后原子替换。每份文件以清单大小为下载上限，拒绝超限、截断及摘要错误；失败或取消清理未提交文件，已验证并提交的文件保留供重试使用。资源状态查询和准备共用单独的互斥锁，核心准备与规则数据准备可独立进行。进度增加可选 `asset` 字段及 `copying` 阶段；文件或阶段变化立即通知，同一文件、阶段、线路内合并通知。
+
+Darwin 生成配置固定相同版本的 geox-url 并关闭核心自动更新。后续 root 服务必须依据自身可信清单重新验证私有副本；worker 的 `available` 不构成 root 信任或连接成功依据。
+
 ## WARP 注册与凭据交接
 
 `warp.register` 接受 `{ "name": "freev6-macos" }`，空名称使用 `freev6-macos`。规范化后最多 128 个 UTF-8 字节，拒绝控制字符和未知参数；不能指定 API 地址、输出路径或令牌。单个 worker 同时只允许一次注册，不自动重试创建账户的请求。
@@ -94,7 +104,7 @@ App 在用户操作后访问钥匙串；先确认已有凭据的版本和替换�
 | -32003 | 请求 ID 正在执行或达到并发上限 |
 | -32004 | 设置版本冲突 |
 | -32005 | 配置读写失败，需要重新载入确认状态 |
-| -32006 | 核心下载、校验或缓存操作失败 |
+| -32006 | 核心或规则数据下载、校验或缓存操作失败 |
 | -32007 | WARP 注册或返回凭据校验失败；不回传上游错误正文 |
 | -32800 | 请求被取消或超时 |
 
@@ -105,3 +115,5 @@ Go 测试覆盖 Windows 字段保留、原生 patch、原子保存和版本冲�
 真实 Swift→Go 测试需要先构建 worker，再给 Swift 测试传入 `FREEV6_WORKER_TEST_BINARY`。它验证并发握手、保存/规范化、冲突拒绝、非法配置拒绝、worker 退出及重启后读取；另外传入 `FREEV6_RUNTIME_FIXTURES_DIR` 可验证真实官方核心安装包与进度分发。`probe-worker.py --download-runtime` 验证正式镜像下载链路。测试不注册 WARP，不安装系统服务，不修改 DNS。
 
 WARP 的 Go 测试使用本机 HTTP 服务器验证两阶段请求与错误处理；Swift 使用共享的 `shared/fixtures/warp-credential.json` 验证编码、密钥格式与存储流程。该样本使用公开可重复的合成密钥和假令牌，禁止用于真实连接。设置 `FREEV6_TEST_PRIVATE_KEYCHAIN=1` 可创建临时独立钥匙串，验证实际读取、条件替换及删除后清理；测试不访问登录钥匙串，未开启时该项明确跳过。此实验不代表 ad-hoc 应用升级授权或真实 Cloudflare 注册已通过。
+
+设置 `FREEV6_GEODATA_FIXTURES_DIR` 为官方三份数据所在目录，可运行 Go 固定摘要校验和 Swift→Go 只读种子复制、缓存修复、重启读取验证。`probe-worker.py --prepare-geodata` 验证生产下载流程，并独立计算缓存摘要。完整配置检查使用 `probe-runtime.py --check-config <full-config.json> --geodata-dir <fixtures>`；它只执行核心 `-v/-t`，不能替代网络连接或远端规则更新验收。

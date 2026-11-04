@@ -49,6 +49,31 @@ public struct WorkerProgress: Decodable, Sendable {
     public let total: Int64
     public let attempt: Int
     public let attempts: Int
+    public let asset: String?
+}
+
+public struct GeodataPackageInfo: Decodable, Sendable, Equatable {
+    public struct File: Decodable, Sendable, Equatable {
+        public let name: String
+        public let size: Int64
+        public let sha256: String
+        public let available: Bool
+    }
+    public let resourceId: String
+    public let revision: String
+    public let available: Bool
+    public let files: [File]
+
+    func validated() throws -> Self {
+        func isHex(_ value: String, count: Int) -> Bool {
+            value.utf8.count == count && value.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
+        }
+        guard isHex(revision, count: 40), resourceId == "geodata-\(revision)", files.count == 3,
+              Set(files.map(\.name)) == Set(["GeoSite.dat", "geoip.dat", "country.mmdb"]),
+              files.allSatisfy({ $0.size > 0 && $0.size <= 32 * 1024 * 1024 && isHex($0.sha256, count: 64) }),
+              available == files.allSatisfy(\.available) else { throw WorkerClientError.invalidResponse }
+        return self
+    }
 }
 
 public struct WorkerRemoteError: Error, Decodable, LocalizedError, Sendable {
@@ -58,7 +83,7 @@ public struct WorkerRemoteError: Error, Decodable, LocalizedError, Sendable {
         switch code {
         case -32004: return "设置已被更新。请重新载入后再保存。"
         case -32005: return "无法读写配置。原文件已保留，请检查磁盘或重新载入确认状态。"
-        case -32006: return "核心准备失败：\(message)"
+        case -32006: return "资源准备失败：\(message)"
         case -32007: return "WARP 注册未完成，请检查网络后重试。"
         case -32003: return "业务操作仍在处理或清理中，请稍后重试。"
         case -32602: return "请求内容无效：\(message)"

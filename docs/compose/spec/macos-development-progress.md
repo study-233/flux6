@@ -7,11 +7,11 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 技术验证 | 进行中 | 原生构建、当前系统 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 离线配置、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
-| P1 共用业务与协议 | 进行中 | 已接入共享设置、核心准备、WARP 注册契约与 Keychain 存储；注册的模拟 API 与存储测试通过；真实注册、订阅、GeoSite 与配置生成待完成 |
+| P1 共用业务与协议 | 进行中 | 已接入共享设置、核心与固定规则数据准备、WARP 注册契约与 Keychain 存储；真实注册、订阅和通过 worker 的配置生成待完成 |
 | P2 原生应用骨架 | 未完成 | 已有导航、共用顶部栏命令、窗口焦点、服务与核心准备入口、真实配置客户端；正式 Xcode targets、完整菜单能力与页面交互验收待完成 |
 | P3 原生网络服务 | 未完成 | 已有握手服务、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，核心管理与完整协议待实现 |
 | P4 TUN 与恢复 | 未开始 | 尚未修改系统 DNS、路由或启动 TUN |
-| P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心准备、WARP 凭据和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
+| P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心/规则数据准备、WARP 凭据和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
 | P6 DMG 与升级 | 未完成 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
 | P7 回归与交付 | 未完成 | 当前 Mac Go 回归已通过；Windows 运行测试、macOS 13、Intel 及实际校园网络待验收 |
 
@@ -145,13 +145,36 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 尚未验证真实 Cloudflare 注册、产品 App 的系统授权交互、ad-hoc 升级/回退后的 Keychain 访问、macOS 13 和 UI 操作。临时钥匙串测试使用已弃用的隔离创建/删除 API，不能代替产品的登录钥匙串及代码身份测试。后续接入实际连接时还需限制运行中凭据替换/删除，并验证凭据向受控配置流程的交接。未安装 root 服务，未启动真实 TUN。
 
+## 2026-11-05：固定规则数据、原生准备入口与完整配置解析
+
+- 新增固定数据清单，锁定 meta-rules-dat 提交 `fb6bd25ca61dd918d36b0f61b4bad67dfc278bcf`。实际下载三份文件并与该提交的官方 `.sha256sum` 一致：GeoSite 4,355,984 字节、GeoIP 16,546,071 字节、MMDB 7,650,367 字节。完整摘要保存在 `internal/mihomo/geodata-assets.json`。
+- 新增 `geodata.status/prepare`，接口不接受路径、URL 或外部摘要。显式 bundle 资源目录只读；缓存按版本隔离，全部文件完成固定摘要校验后才返回可用。当前 Mac 构建首次准备下载数据，未新增随包数据二进制；保留同版本只读种子支持。
+- 与核心下载共用有界传输，覆盖无进展期限、硬超时、大小限制、摘要校验及临时文件清理。单文件原子提交，部分失败保留已验证文件供重试。新增坏种子、坏缓存、镜像切换、部分恢复、截断、已知/未知长度超限、取消、停滞和缓存符号链接测试。
+- 原生概览与设置“核心与数据”页共用准备、检查、取消和错误状态，状态菜单显示准备结果；退出取消准备并等待 worker 回收。Swift 客户端校验文件名、摘要格式、大小及整体可用状态的一致性，丢弃迟到进度。尚未进行本轮页面的实际点击验收。
+- 正式 worker 通过生产镜像完成三份数据准备，收到 38 条进度通知，探针独立验证缓存大小及摘要；状态重读一致，所有测试子进程退出。Swift→真实 Go 使用官方只读种子完成准备、损坏缓存修复及重启读取。
+- Darwin 配置固定相同数据版本的 geox-url，并关闭核心自动更新；Windows 输出保持原有语义。真实 arm64 mihomo v1.19.31 对完整生成配置执行 `-t` 成功，未移除规则提供者或 DNS nameserver-policy；实际加载 cn（110,177 条）、private（133 条）、geolocation-!cn（27,444 条）。该结果不验证提供者下载、WARP 联网、系统 DNS 接管或 TUN 流量。
+- 44 项 XCTest 全部通过，无跳过；包含真实 worker、官方核心/规则数据及独立临时 Keychain 测试。Go 全量回归、资源及 worker 竞态测试通过；Windows 测试程序交叉编译通过，未在 Windows 执行。Release 应用完成构建及严格签名检查。
+- 核对上游 LICENSE 后修正第三方说明中的 Apache-2.0-only 标注，记录上游 GPL v3 声明及多来源输入。Mac 数据随包分发与来源材料继续作为发布核对项；没有把规则数据或 mihomo 二进制提交到仓库。
+
+本轮证据：
+
+| 验证 | 记录 |
+| --- | --- |
+| 生产规则数据下载、独立摘要和进程回收 | [worker result](/Users/andy/Study/free-v6/build/worker-probes/3b4f67e8-694d-498a-8392-316a766650be/result.json) |
+| 完整配置与真实 GeoSite 解析 | [core check](/Users/andy/Study/free-v6/build/macos-geodata/full-core-check.log) |
+| Swift / Go / 私有 Keychain 集成 | [Swift tests](/Users/andy/Study/free-v6/build/macos-geodata/swift-tests.log) |
+| Go 全量与资源故障竞态 | [Go tests](/Users/andy/Study/free-v6/build/macos-geodata/go-full.log)、[resource race](/Users/andy/Study/free-v6/build/macos-geodata/final-resource-race.log)、[worker race](/Users/andy/Study/free-v6/build/macos-geodata/go-tests.log) |
+| Windows 编译与 Release 构建 | [Windows compile](/Users/andy/Study/free-v6/build/macos-geodata/windows-compile.log)、[Release build](/Users/andy/Study/free-v6/build/macos-geodata/release-build.log) |
+
+仍未安装 root 服务或启动 TUN。下一步把 Keychain 凭据、设置 revision 和资源标识通过受控配置请求连接起来，随后由 root 服务独立验证配置与资源，不能把当前用户缓存已校验视为特权启动授权。
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
 2. 实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
 3. 验证 Keychain 在升级/回退后的访问行为；明确 macOS 13 与 Intel 的测试设备路径。
 4. 按已经验证的机制接入产品 Swift 更新助手，并补齐 quarantine 分发与网络服务升级事务。
-5. 在现有 worker 上继续提取订阅、GeoSite 与配置生成，接入受控凭据交接；完善共用顶部栏命令与其余页面。解锁后验证配置、核心和 WARP 面板及实际钥匙串授权；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
+5. 在现有 worker 上继续提取订阅与配置生成，接入受控凭据交接；完善共用顶部栏命令与其余页面。解锁后验证配置、核心、规则数据和 WARP 面板及实际钥匙串授权；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
 
 ## 可重复验证入口
 

@@ -40,13 +40,19 @@ REDISTRIBUTED IN THIS REPOSITORY / THE INSTALLER
    Source:    https://nsis.sourceforge.io/
    Note: the NSIS toolchain is downloaded by the Tauri bundler at build time.
 
-6. GeoSite.dat (geosite domain data, bundled at <install dir>\GeoSite.dat)
-   License:   Apache-2.0
-   Copyright: The v2fly and MetaCubeX authors
-   Source:    https://github.com/MetaCubeX/meta-rules-dat (compiled from
-              v2fly/domain-list-community source lists)
-   Note: refreshed from the source repository on each release build
-   (cmd/ensure-geodata) and only redistributed as the compiled .dat file.
+6. GeoSite.dat / GeoIP data (MetaCubeX/meta-rules-dat)
+   Upstream repository license: GNU GPL version 3 (see upstream LICENSE).
+   Source:    https://github.com/MetaCubeX/meta-rules-dat
+   Inputs:    upstream README and workflows identify multiple domain/IP list
+              sources; their own notices and licenses must also be retained.
+   Windows:   cmd/ensure-geodata prepares GeoSite.dat for redistribution at
+              <install dir>\GeoSite.dat. The previous Apache-2.0-only label
+              did not describe the current upstream repository license.
+   macOS:     the app downloads a pinned set at first preparation; the current
+              Mac bundle does not redistribute the data binaries. The source
+              revision, exact sizes and SHA256 values are recorded in
+              internal/mihomo/geodata-assets.json. Bundled data/source material
+              and corresponding notices remain a release verification item.
 
 7. nsis_tauri_utils (NSIS plugin embedded in the produced setup.exe)
    License:   MIT OR Apache-2.0
