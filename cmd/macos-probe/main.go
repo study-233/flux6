@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/yourname/freev6/internal/app"
 	"github.com/yourname/freev6/internal/mihomo"
 	"github.com/yourname/freev6/internal/warp"
 )
@@ -48,11 +49,35 @@ func generate(directory string) error {
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return err
 	}
+	var configuration map[string]any
+	if err := json.Unmarshal(data, &configuration); err != nil {
+		return err
+	}
+	business, err := app.PrepareWarpConfiguration(app.DefaultProxyPreferences(), warp.TunnelCredentials{
+		PrivateKey: device.PrivateKey, PeerPublicKey: device.PeerPublicKey, IPv4: device.IPv4, IPv6: device.IPv6,
+	})
+	if err != nil {
+		return err
+	}
+	businessData, err := json.Marshal(business)
+	if err != nil {
+		return err
+	}
+	var businessFields map[string]any
+	if err := json.Unmarshal(businessData, &businessFields); err != nil {
+		return err
+	}
+	for key, value := range businessFields {
+		configuration[key] = value
+	}
+	data, err = json.Marshal(configuration)
+	if err != nil {
+		return err
+	}
 	if err := os.WriteFile(filepath.Join(directory, "full-config.json"), data, 0o600); err != nil {
 		return err
 	}
-	var configuration map[string]any
-	if err := json.Unmarshal(data, &configuration); err != nil {
+	if err := os.WriteFile(filepath.Join(directory, "business-config.json"), businessData, 0o600); err != nil {
 		return err
 	}
 	// Isolate MASQUE parsing from external GeoSite/provider availability. The
@@ -67,6 +92,6 @@ func generate(directory string) error {
 	if err := os.WriteFile(filepath.Join(directory, "offline-config.json"), data, 0o600); err != nil {
 		return err
 	}
-	fmt.Println("Generated full and offline MASQUE configuration fixtures; synthetic credentials only")
+	fmt.Println("Generated business, full and offline MASQUE fixtures; synthetic credentials only")
 	return nil
 }

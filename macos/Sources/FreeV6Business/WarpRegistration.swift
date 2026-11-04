@@ -1,4 +1,5 @@
 import Foundation
+import FreeV6Configuration
 
 public typealias WarpRegistrationOperation = @Sendable (String, @escaping @Sendable (WorkerProgress) -> Void) async throws -> WarpCredential
 
@@ -37,6 +38,22 @@ public actor WarpRegistration {
         guard !busy else { throw RegistrationWorkflowError.busy }
         busy = true; defer { busy = false }
         return try await vault.load().map(WarpAccountSummary.init)
+    }
+
+    // Serialize use of a saved credential with replacement/deletion. Send only
+    // tunnel material, never the account token, and recheck the saved revision
+    // after asynchronous work so an externally replaced entry is not accepted.
+    public func withSavedTunnel<Value: Sendable>(revision: UUID,
+        operation: @Sendable (TunnelCredential) async throws -> Value) async throws -> Value {
+        guard !busy else { throw RegistrationWorkflowError.busy }
+        guard pending == nil else { throw RegistrationWorkflowError.pendingCredential }
+        busy = true; defer { busy = false }
+        guard let stored = try await vault.load(), stored.revision == revision else { throw CredentialError.conflict }
+        try Task.checkCancellation()
+        let result = try await operation(stored.credential.tunnelCredential())
+        try Task.checkCancellation()
+        guard try await vault.load()?.revision == revision else { throw CredentialError.conflict }
+        return result
     }
 
     public func register(name: String, replacing revision: UUID?, willSave: @escaping @Sendable () -> Void = {}, progress: @escaping @Sendable (WorkerProgress) -> Void) async throws -> WarpAccountSummary {

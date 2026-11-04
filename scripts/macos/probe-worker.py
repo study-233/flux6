@@ -81,7 +81,7 @@ def call(child, method, params=None, fragmented=False, timeout=5, progress=None)
 def initialize(child):
     result = call(child, "initialize", {"protocolVersion": 1}, fragmented=True)["result"]
     assert result["protocolVersion"] == 1 and result["platform"] == "darwin"
-    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare"]
+    assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare"]
     return result
 
 
@@ -101,6 +101,11 @@ try:
     geodata = call(child, "geodata.status")["result"]
     assert not geodata["available"] and len(geodata["files"]) == 3
     assert call(child, "geodata.prepare", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
+    assert call(child, "configuration.prepare", {"path": "/tmp/arbitrary"})["error"]["code"] == -32602
+    device = json.loads((ROOT / "shared/fixtures/warp-credential.json").read_text())["device"]
+    assert call(child, "configuration.prepare", {"source": "warp", "settingsRevision": 0,
+        "credentialRevision": str(uuid.uuid4()), "tunnel": {k: device[k] for k in ("privateKey", "peerPublicKey", "ipv4", "ipv6")}})["error"]["code"] == -32006
+    checks.append("configuration preparation rejects arbitrary paths and missing resources")
     runtime_progress = []
     geodata_progress = []
     if args.prepare_geodata:

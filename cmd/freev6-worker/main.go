@@ -45,10 +45,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	handler := worker.BusinessHandler(worker.NewSettingsStore(root), worker.NewRuntimeManager(dirs.Cache))
+	settings := worker.NewSettingsStore(root)
+	handler := worker.BusinessHandler(settings, worker.NewRuntimeManager(dirs.Cache))
 	handler = worker.WarpHandler(worker.NewWarpManager(warp.NewClient(nil)), handler)
 	handler = worker.GeodataHandler(worker.NewGeodataManager(dirs.Resources, dirs.Cache), handler)
-	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare"}})
+	handler = worker.ConfigurationHandler(worker.NewConfigurationManager(settings, dirs.Cache), handler)
+	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare"}})
 }
 
 func main() {

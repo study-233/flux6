@@ -98,6 +98,7 @@ struct MainView: View {
                             WarpAccountView(model: model.warp).disabled(model.serviceBusy)
                             RuntimePreparationView(model: model.core)
                             GeodataPreparationView(model: model.geodata)
+                            ConfigurationPreparationView(model: model)
                         }
                     }
                 } else if model.page == .configuration {

@@ -16,7 +16,7 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`。订阅和配置生成尚未通过 worker 提供，不在能力列表中宣称可用。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`。配置准备当前支持 WARP 本机路径；链式和备用配置输入随订阅模块另行接入，不能将其标为完整功能已完成。
 
 最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 和 `geodata.prepare` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心及规则数据检查为 35 秒，准备为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
 
@@ -90,6 +90,18 @@ App 在用户操作后访问钥匙串；先确认已有凭据的版本和替换�
 
 取消是尽力而为，可能发生在服务端已创建设备之后，不能承诺撤销远端注册。删除本机凭据或放弃待保存结果同样不会删除 Cloudflare 设备。没有确认的远端结果不写入本地，不自动反复注册。
 
+## 连接配置交接
+
+`configuration.prepare` 当前只接受 `source: "warp"`、`settingsRevision`（必填无符号整数）、`credentialRevision`（Keychain 条目的 UUID）、`tunnel`（仅 `privateKey`、`peerPublicKey`、`ipv4`、`ipv6`）。参数最多 32 KiB，未知字段、注册令牌、设备 ID、URL、文件路径及其他 source 拒绝。worker 不读取 Keychain，也不注册账户或自动下载缺失资源。
+
+worker 先读取并核对已保存设置，再重新检查固定核心和整套规则数据；生成后再次确认设置 revision。没有前置资源返回 -32006，设置已变化返回 -32004，非法输入返回 -32602。单个 worker 仅允许一个准备任务，普通请求期限为 30 秒，Swift 调用为 35 秒。进度为 `checking`、`rendering`，不包含凭据或配置片段。
+
+结果包含 `schemaVersion: 1`、`settingsRevision`、`credentialRevision`、`runtimeId`、`geodataId` 和 `configuration`。后者最大 512 KiB，仅包含 `mode`、`proxies`、`proxy-groups`、`rule-providers`、`rules` 五类业务字段，复用 Go 渲染器及默认黑名单/开发者模式语义；不交接 controller、secret、TUN、DNS、端口、全局路径等系统字段。结果内仍有 MASQUE 私钥，只允许私有进程通信及后续受控 XPC 使用，不写普通配置文件、日志或 UI 状态。
+
+Swift `FreeV6Configuration` 校验模块对未知字段、节点字段及协议、密钥/IP、分组引用和循环、规则语法、固定提供者 URL/相对路径实施限制。当前只接受 MASQUE，链式/备用配置尚未通过此边界开放。客户端同时核对请求的设置/凭据 revision、资源 ID、工作模式和 28 个节点的凭据；不接受旧请求结果冒充当前配置。共享校验模块目前用于 App，尚未接入网络服务，不能代替 root 独立校验或启动授权。
+
+Keychain 读取由用户点击配置检查触发。`WarpRegistration.withSavedTunnel` 与注册、保存、删除共用互斥状态，读取后只交出隧道材料；异步准备结束后再次检查存储 revision。发现外部替换、拒绝授权或取消即拒绝结果。检查页面只保存版本、模式和数量摘要，含私钥的文档在本次操作结束后不留在 ViewModel。结果是一次配置生成记录；真正启动仍必须复验资源、设置绑定和服务身份。
+
 ## 错误
 
 | code | 含义 |
@@ -106,6 +118,7 @@ App 在用户操作后访问钥匙串；先确认已有凭据的版本和替换�
 | -32005 | 配置读写失败，需要重新载入确认状态 |
 | -32006 | 核心或规则数据下载、校验或缓存操作失败 |
 | -32007 | WARP 注册或返回凭据校验失败；不回传上游错误正文 |
+| -32008 | 连接业务配置生成或大小检查失败 |
 | -32800 | 请求被取消或超时 |
 
 ## 验证
@@ -117,3 +130,5 @@ Go 测试覆盖 Windows 字段保留、原生 patch、原子保存和版本冲�
 WARP 的 Go 测试使用本机 HTTP 服务器验证两阶段请求与错误处理；Swift 使用共享的 `shared/fixtures/warp-credential.json` 验证编码、密钥格式与存储流程。该样本使用公开可重复的合成密钥和假令牌，禁止用于真实连接。设置 `FREEV6_TEST_PRIVATE_KEYCHAIN=1` 可创建临时独立钥匙串，验证实际读取、条件替换及删除后清理；测试不访问登录钥匙串，未开启时该项明确跳过。此实验不代表 ad-hoc 应用升级授权或真实 Cloudflare 注册已通过。
 
 设置 `FREEV6_GEODATA_FIXTURES_DIR` 为官方三份数据所在目录，可运行 Go 固定摘要校验和 Swift→Go 只读种子复制、缓存修复、重启读取验证。`probe-worker.py --prepare-geodata` 验证生产下载流程，并独立计算缓存摘要。完整配置检查使用 `probe-runtime.py --check-config <full-config.json> --geodata-dir <fixtures>`；它只执行核心 `-v/-t`，不能替代网络连接或远端规则更新验收。
+
+`shared/fixtures/warp-business-configuration.json` 使用公开合成凭据和共享设置样本生成，Go 验证业务语义，Swift 验证解析与拒绝场景。真实 Swift→Go 配置测试同时需要三项环境变量 `FREEV6_WORKER_TEST_BINARY`、`FREEV6_RUNTIME_FIXTURES_DIR`、`FREEV6_GEODATA_FIXTURES_DIR`；覆盖缺少资源、版本冲突、资源绑定、结构往返及用户目录无凭据落盘。此测试不读取个人 Keychain、不发起真实注册或连接。

@@ -3,6 +3,7 @@ import Combine
 import SwiftUI
 import FreeV6Desktop
 import FreeV6System
+import FreeV6Business
 
 typealias Page = DesktopPage
 
@@ -17,6 +18,9 @@ typealias Page = DesktopPage
     @Published var serviceInstalled = false
     @Published private(set) var promptActive = false
     @Published private(set) var terminating = false
+    @Published private(set) var configurationBusy = false
+    @Published private(set) var configurationSummary: ConfigurationSummary?
+    @Published private(set) var configurationError: String?
     let business: BusinessModel
     let core: RuntimeModel
     let geodata: GeodataModel
@@ -50,14 +54,39 @@ typealias Page = DesktopPage
         state.coreBusy = core.busy
         state.coreAvailable = core.package?.available == true
         state.coreCancelable = core.canCancel
-        state.settingsBusy = business.busy
+        state.settingsBusy = business.busy || configurationBusy
         state.settingsLoaded = business.snapshot != nil
         state.settingsChanged = business.hasChanges
         state.promptActive = promptActive
         state.terminating = terminating
-        state.credentialsBusy = warp.busy
+        state.credentialsBusy = warp.busy || configurationBusy
         state.credentialsPending = warp.hasPending
+        state.configurationReady = configurationPrerequisite == nil
         return state
+    }
+
+    var configurationPrerequisite: String? {
+        if configurationBusy || warp.busy || business.busy || serviceBusy { return "请等待当前操作结束。" }
+        if business.snapshot == nil { return "请先载入代理规则。" }
+        if business.hasChanges { return "请先保存代理规则，再检查连接配置。" }
+        if warp.hasPending || warp.summary == nil { return "请先检查或注册已保存的 WARP 凭据。" }
+        if core.package?.available != true { return "请先准备网络核心。" }
+        if geodata.package?.available != true { return "请先准备规则数据。" }
+        return nil
+    }
+
+    func prepareConfiguration() async {
+        guard !terminating, configurationPrerequisite == nil, let settings = business.snapshot,
+              let runtime = core.package, let data = geodata.package else { return }
+        configurationBusy = true; configurationError = nil; configurationSummary = nil
+        defer { configurationBusy = false }
+        do {
+            let prepared = try await warp.prepareConfiguration(settings: settings, runtimeId: runtime.resourceId, geodataId: data.resourceId)
+            guard business.snapshot?.revision == settings.revision, !business.hasChanges else { throw CredentialError.conflict }
+            // Do not publish or retain the secret-bearing document in UI state.
+            // The future start coordinator will pass it directly to the service.
+            configurationSummary = ConfigurationSummary(prepared)
+        } catch { configurationError = error.localizedDescription }
     }
 
     func perform(_ command: DesktopCommand, in context: CommandContext, openWindow: OpenWindowAction) {
@@ -74,6 +103,9 @@ typealias Page = DesktopPage
         case .checkCore: Task { await core.refresh() }
         case .downloadCore: core.beginDownload()
         case .cancelCoreDownload: core.cancel()
+        case .prepareConfiguration:
+            page = .overview; openWindow(id: "main"); showWindow()
+            Task { await prepareConfiguration() }
         case .saveConfiguration: Task { await business.save() }
         case .reloadConfiguration:
             if business.hasChanges {
@@ -119,7 +151,7 @@ typealias Page = DesktopPage
     }
 
     func manageService(_ action: ServiceInstallationAction) async {
-        guard !serviceBusy, !warp.busy, !terminating else { return }
+        guard !serviceBusy, !warp.busy, !configurationBusy, !terminating else { return }
         serviceBusy = true; serviceState = .managing; error = nil
         serviceStatus = "正在等待管理员授权…"
         defer { serviceBusy = false }

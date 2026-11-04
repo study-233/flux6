@@ -76,4 +76,19 @@ final class DesktopCommandsTests: XCTestCase {
         state.credentialsPending = false
         XCTAssertTrue(state.availability(.quit).enabled)
     }
+
+    func testPreparationRequiresReadyInputsAndNeverEnablesConnection() {
+        var state = DesktopCommandState()
+        XCTAssertFalse(state.availability(.prepareConfiguration).enabled)
+        state.configurationReady = true
+        XCTAssertTrue(state.availability(.prepareConfiguration).enabled)
+        state.credentialsBusy = true
+        XCTAssertFalse(state.availability(.prepareConfiguration).enabled)
+        state.credentialsBusy = false; state.credentialsPending = true
+        XCTAssertFalse(state.availability(.prepareConfiguration).enabled)
+        state.credentialsPending = false; state.settingsBusy = true
+        XCTAssertFalse(state.availability(.prepareConfiguration).enabled)
+        state.settingsBusy = false
+        XCTAssertFalse(state.availability(.connect).enabled)
+    }
 }

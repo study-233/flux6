@@ -11,14 +11,37 @@ import FreeV6Business
     @Published private(set) var status = "尚未检查 WARP 凭据"
     @Published private(set) var error: String?
     private let workflow: WarpRegistration
+    private let session: BusinessSession
     private var task: Task<Void, Never>?
     private var operation: UUID?
     private var lastProgress: UInt64 = 0
     private var acceptsProgress = false
 
     init(session: BusinessSession) {
+        self.session = session
         workflow = WarpRegistration(vault: WarpCredentialVault()) { name, progress in
             try await session.worker().registerWarp(name: name, progress: progress)
+        }
+    }
+
+    func prepareConfiguration(settings: SettingsSnapshot, runtimeId: String, geodataId: String) async throws -> PreparedConfiguration {
+        guard !busy, !hasPending, let revision = summary?.revision else { throw RegistrationWorkflowError.busy }
+        busy = true; error = nil; status = "正在读取连接所需凭据…"
+        defer { busy = false }
+        do {
+            let worker = try session.worker()
+            let result = try await workflow.withSavedTunnel(revision: revision) { tunnel in
+                try await worker.prepareConfiguration(settings: settings, credentialRevision: revision,
+                    tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId)
+            }
+            status = "WARP 凭据已保存"
+            return result
+        } catch {
+            status = "连接配置准备未完成"
+            if let failure = error as? CredentialError, failure == .conflict || failure == .invalidCredential {
+                summary = nil; inspected = false
+            }
+            throw error
         }
     }
 

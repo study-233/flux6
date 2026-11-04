@@ -19,7 +19,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "FreeV6System"),
-        .target(name: "FreeV6Business"),
+        .target(name: "FreeV6Configuration"),
+        .target(name: "FreeV6Business", dependencies: ["FreeV6Configuration"]),
         .target(name: "FreeV6Desktop"),
         .executableTarget(name: "FreeV6App", dependencies: ["FreeV6System", "FreeV6Business", "FreeV6Desktop"]),
         .executableTarget(name: "FreeV6Probe", dependencies: ["FreeV6System"]),
@@ -27,6 +28,7 @@ let package = Package(
         .executableTarget(name: "FreeV6Bootstrap", dependencies: ["FreeV6System"], linkerSettings: bootstrapLinkerSettings),
         .testTarget(name: "FreeV6SystemTests", dependencies: ["FreeV6System"]),
         .testTarget(name: "FreeV6BusinessTests", dependencies: ["FreeV6Business"]),
+        .testTarget(name: "FreeV6ConfigurationTests", dependencies: ["FreeV6Configuration"]),
         .testTarget(name: "FreeV6DesktopTests", dependencies: ["FreeV6Desktop"]),
     ]
 )

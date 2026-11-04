@@ -1,4 +1,5 @@
 import Foundation
+import FreeV6Configuration
 
 public actor WorkerClient {
     private struct Pending {
@@ -120,6 +121,22 @@ public actor WorkerClient {
         return try result.validated()
     }
 
+    public func prepareConfiguration(settings: SettingsSnapshot, credentialRevision: UUID, tunnel: TunnelCredential,
+                                     runtimeId: String, geodataId: String) async throws -> PreparedConfiguration {
+        struct Input: Encodable {
+            let source = "warp"
+            let settingsRevision: UInt64
+            let credentialRevision: UUID
+            let tunnel: TunnelCredential
+        }
+        let handshake = try await connect()
+        guard handshake.capabilities.contains("configuration.prepare") else { throw WorkerClientError.incompatible }
+        let tunnel = try tunnel.validated()
+        let result: PreparedConfiguration = try await request("configuration.prepare",
+            params: Input(settingsRevision: settings.revision, credentialRevision: credentialRevision, tunnel: tunnel), timeout: 35_000_000_000)
+        return try result.validated(settings: settings, revision: credentialRevision, tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId)
+    }
+
     public func prepareGeodata(progress: @escaping @Sendable (WorkerProgress) -> Void) async throws -> GeodataPackageInfo {
         let handshake = try await connect()
         guard handshake.capabilities.contains("geodata.prepare") else { throw WorkerClientError.incompatible }
@@ -179,7 +196,7 @@ public actor WorkerClient {
             guard method == "$/progress" else { return }
             let update = try JSONDecoder().decode(ProgressReply.self, from: data).params
             guard update.received >= 0, update.total >= -1, update.attempt >= 0, update.attempts >= update.attempt,
-                  update.attempts <= 16, ["checking", "copying", "downloading", "verifying", "registering", "enrolling"].contains(update.phase),
+                  update.attempts <= 16, ["checking", "copying", "downloading", "verifying", "registering", "enrolling", "rendering"].contains(update.phase),
                   update.asset == nil || ["GeoSite.dat", "geoip.dat", "country.mmdb"].contains(update.asset!) else {
                 throw WorkerClientError.invalidResponse
             }

@@ -39,6 +39,25 @@ func ValidateDevice(device Device) error {
 	if !validDeviceID(device.DeviceID) || !validToken(device.Token) {
 		return fmt.Errorf("invalid WARP account identity")
 	}
+	if device.RegisteredAt.IsZero() {
+		return fmt.Errorf("invalid WARP registration date")
+	}
+	return ValidateTunnelCredentials(TunnelCredentials{device.PrivateKey, device.PeerPublicKey, device.IPv4, device.IPv6})
+}
+
+// TunnelCredentials deliberately excludes the registration token and account
+// identity. Only these four values are needed to render MASQUE outbounds.
+type TunnelCredentials struct {
+	PrivateKey    string `json:"privateKey"`
+	PeerPublicKey string `json:"peerPublicKey"`
+	IPv4          string `json:"ipv4"`
+	IPv6          string `json:"ipv6"`
+}
+
+func (TunnelCredentials) String() string   { return "TunnelCredentials(redacted)" }
+func (TunnelCredentials) GoString() string { return "TunnelCredentials(redacted)" }
+
+func ValidateTunnelCredentials(device TunnelCredentials) error {
 	if len(device.PrivateKey) > 4096 || len(device.PeerPublicKey) > 4096 {
 		return fmt.Errorf("invalid WARP key size")
 	}
@@ -66,9 +85,6 @@ func ValidateDevice(device Device) error {
 	v6, err6 := netip.ParseAddr(device.IPv6)
 	if err4 != nil || !v4.Is4() || err6 != nil || !v6.Is6() || v6.Is4In6() || v6.Zone() != "" {
 		return fmt.Errorf("invalid WARP interface addresses")
-	}
-	if device.RegisteredAt.IsZero() {
-		return fmt.Errorf("invalid WARP registration date")
 	}
 	return nil
 }

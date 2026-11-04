@@ -6,12 +6,12 @@
 
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
-| P0 技术验证 | 进行中 | 原生构建、当前系统 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 离线配置、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
-| P1 共用业务与协议 | 进行中 | 已接入共享设置、核心与固定规则数据准备、WARP 注册契约与 Keychain 存储；真实注册、订阅和通过 worker 的配置生成待完成 |
+| P0 技术验证 | 进行中 | 原生构建、早期基础 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 完整配置与 GeoSite 解析、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
+| P1 共用业务与协议 | 进行中 | 已接入共享设置、核心/规则资源、WARP 注册与 Keychain、WARP 业务配置准备及 Swift 校验；真实注册、订阅/链式/备用配置及 root 启动交接待完成 |
 | P2 原生应用骨架 | 未完成 | 已有导航、共用顶部栏命令、窗口焦点、服务与核心准备入口、真实配置客户端；正式 Xcode targets、完整菜单能力与页面交互验收待完成 |
 | P3 原生网络服务 | 未完成 | 已有握手服务、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，核心管理与完整协议待实现 |
 | P4 TUN 与恢复 | 未开始 | 尚未修改系统 DNS、路由或启动 TUN |
-| P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心/规则数据准备、WARP 凭据和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
+| P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心/规则数据准备、WARP 凭据、连接配置检查和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
 | P6 DMG 与升级 | 未完成 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
 | P7 回归与交付 | 未完成 | 当前 Mac Go 回归已通过；Windows 运行测试、macOS 13、Intel 及实际校园网络待验收 |
 
@@ -168,13 +168,36 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 仍未安装 root 服务或启动 TUN。下一步把 Keychain 凭据、设置 revision 和资源标识通过受控配置请求连接起来，随后由 root 服务独立验证配置与资源，不能把当前用户缓存已校验视为特权启动授权。
 
+## 2026-11-05：WARP 配置交接与 Swift 结构校验
+
+- 新增共享业务配置生成器及 `configuration.prepare`。请求只允许 WARP source、已保存设置 revision、凭据 revision 和四项隧道材料；未知字段、账户 token、任意路径、缺失资源及过期设置被拒绝。生成前后核对设置版本，单次准备串行化，结果不写普通配置文件。
+- 继续复用 Go 渲染器、默认黑名单、白名单、模式及开发者模式语义。响应仅含模式、节点、分组、规则提供者、规则五类字段；不携带 TUN、DNS、controller、secret 等系统配置。注册身份和 token 不进入连接配置，敏感类型的常规调试描述已脱敏。
+- 新增纯 Swift `FreeV6Configuration` 模块。校验未知字段、MASQUE 参数和密钥/IP、分组成员及循环、规则语法、固定提供者 URL 与受控相对路径；验证结果保留 Go 业务结构。当前只开放 WARP MASQUE 路径，链式/备用协议仍待扩展；root 服务尚未调用该模块。
+- Keychain 交接复用 WARP 操作协调器，与注册/保存/删除共用忙碌状态，异步生成后再次检查凭据 revision。配置准备期间阻止界面保存其他设置或替换凭据；外部钥匙串条目替换会使当前结果失效。App 仅保留设置/凭据版本、模式和数量摘要，不把含私钥的文档放入 Published 状态。
+- 概览、原生工具栏和“连接”菜单增加“检查连接配置”，共用前置条件与执行入口。缺少设置、凭据或资源时说明下一步；从菜单发起时展示概览。没有开启连接或新增后台 Keychain 读取。实际 UI 和用户钥匙串交互仍待解锁验证。
+- 新增 Go/Swift 共用 `warp-business-configuration.json`，使用已公开的合成凭据，禁止用于联网。Go 校验业务等价性与无系统字段；Swift 拒绝插件、外部控制器、越界路径/来源、非法规则和循环分组。真实 Swift→Go 验证资源准备、配置生成、版本与资源绑定、过期请求拒绝和用户数据目录无凭据落盘。
+- 49 项 XCTest 通过，无跳过；Go 共享业务/凭据/worker 竞态及全量回归通过，Windows 测试程序交叉编译通过。Release App 构建及严格签名检查通过，包内 worker 验证八项能力、配置参数拒绝、缺资源拒绝及进程回收。
+- `macos-probe` 将同一业务配置生成器的结果与测试用系统字段组合；固定 arm64 核心对完整配置再次 `-t` 成功。该探针不是 root 服务实现，不能证明实际 TUN、DNS 恢复或规则提供者下载。
+
+本轮证据：
+
+| 验证 | 记录 |
+| --- | --- |
+| Go 业务、凭据与 worker 竞态 | [race tests](/Users/andy/Study/free-v6/build/macos-configuration/go-race.log) |
+| Go 全量与 Windows 交叉编译 | [Go regression](/Users/andy/Study/free-v6/build/macos-configuration/go-full.log)、[Windows compile](/Users/andy/Study/free-v6/build/macos-configuration/windows-compile.log) |
+| 49 项原生测试与真实 Swift→Go 配置交接 | [Swift tests](/Users/andy/Study/free-v6/build/macos-configuration/swift-final-tests.log) |
+| 业务投影组成的完整核心配置 | [core check](/Users/andy/Study/free-v6/build/macos-configuration/full-core-check.log) |
+| Release 构建与包内 worker | [Release](/Users/andy/Study/free-v6/build/macos-configuration/release-build.log)、[worker result](/Users/andy/Study/free-v6/build/worker-probes/fc9f10b4-c517-4067-b748-cfefe8032ab9/result.json) |
+
+下一阶段需要在 root 服务中重新验证受限业务文档、可信资源 ID 和摘要，组装系统字段并管理核心进程。当前服务仍仅支持身份握手，未安装 root 服务、未启动真实 TUN；不将 App 侧结构检查当作特权启动授权。
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
 2. 实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
 3. 验证 Keychain 在升级/回退后的访问行为；明确 macOS 13 与 Intel 的测试设备路径。
 4. 按已经验证的机制接入产品 Swift 更新助手，并补齐 quarantine 分发与网络服务升级事务。
-5. 在现有 worker 上继续提取订阅与配置生成，接入受控凭据交接；完善共用顶部栏命令与其余页面。解锁后验证配置、核心、规则数据和 WARP 面板及实际钥匙串授权；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
+5. 在现有 WARP 配置交接基础上提取订阅、链式及备用配置，逐协议扩展受限节点契约并验证真实核心解析；完善共用顶部栏与其余页面。解锁后验证配置生成、核心、规则数据和 WARP 面板及实际钥匙串授权；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
 
 ## 可重复验证入口
 

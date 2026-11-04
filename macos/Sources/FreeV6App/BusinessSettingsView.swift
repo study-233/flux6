@@ -95,19 +95,19 @@ struct BusinessSettingsView: View {
                 Toggle("开发者模式", isOn: $model.devMode)
                 Text("保存的配置用于后续连接。当前版本尚未开放 TUN 连接。")
                     .font(.callout).foregroundStyle(.secondary)
-            }.disabled(model.busy || model.snapshot == nil)
+            }.disabled(model.busy || app.configurationBusy || model.snapshot == nil)
             Section("校园白名单") {
                 Text("每行一个域名或 CIDR，例如 edu.cn 或 202.204.0.0/12。")
                     .font(.callout).foregroundStyle(.secondary)
                 TextEditor(text: $model.campusText).font(.system(.body, design: .monospaced))
                     .frame(minHeight: 60, maxHeight: 100).accessibilityLabel("校园白名单")
-            }.disabled(model.busy || model.snapshot == nil)
+            }.disabled(model.busy || app.configurationBusy || model.snapshot == nil)
             Section("黑名单") {
                 Text("每行一个域名，留空表示不添加自定义黑名单。")
                     .font(.callout).foregroundStyle(.secondary)
                 TextEditor(text: $model.blacklistText).font(.system(.body, design: .monospaced))
                     .frame(minHeight: 60, maxHeight: 100).accessibilityLabel("自定义黑名单")
-            }.disabled(model.busy || model.snapshot == nil)
+            }.disabled(model.busy || app.configurationBusy || model.snapshot == nil)
             Section {
                 HStack {
                     DesktopCommandButton(.saveConfiguration, model: app, context: context)

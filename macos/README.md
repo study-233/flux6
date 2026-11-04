@@ -28,7 +28,7 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包、GeoSite/GeoIP 数据准备及 WARP 注册；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。订阅、配置生成和网络控制尚未接入这些页面。
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包、GeoSite/GeoIP 数据准备、WARP 注册及 WARP 业务配置生成；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。订阅和网络控制尚未接入这些页面。
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
@@ -83,6 +83,14 @@ FREEV6_TEST_PRIVATE_KEYCHAIN=1 bash scripts/macos/swift.sh test --filter WarpCre
 ```
 
 测试创建仅含合成数据的临时钥匙串并清理，不读取登录钥匙串。为了测试文件式 Keychain，测试夹具使用已弃用的 `SecKeychainCreate/Delete` 等隔离 API；产品通过 `SecItem` API 访问条目。未设置开关时该项跳过。Go/Swift 共用合成凭据样本，仅用于验证协议和密钥编码，不能用于实际连接。
+
+## 连接配置准备
+
+保存规则、检查已保存凭据并准备核心/规则数据后，可从概览页、工具栏或“连接”菜单执行“检查连接配置”。该操作按需访问 Keychain，将四项隧道材料经私有管道交给 worker；账户 token 和设备 ID 不参与配置生成。准备时防止替换/删除凭据和保存其他设置，完成前重新核对设置与凭据 revision。
+
+worker 只生成节点、分组、规则、规则提供者和模式。新 `FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。根服务将自行提供系统网络配置；目前尚未连接这个启动接口，检查成功不能视为代理运行。当前输入仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
+
+UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。共享的 `warp-business-configuration.json` 含合成公开密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 会把同一业务生成结果与测试用系统字段组合，再供真实核心 `-t` 检查；它不代表 root 服务配置组装已经实现。
 
 ## 服务安装与事务
 

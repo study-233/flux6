@@ -63,6 +63,7 @@ struct NativeCommands: Commands {
             DesktopCommandButton(.showPage(.configuration), model: model)
             DesktopCommandButton(.measureNodes, model: model)
             DesktopCommandButton(.refreshCloud, model: model)
+            DesktopCommandButton(.prepareConfiguration, model: model)
             Divider()
             DesktopCommandButton(.configureService, model: model)
             DesktopCommandButton(.refreshService, model: model)
@@ -88,6 +89,7 @@ struct NativeToolbar: ToolbarContent {
             switch model.page ?? .overview {
             case .overview:
                 DesktopCommandButton(.refreshService, model: model)
+                DesktopCommandButton(.prepareConfiguration, model: model)
             case .configuration:
                 DesktopCommandButton(.reloadConfiguration, model: model, context: .main(.configuration))
                 DesktopCommandButton(.saveConfiguration, model: model, context: .main(.configuration))

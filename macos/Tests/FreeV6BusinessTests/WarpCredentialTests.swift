@@ -131,4 +131,32 @@ final class WarpCredentialTests: XCTestCase {
         let removed = try await storage.read()
         XCTAssertNil(removed)
     }
+
+    func testSavedTunnelRejectsStaleRevisionAndSerializesReplacement() async throws {
+        let credential = try fixture()
+        let vault = WarpCredentialVault(storage: MemorySecretStorage())
+        let stored = try await vault.save(credential, expectedRevision: nil)
+        let workflow = WarpRegistration(vault: vault) { _, _ in credential }
+        do {
+            let _: Int = try await workflow.withSavedTunnel(revision: UUID()) { _ in XCTFail("stale access reached operation"); return 0 }
+            XCTFail("stale revision accepted")
+        } catch { XCTAssertEqual(error as? CredentialError, .conflict) }
+        let result = try await workflow.withSavedTunnel(revision: stored.revision) { tunnel in
+            let encoded = String(decoding: try JSONEncoder().encode(tunnel), as: UTF8.self)
+            XCTAssertFalse(encoded.contains("token")); XCTAssertFalse(encoded.contains("deviceId"))
+            do { try await workflow.delete(revision: stored.revision); XCTFail("deleted during preparation") }
+            catch { XCTAssertTrue(error is RegistrationWorkflowError) }
+            return 42
+        }
+        XCTAssertEqual(result, 42)
+        do {
+            let _: Int = try await workflow.withSavedTunnel(revision: stored.revision) { _ in
+                _ = try await vault.save(credential, expectedRevision: stored.revision)
+                return 0
+            }
+            XCTFail("external credential replacement was not detected")
+        } catch { XCTAssertEqual(error as? CredentialError, .conflict) }
+        let current = try await workflow.inspect()
+        XCTAssertNotEqual(current?.revision, stored.revision)
+    }
 }

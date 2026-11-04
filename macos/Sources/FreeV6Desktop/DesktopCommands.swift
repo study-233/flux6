@@ -35,6 +35,7 @@ public enum CommandContext: Equatable, Sendable {
 public enum DesktopCommand: Equatable, Sendable {
     case showMain, showPage(DesktopPage), showCore, configureService, refreshService
     case checkCore, downloadCore, cancelCoreDownload, saveConfiguration, reloadConfiguration
+    case prepareConfiguration
     case connect, importChain, refreshCloud, measureNodes, exportLogs, exportDiagnostics, checkUpdates
     case help, quit
 
@@ -46,6 +47,7 @@ public enum DesktopCommand: Equatable, Sendable {
         case .configureService: return "设置网络服务…"
         case .refreshService: return "刷新服务状态"
         case .checkCore: return "检查本地核心"
+        case .prepareConfiguration: return "检查连接配置"
         case .downloadCore: return "下载核心"
         case .cancelCoreDownload: return "取消下载"
         case .saveConfiguration: return "保存配置"
@@ -69,6 +71,7 @@ public enum DesktopCommand: Equatable, Sendable {
         case .configureService: return "wrench.and.screwdriver"
         case .refreshService, .reloadConfiguration, .refreshCloud: return "arrow.clockwise"
         case .checkCore: return "checkmark.shield"
+        case .prepareConfiguration: return "doc.text"
         case .cancelCoreDownload: return "xmark.circle"
         case .saveConfiguration: return "square.and.arrow.down"
         case .connect: return "power"
@@ -124,6 +127,7 @@ public struct DesktopCommandState: Sendable {
     public var terminating = false
     public var credentialsBusy = false
     public var credentialsPending = false
+    public var configurationReady = false
     public init() {}
 
     public var primaryCommand: DesktopCommand {
@@ -149,6 +153,9 @@ public struct DesktopCommandState: Sendable {
             return coreAvailable ? .unavailable("核心安装包已校验") : .available
         case .cancelCoreDownload:
             return coreCancelable ? .available : .unavailable("当前没有可取消的下载")
+        case .prepareConfiguration:
+            return configurationReady && !credentialsBusy && !settingsBusy && !credentialsPending
+                ? .available : .unavailable("请先保存设置并准备凭据、核心和规则数据")
         case .saveConfiguration, .reloadConfiguration:
             guard context.editsConfiguration else { return .unavailable("请先打开代理规则编辑页") }
             guard !settingsBusy else { return .unavailable("配置读写正在进行") }

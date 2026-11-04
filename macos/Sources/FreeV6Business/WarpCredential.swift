@@ -1,6 +1,5 @@
-import CryptoKit
-import Darwin
 import Foundation
+import FreeV6Configuration
 
 public struct WarpCredential: Codable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     public struct Device: Codable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
@@ -19,17 +18,20 @@ public struct WarpCredential: Codable, Sendable, CustomStringConvertible, Custom
     public var description: String { "WarpCredential(redacted)" }
     public var debugDescription: String { description }
 
+    public func tunnelCredential() throws -> TunnelCredential {
+        _ = try validated()
+        return try TunnelCredential(privateKey: device.privateKey, peerPublicKey: device.peerPublicKey,
+                                    ipv4: device.ipv4, ipv6: device.ipv6).validated()
+    }
+
     public func validated() throws -> Self {
         let identifier = device.deviceId.utf8
         guard schemaVersion == 1, !identifier.isEmpty, identifier.count <= 256,
               identifier.allSatisfy({ (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 45 || $0 == 95 }),
               !device.token.isEmpty, device.token.utf8.count <= 8192,
               device.token.utf8.allSatisfy({ (33...126).contains($0) }),
-              device.privateKey.utf8.count <= 4096, device.peerPublicKey.utf8.count <= 4096,
-              let privateDER = Data(base64Encoded: device.privateKey), let publicDER = Data(base64Encoded: device.peerPublicKey),
-              (try? P256.Signing.PrivateKey(derRepresentation: privateDER)) != nil,
-              (try? P256.Signing.PublicKey(derRepresentation: publicDER)) != nil,
-              validAddress(device.ipv4, family: AF_INET), validAddress(device.ipv6, family: AF_INET6),
+              (try? TunnelCredential(privateKey: device.privateKey, peerPublicKey: device.peerPublicKey,
+                                     ipv4: device.ipv4, ipv6: device.ipv6).validated()) != nil,
               device.registeredAt.utf8.count <= 64 else { throw CredentialError.invalidCredential }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -40,11 +42,6 @@ public struct WarpCredential: Codable, Sendable, CustomStringConvertible, Custom
         return self
     }
 
-    private func validAddress(_ value: String, family: Int32) -> Bool {
-        guard value.utf8.count <= 45, !value.utf8.contains(0) else { return false }
-        var bytes = [UInt8](repeating: 0, count: 16)
-        return value.withCString { address in bytes.withUnsafeMutableBytes { inet_pton(family, address, $0.baseAddress) == 1 } }
-    }
 }
 
 public enum CredentialError: Error, LocalizedError, Equatable, Sendable {

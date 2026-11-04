@@ -180,6 +180,8 @@ Go worker 由 App 从 bundle 内固定位置启动，以私有管道通信。协
 
 Go 负责生成规范的配置模型，Mac 适配器输出结构化 JSON。Swift 服务使用受限 DTO 和字段规则验证模型，并自行生成或覆盖 controller、secret、工作目录、DNS/TUN、日志与 GeoSite 路径；订阅不能决定这些字段。校验节点协议与字段类型，拒绝任意插件、脚本、外部控制器和不受控本地路径。确有需要的本地资源先导入并映射为服务管理的资源 ID。
 
+当前交接契约进一步限制为五类业务字段：模式、节点、分组、规则提供者和规则。系统字段不经过 worker 结果交接，由服务组装；请求绑定已保存设置 revision、凭据 revision 与固定资源 ID。App 按用户操作从 Keychain 提取隧道密钥及地址，注册 token 不进入该流程；UI 只保留脱敏摘要。WARP 路径与 Swift 结构校验已接入，链式/备用节点协议、root 复验和启动仍按后续阶段完成。
+
 计划让 mihomo 读取服务生成的 JSON 配置，以避免 Swift 再解析用户 YAML。P0 必须用锁定核心执行真实 -t 验证该格式、字段和等价性；不能仅凭 JSON 属于 YAML 子集便认定可用。若核心不接受，只更换最后的序列化适配，并评估固定版本 YAML 库，不复制订阅业务。Windows 继续使用现有 YAML 输出。
 
 服务只允许 installApprovedRuntime、startSession、stopSession、status、recoverSession 和有限 controller 操作，不提供任意命令、任意 URL 代理或任意路径写入。启停串行化，重复 stop 幂等，请求绑定用户与 session ID。

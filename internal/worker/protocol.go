@@ -14,22 +14,23 @@ import (
 )
 
 const (
-	ProtocolVersion   = 1
-	MaxFrameBytes     = 1024 * 1024
-	MaxInFlight       = 8
-	ParseError        = -32700
-	InvalidRequest    = -32600
-	MethodNotFound    = -32601
-	InvalidParams     = -32602
-	InternalError     = -32603
-	NotInitialized    = -32001
-	VersionMismatch   = -32002
-	Busy              = -32003
-	Conflict          = -32004
-	StorageError      = -32005
-	Canceled          = -32800
-	ResourceError     = -32006
-	RegistrationError = -32007
+	ProtocolVersion    = 1
+	MaxFrameBytes      = 1024 * 1024
+	MaxInFlight        = 8
+	ParseError         = -32700
+	InvalidRequest     = -32600
+	MethodNotFound     = -32601
+	InvalidParams      = -32602
+	InternalError      = -32603
+	NotInitialized     = -32001
+	VersionMismatch    = -32002
+	Busy               = -32003
+	Conflict           = -32004
+	StorageError       = -32005
+	Canceled           = -32800
+	ResourceError      = -32006
+	RegistrationError  = -32007
+	ConfigurationError = -32008
 )
 
 type RPCError struct {
