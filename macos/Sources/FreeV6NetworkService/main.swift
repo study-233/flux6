@@ -11,7 +11,7 @@ final class ServiceSession: NSObject, NetworkServiceProtocol {
     func handshake(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
         do {
             let request = try ServiceMessages.decodeHandshake(data)
-            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p3-configuration", privileged: geteuid() == 0)
+            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p4-core-check", privileged: geteuid() == 0)
             reply(try JSONEncoder().encode(response), nil)
         } catch { reply(nil, error.localizedDescription) }
     }
@@ -80,7 +80,10 @@ do {
     }
     let registration = try RegistrationFile.load(path: registrationPath, owner: owner, service: CodeIdentity.current())
     let listener = NSXPCListener(machServiceName: serviceName)
-    let delegate = ServiceListener(registration: registration, resources: try ServiceResourceStore(path: resourcesPath, owner: owner))
+    let resources = try ServiceResourceStore(path: resourcesPath, owner: owner)
+    do { try resources.recoverConfigurationChecks() }
+    catch { fputs("freev6-network-service: 配置检查恢复待处理：\(error.localizedDescription)\n", stderr) }
+    let delegate = ServiceListener(registration: registration, resources: resources)
     listener.delegate = delegate
     listener.resume()
     RunLoop.current.run()

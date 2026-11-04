@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ServiceProtocolVersion {
-    public static let current = 3
+    public static let current = 4
     public static let machService = "dev.freev6.network-service"
 }
 

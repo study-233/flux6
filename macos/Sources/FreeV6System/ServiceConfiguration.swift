@@ -30,11 +30,13 @@ public struct ConfigurationCheckReply: Codable, Sendable {
     public let mode: String
     public let proxyCount: Int
     public let ruleCount: Int
+    public let coreValidated: Bool
     init(_ request: ConfigurationCheckRequest) {
         protocolVersion = ServiceProtocolVersion.current; requestID = request.requestID
         policyVersion = ServiceConfigurationAssembler.policyVersion
         settingsRevision = request.settingsRevision; credentialRevision = request.credentialRevision
         mode = request.configuration.mode; proxyCount = request.configuration.proxyCount; ruleCount = request.configuration.ruleCount
+        coreValidated = true
     }
 }
 

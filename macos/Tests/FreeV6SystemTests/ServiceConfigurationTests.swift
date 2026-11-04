@@ -87,6 +87,20 @@ final class ServiceConfigurationTests: XCTestCase {
         XCTAssertNil(document["deviceId"])
     }
 
+    func testClientRejectsOldOrUnvalidatedCoreAcknowledgements() throws {
+        let request = try request()
+        let bytes = try JSONEncoder().encode(ConfigurationCheckReply(request))
+        XCTAssertTrue(try ServiceClient.decodeConfigurationReply(bytes, request: request).coreValidated)
+        let original = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+        for (key, value) in [("protocolVersion", 3 as Any), ("coreValidated", false as Any),
+                             ("requestID", UUID().uuidString as Any), ("settingsRevision", request.settingsRevision + 1 as Any)] {
+            var invalid = original; invalid[key] = value
+            XCTAssertThrowsError(try ServiceClient.decodeConfigurationReply(JSONSerialization.data(withJSONObject: invalid), request: request))
+        }
+        var missing = original; missing.removeValue(forKey: "coreValidated")
+        XCTAssertThrowsError(try ServiceClient.decodeConfigurationReply(JSONSerialization.data(withJSONObject: missing), request: request))
+    }
+
     func testServiceCheckRequiresIndependentResourcesAndDoesNotPersistSecrets() throws {
         try fixture { root in
             let store = try ServiceResourceStore(path: root.appendingPathComponent("resources").path, owner: geteuid())
@@ -95,7 +109,8 @@ final class ServiceConfigurationTests: XCTestCase {
                 guard case ResourceStoreError.integrity = error else { return XCTFail("Unexpected error") }
             }
             XCTAssertThrowsError(try store.checkConfiguration(bytes, clientUID: 0))
-            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["resources"])
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: root.path)), ["resources", "sessions", "network.lock"])
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("sessions").path), [])
             XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("resources").path), ["resources.lock"])
         }
     }

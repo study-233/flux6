@@ -16,12 +16,10 @@ enum SessionStoreError: Error, LocalizedError {
     }
 }
 
-/// Schema 1 describes preparation ONLY. No process or system-network side
-/// effect is permitted in these phases. Future launch/DNS records must extend
-/// the schema; unknown records fail closed instead of being auto-cleaned.
+/// v1 prepares files only. v2 permits a managed -t job, never TUN or DNS.
 struct PreparedSessionRecord: Codable, Equatable {
-    enum Phase: String, Codable { case preparing, prepared }
-    let schema: Int
+    enum Phase: String, Codable { case preparing, prepared, checking }
+    var schema: Int
     let sessionID: UUID
     let clientUID: uid_t
     let runtimeID: String
@@ -31,6 +29,7 @@ struct PreparedSessionRecord: Codable, Equatable {
     let policyVersion: Int
     var phase: Phase
     var configurationSHA256: String?
+    var check: CoreCheckRecord?
 
     init(request: ConfigurationCheckRequest, clientUID: uid_t) {
         schema = 1; sessionID = UUID(); self.clientUID = clientUID
@@ -44,13 +43,20 @@ struct PreparedSessionRecord: Codable, Equatable {
         do {
             guard let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw SessionStoreError.invalidRecord }
             let required: Set<String> = ["schema", "sessionID", "clientUID", "runtimeID", "geodataID", "settingsRevision", "credentialRevision", "policyVersion", "phase"]
-            guard Set(fields.keys) == required || Set(fields.keys) == required.union(["configurationSHA256"]) else {
+            guard required.isSubset(of: Set(fields.keys)), Set(fields.keys).isSubset(of: required.union(["configurationSHA256", "check"])) else {
                 throw SessionStoreError.invalidRecord
             }
             let record = try JSONDecoder().decode(Self.self, from: data)
-            guard record.schema == 1, record.clientUID != 0, record.policyVersion > 0,
+            guard [1, 2].contains(record.schema), record.clientUID != 0, record.policyVersion > 0,
                   !record.runtimeID.isEmpty, record.runtimeID.utf8.count <= 128,
                   !record.geodataID.isEmpty, record.geodataID.utf8.count <= 128 else { throw SessionStoreError.invalidRecord }
+            if record.schema == 1 {
+                guard record.phase != .checking, record.check == nil, fields["check"] == nil else { throw SessionStoreError.invalidRecord }
+            } else {
+                guard record.phase == .checking, let check = record.check,
+                      let object = fields["check"] as? [String: Any] else { throw SessionStoreError.invalidRecord }
+                try check.validate(object)
+            }
             if record.phase == .preparing {
                 guard record.configurationSHA256 == nil else { throw SessionStoreError.invalidRecord }
             } else {
@@ -72,6 +78,9 @@ final class PreparedSessionStore {
     private let sessions: SecureDirectory
     private let lease: FileHandle
     private let lock = NSLock()
+    #if DEBUG
+    var checkCheckpoint: ((String) -> Void)?
+    #endif
 
     init(path: String = InstallationLayout.system.data, owner: uid_t = 0) throws {
         data = try SecureDirectory(path: path, owner: owner)
@@ -123,8 +132,12 @@ final class PreparedSessionStore {
         guard lock.try() else { throw SessionStoreError.occupied }
         defer { lock.unlock() }
         let record = try requireRecord(sessionID: sessionID, clientUID: clientUID)
+        return try body(verifiedWorkspace(record))
+    }
+
+    private func verifiedWorkspace(_ record: PreparedSessionRecord) throws -> SecureDirectory {
         guard record.phase == .prepared else { throw SessionStoreError.invalidTransition }
-        guard let directory = try sessions.privateChild(sessionID.uuidString),
+        guard let directory = try sessions.privateChild(record.sessionID.uuidString),
               Set(try directory.entries()) == Self.filenames else { throw SessionStoreError.integrity }
         try directory.requirePrivateFile("config.json")
         guard let config = try directory.read("config.json", limit: ServiceMessages.maximumConfigurationBytes),
@@ -139,7 +152,97 @@ final class PreparedSessionStore {
                 return true
             }) == true else { throw SessionStoreError.integrity }
         }
-        return try body(directory)
+        return directory
+    }
+
+    /// Every side effect follows its durable intent. Errors in launchctl leave
+    /// the record for a new service instance, not an unsafe best-effort delete.
+    func checkConfiguration(sessionID: UUID, clientUID: uid_t) throws {
+        guard lock.try() else { throw SessionStoreError.occupied }
+        defer { lock.unlock() }
+        var record = try requireRecord(sessionID: sessionID, clientUID: clientUID)
+        let origin = try ServiceProcessOrigin.current()
+        guard origin.ownerUID == data.owner else { throw SessionStoreError.wrongOwner }
+        let directory = try verifiedWorkspace(record)
+        let job = try makeJob(sessionID)
+        record.schema = 2; record.phase = .checking
+        record.check = CoreCheckRecord(origin: origin,
+            coreSHA256: try ApprovedResourceCatalog.asset(record.runtimeID).sha256)
+        try persist(record)
+        try job.register(directory: directory, checkOnly: true)
+        checkpoint("job-registered") // Crash after launchd ack, before journal.
+        record.check!.stage = .registered; try persist(record)
+        record.check!.stage = .starting; try persist(record)
+        let pid = try job.start()
+        checkpoint("job-started") // No child PID has been persisted yet.
+        record.check!.pid = pid; record.check!.stage = .started; try persist(record)
+        let exit: Int32
+        var timedOut = false
+        do { exit = try job.waitForExit(timeout: 20) }
+        catch CoreJobError.timedOut { timedOut = true; exit = try job.stop() }
+        record.check!.exitCode = exit; record.check!.stage = .exited; try persist(record)
+        try job.removeStoppedJob()
+        checkpoint("job-removed")
+        record.check!.stage = .removed; try persist(record)
+        try clean(record)
+        if timedOut { throw CoreJobError.timedOut }
+        guard exit == 0 else { throw ConfigurationCheckError.coreRejected }
+    }
+
+    /// Internal restart recovery. No caller-supplied PID, domain or job label.
+    /// A record from this live service is not recovery authority: a failed
+    /// launchctl might still be in flight. Keep it until its old group is gone.
+    func recoverConfigurationCheck() throws {
+        guard lock.try() else { throw SessionStoreError.occupied }
+        defer { lock.unlock() }
+        guard var record = try load() else {
+            guard try sessions.entries().isEmpty else { throw SessionStoreError.recoveryRequired }
+            return
+        }
+        guard record.schema == 2 else { try clean(record); return }
+        let check = record.check!
+        guard check.origin.ownerUID == data.owner else { throw SessionStoreError.wrongOwner }
+        guard try check.origin.groupHasExited() else { throw SessionStoreError.occupied }
+        let job = try makeJob(record.sessionID)
+        let state = try job.status()
+        if try check.origin.bootID != ServiceProcessOrigin.bootIdentity() {
+            // Jobs live outside LaunchDaemons/LaunchAgents and do not reload
+            // after a reboot. A same-label job in the new boot is unexpected.
+            guard state == nil else { throw SessionStoreError.recoveryRequired }
+        } else {
+            switch check.stage {
+            case .registering, .registered:
+                if let state {
+                    guard state.pid == nil else { throw SessionStoreError.recoveryRequired }
+                    record.check!.exitCode = state.lastExit; record.check!.stage = .exited; try persist(record)
+                    try job.removeStoppedJob()
+                }
+            case .starting, .started:
+                guard state != nil else { throw SessionStoreError.recoveryRequired }
+                record.check!.exitCode = try job.stop()
+                record.check!.stage = .exited; try persist(record)
+                try job.removeStoppedJob()
+            case .exited:
+                if let state {
+                    guard state.pid == nil else { throw SessionStoreError.recoveryRequired }
+                    try job.removeStoppedJob()
+                }
+            case .removed:
+                guard state == nil else { throw SessionStoreError.recoveryRequired }
+            }
+        }
+        record.check!.stage = .removed; try persist(record)
+        try clean(record)
+    }
+
+    private func makeJob(_ sessionID: UUID) throws -> ManagedCoreJob {
+        if data.owner == 0 { return ManagedCoreJob(sessionID: sessionID) }
+        #if DEBUG
+        guard data.owner == geteuid(), geteuid() != 0 else { throw SessionStoreError.wrongOwner }
+        return try ManagedCoreJob(probeSessionID: sessionID, requireServiceOrigin: true)
+        #else
+        throw SessionStoreError.wrongOwner
+        #endif
     }
 
     /// Safe only for this preparation-only schema, which cannot represent a
@@ -152,16 +255,23 @@ final class PreparedSessionStore {
             guard try sessions.entries().isEmpty else { throw SessionStoreError.recoveryRequired }
             return
         }
+        guard record.schema == 1 else { throw SessionStoreError.invalidTransition }
         try clean(record)
     }
 
     func discard(sessionID: UUID, clientUID: uid_t) throws {
         guard lock.try() else { throw SessionStoreError.occupied }
         defer { lock.unlock() }
-        try clean(requireRecord(sessionID: sessionID, clientUID: clientUID))
+        let record = try requireRecord(sessionID: sessionID, clientUID: clientUID)
+        guard record.schema == 1 else { throw SessionStoreError.invalidTransition }
+        try clean(record)
     }
 
     private func clean(_ record: PreparedSessionRecord) throws {
+        guard record.schema == 1 || (record.schema == 2 && record.check?.stage == .removed) else {
+            throw SessionStoreError.invalidTransition
+        }
+        let allowed = record.schema == 2 ? Self.filenames.union([ManagedCoreJob.plistName, "cache.db"]) : Self.filenames
         let name = record.sessionID.uuidString
         guard Set(try sessions.entries()).isSubset(of: [name]) else { throw SessionStoreError.recoveryRequired }
         if let directory = try sessions.privateChild(name) {
@@ -170,7 +280,7 @@ final class PreparedSessionStore {
             // follow links, or delete another session/unknown core output.
             for file in entries {
                 let staging = file.hasPrefix(".staging-") && UUID(uuidString: String(file.dropFirst(9))) != nil
-                guard Self.filenames.contains(file) || staging else { throw SessionStoreError.recoveryRequired }
+                guard allowed.contains(file) || staging else { throw SessionStoreError.recoveryRequired }
                 _ = try directory.withFile(file) { _ in () }
             }
             for file in entries { try directory.removeRegularFile(file) }
@@ -192,9 +302,18 @@ final class PreparedSessionStore {
     }
 
     private func persist(_ record: PreparedSessionRecord) throws {
+        let encoded = try JSONEncoder().encode(record)
+        _ = try PreparedSessionRecord.decode(encoded)
         try data.requirePrivateFile(Self.journalName)
-        try data.write(Self.journalName, data: JSONEncoder().encode(record), mode: 0o600)
+        try data.write(Self.journalName, data: encoded, mode: 0o600)
         try data.requirePrivateFile(Self.journalName)
+        if let check = record.check { checkpoint(check.stage.rawValue) }
+    }
+
+    private func checkpoint(_ name: String) {
+        #if DEBUG
+        checkCheckpoint?(name)
+        #endif
     }
 
     static func filename(_ asset: ApprovedResource) -> String {

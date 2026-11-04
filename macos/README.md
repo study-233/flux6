@@ -88,15 +88,15 @@ FREEV6_TEST_PRIVATE_KEYCHAIN=1 bash scripts/macos/swift.sh test --filter WarpCre
 
 保存规则、检查已保存凭据并准备核心/规则数据后，可从概览页、工具栏或“连接”菜单执行“检查连接配置”。该操作按需访问 Keychain，将四项隧道材料经私有管道交给 worker；账户 token 和设备 ID 不参与配置生成。准备时防止替换/删除凭据和保存其他设置，完成前重新核对设置与凭据 revision。
 
-worker 只生成节点、分组、规则、规则提供者和模式。`FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。服务就绪时，App 交接缺少的固定资源并提交配置，服务独立复验后在内存中组装系统字段，返回仅含版本和统计的摘要。服务未就绪时只完成本机检查，两种结果在界面中区分。检查成功不能视为代理运行；当前仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
+worker 只生成节点、分组、规则、规则提供者和模式。`FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。服务就绪时，App 交接缺少的固定资源并提交配置，服务独立复验、准备私有副本、运行真实核心 `-t`，完成任务与文件清理后返回带 `coreValidated` 的摘要。服务未就绪时只完成本机检查，两种结果在界面中区分。检查成功不能视为代理运行；当前仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
 
-UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。交接期间保持凭据互斥，并在服务完成后重新核对 worker 设置与 Keychain revision。共享的 `warp-business-configuration.json` 含公开合成密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 验证 Go 侧生成配置；下述独立服务探针另用 Swift 服务组装器生成完整配置并执行核心 `-t`。产品的配置检查方法本身不会启动核心或写会话文件。
+UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。交接期间保持凭据互斥，并在服务完成后重新核对 worker 设置与 Keychain revision。共享的 `warp-business-configuration.json` 含公开合成密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 验证 Go 侧生成配置；下述独立服务探针通过真实 XPC 调用产品检查方法，验证核心成功确认及会话清理。配置检查会短暂保存私有配置并启动检查任务，但不会启动实际代理或修改系统网络。
 
 ## 受控子进程
 
 系统模块的 `OwnedChildProcess` 使用 `posix_spawn` 和专属 `waitid`/`waitpid` 观察者持有子进程。执行文件使用绝对路径、参数独立传递，不经过 shell；环境固定为 PATH/LANG/LC_ALL，关闭其他继承描述符，标准输入输出定向到 `/dev/null`。信号发送和最终回收共用锁，只有观察者能释放 PID；停止先 SIGTERM，超时后 SIGKILL，回收失败不得声明已停止。
 
-安装工具的固定 `launchctl` 调用已接入。实际核心 `-t` 已通过此入口验证，但产品服务尚未启动核心。该类型只管理当前服务持有的子进程，不接受客户端传来的 PID；跨服务重启的核心管理采用下述独立 job，DNS 恢复仍需由上层协调器实现。固定系统命令需要输出时，通过 `CapturedCommand` 单独接管 stdout，容量和读取时间均有上限，stderr 仍丢弃。
+安装工具的固定 `launchctl` 调用已接入。该类型只管理当前服务持有的子进程，不接受客户端传来的 PID；产品核心检查及跨服务重启的核心管理采用下述独立 job，DNS 恢复仍需由上层协调器实现。固定系统命令需要输出时，通过 `CapturedCommand` 单独接管 stdout，容量和读取时间均有上限，stderr 仍丢弃。
 
 进程专项测试使用独立 C 夹具，验证继承隔离、正常/异常退出、超时、忽略 SIGTERM、并发停止与回收。夹具不进入 App 包。运行：
 
@@ -120,7 +120,7 @@ FREEV6_GEODATA_FIXTURES_DIR="$PWD/build/macos-geodata" \
 python3 scripts/macos/probe-core-jobs.py
 ```
 
-结果位于 `build/core-job-probes/<UUID>/result.json`。测试仅使用公开合成配置，不进行 root 安装或修改网络；生产 RPC 尚未串联此模块，准备记录 v1 也尚未升级为 job 日志。Debug 的任意目录和用户域入口不进入 Release。
+结果位于 `build/core-job-probes/<UUID>/result.json`。测试仅使用公开合成配置，不进行 root 安装或修改网络；生产 v4 RPC 已通过检查记录 v2 串联此模块，但尚不支持真实网络会话。Debug 的任意目录和用户域入口不进入 Release。
 
 `python3 scripts/macos/probe-process-group.py` 是独立对照实验：记录服务宿主退出后，继承同一进程组、忽略 SIGTERM 的子进程是否存活，并清理测试夹具。当前系统已观察到存活，因此 `AbandonProcessGroup=false` 不能单独作为核心生命周期保证。该脚本的通过结果只表示实验完成且夹具清理成功，不能当作产品崩溃恢复通过。
 
@@ -128,7 +128,7 @@ python3 scripts/macos/probe-core-jobs.py
 
 系统模块已提供 `PreparedSessionStore` 和资源层 `prepareSession`：先持久化准备记录，再创建服务所有的 0700 UUID 目录，复制并复验核心/规则数据，写入 0600 配置并绑定摘要。副本使用独立 inode，更新共享资源不改变已准备的会话。配置和资源在交给启动协调器前再次验证，非所属 UID 不能读取工作目录或取消会话。
 
-全局 `network.lock` 与安装工具共用，防止准备会话与安装/卸载并发。记录格式和清理顺序见 [session-preparation-v1.md](../shared/protocol/session-preparation-v1.md)。当前仅表示“尚未启动进程、尚未改网络”的准备状态；未知状态、未知文件或链接会保留并报错。产品 RPC 尚未调用此存储，真实核心启动前必须增加启动意图、进程身份及 DNS 事务。
+全局 `network.lock` 与安装工具共用，防止准备会话与安装/卸载并发。准备阶段使用 [v1](../shared/protocol/session-preparation-v1.md)，运行核心检查前升级为 [v2](../shared/protocol/session-check-v2.md)，记录注册、启动意图、任务身份、确认退出与移除。服务启动或下次检查前恢复旧记录；未知状态、任务意外丢失、未知文件或链接会保留并报错。正常代理和 DNS 事务仍需另行扩展，不能用检查记录代替网络恢复。
 
 普通用户强退与恢复探针（参数指向服务资源探针已生成的固定资源目录）：
 
@@ -137,6 +137,14 @@ python3 scripts/macos/probe-sessions.py --resources /absolute/path/to/verified/s
 ```
 
 探针使用公开合成凭据，分别在准备中和准备完成后强制结束临时宿主，验证独占锁、恢复记录保留和新进程重复清理。它只在 `build/` 内创建临时目录，不启动核心或修改网络；结果保存在 `build/session-probes/<UUID>/result.json`。恢复测试入口仅存在于 Debug，不随 Release 暴露。
+
+配置检查强退与故障恢复（资源目录可使用下述服务探针的 `service-data/resources`）：
+
+```sh
+python3 scripts/macos/probe-check-recovery.py --resources /absolute/path/to/verified/service/resources
+```
+
+该探针以普通用户运行固定核心 `-t`，覆盖九个持久化/副作用边界、任务丢失、未知文件、核心拒绝配置和检查超时，共 13 个场景。结果位于 `build/check-recovery-probes/<UUID>/result.json`，不进行 root 安装、TUN 或 DNS 操作。跨系统重启与最低 macOS 13 尚待真实验收。
 
 ## 服务安装与事务
 
@@ -186,7 +194,7 @@ python3 scripts/macos/probe-service.py
 
 在正常登录用户环境运行，不能以 root 运行。脚本构建 Debug 服务和探针，在 `build/service-probes/<UUID>` 内复制并启用 Hardened Runtime，然后注册一个随机名称的用户级 launchd job。验证双向 CDHash、UID 绑定、重启、客户端摘要更换后的重新登记与旧摘要撤销，最后移除该 job。只有可信调用在拒绝测试前后均成功，才记录拒绝通过。结果保存在该目录的 `result.json`。
 
-服务读取权限受控的登记文件，提供版本握手、资源状态、固定资源安装和配置检查，详见 [XPC v3 协议](../shared/protocol/service-v3.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
+服务读取权限受控的登记文件，提供版本握手、资源状态、固定资源安装和实际核心配置检查，详见 [XPC v4 协议](../shared/protocol/service-v4.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
 
 使用本地官方文件验证跨进程资源交接：
 

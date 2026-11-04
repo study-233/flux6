@@ -49,8 +49,8 @@ final class HandshakeCompletion {
         done.signal()
     }
 
-    func wait() throws -> Data {
-        guard done.wait(timeout: .now() + 10) == .success else {
+    func wait(timeout: TimeInterval = 10) throws -> Data {
+        guard done.wait(timeout: .now() + timeout) == .success else {
             throw NSError(domain: "FreeV6Probe", code: 2, userInfo: [NSLocalizedDescriptionKey: "XPC timed out"])
         }
         lock.lock()
@@ -168,7 +168,7 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
         if let data { completion.complete(.success(data)) }
         else { completion.complete(.failure(ServiceClientError.rejected(error ?? "Missing response"))) }
     }
-    print(String(decoding: try completion.wait(), as: UTF8.self))
+    print(String(decoding: try completion.wait(timeout: 180), as: UTF8.self))
 }
 
 func probeKeychain() throws {
@@ -226,6 +226,14 @@ do {
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
     #if DEBUG
+    case "failed-check" where arguments.count == 4:
+        try SessionPreparationProbe.failedCheck(path: arguments[1], request: readConfigurationRequest(arguments[2]), failure: arguments[3])
+        print("PASS: failed core check stopped and removed job, private configuration and journal")
+    case "hold-check" where arguments.count == 4:
+        try SessionPreparationProbe.holdCheck(path: arguments[1], request: readConfigurationRequest(arguments[2]), checkpoint: arguments[3])
+    case "recover-check" where arguments.count == 2:
+        try SessionPreparationProbe.recoverCheck(path: arguments[1])
+        print("PASS: configuration-check journal recovered and cleared")
     case "core-job" where arguments.count == 4:
         guard let sessionID = UUID(uuidString: arguments[2]) else { throw ServiceMessageError.invalid }
         try CoreJobProbe.run(action: arguments[1], sessionID: sessionID, path: arguments[3])

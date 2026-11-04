@@ -44,6 +44,9 @@ def main():
     work = ROOT / "build/service-probes" / str(uuid.uuid4())
     work.mkdir(parents=True, mode=0o700)
     os.chmod(work, 0o700)
+    # Keep sessions/<UUID>/c.sock within Darwin's 104-byte sun_path.
+    data_root = ROOT / "build" / ("n-" + uuid.uuid4().hex[:8])
+    data_root.mkdir(mode=0o755)
     probe = work / "freev6-probe"
     service = work / "freev6-network-service"
     untrusted = work / "untrusted-probe"
@@ -68,7 +71,7 @@ def main():
 
     registration = json.loads(run([probe, "registration", service]).stdout)
     service_hash = registration["service"]["cdHash"]
-    record = work / "registration.json"
+    record = data_root / "registration.json"
 
     def write_record(value):
         record.write_text(json.dumps(value))
@@ -125,7 +128,7 @@ def main():
         if any(a["available"] for a in resources()):
             raise RuntimeError("Fresh service unexpectedly has resources")
         request = {
-            "protocolVersion": 3, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
+            "protocolVersion": 4, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
             "credentialRevision": str(uuid.uuid4()), "runtimeID": core_id,
             "geodataID": "geodata-" + geo["revision"],
             "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text()),
@@ -147,9 +150,13 @@ def main():
             shutil.copyfile(args.geodata_fixtures / a["name"], destination)
             destination.chmod(0o600)
         prepared = json.loads(run([probe, "prepare-configuration", label, service_hash, cache, request_file], timeout=150).stdout)
-        expected_keys = {"protocolVersion", "requestID", "policyVersion", "settingsRevision", "credentialRevision", "mode", "proxyCount", "ruleCount"}
+        expected_keys = {"protocolVersion", "requestID", "policyVersion", "settingsRevision", "credentialRevision", "mode", "proxyCount", "ruleCount", "coreValidated"}
         if set(prepared) != expected_keys or prepared["requestID"].lower() != request["requestID"].lower() or prepared["proxyCount"] != 28:
             raise RuntimeError("Unexpected configuration acknowledgement")
+        if prepared["protocolVersion"] != 4 or prepared["coreValidated"] is not True:
+            raise RuntimeError("Service did not confirm actual core validation")
+        if (data_root / "network-session.json").exists() or list((data_root / "sessions").iterdir()):
+            raise RuntimeError("Successful core check left private session files")
         original = json.loads(json.dumps(request))
         for key, value in [("external-controller", "0.0.0.0:9090"), ("tun", {"enable": False}), ("secret", "rejected-secret-marker")]:
             bad = json.loads(json.dumps(original)); bad["configuration"][key] = value
@@ -165,8 +172,8 @@ def main():
         core_config.mkdir(mode=0o700)
         run([probe, "assemble-configuration", request_file, core_config / "config.json"])
         for a in geo["assets"]:
-            shutil.copyfile(work / "resources" / ("geodata-" + geo["revision"] + "-" + a["name"]), core_config / a["name"])
-        check = run([work / "resources" / core_id, "-t", "-d", core_config, "-f", core_config / "config.json"])
+            shutil.copyfile(data_root / "resources" / ("geodata-" + geo["revision"] + "-" + a["name"]), core_config / a["name"])
+        check = run([data_root / "resources" / core_id, "-t", "-d", core_config, "-f", core_config / "config.json"])
         (work / "core-check.log").write_text(check.stdout + check.stderr)
         case("App resource transfer and service configuration validation succeed; system-field injection rejected; assembled policy passes real core -t")
         for resource_id, source, destination, digest in assets:
@@ -176,7 +183,7 @@ def main():
             output = run([probe, "install-resource", label, service_hash, resource_id, incoming], timeout=40)
             if not next(a["available"] for a in json.loads(output.stdout) if a["id"] == resource_id):
                 raise RuntimeError("Installed resource not available")
-            stored = work / "resources" / destination
+            stored = data_root / "resources" / destination
             if hashlib.sha256(stored.read_bytes()).hexdigest() != digest:
                 raise RuntimeError("Private resource digest mismatch")
             if stored.stat().st_mode & 0o777 != (0o500 if resource_id == core_id else 0o400):
@@ -196,10 +203,10 @@ def main():
         denied = run([untrusted, "install-resource", label, service_hash, core_id, source], check=False)
         if denied.returncode != 1 or "NSCocoaErrorDomain" not in denied.stderr:
             raise RuntimeError("Unregistered resource client was not rejected")
-        if any(p.name.startswith(".staging-") for p in (work / "resources").iterdir()):
+        if any(p.name.startswith(".staging-") for p in (data_root / "resources").iterdir()):
             raise RuntimeError("Resource staging files remained")
         source.unlink()
-        stored_names = {p.name for p in (work / "resources").iterdir()}
+        stored_names = {p.name for p in (data_root / "resources").iterdir()}
         if stored_names != {a[2] for a in assets} | {"resources.lock"}:
             raise RuntimeError("Unexpected file written by service configuration check")
         # A ready service can reuse its verified assets after user cache removal.
@@ -224,7 +231,7 @@ def main():
         previous_pid = process_id()
         stale = None
         if args.runtime_fixtures:
-            stale = work / "resources" / (".staging-" + str(uuid.uuid4()))
+            stale = data_root / "resources" / (".staging-" + str(uuid.uuid4()))
             stale.write_bytes(b"interrupted transfer fixture")
             stale.chmod(0o600)
         run(["/bin/launchctl", "kickstart", "-k", target])
@@ -266,6 +273,7 @@ def main():
                 raise RuntimeError("Probe job remained registered after cleanup")
             case("temporary launchd job removed")
 
+    shutil.move(data_root, work / "service-data")
     report = {
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "scope": "user-domain debug Mach service; no root installation or network changes",

@@ -30,16 +30,18 @@ final class ManagedCoreJob {
     var label: String { "dev.freev6.core." + sessionID.uuidString.lowercased() }
     private let domain: String
     private let ordinaryUserProbe: Bool
+    private let requiresServiceOrigin: Bool
     private var target: String { domain + "/" + label }
 
     init(sessionID: UUID) {
-        self.sessionID = sessionID; domain = "system"; ordinaryUserProbe = false
+        self.sessionID = sessionID; domain = "system"; ordinaryUserProbe = false; requiresServiceOrigin = true
     }
 
     #if DEBUG
-    init(probeSessionID: UUID) throws {
+    init(probeSessionID: UUID, requireServiceOrigin: Bool = false) throws {
         guard geteuid() != 0 else { throw CoreJobError.wrongContext }
         sessionID = probeSessionID; domain = "gui/\(geteuid())"; ordinaryUserProbe = true
+        requiresServiceOrigin = requireServiceOrigin
     }
     #endif
 
@@ -137,7 +139,8 @@ final class ManagedCoreJob {
         let group: OwnedChildProcess.Group
         if ordinaryUserProbe {
             guard geteuid() != 0 else { throw CoreJobError.wrongContext }
-            group = .isolated
+            if requiresServiceOrigin { _ = try ServiceProcessOrigin.current() }
+            group = mutation && requiresServiceOrigin ? .inheritService : .isolated
         } else {
             guard geteuid() == 0 else { throw CoreJobError.wrongContext }
             _ = try ServiceProcessOrigin.current()

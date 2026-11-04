@@ -6,16 +6,20 @@ public enum ServiceClient {
                                           privileged: Bool = true) throws -> ConfigurationCheckReply {
         let payload = try JSONEncoder().encode(request)
         guard payload.count <= ServiceMessages.maximumConfigurationBytes else { throw ServiceMessageError.oversized }
-        let data = try resourceExchange(identity: identity, name: name, privileged: privileged) { proxy, reply in
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged, timeout: 180) { proxy, reply in
             proxy.checkConfiguration(payload, reply: reply)
         }
+        return try decodeConfigurationReply(data, request: request)
+    }
+
+    static func decodeConfigurationReply(_ data: Data, request: ConfigurationCheckRequest) throws -> ConfigurationCheckReply {
         guard data.count <= ServiceMessages.maximumHandshakeBytes else { throw ServiceMessageError.oversized }
         let response = try JSONDecoder().decode(ConfigurationCheckReply.self, from: data)
         guard response.protocolVersion == ServiceProtocolVersion.current, response.requestID == request.requestID,
               response.policyVersion == ServiceConfigurationAssembler.policyVersion,
               response.settingsRevision == request.settingsRevision, response.credentialRevision == request.credentialRevision,
               response.mode == request.configuration.mode, response.proxyCount == request.configuration.proxyCount,
-              response.ruleCount == request.configuration.ruleCount else { throw ServiceClientError.invalidReply }
+              response.ruleCount == request.configuration.ruleCount, response.coreValidated else { throw ServiceClientError.invalidReply }
         return response
     }
 
@@ -54,6 +58,7 @@ public enum ServiceClient {
     }
 
     private static func resourceExchange(identity: CodeIdentity, name: String, privileged: Bool,
+                                         timeout: TimeInterval = 35,
                                          call: (NetworkServiceProtocol, @escaping (Data?, String?) -> Void) -> Void) throws -> Data {
         let connection = NSXPCConnection(machServiceName: name, options: privileged ? .privileged : [])
         connection.setCodeSigningRequirement(identity.requirement)
@@ -68,7 +73,7 @@ public enum ServiceClient {
             if let data { completion.complete(.success(data)) }
             else { completion.complete(.failure(ServiceClientError.rejected(error ?? "Missing response"))) }
         }
-        return try completion.wait(timeout: 35)
+        return try completion.wait(timeout: timeout)
     }
 
     /// Blocking boundary for CLI/installers; UI callers use a background task.

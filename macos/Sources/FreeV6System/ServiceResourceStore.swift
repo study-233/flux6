@@ -63,10 +63,31 @@ public final class ServiceResourceStore {
         guard lock.try() else { throw ResourceStoreError.busy }
         defer { lock.unlock() }
         let request = try ServiceMessages.decodeConfiguration(data)
+        let sessions = try sessionStore()
+        try sessions.recoverConfigurationCheck()
         guard try statusUnlocked().allSatisfy(\.available) else { throw ResourceStoreError.integrity }
-        _ = try ServiceConfigurationAssembler.assemble(request.configuration, sessionID: UUID())
+        _ = try ServiceProcessOrigin.current()
+        let record: PreparedSessionRecord
+        do { record = try prepareUnlocked(request, clientUID: clientUID, sessions: sessions) }
+        catch {
+            // No job exists in v1. Preserve unknown/unsafe preparation files
+            // instead of masking recovery failure as an ordinary check error.
+            try sessions.recoverPreparation()
+            throw error
+        }
+        try sessions.checkConfiguration(sessionID: record.sessionID, clientUID: clientUID)
         // No private key, socket path, random secret, or assembled config escapes.
         return ConfigurationCheckReply(request)
+    }
+
+    public func recoverConfigurationChecks() throws {
+        guard lock.try() else { throw ResourceStoreError.busy }
+        defer { lock.unlock() }
+        try sessionStore().recoverConfigurationCheck()
+    }
+
+    private func sessionStore() throws -> PreparedSessionStore {
+        try PreparedSessionStore(path: URL(fileURLWithPath: directory.path).deletingLastPathComponent().path, owner: directory.owner)
     }
 
     /// Caller owns the preparation store's lifetime lease. No core is launched
@@ -76,6 +97,11 @@ public final class ServiceResourceStore {
         guard lock.try() else { throw ResourceStoreError.busy }
         defer { lock.unlock() }
         let request = try ServiceMessages.decodeConfiguration(data)
+        return try prepareUnlocked(request, clientUID: clientUID, sessions: sessions)
+    }
+
+    private func prepareUnlocked(_ request: ConfigurationCheckRequest, clientUID: uid_t,
+                                 sessions: PreparedSessionStore) throws -> PreparedSessionRecord {
         return try sessions.prepare(request, clientUID: clientUID) { destination in
             let deadline = ResourceIO.deadline()
             for asset in ApprovedResourceCatalog.native {
