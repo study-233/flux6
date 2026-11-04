@@ -30,6 +30,53 @@ final class ProbeListener: NSObject, NSXPCListenerDelegate {
     }
 }
 
+final class HandshakeCompletion {
+    private let lock = NSLock()
+    private let done = DispatchSemaphore(value: 0)
+    private var result: Result<Data, Error>?
+
+    func complete(_ value: Result<Data, Error>) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard result == nil else { return }
+        result = value
+        done.signal()
+    }
+
+    func wait() throws -> Data {
+        guard done.wait(timeout: .now() + 10) == .success else {
+            throw NSError(domain: "FreeV6Probe", code: 2, userInfo: [NSLocalizedDescriptionKey: "XPC timed out"])
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        return try result!.get()
+    }
+}
+
+func exchangeHandshake(_ connection: NSXPCConnection) throws -> HandshakeReply {
+    let request = HandshakeRequest()
+    let completion = HandshakeCompletion()
+    guard let remote = connection.remoteObjectProxyWithErrorHandler({ error in
+        completion.complete(.failure(error))
+    }) as? NetworkServiceProtocol else {
+        throw NSError(domain: "FreeV6Probe", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing XPC proxy"])
+    }
+    remote.handshake(try JSONEncoder().encode(request)) { data, error in
+        if let data { completion.complete(.success(data)) }
+        else {
+            completion.complete(.failure(NSError(domain: "FreeV6Probe", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: error ?? "Missing response"])))
+        }
+    }
+    let data = try completion.wait()
+    guard data.count <= ServiceMessages.maximumHandshakeBytes else { throw ServiceMessageError.oversized }
+    let reply = try JSONDecoder().decode(HandshakeReply.self, from: data)
+    guard reply.requestID == request.requestID, reply.protocolVersion == ServiceProtocolVersion.current else {
+        throw NSError(domain: "FreeV6Probe", code: 4, userInfo: [NSLocalizedDescriptionKey: "Handshake mismatch"])
+    }
+    return reply
+}
+
 func probeXPC(reject: Bool) throws {
     let identity = try CodeIdentity.current()
     let listener = NSXPCListener.anonymous()
@@ -45,31 +92,33 @@ func probeXPC(reject: Bool) throws {
     connection.remoteObjectInterface = NSXPCInterface(with: NetworkServiceProtocol.self)
     connection.resume()
     defer { connection.invalidate() }
-    let request = HandshakeRequest()
-    let done = DispatchSemaphore(value: 0)
-    var result: Result<Data, Error>?
-    let remote = connection.remoteObjectProxyWithErrorHandler { error in
-        result = .failure(error)
-        done.signal()
-    } as! NetworkServiceProtocol
-    remote.handshake(try JSONEncoder().encode(request)) { data, error in
-        if let data { result = .success(data) }
-        else { result = .failure(NSError(domain: "FreeV6Probe", code: 1, userInfo: [NSLocalizedDescriptionKey: error ?? "Missing response"])) }
-        done.signal()
-    }
-    guard done.wait(timeout: .now() + 10) == .success, let result else {
-        throw NSError(domain: "FreeV6Probe", code: 2, userInfo: [NSLocalizedDescriptionKey: "XPC timed out"])
-    }
+    let result = Result { try exchangeHandshake(connection) }
     if reject {
-        guard case .failure = result else { throw NSError(domain: "FreeV6Probe", code: 3, userInfo: [NSLocalizedDescriptionKey: "Untrusted client was accepted"]) }
+        guard case .failure(let error) = result, (error as NSError).domain == NSCocoaErrorDomain else {
+            throw NSError(domain: "FreeV6Probe", code: 3, userInfo: [NSLocalizedDescriptionKey: "Expected XPC identity rejection"])
+        }
         print("PASS: untrusted XPC client rejected")
     } else {
-        let reply = try JSONDecoder().decode(HandshakeReply.self, from: result.get())
-        guard reply.requestID == request.requestID, reply.protocolVersion == ServiceProtocolVersion.current else {
-            throw NSError(domain: "FreeV6Probe", code: 4, userInfo: [NSLocalizedDescriptionKey: "Handshake mismatch"])
-        }
+        let reply = try result.get()
         print("PASS: authenticated XPC handshake; privileged=\(reply.privileged)")
     }
+}
+
+func probeMach(name: String, hash: String) throws {
+    guard name.hasPrefix("dev.freev6.probe."), name.utf8.count <= 128 else {
+        throw NSError(domain: "FreeV6Probe", code: 6, userInfo: [NSLocalizedDescriptionKey: "Expected isolated probe service"])
+    }
+    let identity = try CodeIdentity(identifier: "probe-service", cdHash: hash)
+    let connection = NSXPCConnection(machServiceName: name)
+    connection.setCodeSigningRequirement(identity.requirement)
+    connection.remoteObjectInterface = NSXPCInterface(with: NetworkServiceProtocol.self)
+    connection.resume()
+    defer { connection.invalidate() }
+    let reply = try exchangeHandshake(connection)
+    guard !reply.privileged else {
+        throw NSError(domain: "FreeV6Probe", code: 7, userInfo: [NSLocalizedDescriptionKey: "Probe service must run as the current user"])
+    }
+    print("PASS: separate Mach service authenticated; privileged=false; version=\(reply.serviceVersion)")
 }
 
 func probeKeychain() throws {
@@ -99,10 +148,19 @@ func probeKeychain() throws {
 }
 
 do {
-    switch CommandLine.arguments.dropFirst().first {
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    switch arguments.first {
     case "identity":
-        let data = try JSONEncoder().encode(CodeIdentity.current())
+        let identity = try arguments.count == 2 ? CodeIdentity.file(at: URL(fileURLWithPath: arguments[1])) : CodeIdentity.current()
+        let data = try JSONEncoder().encode(identity)
         print(String(decoding: data, as: UTF8.self))
+    case "registration" where arguments.count == 2:
+        let registration = try ServiceRegistration(service: CodeIdentity.file(at: URL(fileURLWithPath: arguments[1])),
+            clients: [RegisteredClient(uid: geteuid(), identity: CodeIdentity.current())])
+        let data = try JSONEncoder().encode(registration)
+        print(String(decoding: data, as: UTF8.self))
+    case "mach" where arguments.count == 3:
+        try probeMach(name: arguments[1], hash: arguments[2])
     case "xpc": try probeXPC(reject: false)
     case "xpc-reject": try probeXPC(reject: true)
     case "keychain": try probeKeychain()
@@ -111,10 +169,11 @@ do {
         // Do not include resolver addresses or service names in console output.
         print("PASS: captured configured DNS for \(snapshots.count) network services; no settings changed")
     default:
-        print("Usage: freev6-probe identity|xpc|xpc-reject|dns|keychain")
+        print("Usage: freev6-probe identity [path]|registration <service>|mach <probe-name> <hash>|xpc|xpc-reject|dns|keychain")
         exit(2)
     }
 } catch {
-    fputs("freev6-probe: \(error.localizedDescription)\n", stderr)
+    let detail = error as NSError
+    fputs("freev6-probe: \(detail.domain) \(detail.code): \(detail.localizedDescription)\n", stderr)
     exit(1)
 }

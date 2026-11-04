@@ -34,3 +34,4 @@ macos/.swiftpm/
 /build/
 *.xcuserstate
 xcuserdata/
+__pycache__/

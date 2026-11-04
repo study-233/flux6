@@ -7,12 +7,14 @@ let package = Package(
     products: [
         .executable(name: "FreeV6", targets: ["FreeV6App"]),
         .executable(name: "freev6-probe", targets: ["FreeV6Probe"]),
+        .executable(name: "freev6-network-service", targets: ["FreeV6NetworkService"]),
         .library(name: "FreeV6System", targets: ["FreeV6System"]),
     ],
     targets: [
         .target(name: "FreeV6System"),
         .executableTarget(name: "FreeV6App", dependencies: ["FreeV6System"]),
         .executableTarget(name: "FreeV6Probe", dependencies: ["FreeV6System"]),
+        .executableTarget(name: "FreeV6NetworkService", dependencies: ["FreeV6System"]),
         .testTarget(name: "FreeV6SystemTests", dependencies: ["FreeV6System"]),
     ]
 )
