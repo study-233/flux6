@@ -132,24 +132,11 @@ final class LaunchdController: ServiceControlling {
     private let target = "system/" + ServiceProtocolVersion.machService
 
     private func run(_ arguments: [String]) throws -> Int32 {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        process.arguments = arguments
-        process.environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        let done = DispatchSemaphore(value: 0)
-        process.terminationHandler = { _ in done.signal() }
-        try process.run()
-        if done.wait(timeout: .now() + 15) != .success {
-            process.terminate()
-            if done.wait(timeout: .now() + 2) != .success {
-                kill(process.processIdentifier, SIGKILL)
-                _ = done.wait(timeout: .now() + 2)
-            }
-            throw InstallationError.launchd("\(arguments[0]) 超时")
+        let process = try OwnedChildProcess(executable: "/bin/launchctl", arguments: arguments, directory: "/")
+        switch try process.runToExit(timeout: 15, gracePeriod: 2) {
+        case .exited(let status): return status
+        case .signaled(let signal): throw InstallationError.launchd("子进程被信号 \(signal) 终止")
         }
-        return process.terminationStatus
     }
 
     func isLoaded() throws -> Bool {

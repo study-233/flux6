@@ -10,7 +10,7 @@
 | P1 共用业务与协议 | 进行中 | 已接入共享设置、核心/规则资源、WARP 注册与 Keychain、WARP 业务配置准备及 Swift 校验；真实注册、订阅/链式/备用配置及 root 启动交接待完成 |
 | P2 原生应用骨架 | 进行中 | 已有导航、共用顶部栏命令、窗口焦点、服务与核心准备入口、真实配置客户端；正式 Xcode targets、完整菜单能力与页面交互验收待完成 |
 | P3 原生网络服务 | 进行中 | 已有双向身份握手、App 资源 FD 交接/独立复验/受控存储、业务配置复验与系统策略组装、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，会话持久化与核心进程管理待实现 |
-| P4 TUN 与恢复 | 待开始 | 尚未修改系统 DNS、路由或启动 TUN |
+| P4 TUN 与恢复 | 进行中 | 受控子进程基础及真实核心配置检查通过；私有会话、DNS 事务、故障恢复与实际 TUN 尚未接入，未修改系统 DNS/路由 |
 | P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心/规则数据准备、WARP 凭据、连接配置检查和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
 | P6 DMG 与升级 | 进行中 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
 | P7 回归与交付 | 进行中 | 当前 Mac Go 回归已通过；Windows 运行测试、macOS 13、Intel 及实际校园网络待验收 |
@@ -236,6 +236,25 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 | Release 与签名载荷 | [Build](/Users/andy/Study/free-v6/build/macos-service-configuration/release-build.log)、[Installer result](/Users/andy/Study/free-v6/build/installer-probes/19a29276-4cf8-40e7-9d79-e9fe9c0c46a6/result.json) |
 
 尚未安装 root 服务或修改网络；最新 UI 交互仍待解锁，最低系统和跨用户验证未完成。接下来实现受控会话目录、实际核心检查及进程管理，再接入 DNS 事务和失败恢复。
+
+## 2026-11-05：受控子进程与回收
+
+- 新增系统层 `OwnedChildProcess`，通过绝对路径与独立参数调用 `posix_spawn`，仅传 PATH/LANG/LC_ALL；标准输入输出定向到 `/dev/null`，其余继承文件描述符关闭，重置子进程信号屏蔽及默认处理，使用独立进程组。
+- 专属观察者使用 `waitid(WNOWAIT)` 等待，再在与信号发送共用的锁内 `waitpid` 回收；只有观察者能释放 PID，避免停止与回收竞争。停止先 SIGTERM，超过宽限期才 SIGKILL；只有完成回收才报告超时已终止，回收失败保持错误，不接受调用者提供的 PID。
+- 固定 `launchctl` 调用已换用新入口，普通用户只读系统 job 查询通过。当前类型管理服务本次启动创建的子进程，不覆盖服务重启后的历史 PID 识别、DNS 恢复或后代进程树清理；锁定核心的启动协调器仍待接入。
+- 新增独立 C 测试夹具，不进入产品 bundle。8 项进程专项覆盖环境/描述符/工作目录/信号隔离、超出管道缓冲区的输出、正常退出、启动失败、SIGTERM、忽略 SIGTERM 后 SIGKILL、超时与析构回收、并发停止及其他子进程不受影响。
+- 固定官方 arm64 核心通过新入口执行服务组装的完整合成配置 `-t`，正常退出并回收。测试没有开启实际 TUN，也没有向系统写 DNS；产品配置检查 RPC 仍只在内存中复验。
+- 完整 70 项 XCTest 通过，无跳过（系统层 47 项、桌面 7 项、配置 2 项、业务 14 项）；Release 构建、严格签名与安装载荷探针通过。最低 macOS 13 的兼容分支和真实 root 操作仍待真机验收。
+
+本轮证据：
+
+| 验证 | 记录 |
+| --- | --- |
+| 70 项回归、受控实际核心与只读 launchd | [Swift tests](/Users/andy/Study/free-v6/build/macos-process/swift-tests.log) |
+| Release 构建与严格签名 | [Build](/Users/andy/Study/free-v6/build/macos-process/release-build.log) |
+| 更新后的真实安装载荷 | [Installer result](/Users/andy/Study/free-v6/build/installer-probes/0a03b0ed-5d49-4f6b-bbf4-899376952284/result.json) |
+
+下一项为私有会话目录、可信资源副本与持久化恢复记录，将受控进程接入服务启动协调器；之后实现 DNS 写入/比较恢复，并执行已授权范围内的网络验证。
 
 ## 下一步
 

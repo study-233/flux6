@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前推进技术验证、共用业务、原生应用与网络服务。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、支持身份握手和固定资源安装的网络服务、安装工具和系统探针。原生页面已接入设置读写、核心准备和 WARP 注册/钥匙串存储；真实 Cloudflare 注册尚待实测。连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+当前推进技术验证、共用业务、原生应用与网络服务。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、支持身份握手、固定资源安装与配置复验的网络服务、安装工具和系统探针。原生页面已接入设置读写、核心准备和 WARP 注册/钥匙串存储；真实 Cloudflare 注册尚待实测。连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
 
 ## 构建
 
@@ -91,6 +91,24 @@ FREEV6_TEST_PRIVATE_KEYCHAIN=1 bash scripts/macos/swift.sh test --filter WarpCre
 worker 只生成节点、分组、规则、规则提供者和模式。`FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。服务就绪时，App 交接缺少的固定资源并提交配置，服务独立复验后在内存中组装系统字段，返回仅含版本和统计的摘要。服务未就绪时只完成本机检查，两种结果在界面中区分。检查成功不能视为代理运行；当前仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
 
 UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。交接期间保持凭据互斥，并在服务完成后重新核对 worker 设置与 Keychain revision。共享的 `warp-business-configuration.json` 含公开合成密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 验证 Go 侧生成配置；下述独立服务探针另用 Swift 服务组装器生成完整配置并执行核心 `-t`。产品的配置检查方法本身不会启动核心或写会话文件。
+
+## 受控子进程
+
+系统模块的 `OwnedChildProcess` 使用 `posix_spawn` 和专属 `waitid`/`waitpid` 观察者持有子进程。执行文件使用绝对路径、参数独立传递，不经过 shell；环境固定为 PATH/LANG/LC_ALL，关闭其他继承描述符，标准输入输出定向到 `/dev/null`。信号发送和最终回收共用锁，只有观察者能释放 PID；停止先 SIGTERM，超时后 SIGKILL，回收失败不得声明已停止。
+
+安装工具的固定 `launchctl` 调用已接入。实际核心 `-t` 已通过此入口验证，但产品服务尚未启动核心；可执行文件、私有会话目录、DNS 恢复和服务重启后的进程身份恢复仍需由上层协调器实现。该类型只管理当前服务持有的子进程，不接受客户端传来的 PID，也不代表网络恢复完成。
+
+进程专项测试使用独立 C 夹具，验证继承隔离、正常/异常退出、超时、忽略 SIGTERM、并发停止与回收。夹具不进入 App 包。运行：
+
+```sh
+bash scripts/macos/build-process-fixture.sh
+FREEV6_PROCESS_TEST_BINARY="$PWD/build/macos-process/owned-child" \
+FREEV6_RUNTIME_FIXTURES_DIR="$PWD/build/macos-probes" \
+FREEV6_GEODATA_FIXTURES_DIR="$PWD/build/macos-geodata" \
+  bash scripts/macos/swift.sh test --filter OwnedChildProcessTests
+```
+
+运行完整原生回归时也应传入 `FREEV6_PROCESS_TEST_BINARY`，连同已有 worker、资源与独立 Keychain 开关。未设置夹具变量的相关测试会跳过。以上测试不启用真实 TUN 或修改 DNS。
 
 ## 服务安装与事务
 
