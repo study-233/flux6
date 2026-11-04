@@ -3,6 +3,12 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "$0")/../.." && pwd)"
 configuration="${CONFIGURATION:-release}"
+go_bin="${GO_BIN:-go}"
+case "$(uname -m)" in
+    arm64) go_arch=arm64 ;;
+    x86_64) go_arch=amd64 ;;
+    *) printf '%s\n' "unsupported host architecture" >&2; exit 1 ;;
+esac
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-network-service
 binary_dir="$(bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --show-bin-path)"
 app="$project_root/dist/macos/FreeV6.app"
@@ -10,6 +16,12 @@ stage="$(mktemp -d "$project_root/build/macos-bundle.XXXXXX")"
 bundle="$stage/FreeV6.app"
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources" "$bundle/Contents/Helpers" \
     "$bundle/Contents/Library/LaunchServices" "$project_root/dist/macos"
+(
+    cd "$project_root"
+    GOOS=darwin GOARCH="$go_arch" GOAMD64=v1 CGO_ENABLED=0 "$go_bin" build -trimpath \
+        -o "$bundle/Contents/Helpers/freev6-worker" ./cmd/freev6-worker
+)
+/usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.worker "$bundle/Contents/Helpers/freev6-worker"
 service="$bundle/Contents/Library/LaunchServices/dev.freev6.network-service"
 cp "$binary_dir/freev6-network-service" "$service"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.network-service "$service"

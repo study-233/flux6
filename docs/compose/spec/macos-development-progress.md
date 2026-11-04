@@ -7,11 +7,11 @@
 | 阶段 | 状态 | 当前证据与剩余工作 |
 | --- | --- | --- |
 | P0 技术验证 | 进行中 | 原生构建、当前系统 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 离线配置、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
-| P1 共用业务与协议 | 未完成 | 增加显式平台配置和 JSON 输出；HTTP 业务提取、worker 与 stdio 协议待实现 |
-| P2 原生应用骨架 | 未完成 | 可构建应用已有导航、部分顶部栏、服务检查与安装/恢复入口；正式 Xcode targets、完整菜单和真实 worker 握手待完成 |
+| P1 共用业务与协议 | 进行中 | 已提取共享设置规则、实现 Mac worker/stdin-stdout 协议与原子配置存储；Swift→Go 真实握手/保存/重启通过；WARP、订阅、资源下载与配置生成等业务仍待提取 |
+| P2 原生应用骨架 | 未完成 | 可构建应用已有导航、部分顶部栏、服务入口和真实配置客户端；正式 Xcode targets、完整菜单与页面交互验收待完成 |
 | P3 原生网络服务 | 未完成 | 已有握手服务、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，核心管理与完整协议待实现 |
 | P4 TUN 与恢复 | 未开始 | 尚未修改系统 DNS、路由或启动 TUN |
-| P5 功能完整与原生体验 | 未开始 | 页面为明确标注的开发状态，连接按钮禁用；无模拟连接成功状态 |
+| P5 功能完整与原生体验 | 进行中 | 已接入代理规则编辑与保存，界面实测待解锁；其他业务页面与真实网络状态未接入，连接按钮禁用，无模拟连接成功状态 |
 | P6 DMG 与升级 | 未完成 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
 | P7 回归与交付 | 未完成 | 当前 Mac Go 回归已通过；Windows 运行测试、macOS 13、Intel 及实际校园网络待验收 |
 
@@ -70,13 +70,35 @@
 
 尚未完成：真实网络服务生命周期、完整卸载清理、跨版本服务协议协调、macOS 13/Intel 验收。安装事务模拟控制器通过不能替代实际系统授权与 launchd 验收。
 
+## 2026-11-05：共享设置、Mac worker 与原生配置接入
+
+- 将设置模型、默认值、规则校验和 Windows PUT 的字段保留语义提取到 `internal/app`。Windows HTTP 入口继续使用原有接口，登录启动等平台副作用留在 Windows 适配器；原有 Go 回归通过。
+- 新增 `cmd/freev6-worker`、显式目录契约和版本化的私有 stdio 协议。握手、方法能力、请求关联、消息上限、并发上限、取消、超时及父进程断开均已实现。当前只声明 `settings.get` 和 `settings.patch`，没有 HTTP 监听或特权操作入口。
+- Mac 配置使用独立 schema/revision、受限字段、0600 文件、同目录原子替换与 fsync。同一数据目录持有进程锁；版本冲突、损坏配置、未知字段、无效规则拒绝保存，避免覆盖旧数据。
+- 新增 Swift `FreeV6Business` 客户端和原生代理规则表单，主窗口配置页与设置窗口共用编辑状态。模式、开发者模式、校园白名单与黑名单已接入实际 worker；保存确认来自 worker 回复，错误时保留草稿。尚未接入 WARP、订阅、下载、配置渲染或 TUN。
+- 真实 Swift→Go 测试曾暴露高层管道读取等待过多字节的问题，改用有界的底层分块读取后，握手、保存、规范化、冲突/非法值拒绝和重启后读取全部通过。异常退出与无响应子进程的客户端回收也通过。
+- 独立进程测试还发现继承的阻塞 stdin 会妨碍 Go 在 SIGTERM 后退出；现为私有管道注册可取消的 runtime poller。实际验证父进程 EOF、SIGTERM、输出管道堵塞、第二个 worker 拒绝以及超大/截断帧后均能回收进程。
+- Go 全量回归通过；`internal/app`、`internal/paths`、`internal/worker` 的竞态检测通过。31 项 XCTest 全部通过，其中包含真实 Go 集成项，未跳过。Windows amd64 的测试程序交叉编译通过，尚未在 Windows 执行。
+- Release bundle 已包含按当前主机架构构建并签名的 Go worker；完整签名和真实安装 payload 验证通过。实际 UI 验证被 macOS 锁屏阻止，已请求用户解锁，不能将编译和客户端测试当作界面操作验收。
+
+本轮证据与复现入口：
+
+| 验证 | 证据或命令 |
+| --- | --- |
+| 打包 worker 的真实进程验证 | [worker result](/Users/andy/Study/free-v6/build/worker-probes/4498bfbf-fab7-4cde-99b3-c6cf86484c45/result.json)；`python3 scripts/macos/probe-worker.py` |
+| 普通用户签名 payload 验证 | [installer result](/Users/andy/Study/free-v6/build/installer-probes/327d3a19-e113-4fef-b9e6-92ef87c1ad42/result.json) |
+| Go/Swift 与真实 worker 集成 | [test log](/Users/andy/Study/free-v6/build/macos-worker/test-worker.log)；`bash scripts/macos/test-worker.sh` |
+| 协议与共享样本 | [worker v1](/Users/andy/Study/free-v6/shared/protocol/worker-v1.md)、[settings fixture](/Users/andy/Study/free-v6/shared/fixtures/worker-settings.json) |
+
+当前仍未安装 root 服务、修改 DNS/路由或建立真实 TUN。P1、P2、P5 均未完成；代理配置页接入不等于全部业务迁移完成。原生顶部栏的完整命令与状态联动仍按 UI-01～UI-06 推进。
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
 2. 实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
 3. 验证 Keychain 在升级/回退后的访问行为；明确 macOS 13 与 Intel 的测试设备路径。
 4. 按已经验证的机制接入产品 Swift 更新助手，并补齐 quarantine 分发与网络服务升级事务。
-5. 继续共用 Go 业务提取、原生 worker、完整顶部栏和功能接入；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
+5. 在现有 worker 上继续提取 WARP、订阅、下载和配置生成，补充凭据存储、长任务进度与取消协议；接入完整顶部栏和其余页面。解锁后验证代理规则表单的保存/错误/重开行为；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。
 
 ## 可重复验证入口
 

@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前处于 P0 技术验证阶段。工程包含 SwiftUI/AppKit 应用、仅支持握手的网络服务、安装工具和系统探针。界面已接入服务检查与安装入口，连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+当前推进 P0 技术验证、P1 共用业务与 P2 原生应用。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、仅支持握手的网络服务、安装工具和系统探针。原生配置页已接入真实设置读写；连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
 
 ## 构建
 
@@ -12,9 +12,29 @@ bash scripts/macos/swift.sh test
 bash scripts/macos/build-app.sh
 ```
 
-开发应用位于 `dist/macos/FreeV6.app`。`build-app.sh` 默认 Release，按服务 → 安装工具 → App 的顺序构建并使用 ad-hoc + Hardened Runtime 签名，不给特权客户端添加 entitlement。构建缓存位于 `build/`，不会写入应用 bundle。主窗口、菜单、菜单栏状态入口和设置均为原生组件。
+开发应用位于 `dist/macos/FreeV6.app`。`build-app.sh` 默认 Release，构建当前主机架构的服务、Go worker、安装工具与 App，按内部组件到外层顺序使用 ad-hoc + Hardened Runtime 签名，不给特权客户端添加 entitlement。Go 不在 PATH 时可传 `GO_BIN=/absolute/path/to/go`。构建缓存位于 `build/`；运行配置写入用户 Library，不写应用 bundle。主窗口、菜单、菜单栏状态入口和设置均为原生组件。
 
 安装工具的签名覆盖一个嵌入 Mach-O 的 Info.plist，其中固定当前服务二进制的 SHA256。普通 `swift.sh build` 不嵌入此清单，其安装工具拒绝执行安装；用于安装的工具必须通过 `build-app.sh` 生成。
+
+## 业务 worker 与配置
+
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供模式、开发者模式、校园白名单和自定义黑名单的读取、校验与保存；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。WARP、订阅、下载、配置生成和网络控制尚未接入这些页面。
+
+配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
+
+以下命令完成 Go 业务/协议竞态测试、真实 Swift→Go 集成测试，以及独立 worker 进程探针：
+
+```sh
+bash scripts/macos/test-worker.sh
+```
+
+仅验证打包后的 worker：
+
+```sh
+python3 scripts/macos/probe-worker.py
+```
+
+探针使用 `build/worker-probes/<UUID>` 中的独立测试目录，验证分片握手、保存、版本冲突、重复 worker 拒绝、父进程 EOF、SIGTERM、输出背压和坏帧。所有测试子进程在结束时回收，结果写入该目录的 `result.json`。不读取个人凭据，不安装网络服务。普通 `swift.sh test` 在未传 `FREEV6_WORKER_TEST_BINARY` 时会跳过真实 Go 集成项；不得把该跳过视为集成测试通过。
 
 ## 服务安装与事务
 

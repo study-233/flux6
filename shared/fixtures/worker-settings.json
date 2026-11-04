@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "revision": 7,
+  "settings": {
+    "mode": "global",
+    "campusCidrs": ["edu.cn", "202.204.0.0/12", "2001:db8::/32"],
+    "blacklist": ["ads.example.com"],
+    "devMode": true
+  }
+}

@@ -21,8 +21,12 @@ enum Page: String, CaseIterable, Identifiable {
     @Published var serviceStatus = "网络服务尚未安装"
     @Published var serviceBusy = false
     @Published var serviceInstalled = false
+    let business = BusinessModel()
 
-    init() { Task { await refreshService() } }
+    init() {
+        Task { await refreshService() }
+        Task { await business.reload() }
+    }
 
     func refreshService() async {
         guard !serviceBusy else { return }
@@ -82,8 +86,8 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard canTerminate() else {
             let alert = NSAlert()
-            alert.messageText = "网络服务操作正在进行"
-            alert.informativeText = "请等待服务检查或安装操作结束。如果系统正在询问授权，也可以取消授权。"
+            alert.messageText = "操作正在进行"
+            alert.informativeText = "请等待配置读写或网络服务操作结束。如果系统正在询问授权，也可以取消授权。"
             alert.runModal()
             return .terminateCancel
         }
@@ -110,7 +114,7 @@ struct WindowConfiguration: NSViewRepresentable {
         DispatchQueue.main.async {
             view.window?.identifier = NSUserInterfaceItemIdentifier("freev6-main")
             view.window?.delegate = delegate
-            delegate.canTerminate = { !model.serviceBusy }
+            delegate.canTerminate = { !model.serviceBusy && !model.business.busy }
         }
         return view
     }
@@ -207,6 +211,8 @@ struct MainView: View {
                                 .font(.callout).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                     }
+                } else if model.page == .configuration {
+                    BusinessSettingsView(model: model.business)
                 } else {
                     Text("此页面将在共享业务与网络服务接入后启用。")
                         .foregroundStyle(.secondary)
@@ -234,12 +240,16 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = "system"
     @State private var confirmUninstall = false
     var body: some View {
+        TabView {
         Form {
             Picker("外观", selection: $appearance) {
                 Text("跟随系统").tag("system")
                 Text("浅色").tag("light")
                 Text("深色").tag("dark")
             }
+        }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }
+        BusinessSettingsView(model: model.business).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }
+        Form {
             Section("网络服务") {
                 Text(model.serviceStatus)
                 Button("恢复未完成的安装…") { Task { await model.manageService(.recover) } }.disabled(model.serviceBusy)
@@ -247,8 +257,9 @@ struct SettingsView: View {
                     .disabled(model.serviceBusy || !model.serviceInstalled)
                 if let error = model.error { Text(error).font(.callout).foregroundStyle(.red) }
             }
+        }.padding(24).tabItem { Label("网络服务", systemImage: "network") }
         }
-        .padding(24).frame(width: 460)
+        .frame(width: 560, height: 540)
         .confirmationDialog("卸载网络服务？", isPresented: $confirmUninstall) {
             Button("卸载", role: .destructive) { Task { await model.manageService(.uninstall) } }
         } message: {
