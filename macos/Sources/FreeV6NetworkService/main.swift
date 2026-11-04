@@ -81,8 +81,8 @@ do {
     let registration = try RegistrationFile.load(path: registrationPath, owner: owner, service: CodeIdentity.current())
     let listener = NSXPCListener(machServiceName: serviceName)
     let resources = try ServiceResourceStore(path: resourcesPath, owner: owner)
-    do { try resources.recoverConfigurationChecks() }
-    catch { fputs("freev6-network-service: 配置检查恢复待处理：\(error.localizedDescription)\n", stderr) }
+    do { try resources.recoverInterruptedSessions() }
+    catch { fputs("freev6-network-service: 网络会话恢复待处理：\(error.localizedDescription)\n", stderr) }
     let delegate = ServiceListener(registration: registration, resources: resources)
     listener.delegate = delegate
     listener.resume()

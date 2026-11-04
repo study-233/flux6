@@ -74,7 +74,7 @@ final class CoreCheckRecordTests: XCTestCase {
         let directory = try SecureDirectory(path: root.path, owner: geteuid())
         let bytes = try JSONEncoder().encode(record)
         try directory.write(PreparedSessionStore.journalName, data: bytes, mode: 0o600)
-        XCTAssertThrowsError(try store.recoverConfigurationCheck())
+        XCTAssertThrowsError(try store.recoverInterruptedSession())
         XCTAssertThrowsError(try store.recoverPreparation())
         XCTAssertThrowsError(try store.discard(sessionID: record.sessionID, clientUID: geteuid()))
         XCTAssertEqual(try directory.read(PreparedSessionStore.journalName, limit: 4096), bytes)

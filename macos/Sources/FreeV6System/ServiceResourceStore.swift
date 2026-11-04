@@ -64,7 +64,7 @@ public final class ServiceResourceStore {
         defer { lock.unlock() }
         let request = try ServiceMessages.decodeConfiguration(data)
         let sessions = try sessionStore()
-        try sessions.recoverConfigurationCheck()
+        try sessions.recoverInterruptedSession()
         guard try statusUnlocked().allSatisfy(\.available) else { throw ResourceStoreError.integrity }
         _ = try ServiceProcessOrigin.current()
         let record: PreparedSessionRecord
@@ -80,10 +80,10 @@ public final class ServiceResourceStore {
         return ConfigurationCheckReply(request)
     }
 
-    public func recoverConfigurationChecks() throws {
+    public func recoverInterruptedSessions() throws {
         guard lock.try() else { throw ResourceStoreError.busy }
         defer { lock.unlock() }
-        try sessionStore().recoverConfigurationCheck()
+        try sessionStore().recoverInterruptedSession()
     }
 
     private func sessionStore() throws -> PreparedSessionStore {

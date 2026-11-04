@@ -16,9 +16,9 @@ enum SessionStoreError: Error, LocalizedError {
     }
 }
 
-/// v1 prepares files only. v2 permits a managed -t job, never TUN or DNS.
+/// v1 prepares files, v2 checks configuration, v3 owns a running network session.
 struct PreparedSessionRecord: Codable, Equatable {
-    enum Phase: String, Codable { case preparing, prepared, checking }
+    enum Phase: String, Codable { case preparing, prepared, checking, network }
     var schema: Int
     let sessionID: UUID
     let clientUID: uid_t
@@ -30,6 +30,7 @@ struct PreparedSessionRecord: Codable, Equatable {
     var phase: Phase
     var configurationSHA256: String?
     var check: CoreCheckRecord?
+    var run: NetworkRunRecord?
 
     init(request: ConfigurationCheckRequest, clientUID: uid_t) {
         schema = 1; sessionID = UUID(); self.clientUID = clientUID
@@ -43,19 +44,27 @@ struct PreparedSessionRecord: Codable, Equatable {
         do {
             guard let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw SessionStoreError.invalidRecord }
             let required: Set<String> = ["schema", "sessionID", "clientUID", "runtimeID", "geodataID", "settingsRevision", "credentialRevision", "policyVersion", "phase"]
-            guard required.isSubset(of: Set(fields.keys)), Set(fields.keys).isSubset(of: required.union(["configurationSHA256", "check"])) else {
+            guard required.isSubset(of: Set(fields.keys)), Set(fields.keys).isSubset(of: required.union(["configurationSHA256", "check", "run"])) else {
                 throw SessionStoreError.invalidRecord
             }
             let record = try JSONDecoder().decode(Self.self, from: data)
-            guard [1, 2].contains(record.schema), record.clientUID != 0, record.policyVersion > 0,
+            guard [1, 2, 3].contains(record.schema), record.clientUID != 0, record.policyVersion > 0,
                   !record.runtimeID.isEmpty, record.runtimeID.utf8.count <= 128,
                   !record.geodataID.isEmpty, record.geodataID.utf8.count <= 128 else { throw SessionStoreError.invalidRecord }
-            if record.schema == 1 {
-                guard record.phase != .checking, record.check == nil, fields["check"] == nil else { throw SessionStoreError.invalidRecord }
-            } else {
-                guard record.phase == .checking, let check = record.check,
+            switch record.schema {
+            case 1:
+                guard [.preparing, .prepared].contains(record.phase), fields["check"] == nil, fields["run"] == nil else {
+                    throw SessionStoreError.invalidRecord
+                }
+            case 2:
+                guard record.phase == .checking, fields["run"] == nil, let check = record.check,
                       let object = fields["check"] as? [String: Any] else { throw SessionStoreError.invalidRecord }
                 try check.validate(object)
+            case 3:
+                guard record.phase == .network, fields["check"] == nil, let run = record.run,
+                      let object = fields["run"] as? [String: Any] else { throw SessionStoreError.invalidRecord }
+                try run.validate(object)
+            default: throw SessionStoreError.invalidRecord
             }
             if record.phase == .preparing {
                 guard record.configurationSHA256 == nil else { throw SessionStoreError.invalidRecord }
@@ -80,6 +89,9 @@ final class PreparedSessionStore {
     private let lock = NSLock()
     #if DEBUG
     var checkCheckpoint: ((String) -> Void)?
+    var probeConfiguration: ((Data, UUID) throws -> Data)?
+    var probeNetwork: ((SecureDirectory, ManagedCoreJob) throws -> any SessionRunNetwork)?
+
     #endif
 
     init(path: String = InstallationLayout.system.data, owner: uid_t = 0) throws {
@@ -110,6 +122,12 @@ final class PreparedSessionStore {
         // Validate path length and assemble before making durable changes.
         let configuration = try ServiceConfigurationAssembler.assemble(request.configuration,
             sessionID: record.sessionID, sessionsDirectory: sessions.path)
+        var configData = configuration.data
+        #if DEBUG
+        if data.owner == geteuid(), data.owner != 0, let probeConfiguration {
+            configData = try probeConfiguration(configData, record.sessionID)
+        }
+        #endif
         try persist(record)
         // Any following failure deliberately retains the journal. The caller
         // can explicitly recover preparation; no untracked credential files.
@@ -118,9 +136,9 @@ final class PreparedSessionStore {
         }
         try populate(directory)
         guard Set(try directory.entries()) == Self.filenames.subtracting(["config.json"]) else { throw SessionStoreError.integrity }
-        try directory.write("config.json", data: configuration.data, mode: 0o600)
+        try directory.write("config.json", data: configData, mode: 0o600)
         try directory.requirePrivateFile("config.json")
-        record.configurationSHA256 = Self.digest(configuration.data)
+        record.configurationSHA256 = Self.digest(configData)
         record.phase = .prepared
         try persist(record)
         return record
@@ -192,11 +210,17 @@ final class PreparedSessionStore {
     /// Internal restart recovery. No caller-supplied PID, domain or job label.
     /// A record from this live service is not recovery authority: a failed
     /// launchctl might still be in flight. Keep it until its old group is gone.
-    func recoverConfigurationCheck() throws {
+    func recoverInterruptedSession() throws {
         guard lock.try() else { throw SessionStoreError.occupied }
         defer { lock.unlock() }
         guard var record = try load() else {
             guard try sessions.entries().isEmpty else { throw SessionStoreError.recoveryRequired }
+            return
+        }
+        if record.schema == 3 {
+            guard let run = record.run, run.origin.ownerUID == data.owner,
+                  try run.origin.groupHasExited() else { throw SessionStoreError.occupied }
+            try finishRun(&record)
             return
         }
         guard record.schema == 2 else { try clean(record); return }
@@ -235,6 +259,158 @@ final class PreparedSessionStore {
         try clean(record)
     }
 
+    /// Caller retains this store and its installation-wide lease from
+    /// preparation until stop has restored DNS and removed the job and files.
+    func startRunning(sessionID: UUID, clientUID: uid_t) throws -> PreparedSessionRecord {
+        guard lock.try() else { throw SessionStoreError.occupied }
+        defer { lock.unlock() }
+        var record = try requireRecord(sessionID: sessionID, clientUID: clientUID)
+        let origin = try ServiceProcessOrigin.current()
+        guard origin.ownerUID == data.owner, record.policyVersion == ServiceConfigurationAssembler.policyVersion else {
+            throw SessionStoreError.invalidTransition
+        }
+        let directory = try verifiedWorkspace(record)
+        guard let config = try directory.read("config.json", limit: ServiceMessages.maximumConfigurationBytes),
+              let object = try JSONSerialization.jsonObject(with: config) as? [String: Any],
+              let providers = object["rule-providers"] as? [String: Any] else { throw SessionStoreError.integrity }
+        let job = try makeJob(sessionID)
+        let network = try networkEnvironment(directory, job: job)
+        guard try job.status() == nil else { throw SessionStoreError.occupied }
+        record.schema = 3
+        record.phase = .network
+        record.run = NetworkRunRecord(origin: origin, ruleFiles: providers.keys.map { $0 + ".list" }.sorted())
+        try persist(record)
+
+        // An unacknowledged launchctl mutation can still be in flight. In
+        // that case the next daemon waits for the old command group to exit.
+        var mutationInFlight = false
+        do {
+            try network.prepareDNS()
+            try advance(&record, to: .registering)
+            mutationInFlight = true
+            try job.register(directory: directory, checkOnly: false)
+            mutationInFlight = false
+            checkpoint("run-job-registered")
+            try advance(&record, to: .starting)
+            mutationInFlight = true
+            let pid = try job.start()
+            mutationInFlight = false
+            checkpoint("run-job-started")
+            let tunnel = try network.checkReadiness(pid: pid)
+            guard try job.status()?.pid == pid else { throw NetworkRunError.tunnelUnavailable }
+            record.run!.tunnel = tunnel
+            try advance(&record, to: .applyingDNS)
+            try network.applyDNS()
+            checkpoint("run-dns-applied")
+            try network.verifyEgress(tunnel)
+            guard try job.status()?.pid == pid, try network.ownedTunnel(pid: pid) == tunnel else {
+                throw NetworkRunError.tunnelUnavailable
+            }
+            try advance(&record, to: .active)
+            return record
+        } catch {
+            if mutationInFlight { throw NetworkRunError.recoveryRequired }
+            // Reload durable intent. A failed journal fsync is ambiguous.
+            guard var pending = try load(), pending.sessionID == sessionID else { throw NetworkRunError.recoveryRequired }
+            try finishRun(&pending)
+            throw error
+        }
+    }
+
+    func stopRunning(sessionID: UUID, clientUID: uid_t, revision: UInt64) throws {
+        guard lock.try() else { throw SessionStoreError.occupied }
+        defer { lock.unlock() }
+        guard var record = try load() else {
+            guard try sessions.entries().isEmpty else { throw SessionStoreError.recoveryRequired }
+            return
+        }
+        guard clientUID != 0, record.clientUID == clientUID else { throw SessionStoreError.wrongOwner }
+        guard record.schema == 3, record.sessionID == sessionID, let run = record.run,
+              run.revision == revision else { throw SessionStoreError.invalidTransition }
+        let origin = try ServiceProcessOrigin.current()
+        if origin != run.origin {
+            guard try run.origin.groupHasExited() else { throw SessionStoreError.occupied }
+        } else if [.registering, .starting].contains(run.stage) {
+            // This instance may have lost its own bootstrap/kickstart reply.
+            throw NetworkRunError.recoveryRequired
+        }
+        try finishRun(&record)
+    }
+
+    private func advance(_ record: inout PreparedSessionRecord, to stage: NetworkRunRecord.Stage) throws {
+        guard var run = record.run, run.revision < UInt64.max - 1 else { throw SessionStoreError.invalidRecord }
+        run.stage = stage
+        run.revision += 1
+        record.run = run
+        try persist(record)
+    }
+
+    private func networkEnvironment(_ directory: SecureDirectory, job: ManagedCoreJob) throws -> any SessionRunNetwork {
+        #if DEBUG
+        if data.owner != 0, data.owner == geteuid(), let probeNetwork { return try probeNetwork(directory, job) }
+        #endif
+        return try SystemRunNetwork(directory: directory, job: job)
+    }
+
+    private func finishRun(_ record: inout PreparedSessionRecord) throws {
+        guard let run = record.run, run.origin.ownerUID == data.owner else { throw SessionStoreError.wrongOwner }
+        let job = try makeJob(record.sessionID)
+        if run.stage == .removed {
+            guard try job.status() == nil else { throw NetworkRunError.recoveryRequired }
+            try clean(record)
+            return
+        }
+        guard let directory = try sessions.privateChild(record.sessionID.uuidString) else { throw NetworkRunError.recoveryRequired }
+        let network = try networkEnvironment(directory, job: job)
+        if [.starting, .applyingDNS, .active].contains(run.stage) {
+            // Publish stop intent before touching DNS. A failed rollback must
+            // never leave a durable status claiming that this session is up.
+            try advance(&record, to: .restoringDNS)
+        }
+        let hasJournal = try directory.entries().contains(SessionDNSTransaction.journalName)
+        if hasJournal { try network.restoreDNS() }
+        else if run.stage != .capturingDNS { throw NetworkRunError.recoveryRequired }
+        checkpoint("run-dns-restored")
+        // DNS rollback precedes job inspection, even if the job crashed or
+        // disappeared. An unconfirmed job must not strand system DNS.
+        let state = try job.status()
+        let sameBoot = try ServiceProcessOrigin.bootIdentity() == run.origin.bootID
+        if !sameBoot {
+            guard state == nil else { throw NetworkRunError.recoveryRequired }
+        } else {
+            switch run.stage {
+            case .capturingDNS:
+                guard state == nil else { throw NetworkRunError.recoveryRequired }
+            case .registering:
+                guard state?.pid == nil else { throw NetworkRunError.recoveryRequired }
+            case .starting, .applyingDNS, .active, .restoringDNS, .stopping:
+                guard let state else { throw NetworkRunError.recoveryRequired }
+                if record.run!.tunnel == nil, let pid = state.pid {
+                    let candidate = try network.ownedTunnel(pid: pid)
+                    guard try job.status()?.pid == pid else { throw NetworkRunError.recoveryRequired }
+                    record.run!.tunnel = candidate
+                }
+                if run.stage != .stopping { try advance(&record, to: .stopping) }
+                _ = try job.stop()
+                checkpoint("run-job-stopped")
+            case .exited:
+                guard state?.pid == nil else { throw NetworkRunError.recoveryRequired }
+            case .removed: throw SessionStoreError.invalidTransition
+            }
+            if let tunnel = record.run!.tunnel { try network.verifyRelease(tunnel) }
+        }
+        if record.run!.stage != .exited {
+            // A pre-capture failure with no DNS journal must survive partial
+            // cleanup without acquiring an artificial DNS obligation.
+            if !hasJournal { try advance(&record, to: .removed); try clean(record); return }
+            try advance(&record, to: .exited)
+        }
+        if state != nil { try job.removeStoppedJob() }
+        checkpoint("run-job-removed")
+        try advance(&record, to: .removed)
+        try clean(record)
+    }
+
     private func makeJob(_ sessionID: UUID) throws -> ManagedCoreJob {
         if data.owner == 0 { return ManagedCoreJob(sessionID: sessionID) }
         #if DEBUG
@@ -268,22 +444,43 @@ final class PreparedSessionStore {
     }
 
     private func clean(_ record: PreparedSessionRecord) throws {
-        guard record.schema == 1 || (record.schema == 2 && record.check?.stage == .removed) else {
+        guard record.schema == 1 || (record.schema == 2 && record.check?.stage == .removed) || (record.schema == 3 && record.run?.stage == .removed) else {
             throw SessionStoreError.invalidTransition
         }
-        let allowed = record.schema == 2 ? Self.filenames.union([ManagedCoreJob.plistName, "cache.db"]) : Self.filenames
+        var allowed = Self.filenames
+        if record.schema >= 2 { allowed.formUnion([ManagedCoreJob.plistName, "cache.db"]) }
+        if record.schema == 3 { allowed.insert(SessionDNSTransaction.journalName) }
         let name = record.sessionID.uuidString
         guard Set(try sessions.entries()).isSubset(of: [name]) else { throw SessionStoreError.recoveryRequired }
         if let directory = try sessions.privateChild(name) {
             let entries = try directory.entries()
             // Check the entire set before deleting anything. Do not recurse,
             // follow links, or delete another session/unknown core output.
+            var rules: SecureDirectory?
+            var ruleFiles: [String] = []
             for file in entries {
+                if record.schema == 3, file == "c.sock" {
+                    try directory.requireOwnedSocket(file)
+                    continue
+                }
+                if let run = record.run, file == "ruleset" {
+                    guard let child = try directory.privateChild(file) else { throw SessionStoreError.integrity }
+                    ruleFiles = try child.entries()
+                    guard Set(ruleFiles).isSubset(of: Set(run.ruleFiles)) else { throw SessionStoreError.recoveryRequired }
+                    for name in ruleFiles { _ = try child.withFile(name) { _ in () } }
+                    rules = child
+                    continue
+                }
                 let staging = file.hasPrefix(".staging-") && UUID(uuidString: String(file.dropFirst(9))) != nil
                 guard allowed.contains(file) || staging else { throw SessionStoreError.recoveryRequired }
                 _ = try directory.withFile(file) { _ in () }
             }
-            for file in entries { try directory.removeRegularFile(file) }
+            if let rules {
+                for name in ruleFiles { try rules.removeRegularFile(name) }
+                try directory.removeEmptyChild("ruleset", matching: rules)
+            }
+            if record.schema == 3, entries.contains("c.sock") { try directory.removeOwnedSocket("c.sock") }
+            for file in entries where file != "ruleset" && file != "c.sock" { try directory.removeRegularFile(file) }
             try sessions.removeEmptyChild(name, matching: directory)
         }
         try data.removeRegularFile(Self.journalName)
@@ -308,6 +505,7 @@ final class PreparedSessionStore {
         try data.write(Self.journalName, data: encoded, mode: 0o600)
         try data.requirePrivateFile(Self.journalName)
         if let check = record.check { checkpoint(check.stage.rawValue) }
+        if let run = record.run { checkpoint("run-" + run.stage.rawValue) }
     }
 
     private func checkpoint(_ name: String) {

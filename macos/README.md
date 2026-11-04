@@ -22,6 +22,10 @@ bash scripts/macos/build-app.sh
 
 打包脚本校验镜像后只读挂载，用临时目录验证拖放副本的签名、四个可执行文件的架构与最低系统，以及安装工具内嵌的服务摘要，成功后推出。当前产物供开发预览，完整连接、系统服务安装、真实下载后的首次打开及自动更新另行验收。
 
+### 运行会话恢复验证
+
+`python3 scripts/macos/probe-network-run.py --resources <已校验的服务缓存目录>` 在普通用户的 launchd 域执行启停和中断恢复。缓存目录可取 `probe-service.py` 的产物 `service-data/resources`。测试会创建临时 job，配置 TUN 关闭并使用独立的 DNS 配置库。输出每个场景的结果及证据目录。[会话记录 v3](../shared/protocol/network-run-v3.md)
+
 ## 原生顶部栏与窗口
 
 应用菜单、页面工具栏与右上角状态菜单共用 `FreeV6Desktop` 的命令可用性规则及 `AppModel` 的执行入口。执行前重新检查状态，服务握手成功或核心缓存可用均不会启用尚未实现的 TUN 连接。配置保存（⌘S）和重新载入只在主窗口配置页或设置的代理规则页获得焦点时启用；编辑菜单保留系统焦点行为。

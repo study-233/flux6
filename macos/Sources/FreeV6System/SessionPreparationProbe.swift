@@ -52,7 +52,7 @@ public enum SessionPreparationProbe {
 
     public static func recoverCheck(path: String) throws {
         guard geteuid() != 0 else { throw ServiceMessageError.invalid }
-        try PreparedSessionStore(path: path, owner: geteuid()).recoverConfigurationCheck()
+        try PreparedSessionStore(path: path, owner: geteuid()).recoverInterruptedSession()
     }
 
     public static func holdGroup(executable: String, directory: String) throws {

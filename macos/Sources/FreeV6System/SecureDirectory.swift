@@ -136,6 +136,23 @@ final class SecureDirectory {
         }
     }
 
+    /// Only used after the UUID job is confirmed removed. The core creates a
+    /// 0666 Unix socket inside this private directory, not a regular file.
+    func requireOwnedSocket(_ name: String) throws {
+        try validate(name)
+        try requirePrivate()
+        var st = stat()
+        guard fstatat(descriptor, name, &st, AT_SYMLINK_NOFOLLOW) == 0,
+              st.st_mode & S_IFMT == S_IFSOCK, st.st_uid == owner, st.st_nlink == 1 else {
+            throw RegistrationError.insecureFile
+        }
+    }
+
+    func removeOwnedSocket(_ name: String) throws {
+        try requireOwnedSocket(name)
+        guard unlinkat(descriptor, name, 0) == 0, fsync(descriptor) == 0 else { throw ResourceStoreError.io }
+    }
+
     func removeRegularFile(_ name: String) throws {
         guard try withFile(name, { _ in true }) == true else { return }
         guard unlinkat(descriptor, name, 0) == 0, fsync(descriptor) == 0 else { throw ResourceStoreError.io }

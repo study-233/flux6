@@ -226,6 +226,12 @@ do {
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
     #if DEBUG
+    case "probe-network-run" where arguments.count == 4:
+        try NetworkRunProbe.run(path: arguments[1], request: readConfigurationRequest(arguments[2]), checkpoint: arguments[3])
+        print("PASS: running core, DNS transaction and owner-bound stop completed")
+    case "probe-network-recover" where arguments.count == 2:
+        try NetworkRunProbe.run(path: arguments[1], request: nil, checkpoint: nil)
+        print("PASS: interrupted run recovered")
     case "failed-check" where arguments.count == 4:
         try SessionPreparationProbe.failedCheck(path: arguments[1], request: readConfigurationRequest(arguments[2]), failure: arguments[3])
         print("PASS: failed core check stopped and removed job, private configuration and journal")

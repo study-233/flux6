@@ -8,37 +8,12 @@ import argparse
 import json
 import os
 from pathlib import Path
-import plistlib
 import shutil
-import subprocess
-import time
 import uuid
 
+from session_probe import boot, run, state, until
+
 ROOT = Path(__file__).resolve().parents[2]
-
-
-def run(args, check=True, timeout=60):
-    r = subprocess.run([str(a) for a in args], capture_output=True, text=True, timeout=timeout)
-    if check and r.returncode:
-        raise RuntimeError(r.stderr)
-    return r
-
-
-def until(test, timeout=30):
-    end = time.monotonic() + timeout
-    while time.monotonic() < end:
-        if result := test():
-            return result
-        time.sleep(0.03)
-    raise RuntimeError("Check recovery probe timed out")
-
-
-def state(label):
-    for line in run(["/bin/launchctl", "list"]).stdout.splitlines()[1:]:
-        pid, status, name = line.split(None, 2)
-        if name == label:
-            return {"pid": None if pid == "-" else int(pid), "exit": int(status)}
-    return None
 
 
 def main():
@@ -75,18 +50,11 @@ def main():
         jobs = []
         core_label = None
 
-        def boot(arguments, name):
-            label = "dev.freev6.probe.check." + uuid.uuid4().hex
-            path = case / (name + ".plist")
-            path.write_bytes(plistlib.dumps({"Label": label, "ProgramArguments": [str(probe)] + arguments,
-                "RunAtLoad": True, "KeepAlive": False, "AbandonProcessGroup": False, "ExitTimeOut": 2,
-                "StandardOutPath": str(case / (name + ".stdout")), "StandardErrorPath": str(case / (name + ".stderr"))}))
-            run(["/bin/launchctl", "bootstrap", domain, path])
-            jobs.append(label)
-            return label
+        def launch(arguments, name):
+            return boot(probe, arguments, domain=domain, folder=case, name=name, jobs=jobs)
 
         def recover(name, expected_success=True):
-            label = boot(["recover-check", str(data)], name)
+            label = launch(["recover-check", str(data)], name)
             def ended():
                 current = state(label)
                 out, err = case / (name + ".stdout"), case / (name + ".stderr")
@@ -100,7 +68,7 @@ def main():
 
         try:
             if checkpoint in ["rejected", "timeout"]:
-                host = boot(["failed-check", str(data), str(request), checkpoint], "failure")
+                host = launch(["failed-check", str(data), str(request), checkpoint], "failure")
                 def failure_ended():
                     current = state(host)
                     out, err = case / "failure.stdout", case / "failure.stderr"
@@ -112,7 +80,7 @@ def main():
                 print("PASS:", checkpoint, flush=True)
                 continue
             boundary = "job-started" if checkpoint == "missing-job" else "exited" if checkpoint == "unknown-file" else checkpoint
-            host = boot(["hold-check", str(data), str(request), boundary], "host")
+            host = launch(["hold-check", str(data), str(request), boundary], "host")
             def ready():
                 output = case / "host.stdout"
                 if output.exists():
