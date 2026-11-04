@@ -109,15 +109,7 @@ func probeMach(name: String, hash: String) throws {
         throw NSError(domain: "FreeV6Probe", code: 6, userInfo: [NSLocalizedDescriptionKey: "Expected isolated probe service"])
     }
     let identity = try CodeIdentity(identifier: "probe-service", cdHash: hash)
-    let connection = NSXPCConnection(machServiceName: name)
-    connection.setCodeSigningRequirement(identity.requirement)
-    connection.remoteObjectInterface = NSXPCInterface(with: NetworkServiceProtocol.self)
-    connection.resume()
-    defer { connection.invalidate() }
-    let reply = try exchangeHandshake(connection)
-    guard !reply.privileged else {
-        throw NSError(domain: "FreeV6Probe", code: 7, userInfo: [NSLocalizedDescriptionKey: "Probe service must run as the current user"])
-    }
+    let reply = try ServiceClient.handshake(identity: identity, name: name, privileged: false)
     print("PASS: separate Mach service authenticated; privileged=false; version=\(reply.serviceVersion)")
 }
 
@@ -161,6 +153,15 @@ do {
         print(String(decoding: data, as: UTF8.self))
     case "mach" where arguments.count == 3:
         try probeMach(name: arguments[1], hash: arguments[2])
+    case "payload" where arguments.count == 4:
+        guard geteuid() != 0 else { throw InstallationError.invalidPayload }
+        let app = URL(fileURLWithPath: arguments[1])
+        let installer = app.appendingPathComponent("Contents/Helpers/freev6-service-installer")
+        let client = try CodeIdentity.protectedFile(at: app, identifier: "dev.freev6.desktop")
+        let bootstrap = try CodeIdentity.protectedFile(at: installer, identifier: "dev.freev6.service-installer")
+        _ = try InstallationPayload.prepare(app: app, clientHash: client.cdHash, uid: geteuid(), serviceHash: arguments[3],
+            installer: installer, installerIdentity: bootstrap, stagingPath: arguments[2], owner: geteuid())
+        print("PASS: signed installation payload staged and verified without root installation")
     case "xpc": try probeXPC(reject: false)
     case "xpc-reject": try probeXPC(reject: true)
     case "keychain": try probeKeychain()

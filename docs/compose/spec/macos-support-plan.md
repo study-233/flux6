@@ -196,6 +196,8 @@ macOS 13 提供 SMAppService，但 ad-hoc 签名不能被视为稳定服务授�
 4. App 通过 NSXPCConnection 连接固定 Mach service。launchd 注册与 XPC 通信是不同问题，使用 XPC 不要求把首版安装方式绑定到 SMAppService。
 5. 服务升级、客户端身份更新与卸载走同一管理入口。无证书阶段可能需要再次管理员授权，不承诺所有升级静默完成。
 
+当前安装原型把服务 SHA256 嵌入安装工具的已签名 Mach-O，服务源文件先复制至 root 私有暂存并验证，再进入固定安装目录。客户端只登记与管理员授权请求中 CDHash 匹配、启用严格 Hardened Runtime 的代码；首版要求该代码不携带 entitlement。原始资源不用于选择 root 可执行程序。安装事务保留旧文件及其摘要，跨文件替换前先持久化记录，健康检查通过后提交；回退失败时保留恢复资料。固定恢复工具也被登记为 root 管理客户端，仅在已获管理员权限时使用。
+
 XPC 使用公开 API 在激活连接前设置对端代码要求。已检查本机 SDK：NSXPCConnection.setCodeSigningRequirement 从 macOS 13 可用。服务同时检查 effective UID、安装时登记的客户端代码摘要与会话归属；App 也验证服务身份。不能只核对 PID、进程名或路径，也不依赖私有 auditToken 属性。[Apple XPC API](https://developer.apple.com/documentation/foundation/nsxpcconnection/setcodesigningrequirement(_:))
 
 无 Team ID 阶段，在管理员安装时登记允许的客户端 CDHash；新版本代码摘要变化后，默认重新授权登记。未来可用服务独立验证的发布签名清单更新可信摘要，但这属于明确实现的协议，不能用 App 的自报版本绕过。P0 验证双向身份检查、ad-hoc 重新构建后的行为及重新授权流程。

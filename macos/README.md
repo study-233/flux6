@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前处于 P0 技术验证阶段。工程包含 SwiftUI/AppKit 应用雏形、仅支持握手的网络服务和系统探针；界面尚未接入网络服务，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+当前处于 P0 技术验证阶段。工程包含 SwiftUI/AppKit 应用、仅支持握手的网络服务、安装工具和系统探针。界面已接入服务检查与安装入口，连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
 
 ## 构建
 
@@ -12,7 +12,33 @@ bash scripts/macos/swift.sh test
 bash scripts/macos/build-app.sh
 ```
 
-开发应用位于 `dist/macos/FreeV6.app`，使用 ad-hoc 签名。构建缓存位于 `build/`，不会写入应用 bundle。主窗口、菜单、菜单栏状态入口和设置均为原生组件。
+开发应用位于 `dist/macos/FreeV6.app`。`build-app.sh` 默认 Release，按服务 → 安装工具 → App 的顺序构建并使用 ad-hoc + Hardened Runtime 签名，不给特权客户端添加 entitlement。构建缓存位于 `build/`，不会写入应用 bundle。主窗口、菜单、菜单栏状态入口和设置均为原生组件。
+
+安装工具的签名覆盖一个嵌入 Mach-O 的 Info.plist，其中固定当前服务二进制的 SHA256。普通 `swift.sh build` 不嵌入此清单，其安装工具拒绝执行安装；用于安装的工具必须通过 `build-app.sh` 生成。
+
+## 服务安装与事务
+
+应用需位于 `/Applications`。概览页提供安装/重新登记入口，设置页提供恢复未完成安装与卸载入口，管理员凭据交由 macOS 系统授权窗口处理。安装登记同时绑定用户和 App CDHash，更新后的 App 需要重新登记；其他用户的登记保留。当前 root 实机安装流程仍待验收，不将本地模拟事务测试当作系统级成功。
+
+固定系统路径：
+
+- 服务：`/Library/PrivilegedHelperTools/dev.freev6.network-service`
+- 恢复/卸载工具：`/Library/PrivilegedHelperTools/dev.freev6.service-installer`
+- launchd：`/Library/LaunchDaemons/dev.freev6.network-service.plist`
+- 登记：`/Library/Application Support/dev.freev6.desktop/service-registration.json`
+- root 私有事务与暂存：`/Library/Application Support/dev.freev6.desktop/installation`
+
+安装工具先复制并验证客户端代码、服务固定摘要和自身代码身份，再修改固定目标。事务持有独占锁，持久化旧文件、摘要和提交记录；失败回退，恢复失败保留记录供下次重试。安装工具以自己的 root CDHash 完成安装后的双向 XPC 健康检查。发现 `network-session.json` 时暂时拒绝升级/卸载，P4 将以明确的网络恢复接口替换这一保护。
+
+误删应用后，管理员仍可使用固定恢复工具的 `recover` 或 `uninstall` 动作。这里的 `recover` 仅恢复安装事务；TUN/DNS 恢复尚未实现。卸载移除 daemon、服务、登记和恢复工具，保留 root 私有暂存目录；完整数据清理归入后续卸载验收。
+
+无需管理员权限的真实签名产物验证：
+
+```sh
+python3 scripts/macos/probe-installer.py
+```
+
+验证正常 payload、错误服务摘要、放宽运行期保护的客户端拒绝，以及非 root 安装拒绝。文件复制到独立的 `build/installer-probes/<UUID>`，不调用系统级 launchd。事务 XCTest 还覆盖首次安装/升级失败、中断恢复、坏备份、符号链接目标、并发锁、多用户重新登记和幂等卸载。
 
 ## 系统探针
 
