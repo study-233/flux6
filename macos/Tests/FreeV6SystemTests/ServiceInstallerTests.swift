@@ -143,9 +143,26 @@ final class ServiceInstallerTests: XCTestCase {
         try fixture { layout, controller, installer in
             try installer.install(payload("a"))
             try Data("pending".utf8).write(to: URL(fileURLWithPath: layout.data + "/network-session.json"))
+            XCTAssertThrowsError(try installer.recover())
             XCTAssertThrowsError(try installer.install(payload("b")))
             XCTAssertThrowsError(try installer.uninstall())
             XCTAssertTrue(controller.loaded)
+        }
+    }
+
+    func testSessionLeasePreventsInstallRecoveryAndUninstallBeforeJournalExists() throws {
+        try fixture { layout, controller, installer in
+            try installer.install(payload("a"))
+            var sessions: PreparedSessionStore? = try PreparedSessionStore(path: layout.data, owner: geteuid())
+            XCTAssertNil(try sessions!.current())
+            XCTAssertThrowsError(try installer.install(payload("b")))
+            XCTAssertThrowsError(try installer.recover())
+            XCTAssertThrowsError(try installer.uninstall())
+            XCTAssertTrue(controller.loaded)
+            XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: layout.helpers + "/" + ServiceProtocolVersion.machService)), Data("service-a".utf8))
+            sessions = nil
+            try installer.uninstall()
+            XCTAssertFalse(controller.loaded)
         }
     }
 

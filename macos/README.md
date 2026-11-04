@@ -110,6 +110,20 @@ FREEV6_GEODATA_FIXTURES_DIR="$PWD/build/macos-geodata" \
 
 运行完整原生回归时也应传入 `FREEV6_PROCESS_TEST_BINARY`，连同已有 worker、资源与独立 Keychain 开关。未设置夹具变量的相关测试会跳过。以上测试不启用真实 TUN 或修改 DNS。
 
+## 私有会话准备与恢复
+
+系统模块已提供 `PreparedSessionStore` 和资源层 `prepareSession`：先持久化准备记录，再创建服务所有的 0700 UUID 目录，复制并复验核心/规则数据，写入 0600 配置并绑定摘要。副本使用独立 inode，更新共享资源不改变已准备的会话。配置和资源在交给启动协调器前再次验证，非所属 UID 不能读取工作目录或取消会话。
+
+全局 `network.lock` 与安装工具共用，防止准备会话与安装/卸载并发。记录格式和清理顺序见 [session-preparation-v1.md](../shared/protocol/session-preparation-v1.md)。当前仅表示“尚未启动进程、尚未改网络”的准备状态；未知状态、未知文件或链接会保留并报错。产品 RPC 尚未调用此存储，真实核心启动前必须增加启动意图、进程身份及 DNS 事务。
+
+普通用户强退与恢复探针（参数指向服务资源探针已生成的固定资源目录）：
+
+```sh
+python3 scripts/macos/probe-sessions.py --resources /absolute/path/to/verified/service/resources
+```
+
+探针使用公开合成凭据，分别在准备中和准备完成后强制结束临时宿主，验证独占锁、恢复记录保留和新进程重复清理。它只在 `build/` 内创建临时目录，不启动核心或修改网络；结果保存在 `build/session-probes/<UUID>/result.json`。恢复测试入口仅存在于 Debug，不随 Release 暴露。
+
 ## 服务安装与事务
 
 应用需位于 `/Applications`。概览页提供安装/重新登记入口，设置页提供恢复未完成安装与卸载入口，管理员凭据交由 macOS 系统授权窗口处理。安装登记同时绑定用户和 App CDHash，更新后的 App 需要重新登记；其他用户的登记保留。当前 root 实机安装流程仍待验收，不将本地模拟事务测试当作系统级成功。
@@ -123,7 +137,7 @@ FREEV6_GEODATA_FIXTURES_DIR="$PWD/build/macos-geodata" \
 - root 私有事务与暂存：`/Library/Application Support/dev.freev6.desktop/installation`
 - root 已验证核心与规则数据：`/Library/Application Support/dev.freev6.desktop/resources`
 
-安装工具先复制并验证客户端代码、服务固定摘要和自身代码身份，再修改固定目标。事务持有独占锁，持久化旧文件、摘要和提交记录；失败回退，恢复失败保留记录供下次重试。安装工具以自己的 root CDHash 完成安装后的双向 XPC 健康检查。发现 `network-session.json` 时暂时拒绝升级/卸载，P4 将以明确的网络恢复接口替换这一保护。
+安装工具先复制并验证客户端代码、服务固定摘要和自身代码身份，再修改固定目标。事务持有安装锁和全局网络锁，持久化旧文件、摘要和提交记录；失败回退，恢复失败保留记录供下次重试。安装工具以自己的 root CDHash 完成安装后的双向 XPC 健康检查。发现 `network-session.json` 时拒绝安装恢复、升级和卸载，P4 将以明确的网络恢复接口替换这一保护。服务健康握手不取得网络锁，避免与尚未提交的安装事务相互等待。
 
 误删应用后，管理员仍可使用固定恢复工具的 `recover` 或 `uninstall` 动作。这里的 `recover` 仅恢复安装事务；TUN/DNS 恢复尚未实现。卸载移除 daemon、服务、登记和恢复工具，保留 root 私有暂存及资源目录；完整数据清理归入后续卸载验收。
 

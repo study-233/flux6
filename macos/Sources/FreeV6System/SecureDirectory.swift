@@ -56,7 +56,7 @@ final class SecureDirectory {
     /// POSIX mode bits alone do not exclude macOS ACL write grants. Reject
     /// write-capable allow entries (including inheritable ones); deny/read-only
     /// ACLs such as the standard home-directory delete restriction are safe.
-    private static func rejectWriteACL(_ file: Int32) throws {
+    private static func rejectWriteACL(_ file: Int32, allAllow: Bool = false) throws {
         guard let acl = acl_get_fd_np(file, ACL_TYPE_EXTENDED) else {
             // On a valid open descriptor Darwin reports an absent extended ACL
             // as ENOENT. Other failures (including unsupported filesystems) fail closed.
@@ -81,7 +81,82 @@ final class SecureDirectory {
             guard acl_get_tag_type(entry, &tag) == 0, acl_get_permset_mask_np(entry, &permissions) == 0 else {
                 throw RegistrationError.insecureFile
             }
-            guard tag != ACL_EXTENDED_ALLOW || permissions & mask == 0 else { throw RegistrationError.insecureFile }
+            guard tag != ACL_EXTENDED_ALLOW || (!allAllow && permissions & mask == 0) else { throw RegistrationError.insecureFile }
+        }
+    }
+
+    /// Secret-bearing directories must also reject read/traverse ACL grants,
+    /// which can override 0700. Ancestors may retain ordinary read-only ACLs.
+    func requirePrivate() throws {
+        var info = stat()
+        guard fstat(descriptor, &info) == 0, info.st_uid == owner, info.st_mode & 0o077 == 0 else {
+            throw RegistrationError.insecureFile
+        }
+        try requireNoAllowACL()
+    }
+
+    func requireNoAllowACL() throws { try Self.rejectWriteACL(descriptor, allAllow: true) }
+
+    private init(descriptor: Int32, path: String, owner: uid_t) {
+        self.descriptor = descriptor; self.path = path; self.owner = owner
+    }
+
+    func privateChild(_ name: String, create: Bool = false, exclusive: Bool = false) throws -> SecureDirectory? {
+        try validate(name)
+        if create {
+            if mkdirat(descriptor, name, 0o700) != 0 {
+                guard errno == EEXIST, !exclusive else { throw RegistrationError.insecureFile }
+            } else if fsync(descriptor) != 0 { throw ResourceStoreError.io }
+        }
+        let child = openat(descriptor, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
+        if child < 0, errno == ENOENT { return nil }
+        guard child >= 0 else { throw RegistrationError.insecureFile }
+        let result = SecureDirectory(descriptor: child, path: path + "/" + name, owner: owner)
+        try result.requirePrivate()
+        return result
+    }
+
+    func entries(limit: Int = 64) throws -> [String] {
+        // Open a new description; dup would share and advance our dir offset.
+        let copy = openat(descriptor, ".", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        guard copy >= 0 else { throw ResourceStoreError.io }
+        guard let stream = fdopendir(copy) else { close(copy); throw ResourceStoreError.io }
+        defer { closedir(stream) }
+        var names = [String]()
+        while true {
+            errno = 0
+            guard let entry = readdir(stream) else {
+                guard errno == 0 else { throw ResourceStoreError.io }
+                return names.sorted()
+            }
+            let name = withUnsafeBytes(of: entry.pointee.d_name) { String(cString: $0.baseAddress!.assumingMemoryBound(to: CChar.self)) }
+            if name == "." || name == ".." { continue }
+            guard names.count < limit else { throw RegistrationError.oversized }
+            names.append(name)
+        }
+    }
+
+    func removeRegularFile(_ name: String) throws {
+        guard try withFile(name, { _ in true }) == true else { return }
+        guard unlinkat(descriptor, name, 0) == 0, fsync(descriptor) == 0 else { throw ResourceStoreError.io }
+    }
+
+    func removeEmptyChild(_ name: String, matching child: SecureDirectory) throws {
+        try validate(name)
+        var expected = stat(), current = stat()
+        guard fstat(child.descriptor, &expected) == 0,
+              fstatat(descriptor, name, &current, AT_SYMLINK_NOFOLLOW) == 0,
+              current.st_mode & S_IFMT == S_IFDIR, current.st_ino == expected.st_ino, current.st_dev == expected.st_dev else {
+            throw RegistrationError.insecureFile
+        }
+        guard unlinkat(descriptor, name, AT_REMOVEDIR) == 0, fsync(descriptor) == 0 else { throw ResourceStoreError.io }
+    }
+
+    func requirePrivateFile(_ name: String) throws {
+        _ = try withFile(name) { file in
+            let info = try validateFile(file)
+            guard info.st_mode & 0o077 == 0 else { throw RegistrationError.insecureFile }
+            try Self.rejectWriteACL(file, allAllow: true)
         }
     }
 

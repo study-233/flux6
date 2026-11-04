@@ -69,6 +69,31 @@ public final class ServiceResourceStore {
         return ConfigurationCheckReply(request)
     }
 
+    /// Caller owns the preparation store's lifetime lease. No core is launched
+    /// here; launch must first persist a newer journal schema with its intent.
+    func prepareSession(_ data: Data, clientUID: uid_t, sessions: PreparedSessionStore) throws -> PreparedSessionRecord {
+        guard clientUID != 0 else { throw SessionStoreError.wrongOwner }
+        guard lock.try() else { throw ResourceStoreError.busy }
+        defer { lock.unlock() }
+        let request = try ServiceMessages.decodeConfiguration(data)
+        return try sessions.prepare(request, clientUID: clientUID) { destination in
+            let deadline = ResourceIO.deadline()
+            for asset in ApprovedResourceCatalog.native {
+                guard try directory.withFile(asset.filename, { source in
+                    // Copy while hashing, then independently re-read the new
+                    // inode. No hard links or paths into the mutable cache.
+                    try destination.publish(PreparedSessionStore.filename(asset), mode: asset.mode) { candidate in
+                        try ResourceIO.scan(source, destination: candidate, limit: asset.limit,
+                            expected: asset.sha256, size: asset.size, deadline: deadline)
+                        guard fsync(candidate) == 0 else { throw ResourceStoreError.io }
+                        try verify(candidate, asset: asset, deadline: deadline)
+                    }
+                    return true
+                }) == true else { throw ResourceStoreError.integrity }
+            }
+        }
+    }
+
     private func statusUnlocked() throws -> [ResourceAvailability] {
         let deadline = ResourceIO.deadline()
         return try ApprovedResourceCatalog.native.map { asset in

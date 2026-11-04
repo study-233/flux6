@@ -72,7 +72,12 @@ public enum ServiceConfigurationAssembler {
     public static let sessions = "/Library/Application Support/dev.freev6.desktop/sessions"
 
     public static func assemble(_ business: BusinessConfiguration, sessionID: UUID) throws -> AssembledServiceConfiguration {
-        let socket = sessions + "/" + sessionID.uuidString + "/c.sock"
+        try assemble(business, sessionID: sessionID, sessionsDirectory: sessions)
+    }
+
+    // The store supplies its validated directory; never decode this from IPC.
+    static func assemble(_ business: BusinessConfiguration, sessionID: UUID, sessionsDirectory: String) throws -> AssembledServiceConfiguration {
+        let socket = sessionsDirectory + "/" + sessionID.uuidString + "/c.sock"
         // Darwin sockaddr_un.sun_path is 104 bytes including the terminator.
         guard socket.utf8.count < 104 else { throw ServiceMessageError.invalid }
         var secret = [UInt8](repeating: 0, count: 32)

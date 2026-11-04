@@ -225,6 +225,14 @@ do {
         let assembled = try ServiceConfigurationAssembler.assemble(request.configuration, sessionID: UUID())
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
+    #if DEBUG
+    case "hold-session" where arguments.count == 3, "hold-partial-session" where arguments.count == 3:
+        try SessionPreparationProbe.hold(path: arguments[1], request: readConfigurationRequest(arguments[2]),
+            partial: arguments[0] == "hold-partial-session")
+    case "recover-session" where arguments.count == 2:
+        try SessionPreparationProbe.recover(path: arguments[1])
+        print("PASS: preparation recovered; no process or network changes")
+    #endif
     case "payload" where arguments.count == 4:
         guard geteuid() != 0 else { throw InstallationError.invalidPayload }
         let app = URL(fileURLWithPath: arguments[1])

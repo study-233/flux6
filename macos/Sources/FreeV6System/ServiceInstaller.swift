@@ -7,7 +7,7 @@ public enum InstallationError: Error, LocalizedError {
     case launchd(String)
     public var errorDescription: String? {
         switch self {
-        case .busy: return "另一项网络服务安装操作正在进行"
+        case .busy: return "网络服务正在处理另一项操作，请稍后重试"
         case .invalidPayload: return "安装包的代码身份、架构或固定摘要不符合要求"
         case .inconsistentInstallation: return "已有安装文件不完整，请先恢复安装事务"
         case .recoveryRequired: return "安装恢复尚未完成，事务记录已保留"
@@ -191,7 +191,16 @@ final class ServiceInstaller {
         else { try restore(transaction) }
     }
 
-    func recover() throws { try state.withLock { try recoverUnlocked() } }
+    private func withNetworkLease<T>(_ body: () throws -> T) throws -> T {
+        let lease: FileHandle
+        do { lease = try data.acquireLock("network.lock") }
+        catch ResourceStoreError.busy { throw InstallationError.busy }
+        defer { try? lease.close() }
+        guard try data.read("network-session.json", limit: 1024 * 1024) == nil else { throw InstallationError.networkRecoveryRequired }
+        return try body()
+    }
+
+    func recover() throws { try state.withLock { try withNetworkLease { try recoverUnlocked() } } }
 
     func install(_ payload: InstallationPayload) throws {
         try mutate { payload }
@@ -202,10 +211,8 @@ final class ServiceInstaller {
     func uninstall() throws { try mutate { nil } }
 
     private func mutate(_ prepare: () throws -> InstallationPayload?) throws {
-        try state.withLock {
+        try state.withLock { try withNetworkLease {
             try recoverUnlocked()
-            // Fail closed until P4 supplies the service's administrative recovery API.
-            guard try data.read("network-session.json", limit: 1024 * 1024) == nil else { throw InstallationError.networkRecoveryRequired }
             let payload = try prepare()
             var previous: [String: Bool] = [:]
             var digests: [String: String] = [:]
@@ -259,7 +266,7 @@ final class ServiceInstaller {
             transaction.committed = true
             try journal(transaction)
             try cleanup()
-        }
+        } }
     }
 }
 
