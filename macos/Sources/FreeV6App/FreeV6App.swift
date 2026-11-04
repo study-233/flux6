@@ -1,107 +1,18 @@
 import AppKit
 import SwiftUI
 import FreeV6System
-
-enum Page: String, CaseIterable, Identifiable {
-    case overview = "概览", nodes = "节点", configuration = "配置", logs = "日志"
-    var id: String { rawValue }
-    var symbol: String {
-        switch self {
-        case .overview: return "network"
-        case .nodes: return "point.3.connected.trianglepath.dotted"
-        case .configuration: return "slider.horizontal.3"
-        case .logs: return "text.alignleft"
-        }
-    }
-}
-
-@MainActor final class AppModel: ObservableObject {
-    @Published var page: Page? = .overview
-    @Published var error: String?
-    @Published var serviceStatus = "网络服务尚未安装"
-    @Published var serviceBusy = false
-    @Published var serviceInstalled = false
-    let business: BusinessModel
-    let core: RuntimeModel
-
-    init() {
-        let session = BusinessSession()
-        business = BusinessModel(session: session)
-        core = RuntimeModel(session: session)
-        Task { await refreshService() }
-        Task { await business.reload() }
-        Task { await core.refresh() }
-    }
-
-    func refreshService() async {
-        guard !serviceBusy else { return }
-        serviceBusy = true
-        error = nil
-        serviceStatus = "正在检查网络服务…"
-        defer { serviceBusy = false }
-        await readServiceStatus()
-    }
-
-    private func readServiceStatus() async {
-        let result = await Task.detached { try InstalledServiceStatus.check() }.result
-        switch result {
-        case .success(let reply):
-            serviceInstalled = reply != nil
-            serviceStatus = reply == nil ? "网络服务尚未安装" : "网络服务已就绪 · \(reply!.serviceVersion)"
-        case .failure(let failure):
-            serviceInstalled = true
-            serviceStatus = "网络服务需要修复"
-            error = failure.localizedDescription
-        }
-    }
-
-    func manageService(_ action: ServiceInstallationAction) async {
-        guard !serviceBusy else { return }
-        serviceBusy = true
-        error = nil
-        serviceStatus = "正在等待管理员授权…"
-        defer { serviceBusy = false }
-        do {
-            let app = Bundle.main.bundleURL
-            let identity = try CodeIdentity.protectedFile(at: app, identifier: "dev.freev6.desktop")
-            let request = try ServiceInstallationRequest(action: action, app: app, uid: getuid(), clientHash: identity.cdHash)
-            try await Task.detached { try request.execute() }.value
-            await readServiceStatus()
-        } catch {
-            self.error = error.localizedDescription
-            await readServiceStatus()
-        }
-    }
-
-    func showWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "freev6-main" }) {
-            window.makeKeyAndOrderFront(nil)
-        }
-    }
-
-    func openSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    }
-}
+import FreeV6Desktop
 
 final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    var canTerminate: () -> Bool = { true }
+    var terminationHandler: () -> NSApplication.TerminateReply = { .terminateNow }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard canTerminate() else {
-            let alert = NSAlert()
-            alert.messageText = "操作正在进行"
-            alert.informativeText = "请等待配置读写或网络服务操作结束。如果系统正在询问授权，也可以取消授权。"
-            alert.runModal()
-            return .terminateCancel
-        }
-        return .terminateNow
+        terminationHandler()
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            sender.windows.first(where: { $0.identifier?.rawValue == "freev6-main" })?.makeKeyAndOrderFront(nil)
+        if let window = sender.windows.first(where: { $0.identifier?.rawValue == "freev6-main" }) {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
         }
         return true
     }
@@ -115,15 +26,23 @@ struct WindowConfiguration: NSViewRepresentable {
     let delegate: ApplicationDelegate
     let model: AppModel
     func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            view.window?.identifier = NSUserInterfaceItemIdentifier("freev6-main")
-            view.window?.delegate = delegate
-            delegate.canTerminate = { !model.serviceBusy && !model.business.busy }
-        }
+        let view = MainWindowAnchor()
+        view.applicationDelegate = delegate
+        delegate.terminationHandler = { model.beginTermination() }
         return view
     }
     func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class MainWindowAnchor: NSView {
+    weak var applicationDelegate: ApplicationDelegate?
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        window.identifier = NSUserInterfaceItemIdentifier("freev6-main")
+        window.delegate = applicationDelegate
+        window.setFrameAutosaveName("FreeV6MainWindow")
+    }
 }
 
 @main struct FreeV6App: App {
@@ -144,41 +63,18 @@ struct WindowConfiguration: NSViewRepresentable {
         }
         .defaultSize(width: 920, height: 620)
         .windowToolbarStyle(.unified)
-        .commands {
-            SidebarCommands()
-            ToolbarCommands()
-            CommandGroup(replacing: .newItem) {}
-            CommandGroup(after: .sidebar) {
-                ForEach(Array(Page.allCases.enumerated()), id: \.element.id) { index, page in
-                    Button(page.rawValue) { model.page = page; model.showWindow() }
-                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
-                }
-            }
-            CommandMenu("连接") {
-                Button("连接") {}.disabled(true).keyboardShortcut("k", modifiers: [.command, .shift])
-                Text(model.serviceStatus)
-                Divider()
-                Button("设置网络服务…") { model.page = .overview; model.showWindow() }
-                Button("刷新服务状态") { Task { await model.refreshService() } }.disabled(model.serviceBusy)
-            }
-            CommandGroup(after: .windowArrangement) {
-                Button("显示主窗口") { model.showWindow() }
-            }
-        }
+        .commands { NativeCommands(model: model) }
         Settings {
             SettingsView(model: model)
                 .preferredColorScheme(colorScheme)
         }
-        MenuBarExtra("FreeV6", systemImage: "network") {
-            Text(model.serviceStatus)
-            Button("连接") {}.disabled(true)
-            Button("设置网络服务…") { model.page = .overview; model.showWindow() }
-            Divider()
-            Button("打开主窗口") { model.showWindow() }
-            Button("设置…") { model.openSettings() }
-            Divider()
-            Button("退出 FreeV6") { NSApp.terminate(nil) }
+        Window("FreeV6 使用说明", id: "help") {
+            NativeHelpView().preferredColorScheme(colorScheme)
         }
+        .defaultSize(width: 560, height: 520)
+        MenuBarExtra("FreeV6 — \(model.serviceState.title)", systemImage: model.serviceState.symbol) {
+            StatusMenu(model: model)
+        }.menuBarExtraStyle(.menu)
     }
 }
 
@@ -188,41 +84,22 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             List(Page.allCases, selection: $model.page) { page in
-                Label(page.rawValue, systemImage: page.symbol).tag(page)
+                Label(page.title, systemImage: page.symbol).tag(page)
             }
             .navigationSplitViewColumnWidth(min: 150, ideal: 180)
         } detail: {
             VStack(alignment: .leading, spacing: 20) {
-                Label(model.page?.rawValue ?? "概览", systemImage: model.page?.symbol ?? "network")
+                Label(model.page?.title ?? "概览", systemImage: model.page?.symbol ?? "network")
                     .font(.largeTitle.bold())
                 if model.page == .overview {
                     ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label(model.serviceStatus, systemImage: "wrench.and.screwdriver")
-                                .font(.headline)
-                            Text("网络服务负责后续的 TUN 与网络恢复。当前版本只验证服务安装和身份，连接功能仍在开发。")
-                                .foregroundStyle(.secondary)
-                            HStack {
-                                Button(model.serviceInstalled ? "修复 / 重新登记服务…" : "安装网络服务…") {
-                                    Task { await model.manageService(.install) }
-                                }.disabled(model.serviceBusy)
-                                Button("刷新状态") { Task { await model.refreshService() } }.disabled(model.serviceBusy)
-                                if model.serviceBusy { ProgressView().controlSize(.small) }
-                            }
-                            if let error = model.error {
-                                Text(error).foregroundStyle(.red).textSelection(.enabled)
-                            }
-                            Text("当前未启动代理，也未修改系统 DNS。")
-                                .font(.callout).foregroundStyle(.secondary)
-                        }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                    }
-                    RuntimePreparationView(model: model.core)
-                    }
+                        VStack(alignment: .leading, spacing: 20) {
+                            ServiceOverviewView(model: model)
+                            RuntimePreparationView(model: model.core)
+                        }
                     }
                 } else if model.page == .configuration {
-                    BusinessSettingsView(model: model.business)
+                    BusinessSettingsView(model: model.business, app: model, context: .main(.configuration))
                 } else {
                     Text("此页面将在共享业务与网络服务接入后启用。")
                         .foregroundStyle(.secondary)
@@ -231,16 +108,33 @@ struct MainView: View {
                 Text("macOS 原生客户端 · 开发版本")
                     .font(.caption).foregroundStyle(.secondary)
             }.padding(28)
-                .navigationTitle(model.page?.rawValue ?? "概览")
-                .toolbar {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        Label("未连接", systemImage: "circle")
-                            .foregroundStyle(.secondary)
-                            .accessibilityLabel("当前未连接")
-                        Button("连接", action: {}).disabled(true)
-                            .help("网络服务尚未安装")
-                    }
+                .navigationTitle(model.page?.title ?? "概览")
+                .toolbar { NativeToolbar(model: model) }
+        }
+        .focusedSceneValue(\.commandContext, .main(model.page ?? .overview))
+        .disabled(model.terminating || model.promptActive)
+    }
+}
+
+private struct ServiceOverviewView: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                Label(model.serviceStatus, systemImage: "wrench.and.screwdriver").font(.headline)
+                Text("网络服务负责后续的 TUN 与网络恢复。当前版本只验证服务安装和身份，连接功能仍在开发。")
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button(model.serviceInstalled ? "修复 / 重新登记服务…" : "安装网络服务…") {
+                        Task { await model.manageService(.install) }
+                    }.disabled(model.serviceBusy)
+                    DesktopCommandButton(.refreshService, model: model)
+                    if model.serviceBusy { ProgressView().controlSize(.small) }
                 }
+                if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+                Text("当前未启动代理，也未修改系统 DNS。")
+                    .font(.callout).foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
         }
     }
 }
@@ -249,17 +143,18 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @AppStorage("appearance") private var appearance = "system"
     @State private var confirmUninstall = false
+    @State private var selectedTab = PreferencesPage.general
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
         Form {
             Picker("外观", selection: $appearance) {
                 Text("跟随系统").tag("system")
                 Text("浅色").tag("light")
                 Text("深色").tag("dark")
             }
-        }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }
-        BusinessSettingsView(model: model.business).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }
-        ScrollView { RuntimePreparationView(model: model.core).padding(24) }.tabItem { Label("核心", systemImage: "shippingbox") }
+        }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
+        BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)
+        ScrollView { RuntimePreparationView(model: model.core).padding(24) }.tabItem { Label("核心", systemImage: "shippingbox") }.tag(PreferencesPage.core)
         Form {
             Section("网络服务") {
                 Text(model.serviceStatus)
@@ -268,9 +163,11 @@ struct SettingsView: View {
                     .disabled(model.serviceBusy || !model.serviceInstalled)
                 if let error = model.error { Text(error).font(.callout).foregroundStyle(.red) }
             }
-        }.padding(24).tabItem { Label("网络服务", systemImage: "network") }
+        }.padding(24).tabItem { Label("网络服务", systemImage: "network") }.tag(PreferencesPage.service)
         }
         .frame(width: 560, height: 540)
+        .focusedSceneValue(\.commandContext, .preferences(selectedTab))
+        .disabled(model.terminating || model.promptActive)
         .confirmationDialog("卸载网络服务？", isPresented: $confirmUninstall) {
             Button("卸载", role: .destructive) { Task { await model.manageService(.uninstall) } }
         } message: {

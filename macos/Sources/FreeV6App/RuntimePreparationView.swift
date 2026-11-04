@@ -33,6 +33,7 @@ import FreeV6Business
                 let result = try await session.worker().downloadRuntime { update in
                     Task { @MainActor [weak self] in
                         guard self?.operation == operation else { return }
+                        if let previous = self?.progress, previous.sequence >= update.sequence { return }
                         self?.progress = update
                         self?.status = update.phase == "downloading" ? "正在下载核心…" : "正在校验核心…"
                     }

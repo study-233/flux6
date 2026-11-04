@@ -1,5 +1,6 @@
 import SwiftUI
 import FreeV6Business
+import FreeV6Desktop
 
 @MainActor final class BusinessSession {
     private var client: WorkerClient?
@@ -9,6 +10,7 @@ import FreeV6Business
         self.client = client
         return client
     }
+    func shutdown() async { await client?.shutdown() }
 }
 
 @MainActor final class BusinessModel: ObservableObject {
@@ -82,7 +84,8 @@ import FreeV6Business
 
 struct BusinessSettingsView: View {
     @ObservedObject var model: BusinessModel
-    @State private var confirmReload = false
+    @ObservedObject var app: AppModel
+    let context: CommandContext
     var body: some View {
         Form {
             Section("代理规则") {
@@ -107,12 +110,8 @@ struct BusinessSettingsView: View {
             }.disabled(model.busy || model.snapshot == nil)
             Section {
                 HStack {
-                    Button("保存配置") { Task { await model.save() } }
-                        .disabled(model.busy || !model.hasChanges)
-                    Button("重新载入") {
-                        if model.hasChanges { confirmReload = true }
-                        else { Task { await model.reload() } }
-                    }.disabled(model.busy)
+                    DesktopCommandButton(.saveConfiguration, model: app, context: context)
+                    DesktopCommandButton(.reloadConfiguration, model: app, context: context)
                     if model.busy { ProgressView().controlSize(.small) }
                     Text(model.hasChanges ? "有未保存的更改" : model.status).font(.callout).foregroundStyle(.secondary)
                 }
@@ -120,8 +119,5 @@ struct BusinessSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .confirmationDialog("放弃未保存的更改并重新载入？", isPresented: $confirmReload) {
-            Button("重新载入", role: .destructive) { Task { await model.reload() } }
-        }
     }
 }

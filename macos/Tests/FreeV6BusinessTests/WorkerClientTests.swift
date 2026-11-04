@@ -9,6 +9,58 @@ final class WorkerClientTests: XCTestCase {
         func snapshot() -> [WorkerProgress] { lock.lock(); defer { lock.unlock() }; return values }
     }
 
+    func testShutdownDuringDownloadWaitsForChildAndRejectsPendingRequest() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("freev6-worker-shutdown-\(UUID().uuidString)")
+        let resources = root.appendingPathComponent("resources")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        #if arch(arm64)
+        let architecture = "arm64"
+        #else
+        let architecture = "amd64"
+        #endif
+        // A protocol peer that leaves a download pending until stdin closes.
+        // Its exit marker proves shutdown awaited EOF handling, not just a UI flag.
+        let script = """
+        #!/usr/bin/python3
+        import json, pathlib, struct, sys
+        def emit(value):
+            body = json.dumps(value).encode()
+            sys.stdout.buffer.write(struct.pack('>I', len(body)) + body)
+            sys.stdout.buffer.flush()
+        while True:
+            header = sys.stdin.buffer.read(4)
+            if not header: break
+            request = json.loads(sys.stdin.buffer.read(struct.unpack('>I', header)[0]))
+            if request['method'] == 'initialize':
+                emit({'jsonrpc':'2.0', 'id':request['id'], 'result': {
+                    'protocolVersion':1, 'workerVersion':'fixture', 'platform':'darwin', 'architecture':'\(architecture)',
+                    'capabilities':['settings.get','settings.patch','runtime.status','runtime.download'],
+                    'maxFrameBytes':1048576, 'maxInFlight':8}})
+            elif request['method'] == 'runtime.download':
+                emit({'jsonrpc':'2.0','method':'$/progress','params':{
+                    'requestId':request['id'],'sequence':1,'phase':'downloading',
+                    'received':0,'total':-1,'attempt':1,'attempts':1}})
+        pathlib.Path(__file__).with_name('finished').write_text('stdin closed')
+        """
+        let executable = root.appendingPathComponent("fixture")
+        try Data(script.utf8).write(to: executable)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let client = WorkerClient(location: WorkerLocation(executable: executable,
+            data: root.appendingPathComponent("data"), resources: resources,
+            cache: root.appendingPathComponent("cache"), logs: root.appendingPathComponent("logs")))
+        let progress = expectation(description: "download started")
+        let download = Task { try await client.downloadRuntime { _ in progress.fulfill() } }
+        await fulfillment(of: [progress], timeout: 3)
+        let start = Date()
+        download.cancel()
+        await client.shutdown()
+        do { _ = try await download.value; XCTFail("pending download succeeded after shutdown") }
+        catch { XCTAssertTrue(error is CancellationError || error as? WorkerClientError == .disconnected) }
+        XCTAssertLessThan(Date().timeIntervalSince(start), 3)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("finished")), "stdin closed")
+    }
+
     func testRealRuntimeArchiveAndProgress() async throws {
         guard let binary = ProcessInfo.processInfo.environment["FREEV6_WORKER_TEST_BINARY"],
               let fixtures = ProcessInfo.processInfo.environment["FREEV6_RUNTIME_FIXTURES_DIR"] else {

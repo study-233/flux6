@@ -16,6 +16,16 @@ bash scripts/macos/build-app.sh
 
 安装工具的签名覆盖一个嵌入 Mach-O 的 Info.plist，其中固定当前服务二进制的 SHA256。普通 `swift.sh build` 不嵌入此清单，其安装工具拒绝执行安装；用于安装的工具必须通过 `build-app.sh` 生成。
 
+## 原生顶部栏与窗口
+
+应用菜单、页面工具栏与右上角状态菜单共用 `FreeV6Desktop` 的命令可用性规则及 `AppModel` 的执行入口。执行前重新检查状态，服务握手成功或核心缓存可用均不会启用尚未实现的 TUN 连接。配置保存（⌘S）和重新载入只在主窗口配置页或设置的代理规则页获得焦点时启用；编辑菜单保留系统焦点行为。
+
+⌘1–⌘4 打开主窗口并切换页面；主窗口关闭后隐藏，Dock 或状态菜单可恢复窗口。应用保存上次页面，并交给 AppKit 保存窗口位置与尺寸。macOS 14+ 的状态菜单使用原生 `SettingsLink`，macOS 13 保留系统设置窗口入口。帮助菜单提供本地使用说明。
+
+退出统一经过应用代理：配置读写或服务操作期间等待；存在草稿时可保存、取消或放弃；下载取消后等待 worker 回收再退出。该流程当前仅覆盖用户级业务进程，真正的网络停止与 DNS 恢复仍待 P4 接入。完整的菜单/窗口/确认框操作及最低系统表现需要实机验收，不能用命令模型测试替代。
+
+`FreeV6DesktopTests` 覆盖焦点、能力及重复操作限制；`WorkerClientTests` 另验证正在下载时关闭管道、拒绝待处理请求并等待子进程退出。两者包含在 `swift.sh test` 中。菜单与焦点实现参考 [Apple 原生菜单说明](https://developer.apple.com/documentation/swiftui/building-and-customizing-the-menu-bar-with-swiftui)，设置入口参考 [SettingsLink](https://developer.apple.com/documentation/swiftui/settingslink)。
+
 ## 业务 worker 与配置
 
 App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写，以及固定平台核心安装包的检查、下载和进度；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。WARP、订阅、GeoSite 准备、配置生成和网络控制尚未接入这些页面。
