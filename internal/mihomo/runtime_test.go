@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -17,8 +18,8 @@ func TestDiscoverBinaryPrefersInstalledRuntime(t *testing.T) {
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	runtimePath := filepath.Join(runtimeDir, "mihomo-windows-amd64-v3.exe")
-	statePath := filepath.Join(stateDir, "mihomo-windows-amd64-v3.exe")
+	runtimePath := RuntimeCandidates(root)[0]
+	statePath := filepath.Join(stateDir, filepath.Base(runtimePath))
 	if err := os.WriteFile(runtimePath, []byte("runtime"), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +42,7 @@ func TestDiscoverBinaryFallsBackToDevelopmentState(t *testing.T) {
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	want := filepath.Join(stateDir, "mihomo-windows-amd64-v3.exe")
+	want := filepath.Join(stateDir, filepath.Base(RuntimeCandidates(root)[0]))
 	if err := os.WriteFile(want, []byte("state"), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +53,29 @@ func TestDiscoverBinaryFallsBackToDevelopmentState(t *testing.T) {
 	}
 	if got != want {
 		t.Fatalf("expected development runtime %q, got %q", want, got)
+	}
+}
+
+func TestRuntimeCandidatesUseTargetPlatformNames(t *testing.T) {
+	for _, test := range []struct {
+		os, arch string
+		names    []string
+	}{
+		{"windows", "amd64", []string{"mihomo-windows-amd64-v3.exe", "mihomo-windows-amd64.exe", "mihomo.exe"}},
+		{"darwin", "arm64", []string{"mihomo-darwin-arm64", "mihomo"}},
+		{"darwin", "amd64", []string{"mihomo-darwin-amd64-v1", "mihomo-darwin-amd64", "mihomo"}},
+	} {
+		t.Run(test.os+"/"+test.arch, func(t *testing.T) {
+			var want []string
+			for _, directory := range []string{"runtime", "state"} {
+				for _, name := range test.names {
+					want = append(want, filepath.Join("root", directory, name))
+				}
+			}
+			if got := RuntimeCandidatesFor("root", test.os, test.arch); !reflect.DeepEqual(got, want) {
+				t.Fatalf("candidates = %v, want %v", got, want)
+			}
+		})
 	}
 }
 

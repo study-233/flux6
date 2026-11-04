@@ -1,0 +1,27 @@
+{
+  "version": "v1.19.31",
+  "source": "https://github.com/MetaCubeX/mihomo/releases/tag/v1.19.31",
+  "assets": [
+    {
+      "os": "windows",
+      "arch": "amd64",
+      "archive": "mihomo-windows-amd64-v3-v1.19.31.zip",
+      "binary": "mihomo-windows-amd64-v3.exe",
+      "sha256": "f1a81678517dee871b51858f2a62d190d014b389057c67db575d1ddba892d19b"
+    },
+    {
+      "os": "darwin",
+      "arch": "arm64",
+      "archive": "mihomo-darwin-arm64-v1.19.31.gz",
+      "binary": "mihomo-darwin-arm64",
+      "sha256": "d131f44b3deb2a8356f7ac75048ad67a10d53243323951c4f3cda7b672922963"
+    },
+    {
+      "os": "darwin",
+      "arch": "amd64",
+      "archive": "mihomo-darwin-amd64-v1-v1.19.31.gz",
+      "binary": "mihomo-darwin-amd64-v1",
+      "sha256": "b914c5a1713807202f3319eacef8c33afecb0adc5cf232d7b7ba3713186fe2ba"
+    }
+  ]
+}

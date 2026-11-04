@@ -47,10 +47,14 @@ const (
 	ModeGlobal = "global"
 	// ModeDirect = mihomo "Global direct connection": every connection goes
 	// DIRECT, no rules matched. Developer-mode-only option in the GUI.
-	ModeDirect = "direct"
+	ModeDirect      = "direct"
+	PlatformWindows = "windows"
+	PlatformDarwin  = "darwin"
 )
 
 type RenderOptions struct {
+	// Empty preserves the established Windows configuration on every build host.
+	Platform    string
 	Mode        string
 	CampusCIDRs []string
 	Blacklist   []string
@@ -159,6 +163,9 @@ func Render(w warp.Device) (string, error) {
 }
 
 func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
+	if options.Platform != "" && options.Platform != PlatformWindows && options.Platform != PlatformDarwin {
+		return "", fmt.Errorf("unsupported configuration platform %q", options.Platform)
+	}
 	cloud := len(options.CloudNodes) > 0
 	// 校园模式下设备凭据完全用不上：网关由云端节点自己带，本地不需要
 	// WARP 注册结果。空 Device 在校验阶段必须放行，否则学生永远启不了。
@@ -185,7 +192,11 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 	}
 
 	var b strings.Builder
-	b.WriteString(configHeader)
+	header := configHeader
+	if options.Platform == PlatformDarwin {
+		header = strings.Replace(header, "listen: 0.0.0.0:1053", "listen: 127.0.0.1:1053", 1)
+	}
+	b.WriteString(header)
 	if options.ControllerSecret != "" {
 		// Top-level YAML key: placement is irrelevant to mihomo, keeping it
 		// next to external-controller in the header would require splitting
@@ -194,7 +205,13 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 	}
 	// device: 固定 TUN 适配器显示名，供 ICS 热点共享（internal/network/ics）
 	// 按名识别 FreeV6 的虚拟网卡，不依赖 mihomo 默认名。
-	fmt.Fprintf(&b, "mode: %s\n\ntun:\n  enable: true\n  device: FreeV6TUN\n  stack: mixed\n  auto-route: true\n  auto-detect-interface: true\n  strict-route: true\n  dns-hijack:\n    - any:53\n    - tcp://any:53\n\nproxies:\n", options.Mode)
+	deviceLine, strictRouteLine := "  device: FreeV6TUN\n", "  strict-route: true\n"
+	if options.Platform == PlatformDarwin {
+		// Let mihomo allocate an available utun. Windows strict-route behavior
+		// is not a substitute for the native service's DNS transaction.
+		deviceLine, strictRouteLine = "", ""
+	}
+	fmt.Fprintf(&b, "mode: %s\n\ntun:\n  enable: true\n%s  stack: mixed\n  auto-route: true\n  auto-detect-interface: true\n%s  dns-hijack:\n    - any:53\n    - tcp://any:53\n\nproxies:\n", options.Mode, deviceLine, strictRouteLine)
 	var names []string
 	if cloud {
 		// 校园模式：云端节点即出口，不渲染内置接入点，也不叠链式代理
