@@ -237,6 +237,9 @@ do {
     case "core-job" where arguments.count == 4:
         guard let sessionID = UUID(uuidString: arguments[2]) else { throw ServiceMessageError.invalid }
         try CoreJobProbe.run(action: arguments[1], sessionID: sessionID, path: arguments[3])
+    case "core-controller" where arguments.count == 3:
+        guard let pid = pid_t(arguments[2]) else { throw ServiceMessageError.invalid }
+        try CoreControllerProbe.run(path: arguments[1], pid: pid)
     case "hold-group" where arguments.count == 3:
         try SessionPreparationProbe.holdGroup(executable: arguments[1], directory: arguments[2])
     case "hold-session" where arguments.count == 3, "hold-partial-session" where arguments.count == 3:

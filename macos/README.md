@@ -214,6 +214,17 @@ python3 scripts/macos/probe-controller.py --core build/macos-probes/mihomo-darwi
 
 此探针使用普通用户、私有临时目录和空的直连配置，关闭 TUN、DNS、代理及所有 IP listener，验证 100 字节路径、版本接口与正常退出回收。固定核心的 Unix listener 忽略 secret 且 socket 为 0666，生产实现必须依靠预先创建并验证的 root/0700 父目录隔离访问；该探针不证明跨用户隔离或 TUN 运行已经通过。
 
+验证新增的原生受限控制客户端：
+
+```sh
+bash scripts/macos/swift.sh build
+python3 scripts/macos/probe-controller.py \
+  --core build/macos-probes/mihomo-darwin-arm64 \
+  --native-client build/macos/out/Products/Debug/freev6-probe
+```
+
+该模式增加两个仅含 DIRECT/REJECT 的测试分组，实际验证三种模式、特殊字符分组选择、写后回读、错误对端与非法成员拒绝、REJECT 测速失败、累计流量及有界的流量单次采样。仍不启用 TUN、DNS 或 IP 监听。服务内部契约、响应上限与尚未接入的范围见 [核心控制接口 v1](../shared/protocol/core-controller-v1.md)；XPC v4 尚未增加运行会话或控制方法。
+
 ## 原生更新验证
 
 ```sh

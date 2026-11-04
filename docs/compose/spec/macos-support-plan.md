@@ -199,7 +199,9 @@ Go 负责生成规范的配置模型，Mac 适配器输出结构化 JSON。Swift
 
 用户下载的核心只能作为暂存文件。服务使用随可信发布交付的版本/架构摘要清单重新验证，将内容复制到 root 所有的暂存文件后复验，再原子安装和执行。不可接受调用者同时提交任意二进制和任意“期望哈希”；文件描述符或受控资源交接也要防止符号链接与替换竞态。
 
-mihomo controller 采用服务私有目录内的 Unix socket，App 通过受限 XPC 获取连接、节点、测速、切换和流量状态；服务验证目标名称及参数，不转发任意 controller 路由。已通过锁定核心的普通用户探针验证 100 字节 socket 路径和关闭 IP controller。该版本 Unix listener 不使用 secret 认证且将 socket 设置为 0666，因此启动前必须由服务创建并验证 root 所有、0700、无写入型 ACL 的父目录，不能依赖 secret 或让核心自行创建目录。跨用户隔离与 root 运行仍须实测。[固定版本 Unix listener](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/hub/route/server.go#L237)
+mihomo controller 采用服务私有目录内的 Unix socket，App 通过受限 XPC 获取连接、节点、测速、切换和流量状态；服务验证目标名称及参数，不转发任意 controller 路由。已通过锁定核心的普通用户探针验证 100 字节 socket 路径和关闭 IP controller。该版本 Unix listener 不使用 secret 认证且将 socket 设置为 0666，因此启动前必须由服务创建并验证 root 所有、0700、无 allow ACL 的父目录，不能依赖 secret 或让核心自行创建目录。跨用户隔离与 root 运行仍须实测。[固定版本 Unix listener](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/hub/route/server.go#L237)
+
+服务内部的 [核心控制接口 v1](/Users/andy/Study/free-v6/shared/protocol/core-controller-v1.md) 已实现版本就绪、模式、节点、固定目标测速和流量读取，并在普通用户隔离核心上验证。每次请求核对目录、socket 与当前 job 的对端 UID/PID；模式和节点写入后回读确认。当前 XPC 仍为 v4，尚未提供运行会话及这些控制方法，需由后续会话协调器接入所有者校验、串行操作和恢复状态。
 
 ### 无 Developer ID 时的服务安装和 XPC
 
