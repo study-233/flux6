@@ -1,6 +1,58 @@
 import Foundation
 
 public enum ServiceClient {
+    public static func resources(identity: CodeIdentity, name: String = ServiceProtocolVersion.machService,
+                                 privileged: Bool = true) throws -> [ResourceAvailability] {
+        let request = ResourceRequest()
+        let payload = try JSONEncoder().encode(request)
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged) { proxy, reply in
+            proxy.resourceStatus(payload, reply: reply)
+        }
+        let response = try decodeResources(data, request: request)
+        guard Set(response.map(\.id)) == Set(ApprovedResourceCatalog.native.map(\.id)),
+              response.count == ApprovedResourceCatalog.native.count else { throw ServiceClientError.invalidReply }
+        return response
+    }
+
+    public static func installResource(id: String, source: FileHandle, identity: CodeIdentity,
+                                       name: String = ServiceProtocolVersion.machService,
+                                       privileged: Bool = true) throws {
+        let request = ResourceRequest(resourceID: id)
+        let payload = try JSONEncoder().encode(request)
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged) { proxy, reply in
+            proxy.installApprovedResource(payload, source: source, reply: reply)
+        }
+        let response = try decodeResources(data, request: request)
+        guard response == [ResourceAvailability(id: id, available: true)] else { throw ServiceClientError.invalidReply }
+    }
+
+    private static func decodeResources(_ data: Data, request: ResourceRequest) throws -> [ResourceAvailability] {
+        guard data.count <= ServiceMessages.maximumHandshakeBytes else { throw ServiceMessageError.oversized }
+        let response = try JSONDecoder().decode(ResourceReply.self, from: data)
+        guard response.protocolVersion == ServiceProtocolVersion.current, response.requestID == request.requestID else {
+            throw ServiceClientError.invalidReply
+        }
+        return response.resources
+    }
+
+    private static func resourceExchange(identity: CodeIdentity, name: String, privileged: Bool,
+                                         call: (NetworkServiceProtocol, @escaping (Data?, String?) -> Void) -> Void) throws -> Data {
+        let connection = NSXPCConnection(machServiceName: name, options: privileged ? .privileged : [])
+        connection.setCodeSigningRequirement(identity.requirement)
+        connection.remoteObjectInterface = NSXPCInterface(with: NetworkServiceProtocol.self)
+        connection.resume()
+        defer { connection.invalidate() }
+        let completion = ReplyBox()
+        guard let proxy = connection.remoteObjectProxyWithErrorHandler({ completion.complete(.failure($0)) }) as? NetworkServiceProtocol else {
+            throw ServiceClientError.unavailable
+        }
+        call(proxy) { data, error in
+            if let data { completion.complete(.success(data)) }
+            else { completion.complete(.failure(ServiceClientError.rejected(error ?? "Missing response"))) }
+        }
+        return try completion.wait(timeout: 35)
+    }
+
     /// Blocking boundary for CLI/installers; UI callers use a background task.
     public static func handshake(identity: CodeIdentity, name: String = ServiceProtocolVersion.machService,
                                  privileged: Bool = true, timeout: TimeInterval = 10) throws -> HandshakeReply {

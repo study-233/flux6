@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前推进 P0 技术验证、P1 共用业务与 P2 原生应用。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、仅支持握手的网络服务、安装工具和系统探针。原生页面已接入设置读写、核心准备和 WARP 注册/钥匙串存储；真实 Cloudflare 注册尚待实测。连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+当前推进技术验证、共用业务、原生应用与网络服务。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、支持身份握手和固定资源安装的网络服务、安装工具和系统探针。原生页面已接入设置读写、核心准备和 WARP 注册/钥匙串存储；真实 Cloudflare 注册尚待实测。连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
 
 ## 构建
 
@@ -32,7 +32,7 @@ App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
-核心缓存：`~/Library/Caches/dev.freev6.desktop/runtime/<archive-sha256>/<archive-name>`。平台资产统一从编译时嵌入的清单选择，压缩包与解压后的二进制均校验固定 SHA256、大小和架构。Mac 当前只保留安装包；网络服务接入时还要独立复验并安装，不能把“核心安装包已校验”当作“代理已运行”。主界面与设置共用一个 worker，避免竞争数据目录锁。
+核心缓存：`~/Library/Caches/dev.freev6.desktop/runtime/<archive-sha256>/<archive-name>`。平台资产统一从编译时嵌入的清单选择，压缩包与解压后的二进制均校验固定 SHA256、大小和架构。worker 只保留安装包；服务已有独立复验与安装接口，App 的资源交接尚待接入，不能把“核心安装包已校验”当作“代理已运行”。主界面与设置共用一个 worker，避免竞争数据目录锁。
 
 以下命令完成 Go 业务/协议竞态测试、真实 Swift→Go 集成测试，以及独立 worker 进程探针：
 
@@ -103,10 +103,11 @@ UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档�
 - launchd：`/Library/LaunchDaemons/dev.freev6.network-service.plist`
 - 登记：`/Library/Application Support/dev.freev6.desktop/service-registration.json`
 - root 私有事务与暂存：`/Library/Application Support/dev.freev6.desktop/installation`
+- root 已验证核心与规则数据：`/Library/Application Support/dev.freev6.desktop/resources`
 
 安装工具先复制并验证客户端代码、服务固定摘要和自身代码身份，再修改固定目标。事务持有独占锁，持久化旧文件、摘要和提交记录；失败回退，恢复失败保留记录供下次重试。安装工具以自己的 root CDHash 完成安装后的双向 XPC 健康检查。发现 `network-session.json` 时暂时拒绝升级/卸载，P4 将以明确的网络恢复接口替换这一保护。
 
-误删应用后，管理员仍可使用固定恢复工具的 `recover` 或 `uninstall` 动作。这里的 `recover` 仅恢复安装事务；TUN/DNS 恢复尚未实现。卸载移除 daemon、服务、登记和恢复工具，保留 root 私有暂存目录；完整数据清理归入后续卸载验收。
+误删应用后，管理员仍可使用固定恢复工具的 `recover` 或 `uninstall` 动作。这里的 `recover` 仅恢复安装事务；TUN/DNS 恢复尚未实现。卸载移除 daemon、服务、登记和恢复工具，保留 root 私有暂存及资源目录；完整数据清理归入后续卸载验收。
 
 无需管理员权限的真实签名产物验证：
 
@@ -139,7 +140,17 @@ python3 scripts/macos/probe-service.py
 
 在正常登录用户环境运行，不能以 root 运行。脚本构建 Debug 服务和探针，在 `build/service-probes/<UUID>` 内复制并启用 Hardened Runtime，然后注册一个随机名称的用户级 launchd job。验证双向 CDHash、UID 绑定、重启、客户端摘要更换后的重新登记与旧摘要撤销，最后移除该 job。只有可信调用在拒绝测试前后均成功，才记录拒绝通过。结果保存在该目录的 `result.json`。
 
-服务只读取权限受控的登记文件，通过固定 XPC 方法响应版本握手。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
+服务读取权限受控的登记文件，提供版本握手、资源状态与固定资源安装，详见 [XPC v2 协议](../shared/protocol/service-v2.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
+
+使用本地官方文件验证跨进程资源交接：
+
+```sh
+python3 scripts/macos/probe-service.py \
+  --runtime-fixtures build/macos-probes \
+  --geodata-fixtures build/macos-geodata
+```
+
+探针按服务内置清单安装当前架构核心和三份数据，检查权限、错误摘要不覆盖旧文件、未知资源和未登记客户端被拒绝，并在服务重启后复验资源和清理中断暂存。目录参数只用于普通用户测试宿主，不属于生产 XPC 协议。文件需先通过前述下载探针准备；没有文件时明确失败，不静默跳过。
 
 ## 原生更新验证
 

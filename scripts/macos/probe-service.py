@@ -7,10 +7,12 @@ job out in a finally block. A rejection counts only between successful calls.
 """
 import argparse
 import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
 import plistlib
+import platform
 import re
 import shutil
 import subprocess
@@ -29,7 +31,11 @@ def run(args, *, check=True, timeout=30):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-build", action="store_true", help="Use the current debug build")
+    parser.add_argument("--runtime-fixtures", type=Path, help="Exercise resource FD transfer with pinned official files")
+    parser.add_argument("--geodata-fixtures", type=Path)
     args = parser.parse_args()
+    if bool(args.runtime_fixtures) != bool(args.geodata_fixtures):
+        parser.error("Supply both runtime and geodata fixtures")
     if os.geteuid() == 0:
         raise RuntimeError("This probe must run as the logged-in user, never as root")
     if not args.no_build:
@@ -102,12 +108,61 @@ def main():
             raise RuntimeError("Service has no running process")
         return int(match.group(1))
 
+    def resources():
+        return json.loads(run([probe, "resources", label, service_hash], timeout=40).stdout)
+
+    def resource_cases():
+        runtime = json.loads((ROOT / "internal/mihomo/runtime-assets.json").read_text())
+        geo = json.loads((ROOT / "internal/mihomo/geodata-assets.json").read_text())
+        arch = {"arm64": "arm64", "x86_64": "amd64"}[platform.machine()]
+        core = next(a for a in runtime["assets"] if a["os"] == "darwin" and a["arch"] == arch)
+        core_id = f"mihomo-darwin-{arch}-{runtime['version']}"
+        assets = [(core_id, args.runtime_fixtures / core["archive"], core_id, core["binarySha256"])]
+        for a in geo["assets"]:
+            group = "geodata-" + geo["revision"]
+            assets.append((group + "/" + a["name"], args.geodata_fixtures / a["name"], group + "-" + a["name"], a["sha256"]))
+        if any(a["available"] for a in resources()):
+            raise RuntimeError("Fresh service unexpectedly has resources")
+        for resource_id, source, destination, digest in assets:
+            incoming = work / "incoming"
+            shutil.copyfile(source, incoming)
+            incoming.chmod(0o600)
+            output = run([probe, "install-resource", label, service_hash, resource_id, incoming], timeout=40)
+            if not next(a["available"] for a in json.loads(output.stdout) if a["id"] == resource_id):
+                raise RuntimeError("Installed resource not available")
+            stored = work / "resources" / destination
+            if hashlib.sha256(stored.read_bytes()).hexdigest() != digest:
+                raise RuntimeError("Private resource digest mismatch")
+            if stored.stat().st_mode & 0o777 != (0o500 if resource_id == core_id else 0o400):
+                raise RuntimeError("Private resource permissions mismatch")
+            incoming.write_bytes(b"corrupt replacement")
+            rejected = run([probe, "install-resource", label, service_hash, resource_id, incoming], check=False, timeout=40)
+            if rejected.returncode != 1 or "固定摘要" not in rejected.stderr:
+                raise RuntimeError("Corrupt resource was not explicitly rejected")
+            if hashlib.sha256(stored.read_bytes()).hexdigest() != digest:
+                raise RuntimeError("Rejected replacement changed existing resource")
+        if not all(a["available"] for a in resources()):
+            raise RuntimeError("Complete resource set unavailable")
+        source = work / "incoming"
+        unknown = run([probe, "install-resource", label, service_hash, "../../unapproved", source], check=False)
+        if unknown.returncode != 1 or "可信清单" not in unknown.stderr:
+            raise RuntimeError("Unknown resource/path was not rejected")
+        denied = run([untrusted, "install-resource", label, service_hash, core_id, source], check=False)
+        if denied.returncode != 1 or "NSCocoaErrorDomain" not in denied.stderr:
+            raise RuntimeError("Unregistered resource client was not rejected")
+        if any(p.name.startswith(".staging-") for p in (work / "resources").iterdir()):
+            raise RuntimeError("Resource staging files remained")
+        source.unlink()
+        case("real XPC file descriptors install pinned core/geodata; corrupt, unknown and unregistered requests rejected")
+
     installed = False
     try:
         run(["/bin/launchctl", "bootstrap", domain, job])
         installed = True
         handshake()
         case("registered client and service mutually authenticate")
+        if args.runtime_fixtures:
+            resource_cases()
         handshake(untrusted, rejected=True)
         handshake()
         case("different client CDHash rejected; trusted client remains usable")
@@ -115,11 +170,22 @@ def main():
         handshake()
         case("client rejects unexpected service CDHash")
         previous_pid = process_id()
+        stale = None
+        if args.runtime_fixtures:
+            stale = work / "resources" / (".staging-" + str(uuid.uuid4()))
+            stale.write_bytes(b"interrupted transfer fixture")
+            stale.chmod(0o600)
         run(["/bin/launchctl", "kickstart", "-k", target])
         handshake()
         if process_id() == previous_pid:
             raise RuntimeError("Service did not restart")
         case("launchd restart preserves registered identity")
+        if args.runtime_fixtures:
+            if not all(a["available"] for a in resources()):
+                raise RuntimeError("Resources failed verification after service restart")
+            if stale.exists():
+                raise RuntimeError("Interrupted private staging was not cleaned")
+            case("private resources independently verified and interrupted staging cleaned after launchd restart")
         wrong_user = json.loads(json.dumps(registration))
         wrong_user["clients"][0]["uid"] = os.getuid() + 1
         write_record(wrong_user)

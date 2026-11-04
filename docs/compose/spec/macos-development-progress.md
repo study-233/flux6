@@ -9,7 +9,7 @@
 | P0 技术验证 | 进行中 | 原生构建、早期基础 UI、独立用户级 XPC 服务、只读 DNS、Keychain 单次读写、Darwin 完整配置与 GeoSite 解析、隔离更新助手的真实升级/拒签已通过；root 安装/恢复、实际联网、quarantine 分发、凭据升级和最低系统尚未通过 |
 | P1 共用业务与协议 | 进行中 | 已接入共享设置、核心/规则资源、WARP 注册与 Keychain、WARP 业务配置准备及 Swift 校验；真实注册、订阅/链式/备用配置及 root 启动交接待完成 |
 | P2 原生应用骨架 | 未完成 | 已有导航、共用顶部栏命令、窗口焦点、服务与核心准备入口、真实配置客户端；正式 Xcode targets、完整菜单能力与页面交互验收待完成 |
-| P3 原生网络服务 | 未完成 | 已有握手服务、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，核心管理与完整协议待实现 |
+| P3 原生网络服务 | 未完成 | 已有双向身份握手、固定资源 FD 交接/独立复验/受控存储、签名 payload 校验、安装/卸载事务与回退；root 系统级流程待用户确认后实测，App 资源交接、配置组装与核心进程管理待实现 |
 | P4 TUN 与恢复 | 未开始 | 尚未修改系统 DNS、路由或启动 TUN |
 | P5 功能完整与原生体验 | 进行中 | 已接入代理规则、核心/规则数据准备、WARP 凭据、连接配置检查和共用顶部栏，界面实测待解锁；订阅、节点与真实网络状态未接入，连接按钮禁用 |
 | P6 DMG 与升级 | 未完成 | 已验证隔离应用的更新与错误签名拒绝；产品更新助手、DMG、正式 appcast 和服务升级事务待完成 |
@@ -191,10 +191,34 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 下一阶段需要在 root 服务中重新验证受限业务文档、可信资源 ID 和摘要，组装系统字段并管理核心进程。当前服务仍仅支持身份握手，未安装 root 服务、未启动真实 TUN；不将 App 侧结构检查当作特权启动授权。
 
+## 2026-11-05：网络服务固定资源交接与独立复验
+
+- 将核心和规则数据清单生成到 Swift 源码并编译进服务，构建脚本检查与 Go 清单同步。生产服务不读取用户提供的摘要清单，仅按固定资源 ID 选择当前架构核心及三份规则数据。
+- XPC 协议升级至 v2，新增 `resourceStatus` 和 `installApprovedResource`，通过 `FileHandle` 传递资源。请求不接受路径、UID、URL、摘要或执行参数；身份仍绑定登记的 UID/CDHash，资源方法额外检查来源文件所有者与类型。
+- 服务先复制内容到私有目录并核对摘要，再复读副本。核心用系统 zlib 有界解码单个 gzip，检查 CRC、尾部、解压上限、二进制摘要与 Mach-O 架构。文件验证、fsync 后原子发布，核心 0500、数据 0400；错误替换保留原文件。
+- 存储目录逐层检查所有权、POSIX 权限、ACL 与链接；拒绝写入型 ACL，保留系统常见的 deny/read-only ACL。独占文件锁限制服务实例，互斥锁限制并发操作；重启只清理受控命名且通过元数据检查的中断暂存，不遍历或删除未知内容。
+- 普通用户域的独立签名服务完成真实 FD 交接：四项资源安装、错误内容不覆盖旧文件、未知资源与未登记客户端拒绝、服务重启后重新校验与暂存清理均通过；临时 launchd job 已移除。此实验没有安装 root daemon。
+- 57 项 XCTest 全部通过，无跳过，其中系统层 35 项。新增覆盖 gzip 截断/CRC/拼接成员/超限、错误 UID/架构、硬链接/符号链接、ACL、过期操作、源描述符偏移、实际官方资产、损坏修复与写入锁；其余真实 worker/独立 Keychain 回归保持通过。
+- 使用服务复验后的 arm64 核心与三份数据，对既有完整合成配置执行真实 `-t` 成功。该配置仍由 Go 探针生成，不是服务端配置组装；结果不证明 WARP 联网、提供者下载、TUN 或系统 DNS 恢复。
+- Release App、服务和安装工具构建及严格 ad-hoc 签名验证通过，嵌入新服务摘要的真实安装 payload 验证通过。三项原生产物的部署元数据均为 macOS 13.0，最低系统运行验收仍未完成。此次没有修改 Go/Windows 业务，不重复宣称 Windows 运行测试通过。
+
+本轮证据：
+
+| 验证 | 记录 |
+| --- | --- |
+| 57 项原生及 Swift/Go/Keychain 回归 | [Swift final tests](/Users/andy/Study/free-v6/build/macos-service-resources/swift-final-tests.log) |
+| 系统层资源、ACL 与事务验证 | [System tests](/Users/andy/Study/free-v6/build/macos-service-resources/system-final-tests.log) |
+| 跨进程资源传递、身份与重启清理 | [XPC result](/Users/andy/Study/free-v6/build/service-probes/5f29fba6-339a-48a7-b946-9f04cb608863/result.json) |
+| 服务复验产物的实际核心配置检查 | [Core check](/Users/andy/Study/free-v6/build/macos-service-resources/core-check.log) |
+| Release 构建及部署元数据 | [Build](/Users/andy/Study/free-v6/build/macos-service-resources/release-build.log)、[Bundle validation](/Users/andy/Study/free-v6/build/macos-service-resources/bundle-validation.json) |
+| 新签名 payload 与非 root 拒绝 | [Installer result](/Users/andy/Study/free-v6/build/installer-probes/ecdf48d1-fca7-4aa3-8b2b-9ce4a8860c17/result.json) |
+
+下一步接入 App 缓存到服务的资源交接、服务端业务文档复验与系统配置组装，随后实现核心进程和 DNS 事务。资源就绪不能作为启动授权；启动时仍须验证实际使用的受控文件。当前卸载保留私有资源目录，完整清理仍在卸载验收范围内。用户尚未批准的 root 安装和锁屏后的 UI 验证保持待执行。
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
-2. 实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
+2. 在服务独立资源复验基础上完成 App 交接与系统配置组装，实现 DNS 事务、受控核心进程和失败恢复，再执行真实 TUN/IPv6/解析器验证。
 3. 验证 Keychain 在升级/回退后的访问行为；明确 macOS 13 与 Intel 的测试设备路径。
 4. 按已经验证的机制接入产品 Swift 更新助手，并补齐 quarantine 分发与网络服务升级事务。
 5. 在现有 WARP 配置交接基础上提取订阅、链式及备用配置，逐协议扩展受限节点契约并验证真实核心解析；完善共用顶部栏与其余页面。解锁后验证配置生成、核心、规则数据和 WARP 面板及实际钥匙串授权；外部设备验收未完成的项目保持未验证，不阻止无依赖工作。

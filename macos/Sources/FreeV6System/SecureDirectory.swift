@@ -29,6 +29,7 @@ final class SecureDirectory {
                 guard fstat(current, &info) == 0, (info.st_uid == owner || info.st_uid == 0), info.st_mode & 0o022 == 0 else {
                     throw RegistrationError.insecureFile
                 }
+                try Self.rejectWriteACL(current)
             }
         } catch { close(current); throw error }
         self.path = path
@@ -48,7 +49,111 @@ final class SecureDirectory {
         var info = stat()
         guard fstat(file, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_uid == owner,
               info.st_mode & 0o022 == 0, info.st_nlink == 1 else { throw RegistrationError.insecureFile }
+        try Self.rejectWriteACL(file)
         return info
+    }
+
+    /// POSIX mode bits alone do not exclude macOS ACL write grants. Reject
+    /// write-capable allow entries (including inheritable ones); deny/read-only
+    /// ACLs such as the standard home-directory delete restriction are safe.
+    private static func rejectWriteACL(_ file: Int32) throws {
+        guard let acl = acl_get_fd_np(file, ACL_TYPE_EXTENDED) else {
+            // On a valid open descriptor Darwin reports an absent extended ACL
+            // as ENOENT. Other failures (including unsupported filesystems) fail closed.
+            guard errno == ENOENT else { throw RegistrationError.insecureFile }
+            return
+        }
+        defer { acl_free(UnsafeMutableRawPointer(acl)) }
+        let writes: [acl_perm_t] = [ACL_WRITE_DATA, ACL_APPEND_DATA, ACL_DELETE, ACL_DELETE_CHILD,
+                                   ACL_WRITE_ATTRIBUTES, ACL_WRITE_EXTATTRIBUTES, ACL_WRITE_SECURITY, ACL_CHANGE_OWNER]
+        let mask = writes.reduce(UInt64(0)) { $0 | UInt64($1.rawValue) }
+        var entry: acl_entry_t?
+        var cursor = ACL_FIRST_ENTRY
+        while true {
+            errno = 0
+            if acl_get_entry(acl, cursor.rawValue, &entry) != 0 {
+                guard errno == EINVAL else { throw RegistrationError.insecureFile }
+                return
+            }
+            cursor = ACL_NEXT_ENTRY
+            var tag = ACL_UNDEFINED_TAG
+            var permissions: acl_permset_mask_t = 0
+            guard acl_get_tag_type(entry, &tag) == 0, acl_get_permset_mask_np(entry, &permissions) == 0 else {
+                throw RegistrationError.insecureFile
+            }
+            guard tag != ACL_EXTENDED_ALLOW || permissions & mask == 0 else { throw RegistrationError.insecureFile }
+        }
+    }
+
+    /// Callers retain the descriptor while checking/using the file. Paths and
+    /// file names from clients must never reach this method.
+    func withFile<T>(_ name: String, _ body: (Int32) throws -> T) throws -> T? {
+        try validate(name)
+        let file = openat(descriptor, name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)
+        if file < 0, errno == ENOENT { return nil }
+        guard file >= 0 else { throw RegistrationError.insecureFile }
+        defer { close(file) }
+        _ = try validateFile(file)
+        return try body(file)
+    }
+
+    func withTemporaryFile<T>(_ body: (Int32, String) throws -> T) throws -> T {
+        let name = ".staging-" + UUID().uuidString
+        let file = openat(descriptor, name, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0o600)
+        guard file >= 0 else { throw ResourceStoreError.io }
+        defer { close(file); unlinkat(descriptor, name, 0) }
+        _ = try validateFile(file)
+        return try body(file, name)
+    }
+
+    /// Hold this handle for the lifetime of the writer; kernel flock releases
+    /// it if the service crashes. A second process cannot clean live staging.
+    func acquireLock(_ name: String) throws -> FileHandle {
+        try validate(name)
+        let file = openat(descriptor, name, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK, 0o600)
+        guard file >= 0 else { throw RegistrationError.insecureFile }
+        do {
+            _ = try validateFile(file)
+            guard flock(file, LOCK_EX | LOCK_NB) == 0 else { throw ResourceStoreError.busy }
+            return FileHandle(fileDescriptor: file, closeOnDealloc: true)
+        } catch { close(file); throw error }
+    }
+
+    /// Only under the store's lifetime lock. Never traverse directories or
+    /// delete an unrecognized entry while recovering interrupted transfers.
+    func discardStagingFiles() throws {
+        let copy = dup(descriptor)
+        guard copy >= 0 else { throw ResourceStoreError.io }
+        guard let stream = fdopendir(copy) else { close(copy); throw ResourceStoreError.io }
+        defer { closedir(stream) }
+        while true {
+            errno = 0
+            guard let entry = readdir(stream) else {
+                guard errno == 0 else { throw ResourceStoreError.io }
+                break
+            }
+            let name = withUnsafeBytes(of: entry.pointee.d_name) {
+                String(cString: $0.baseAddress!.assumingMemoryBound(to: CChar.self))
+            }
+            guard name.hasPrefix(".staging-"), UUID(uuidString: String(name.dropFirst(9))) != nil else { continue }
+            _ = try withFile(name) { _ in () }
+            guard unlinkat(descriptor, name, 0) == 0 else { throw ResourceStoreError.io }
+        }
+        guard fsync(descriptor) == 0 else { throw ResourceStoreError.io }
+    }
+
+    /// Publish only after the root-owned candidate has passed all checks.
+    func publish(_ name: String, mode: mode_t, prepare: (Int32) throws -> Void) throws {
+        try validate(name)
+        _ = try withFile(name) { _ in () }
+        try withTemporaryFile { file, temporary in
+            try prepare(file)
+            guard fchmod(file, mode) == 0, fsync(file) == 0 else { throw ResourceStoreError.io }
+            _ = try withFile(name) { _ in () }
+            guard renameat(descriptor, temporary, descriptor, name) == 0, fsync(descriptor) == 0 else {
+                throw ResourceStoreError.io
+            }
+        }
     }
 
     func read(_ name: String, limit: Int) throws -> Data? {

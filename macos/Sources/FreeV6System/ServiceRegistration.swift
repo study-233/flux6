@@ -60,6 +60,7 @@ public enum RegistrationError: Error, LocalizedError {
 }
 
 public enum ServicePaths {
+    public static let resources = "/Library/Application Support/dev.freev6.desktop/resources"
     public static let executable = "/Library/PrivilegedHelperTools/dev.freev6.network-service"
     public static let registration = "/Library/Application Support/dev.freev6.desktop/service-registration.json"
     public static let launchDaemon = "/Library/LaunchDaemons/dev.freev6.network-service.plist"

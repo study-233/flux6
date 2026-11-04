@@ -2,6 +2,7 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "$0")/../.." && pwd)"
+python3 "$project_root/scripts/macos/generate-resource-catalog.py" --check
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export MACOSX_DEPLOYMENT_TARGET=13.0
 export CLANG_MODULE_CACHE_PATH="$project_root/build/macos-module-cache"

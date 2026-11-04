@@ -3,6 +3,10 @@ import Security
 import FreeV6System
 
 final class ProbeService: NSObject, NetworkServiceProtocol {
+    func resourceStatus(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
+    func installApprovedResource(_ request: Data, source: FileHandle, reply: @escaping (Data?, String?) -> Void) {
+        try? source.close(); reply(nil, "Handshake-only probe")
+    }
     func handshake(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
         do {
             let request = try ServiceMessages.decodeHandshake(data)
@@ -113,6 +117,21 @@ func probeMach(name: String, hash: String) throws {
     print("PASS: separate Mach service authenticated; privileged=false; version=\(reply.serviceVersion)")
 }
 
+func probeResources(name: String, hash: String, install: (String, String)? = nil) throws {
+    guard geteuid() != 0, name.hasPrefix("dev.freev6.probe."), name.utf8.count <= 128 else {
+        throw ServiceMessageError.invalid
+    }
+    let identity = try CodeIdentity(identifier: "probe-service", cdHash: hash)
+    if let (id, path) = install {
+        let descriptor = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)
+        guard descriptor >= 0 else { throw ResourceStoreError.invalidSource }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        try ServiceClient.installResource(id: id, source: handle, identity: identity, name: name, privileged: false)
+    }
+    let resources = try ServiceClient.resources(identity: identity, name: name, privileged: false)
+    print(String(decoding: try JSONEncoder().encode(resources), as: UTF8.self))
+}
+
 func probeKeychain() throws {
     let account = UUID().uuidString
     let query: [String: Any] = [
@@ -153,6 +172,10 @@ do {
         print(String(decoding: data, as: UTF8.self))
     case "mach" where arguments.count == 3:
         try probeMach(name: arguments[1], hash: arguments[2])
+    case "resources" where arguments.count == 3:
+        try probeResources(name: arguments[1], hash: arguments[2])
+    case "install-resource" where arguments.count == 5:
+        try probeResources(name: arguments[1], hash: arguments[2], install: (arguments[3], arguments[4]))
     case "payload" where arguments.count == 4:
         guard geteuid() != 0 else { throw InstallationError.invalidPayload }
         let app = URL(fileURLWithPath: arguments[1])
