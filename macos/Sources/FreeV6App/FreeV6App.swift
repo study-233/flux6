@@ -116,9 +116,8 @@ struct MainView: View {
                     NodesView(model: model)
                 } else if model.page == .configuration {
                     BusinessSettingsView(model: model.business, app: model, context: .main(.configuration))
-                } else {
-                    Text("此页面将在共享业务与网络服务接入后启用。")
-                        .foregroundStyle(.secondary)
+                } else if model.page == .logs {
+                    DiagnosticsView(logs: model.logs)
                 }
                 Spacer()
                 Text("macOS 原生客户端 · 开发版本")
@@ -154,6 +153,10 @@ private struct ServiceOverviewView: View {
                 }
                 if model.network.phase == .recovering {
                     DesktopCommandButton(model.commandState.primaryCommand, model: model)
+                }
+                if model.serviceState == .needsRepair || model.network.statusError != nil ||
+                    model.network.error != nil || model.network.phase == .recovering {
+                    DesktopCommandButton(.exportDiagnostics, model: model)
                 }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
         }

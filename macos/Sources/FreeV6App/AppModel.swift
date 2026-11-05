@@ -23,6 +23,7 @@ typealias Page = DesktopPage
     var configurationBusy: Bool { checkingConfiguration || network.phase.busy }
     let network = DesktopNetworkSession()
     let controls: DesktopCoreControls
+    let logs: DesktopLogs
     @Published var nodeGroup = SessionNodeGroup.access
     @Published private(set) var modeSaveError: String?
     private weak var trackedStatusMenu: NSMenu?
@@ -56,6 +57,7 @@ typealias Page = DesktopPage
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        logs = DesktopLogs(directory: try? WorkerLocation.application().logs)
         controls = DesktopCoreControls(defaults: defaults)
         page = defaults.string(forKey: "lastPage").flatMap(Page.init(rawValue:)) ?? .overview
         session = BusinessSession()
@@ -63,6 +65,9 @@ typealias Page = DesktopPage
         core = RuntimeModel(session: session)
         geodata = GeodataModel(session: session)
         warp = WarpModel(session: session)
+        logs.record(.opened)
+        observations.formUnion(observeLogEvents())
+        logs.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         // Commands depend on nested models, including text edits and progress.
         business.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         core.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
@@ -127,6 +132,7 @@ typealias Page = DesktopPage
         state.settingsChanged = business.hasChanges
         state.promptActive = promptActive
         state.terminating = terminating
+        state.hasVisibleLogs = page == .logs && !logs.visible.isEmpty
         state.credentialsBusy = warp.busy || configurationBusy
         state.credentialsPending = warp.hasPending
         state.configurationReady = configurationPrerequisite == nil
@@ -397,7 +403,28 @@ typealias Page = DesktopPage
         case .refreshCloud:
             page = .configuration; openWindow(id: "main"); showWindow()
             Task { await business.changeCloud(.load(.refresh)) }
-        case .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .exportLogs, .exportDiagnostics:
+            let diagnostics = command == .exportDiagnostics
+            let text = diagnostics ? diagnosticText() : DesktopLogs.text(logs.visible)
+            let panel = NSSavePanel()
+            panel.title = command.title
+            panel.allowedContentTypes = [.plainText]
+            panel.nameFieldStringValue = diagnostics ? "FreeV6-诊断.txt" : "FreeV6-日志.txt"
+            panel.message = diagnostics ? "将保存版本、组件状态和最近事件。文件仅写入你选择的位置。" : "将保存当前级别和暂停状态下显示的事件。"
+            promptActive = true
+            panel.begin { [weak self] result in
+                guard let self else { return }
+                defer { self.promptActive = false }
+                guard result == .OK, let destination = panel.url else { return }
+                do { try Data(text.utf8).write(to: destination, options: .atomic) }
+                catch {
+                    let alert = NSAlert()
+                    alert.messageText = "文件未能保存"
+                    alert.informativeText = "请检查所选位置是否可以写入，再重新导出。"
+                    alert.runModal()
+                }
+            }
+        case .checkUpdates:
             break // Not advertised as available until their real implementations are connected.
         }
     }
@@ -517,6 +544,7 @@ typealias Page = DesktopPage
             core.cancel()
             geodata.cancel()
             await session.shutdown()
+            await logs.finishWrites()
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

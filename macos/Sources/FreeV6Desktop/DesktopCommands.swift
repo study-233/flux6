@@ -135,6 +135,7 @@ public struct DesktopCommandState: Sendable {
     public var settingsChanged = false
     public var promptActive = false
     public var terminating = false
+    public var hasVisibleLogs = false
     public var credentialsBusy = false
     public var credentialsPending = false
     public var configurationReady = false
@@ -167,7 +168,7 @@ public struct DesktopCommandState: Sendable {
         if promptActive { return .unavailable("请先处理当前确认窗口") }
         if network.busy {
             switch command {
-            case .showMain, .showPage, .help: break
+            case .showMain, .showPage, .help, .exportLogs, .exportDiagnostics: break
             default: return .unavailable(network.title)
             }
         }
@@ -224,7 +225,10 @@ public struct DesktopCommandState: Sendable {
         case .refreshCloud:
             guard cloudRefreshAvailable else { return .unavailable("请先确认公告开放，并获取可刷新的备用配置") }
             return profileEditingAvailable ? .available : .unavailable("请先载入配置并等待当前操作结束")
-        case .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .exportLogs:
+            return context == .main(.logs) && hasVisibleLogs ? .available : .unavailable("请打开日志页并选择有记录的级别")
+        case .exportDiagnostics: return .available
+        case .checkUpdates:
             return .unavailable("此功能将在后续开发阶段接入")
         }
     }

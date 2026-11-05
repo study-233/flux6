@@ -56,6 +56,11 @@ struct NativeCommands: Commands {
                 DesktopCommandButton(.showPage(page), model: model)
                     .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
             }
+            Divider()
+            Menu("日志级别") { LogLevelPicker(logs: model.logs).pickerStyle(.inline) }
+                .disabled(context != .main(.logs) || model.promptActive || model.terminating)
+            LogActions(logs: model.logs)
+                .disabled(context != .main(.logs) || model.promptActive || model.terminating)
         }
         CommandMenu("连接") {
             DesktopCommandButton(model.commandState.primaryCommand, model: model).keyboardShortcut("k", modifiers: [.command, .shift])
@@ -102,6 +107,8 @@ struct NativeToolbar: ToolbarContent {
             case .nodes:
                 DesktopCommandButton(.measureNodes, model: model, context: .main(.nodes))
             case .logs:
+                LogLevelPicker(logs: model.logs).pickerStyle(.menu)
+                LogActions(logs: model.logs)
                 DesktopCommandButton(.exportLogs, model: model, context: .main(.logs))
             }
         }
@@ -167,7 +174,7 @@ struct NativeHelpView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("FreeV6 使用说明").font(.title.bold())
-                Text("从概览页准备网络服务、WARP 凭据、网络核心与规则数据。准备完成后可从工具栏、“连接”菜单或右上角的 FreeV6 图标连接或断开。")
+                Text("从概览页准备网络服务、网络核心与规则数据。默认出口和链式代理需要 WARP 凭据，已启用的校园备用配置可直接使用校园节点。准备完成后可从工具栏、“连接”菜单或右上角的 FreeV6 图标连接或断开。")
                 Text("开始使用").font(.headline)
                 Text("将 FreeV6 拖入“应用程序”后，从概览页设置网络服务。核心可以在概览页或设置的“核心”页下载；下载完成后会自动校验。")
                 Text("编辑配置").font(.headline)
@@ -175,7 +182,7 @@ struct NativeHelpView: View {
                 Text("窗口与后台").font(.headline)
                 Text("⌘1–⌘4 切换页面，⌘, 打开设置。关闭主窗口会保留后台入口；从 Dock 或右上角 FreeV6 菜单可以重新打开。⌘Q 退出时处理未保存草稿，等待服务恢复网络，再停止下载和业务进程。")
                 Text("服务需要处理时").font(.headline)
-                Text("先在概览页刷新状态并查看提示。安装中断后的恢复与卸载入口位于设置的“网络服务”页。授权请在 macOS 系统窗口中完成。")
+                Text("先在概览页刷新状态并查看提示。按 ⌘4 查看最近事件，可选择级别并暂停显示。从“文件”菜单导出当前日志或含组件状态的脱敏诊断。安装中断后的恢复与卸载入口位于设置的“网络服务”页。")
             }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
         }.frame(minWidth: 460, idealWidth: 560, minHeight: 420)
             .textSelection(.enabled)
