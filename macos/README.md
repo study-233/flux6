@@ -286,16 +286,28 @@ python3 scripts/macos/probe-release-package.py
 
 测试宿主使用随机 bundle ID、回环源和一次性密钥。正式打包强制编译生产助手，关闭测试中的自动应答和回环通道。检查结果位于 `build/native-update-probes` 和 `build/release-package-probes`。其中的网络恢复许可由测试宿主模拟，完整系统服务升级仍需真实管理员环境。
 
-公开发布前需确定通道与备份发布密钥。通道 JSON 只有 `format: 1`、`publicKey` 和 `feeds` 三个字段，其中 feeds 按 `arm64` 或 `x86_64` 映射到 HTTPS 的 `appcast-<架构>.xml`。构建时通过 `FREEV6_UPDATE_CHANNEL_FILE` 指定此文件。普通开发构建显示通道待配置，用户仍可使用 DMG。
+要验证已有连接时的升级，请运行以下组合探针。它启动普通用户域的临时 XPC 服务与固定核心，在独立的 DNS 配置库上调用和主应用相同的 `disconnectBeforeUpdate`。签名更新助手等待结果后再安装。恢复失败场景还会核对旧版、运行中的核心和故障解除后的自动清理。两个测试 App 的事件及实际版本记录在服务报告的 `updateProbes` 中。
 
 ```sh
+python3 scripts/macos/probe-service.py --network-run --update-recovery \
+  --chain-worker build/macos-worker/freev6-worker \
+  --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata
+```
+
+Mac 的发布仓库为 `study-233/free-v6`。签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `macos-v0.5.3-b2`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。Mac 独立 Release 发布时设置 `make_latest=false`，预览版标记为 prerelease；Windows 的工作流沿用现有的 `v*` 标签及 `latest` 入口。[GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
+
+正式发行需要保管和备份发布私钥，再从对应公钥生成通道 JSON。构建首次分发的 DMG 时，通过 `FREEV6_UPDATE_CHANNEL_FILE` 指向该文件。配置按架构给出地址，Intel 包在 Intel 验收后单独发布。普通预览 DMG 继续显示通道待配置。
+
+```sh
+python3 scripts/macos/github_channel.py --public-key-file /secure/path/mac-public-key.txt \
+  --output /secure/path/mac-channel.json
 python3 scripts/macos/package-update.py \
   --channel /secure/path/mac-channel.json --private-key /secure/path/ed25519-key \
-  --output /path/to/new-release-directory --download-base https://your-download-host/mac/ \
+  --output /path/to/new-release-directory \
   --build 2 --version 0.5.3 --minimum-source-build 1 --maximum-source-build 1
 ```
 
-该工具验证密钥与公钥对应关系、App 签名、架构及载荷，输出完整 ZIP、签名 appcast 和摘要，全部完成后才发布本地输出目录。私钥通过 stdin 交给签名工具。公开上传独立执行，上一版可安装 DMG 与发布密钥备份需在发行验收时核对。
+该工具验证密钥与公钥对应关系、App 签名、架构及载荷，输出完整 ZIP、签名 appcast 和摘要，全部完成后才生成本地输出目录。私钥通过 stdin 交给签名工具。发布时先上传版本化资产并核对公开下载的摘要，再以一次 Git 提交更新对应架构的清单。检查通过后保留上一版 DMG 和发行记录，便于恢复。
 
 ## 核心与配置探针
 

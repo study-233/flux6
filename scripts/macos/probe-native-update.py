@@ -37,7 +37,10 @@ class FeedHandler(SimpleHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", choices=["upgrade", "bad-archive", "unsigned-feed", "wrong-arch", "cancel", "cancel-download", "lost-host"], default="upgrade")
-    args = parser.parse_args()
+    exercise(parser.parse_args().scenario)
+
+
+def exercise(scenario, *, before_check=None, confirm_installation=None):
     assert os.geteuid() != 0
     work = ROOT / "build/native-update-probes" / str(uuid.uuid4())
     work.mkdir(parents=True, mode=0o700)
@@ -81,8 +84,8 @@ def main():
                 "SUShowReleaseNotes": False, "SUEnableSystemProfiling": False,
                 "SURelaunchHostBundle": True,
                 "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
-                "ProbeResultPath": str(events), "ProbeDecision": {"cancel": "cancel", "cancel-download": "cancel-download",
-                                                                "lost-host": "crash"}.get(args.scenario, "install")}
+                "ProbeResultPath": str(events), "ProbeDecision": "await-service" if confirm_installation else {
+                    "cancel": "cancel", "cancel-download": "cancel-download", "lost-host": "crash"}.get(scenario, "install")}
         (app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
         embed(app, agent_binary, sdk, probe=True)
         run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", app])
@@ -95,10 +98,10 @@ def main():
         package = feed / "update.zip"
         run(["/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", next_app, package])
         signature = run([sdk / "bin/sign_update", "--ed-key-file", key, "-p", package])
-        if args.scenario == "bad-archive":
+        if scenario == "bad-archive":
             signature = base64.b64encode(bytes(64)).decode()
         requirements = {"format": 1, "build": 2, "minimumSourceBuild": 1, "maximumSourceBuild": 1,
-                        "architecture": "x86_64" if args.scenario == "wrong-arch" else ARCH,
+                        "architecture": ({"arm64": "x86_64", "x86_64": "arm64"}[ARCH] if scenario == "wrong-arch" else ARCH),
                         "workerProtocol": 1, "serviceProtocol": 6, "settingsSchema": 1,
                         "runtimeCatalogSHA256": "a" * 64, "serviceSHA256": "b" * 64}
         encoded = base64.b64encode(json.dumps(requirements).encode()).decode()
@@ -110,16 +113,24 @@ def main():
                '</item></channel></rss>')
         appcast = feed / ("appcast-" + ARCH + ".xml")
         appcast.write_text(xml)
-        if args.scenario != "unsigned-feed":
+        if scenario != "unsigned-feed":
             run([sdk / "bin/sign_update", "--ed-key-file", key, appcast])
+        if before_check:
+            before_check()
         with (work / "process.log").open("w") as log:
-            child = subprocess.Popen([app / "Contents/MacOS/FreeV6"], stdout=log, stderr=log)
+            child = subprocess.Popen([app / "Contents/MacOS/FreeV6"], stdout=log, stderr=log,
+                                     stdin=subprocess.PIPE if confirm_installation else subprocess.DEVNULL)
             deadline = time.monotonic() + 90
             history = []
+            service_approved = None
             while time.monotonic() < deadline:
                 if events.exists():
                     lines = events.read_text().splitlines()
                     history = [json.loads(line) for line in lines if line.endswith("}")]
+                if confirm_installation and service_approved is None and any(e["event"] == "ready" for e in history):
+                    service_approved = confirm_installation()
+                    child.stdin.write(bytes([int(service_approved)]))
+                    child.stdin.close()
                 success = any(e["event"] == "launched" and e["version"] == "2" for e in history)
                 failure = any(e["event"] == "failed" for e in history)
                 if success or failure:
@@ -127,23 +138,32 @@ def main():
                 if child.poll() is not None and child.returncode != 0:
                     break
                 time.sleep(0.2)
-        if args.scenario in ("cancel", "lost-host"):
+        if scenario in ("cancel", "lost-host", "service-recovery-failure"):
             time.sleep(3)
         installed = plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleVersion"]
-        expected = "2" if args.scenario == "upgrade" else "1"
-        lost_host = args.scenario == "lost-host" and child.poll() == 19 and any(e["event"] == "ready" for e in history)
+        expected = "2" if scenario in ("upgrade", "service-upgrade") else "1"
+        lost_host = scenario == "lost-host" and child.poll() == 19 and any(e["event"] == "ready" for e in history)
         passed = installed == expected and (success if expected == "2" else failure or lost_host)
         if expected == "2":
             passed = passed and any(e["event"] == "network-confirmed" for e in history)
-        elif args.scenario not in ("cancel", "lost-host"):
+        elif scenario not in ("cancel", "lost-host", "service-recovery-failure"):
             passed = passed and not any(e["event"] == "ready" for e in history)
+        if confirm_installation:
+            passed = passed and service_approved is (expected == "2")
+            observed = [e["event"] for e in history]
+            if service_approved:
+                passed = passed and "installing" in observed and observed.index("network-confirmed") < observed.index("installing")
+            else:
+                passed = passed and "installation-cancelled" in observed and "installing" not in observed
         run(["/usr/bin/codesign", "--verify", "--deep", "--strict", app])
-        result = {"passed": passed, "scenario": args.scenario, "installedVersion": installed, "events": history,
-                  "scope": "ordinary-user signed fixture using product Swift helper; synthetic network preparation"}
+        result = {"passed": passed, "scenario": scenario, "installedVersion": installed, "events": history,
+                  "scope": ("signed fixture with the product update helper, native desktop disconnect, user-domain XPC and isolated DNS"
+                            if confirm_installation else "ordinary-user signed fixture using product Swift helper; synthetic network preparation")}
         (work / "result.json").write_text(json.dumps(result, indent=2) + "\n")
         if not passed:
             raise RuntimeError("Probe failed; inspect " + str(work))
-        print("PASS " + args.scenario + " " + str(work / "result.json"))
+        print("PASS " + scenario + " " + str(work / "result.json"))
+        return work / "result.json"
     finally:
         if child and child.poll() is None:
             child.terminate()

@@ -52,9 +52,15 @@ import AppKit
         if event.kind == .ready {
             let mode = Bundle.main.object(forInfoDictionaryKey: "ProbeDecision") as? String
             if mode == "crash" { exit(19) }
-            allowed = mode != "cancel"
-            try? UpdatePipe.write(UpdateReply(operation: event.operation, install: allowed), to: input.fileHandleForWriting)
+            if mode == "await-service" {
+                // Only the fixture uses this pipe. Its parent replies after
+                // verifying the registered service and the isolated DNS store.
+                allowed = (try? FileHandle.standardInput.read(upToCount: 1)) == Data([1])
+            } else {
+                allowed = mode != "cancel"
+            }
             record(allowed ? "network-confirmed" : "installation-cancelled")
+            try? UpdatePipe.write(UpdateReply(operation: event.operation, install: allowed), to: input.fileHandleForWriting)
         }
         if event.kind == .failed || event.kind == .finished {
             exitingAfterFailure = true

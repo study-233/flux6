@@ -18,6 +18,7 @@ from pathlib import Path
 import plistlib
 import platform
 import re
+import runpy
 import shutil
 import subprocess
 import time
@@ -44,7 +45,10 @@ def main():
     parser.add_argument("--geodata-fixtures", type=Path)
     parser.add_argument("--chain-worker", type=Path, help="Check an imported subscription from the real worker through XPC and the pinned core")
     parser.add_argument("--network-run", action="store_true", help="Verify session RPC and supervisor using isolated DNS and a TUN-free core")
+    parser.add_argument("--update-recovery", action="store_true", help="Exercise signed app updates while the isolated network session is running")
     args = parser.parse_args()
+    if args.update_recovery and not args.network_run:
+        parser.error("--update-recovery requires --network-run")
     if (args.network_run or args.chain_worker) and not args.runtime_fixtures:
         parser.error("Session and chain tests need the runtime and geodata fixtures")
     if bool(args.runtime_fixtures) != bool(args.geodata_fixtures):
@@ -106,6 +110,7 @@ def main():
         "StandardErrorPath": str(work / "service.stderr"),
     }))
     cases = []
+    update_results = {}
 
     def handshake(executable=probe, expected_hash=service_hash, rejected=False):
         result = run([executable, "mach", label, expected_hash], check=False, timeout=15)
@@ -357,6 +362,44 @@ def main():
         run([probe, "desktop-session", label, service_hash, request], timeout=90)
         assert stopped()
         case("native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC")
+        if args.update_recovery:
+            exercise_update = runpy.run_path(str(ROOT / "scripts/macos/probe-native-update.py"))["exercise"]
+            def test_update(scenario, block_recovery):
+                block = data_root / "block-dns-recovery"
+                core_job = None
+
+                def before_check():
+                    nonlocal core_job
+                    _, session_id, _ = start()
+                    core_job = "dev.freev6.core." + session_id.lower()
+                    assert state(core_job)["pid"]
+                    if block_recovery:
+                        block.touch(exist_ok=False)
+
+                def confirm_installation():
+                    assert rpc("status")["phase"] == "running" and fixture_dns()["ServerPort"] == 1053
+                    result = run([probe, "desktop-update-stop", label, service_hash], check=False)
+                    if block_recovery:
+                        assert result.returncode == 1 and rpc("status")["phase"] == "recoveryRequired"
+                        assert fixture_dns()["ServerPort"] == 1053 and state(core_job)["pid"]
+                        return False
+                    if result.returncode or not stopped() or state(core_job) is not None:
+                        raise RuntimeError("Desktop update gate failed to restore the session: " + result.stderr)
+                    return True
+
+                try:
+                    evidence = exercise_update(scenario, before_check=before_check, confirm_installation=confirm_installation)
+                    update_results[scenario] = str(evidence.relative_to(ROOT))
+                finally:
+                    if block_recovery:
+                        block.unlink(missing_ok=True)
+                until(stopped)
+                assert state(core_job) is None
+
+            test_update("service-upgrade", block_recovery=False)
+            case("signed update replaces and reopens v2 only after the desktop gate stops the core and restores isolated DNS")
+            test_update("service-recovery-failure", block_recovery=True)
+            case("failed DNS recovery withholds installation, preserves v1 and retries restoration after the fault clears")
         _, session, revision = start()
         with subprocess.Popen([probe, "session-slow-delay", label, service_hash, session, str(revision)],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE) as pending:
@@ -536,6 +579,7 @@ def main():
         "scope": "user-domain debug Mach service; no root installation or network changes",
         "registration": registration,
         "cases": cases,
+        "updateProbes": update_results,
     }
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"Evidence: {work / 'result.json'}")

@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 from urllib.parse import urlsplit
 from xml.sax.saxutils import quoteattr
+import github_channel
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -34,7 +35,7 @@ def main(resources):
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--channel", required=True, type=Path)
     parser.add_argument("--private-key", required=True, type=Path)
-    parser.add_argument("--download-base", required=True)
+    parser.add_argument("--download-base", help="HTTPS asset directory for a custom channel")
     parser.add_argument("--build", required=True, type=int)
     parser.add_argument("--version", required=True)
     parser.add_argument("--minimum-source-build", required=True, type=int)
@@ -44,10 +45,19 @@ def main(resources):
         parser.error("Builds must specify an increasing compatibility window")
     if not re.fullmatch(r"[0-9]{1,6}(\.[0-9]{1,6}){1,3}", args.version):
         parser.error("Use a numeric short version")
-    location = urlsplit(args.download_base)
+    arch = platform.machine()
+    channel = json.loads(args.channel.read_text())
+    if channel["feeds"].get(arch) == github_channel.feed_url(arch):
+        base = github_channel.download_base(args.version, args.build)
+        if args.download_base is not None and args.download_base.rstrip("/") != base:
+            parser.error("The project channel requires the matching versioned GitHub release")
+    elif args.download_base:
+        base = args.download_base.rstrip("/")
+    else:
+        parser.error("A custom channel requires --download-base")
+    location = urlsplit(base)
     if location.scheme != "https" or not location.hostname or location.username or location.password or location.query or location.fragment:
         parser.error("Download base must be an HTTPS directory")
-    arch = platform.machine()
     fd = os.open(args.private_key, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     try:
         info = os.fstat(fd)
@@ -56,7 +66,6 @@ def main(resources):
         private = os.read(fd, 257)
     finally:
         os.close(fd)
-    channel = json.loads(args.channel.read_text())
     sdk_root = Path(resources.enter_context(tempfile.TemporaryDirectory(prefix="release-sdk-", dir=ROOT / "build")))
     sdk = Path(run("python3", ROOT / "scripts/macos/prepare-sparkle.py", "--directory", sdk_root / "distribution"))
     env = os.environ.copy()
@@ -112,7 +121,7 @@ def main(resources):
                f'<title>FreeV6 {args.version}</title><sparkle:version>{args.build}</sparkle:version>'
                f'<sparkle:shortVersionString>{args.version}</sparkle:shortVersionString>'
                '<sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>'
-               f'<enclosure url={quoteattr(args.download_base.rstrip("/") + "/" + package.name)} '
+               f'<enclosure url={quoteattr(base + "/" + package.name)} '
                f'sparkle:edSignature={quoteattr(signature)} length="{package.stat().st_size}" '
                f'type="application/octet-stream" freev6:requirements={quoteattr(encoded)}/></item></channel></rss>')
         appcast = products / ("appcast-" + arch + ".xml")

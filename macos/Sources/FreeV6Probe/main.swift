@@ -231,11 +231,11 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
 }
 
 @MainActor func probeDesktopSession(_ args: [String]) async throws {
-    guard args.count == 4, geteuid() != 0, args[1].hasPrefix("dev.freev6.probe."),
+    guard (args.count == 4 || (args[0] == "desktop-update-stop" && args.count == 3)),
+          geteuid() != 0, args[1].hasPrefix("dev.freev6.probe."),
           args[1].utf8.count <= 128 else { throw ServiceMessageError.invalid }
     let name = args[1]
     let identity = try CodeIdentity(identifier: "probe-service", cdHash: args[2])
-    let request = try ServiceMessages.decodeConfiguration(readConfigurationRequest(args[3]))
     let desktop = DesktopNetworkSession()
     let status: DesktopNetworkSession.Status = { id in
         try await Task.detached { try ServiceClient.sessionStatus(renewing: id, identity: identity, name: name, privileged: false) }.value
@@ -245,6 +245,13 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
                                                                  name: name, privileged: false) }.value
     }
     await desktop.refresh(using: status)
+    if args[0] == "desktop-update-stop" {
+        guard desktop.phase == .running else { throw ServiceClientError.invalidReply }
+        try await desktop.disconnectBeforeUpdate(status: status, stop: stop)
+        guard desktop.phase == .idle, !desktop.mayOwnSession else { throw ServiceClientError.invalidReply }
+        return
+    }
+    let request = try ServiceMessages.decodeConfiguration(readConfigurationRequest(args[3]))
     for quit in [false, true] {
         guard desktop.phase == .idle else { throw ServiceClientError.invalidReply }
         await desktop.connect { token in
@@ -356,7 +363,7 @@ do {
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
     #if DEBUG
-    case "desktop-session" where arguments.count == 4:
+    case "desktop-session" where arguments.count == 4, "desktop-update-stop" where arguments.count == 3:
         Task { @MainActor in
             do { try await probeDesktopSession(arguments); exit(0) }
             catch { fputs("desktop session: \(error.localizedDescription)\n", stderr); exit(1) }

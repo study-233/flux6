@@ -85,41 +85,7 @@ private final class UpdateAgentProcess: @unchecked Sendable {
                 }.value
                 let child = try UpdateAgentProcess(host: host)
                 agent = child
-                var finished = false
-                for try await event in child.events {
-                    try Task.checkCancellation()
-                    if let operation, operation != event.operation { throw UpdateFailure.transport }
-                    operation = event.operation
-                    sendCancellationIfNeeded()
-                    if let release = event.release { try release.validate(currentBuild: channel.build) }
-                    switch event.kind {
-                    case .checking: status = "正在检查更新…"
-                    case .found: status = "发现可用更新"
-                    case .downloading: status = "正在下载并验证更新…"
-                    case .ready:
-                        guard let release = event.release, !preparingInstallation, !installationAuthorized else { throw UpdateFailure.transport }
-                        if cancelRequested { continue }
-                        preparingInstallation = true
-                        status = "正在准备安装更新…"
-                        do {
-                            try await prepare(release, channel.build)
-                            installationAuthorized = true
-                            child.answer(UpdateReply(operation: event.operation, install: true))
-                        } catch {
-                            self.error = (error as? LocalizedError)?.errorDescription ?? "更新准备未完成，请查看网络状态或重试。"
-                            cancelRequested = true
-                            cancelSent = true
-                            child.answer(UpdateReply(operation: event.operation, install: false))
-                        }
-                    case .installing:
-                        guard installationAuthorized else { throw UpdateFailure.transport }
-                        status = "正在安装更新…"
-                        install()
-                    case .finished: finished = true; status = "本次更新检查已结束"
-                    case .failed: throw event.failure ?? UpdateFailure.installation
-                    }
-                }
-                guard finished || installationAuthorized else { throw UpdateFailure.transport }
+                try await follow(child.events, currentBuild: channel.build, answer: child.answer, prepare: prepare, install: install)
             } catch {
                 agent?.cancel()
                 installationAuthorized = false
@@ -127,6 +93,56 @@ private final class UpdateAgentProcess: @unchecked Sendable {
                 status = "更新未完成"
             }
         }
+    }
+
+    func follow(_ events: AsyncThrowingStream<UpdateEvent, Error>, currentBuild: UInt64,
+                answer: (UpdateReply) -> Void, prepare: (UpdateRelease, UInt64) async throws -> Void,
+                install: () -> Void) async throws {
+        var requestedInstall = false
+        var finished = false
+        for try await event in events {
+            try Task.checkCancellation()
+            if let operation, operation != event.operation { throw UpdateFailure.transport }
+            operation = event.operation
+            sendCancellationIfNeeded()
+            if let release = event.release { try release.validate(currentBuild: currentBuild) }
+            switch event.kind {
+            case .checking: status = "正在检查更新…"
+            case .found: status = "发现可用更新"
+            case .downloading: status = "正在下载并验证更新…"
+            case .ready:
+                guard let release = event.release, !preparingInstallation else { throw UpdateFailure.transport }
+                if cancelRequested { continue }
+                preparingInstallation = true
+                status = "正在准备安装更新…"
+                do {
+                    try await prepare(release, currentBuild)
+                    if cancelRequested { continue }
+                    requestedInstall = true
+                    answer(UpdateReply(operation: event.operation, install: true))
+                } catch {
+                    self.error = (error as? LocalizedError)?.errorDescription ?? "更新准备未完成，请查看网络状态或重试。"
+                    cancelRequested = true
+                    if !cancelSent {
+                        cancelSent = true
+                        answer(UpdateReply(operation: event.operation, install: false))
+                    }
+                }
+            case .installing:
+                // Only the helper can confirm that it received the approval.
+                // Until then, normal termination checks remain in force.
+                guard requestedInstall, !installationAuthorized else { throw UpdateFailure.transport }
+                installationAuthorized = true
+                status = "正在安装更新…"
+                install()
+            case .finished:
+                guard !requestedInstall || installationAuthorized else { throw UpdateFailure.transport }
+                finished = true
+                status = "本次更新检查已结束"
+            case .failed: throw event.failure ?? UpdateFailure.installation
+            }
+        }
+        guard finished || installationAuthorized else { throw UpdateFailure.transport }
     }
 
     private func sendCancellationIfNeeded() {
