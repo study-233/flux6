@@ -79,8 +79,7 @@ private final class UpdateAgentProcess: @unchecked Sendable {
                 let root = host.bundleURL
                 let runningIdentity = try CodeIdentity.current()
                 try await Task.detached {
-                    let attributes = try root.resourceValues(forKeys: [.volumeIsReadOnlyKey])
-                    guard attributes.volumeIsReadOnly != true, !root.pathComponents.contains("AppTranslocation") else { throw UpdateFailure.invalidHost }
+                    guard try !ApplicationLocation.requiresInstallation(at: root) else { throw UpdateFailure.invalidHost }
                     guard try CodeIdentity.protectedFile(at: root) == runningIdentity else { throw UpdateFailure.invalidHost }
                 }.value
                 let child = try UpdateAgentProcess(host: host)

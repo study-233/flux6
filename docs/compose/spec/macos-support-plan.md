@@ -518,7 +518,7 @@ Swift UI 状态采用 macOS 13 可用的 ObservableObject/@Published 与 async/a
 
 Xcode 工程包含 App、网络服务、bootstrap/恢复工具与测试 target；Swift Package Manager 固定第三方依赖。构建脚本先生成指定 GOOS/GOARCH 的 worker，再放入 bundle 固定位置；构建设置统一最低 macOS 13。Mac 不打包 Web 页面、Tauri Rust 壳或 Windows helper。使用系统 hdiutil 制作 DMG，提供 Applications 拖放入口和简短安装说明。
 
-目前可用 `python3 scripts/macos/build-dmg.py` 构建带 `-preview` 标记的开发镜像，验证拖放副本、签名、最低部署目标与安装载荷。首版使用 ad-hoc 签名，按内部组件到外层 bundle 的顺序签名并验证完整性；这不等同于 Developer ID 或公证。安装测试必须来自实际下载、带 quarantine 的 DMG，覆盖系统允许的首次打开流程。检测直接从只读 DMG 或转移路径启动，引导完成安装后再安装网络服务。
+目前可用 `python3 scripts/macos/build-dmg.py` 构建带 `-preview` 标记的开发镜像，验证拖放副本、签名、最低部署目标、动态库查找路径与安装载荷。首版按内部组件到外层 bundle 的顺序进行 ad-hoc 签名。Apple Silicon 上已完成 Safari 下载、隔离标记传播、签名与 Gatekeeper 策略检查。当前系统拒绝默认执行未公证的预览版。只读镜像或系统转移路径有独立安装窗口，在初始化设置、凭据或网络服务之前引导用户完成拖放。后续在干净账号上验证用户自行选择单应用放行后，从“应用程序”首次打开的全流程，在 macOS 13 单独复验。[分发与界面验收](./macos-development-progress.md#下载隔离安装窗口与系统分发检查)
 
 mihomo 保持首次下载：按架构取得锁定资产、检查摘要与解压上限、设置执行位，再交服务复验安装。项目的 THIRD-PARTY 明确把运行时下载的 mihomo 与随包分发区分，本轮不把核心直接加入 DMG；分发方式变更时需同步更新许可与源码交付材料。[当前第三方说明](/Users/andy/Study/free-v6/THIRD-PARTY.txt:78)
 
@@ -530,7 +530,7 @@ mihomo 保持首次下载：按架构取得锁定资产、检查摘要与解压�
 
 P0 已复现 ad-hoc 主程序启用严格 Hardened Runtime 时，dyld 因 Team ID 不匹配拒绝加载 Sparkle。因此调整为：主 App 只链接系统框架并保留严格库校验，Sparkle 嵌入独立更新助手；仅助手设置 disable-library-validation。助手从自身所属的固定 App bundle 获取更新目标、公钥和 feed，不接受任意目标路径或外部传入的更新公钥。正式客户端采用 Swift；P0 的 Objective-C 测试宿主只用于直接验证框架 API，不随产品交付。
 
-独立助手已在当前 Apple Silicon 系统完成真实本地 N→N+1 更新和重启；错误 Ed25519 签名被拒绝且旧版保留。该实验使用临时密钥、随机测试 bundle ID 和回环更新源，未覆盖带 quarantine 的下载、最低系统或生产服务事务，不能据此宣称分发验收完成。其余 P0/P6 验证继续覆盖嵌入签名、带 quarantine 的 DMG、macOS 13 和更新后的服务重新登记。[验证记录](/Users/andy/Study/free-v6/docs/compose/spec/macos-development-progress.md)
+独立助手已在当前 Apple Silicon 系统完成真实本地 N→N+1 更新和重启；错误 Ed25519 签名被拒绝且旧版保留。该实验使用临时密钥、随机测试 bundle ID 和回环更新源。Safari 下载 DMG 的检查另行记录。其余 P0/P6 验证覆盖实际首次放行、macOS 13、公开更新源和更新后的服务重新登记。[验证记录](./macos-development-progress.md)
 
 Swift 产品助手已嵌入开发 DMG，“检查更新…”已接入原生应用菜单。清单和 ZIP 分别签名，助手从签名清单校验构建范围、架构和兼容信息。主 App 在同意替换前恢复本人的网络会话，再确认系统服务空闲，并留下重启后的升级记录。已通过独立应用的实际升级、拒签、取消下载、取消安装及主程序失联测试。发布工具可以生成完整 ZIP、签名 appcast 和摘要。当前预览包的正式更新通道待配置。[Swift 助手与发布验证](./macos-development-progress.md#swift-应用更新与发布包)
 

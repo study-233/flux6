@@ -24,9 +24,11 @@ mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources" "$bundle/Contents
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.worker "$bundle/Contents/Helpers/freev6-worker"
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-login-launcher
 cp "$binary_dir/freev6-login-launcher" "$bundle/Contents/Helpers/freev6-login-launcher"
+python3 "$project_root/scripts/macos/release_rpaths.py" "$bundle/Contents/Helpers/freev6-login-launcher"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.desktop.login "$bundle/Contents/Helpers/freev6-login-launcher"
 service="$bundle/Contents/Library/LaunchServices/dev.freev6.network-service"
 cp "$binary_dir/freev6-network-service" "$service"
+python3 "$project_root/scripts/macos/release_rpaths.py" "$service"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.network-service "$service"
 manifest="$(python3 - "$service" "$project_root/build" <<'PY'
 import hashlib, plistlib, sys
@@ -40,9 +42,11 @@ PY
 )"
 FREEV6_BOOTSTRAP_MANIFEST="$manifest" bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-service-installer
 cp "$binary_dir/freev6-service-installer" "$bundle/Contents/Helpers/freev6-service-installer"
+python3 "$project_root/scripts/macos/release_rpaths.py" "$bundle/Contents/Helpers/freev6-service-installer"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.service-installer "$bundle/Contents/Helpers/freev6-service-installer"
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product FreeV6
 cp "$binary_dir/FreeV6" "$bundle/Contents/MacOS/FreeV6"
+python3 "$project_root/scripts/macos/release_rpaths.py" "$bundle/Contents/MacOS/FreeV6"
 cp "$project_root/macos/Resources/Info.plist" "$bundle/Contents/Info.plist"
 cp "$project_root/internal/mihomo/runtime-assets.json" "$bundle/Contents/Resources/runtime-assets.json"
 sparkle="$(python3 "$project_root/scripts/macos/prepare-sparkle.py" --directory "$stage/SparkleSDK")"

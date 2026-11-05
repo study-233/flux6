@@ -20,7 +20,14 @@ bash scripts/macos/build-app.sh
 
 在普通用户会话运行 `python3 scripts/macos/build-dmg.py`。该命令执行 Release 构建，在 `dist/macos` 输出 `FreeV6_<版本>-preview_<架构>.dmg`。挂载后把 FreeV6 拖到 Applications，从“应用程序”打开。镜像内附中文安装说明，App 内附用户协议、隐私说明与 FreeV6、Go 和 YAML 的许可证。
 
-打包脚本校验镜像后只读挂载，用临时目录验证拖放副本的签名、四个可执行文件的架构与最低系统，以及安装工具内嵌的服务摘要，成功后推出。当前产物供开发预览，完整连接、系统服务安装、真实下载后的首次打开及自动更新另行验收。
+打包脚本只读挂载镜像，在临时目录验证拖放副本的签名、六个程序的架构、最低系统、动态库查找路径及安装工具内嵌的服务摘要，随后推出。直接从只读卷或系统转移路径启动时，应用只显示拖放安装指引。安装到可写位置后才进入常规启动流程；安装系统网络服务要求将 App 放在系统的“应用程序”目录。
+
+要复查下载隔离，请用 Safari 下载这次构建的镜像，在普通用户会话运行以下命令。探针核对两份镜像的字节，读取浏览器写入的隔离属性，从只读卷复制 App 到临时目录并检查签名和系统策略。预览版在 macOS 27.0.1 上的实测结果为签名完整、Gatekeeper 拒绝默认运行。首次放行由使用者根据来源和摘要自行决定。[分发验收记录](../docs/compose/spec/macos-development-progress.md#下载隔离安装窗口与系统分发检查) · [Apple 的 Mac 安全打开说明](https://support.apple.com/zh-cn/102445)
+
+```sh
+python3 scripts/macos/probe-distribution.py "/path/to/browser-downloaded.dmg" \
+  --reference dist/macos/FreeV6_0.5.2-preview_arm64.dmg
+```
 
 ### 运行会话恢复验证
 

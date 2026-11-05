@@ -6,6 +6,7 @@ from pathlib import Path
 import plistlib
 import shutil
 import subprocess
+import release_rpaths
 
 
 def run(*args):
@@ -17,7 +18,10 @@ def bundle(app, executable, sdk, *, probe=False):
     contents = agent / "Contents"
     (contents / "MacOS").mkdir(parents=True)
     (contents / "Frameworks").mkdir()
-    shutil.copy2(executable, contents / "MacOS/freev6-update-agent")
+    binary = contents / "MacOS/freev6-update-agent"
+    shutil.copy2(executable, binary)
+    release_rpaths.prepare(binary)
+    release_rpaths.verify(binary, updater=True)
     host = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     info = {"CFBundleIdentifier": host["CFBundleIdentifier"] + ".update-agent",
             "CFBundleName": "FreeV6 更新", "CFBundleExecutable": "freev6-update-agent",

@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import release_rpaths
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -61,6 +62,7 @@ def verify_bundle(app, arch):
         raise RuntimeError("The main application must only load system frameworks")
     for relative in BINARIES:
         binary = payload / relative
+        release_rpaths.verify(binary, updater=binary.name == "freev6-update-agent")
         if output("/usr/bin/lipo", "-archs", binary).decode().split() != [arch]:
             raise RuntimeError(f"Unexpected architecture in {relative}")
         build = output("/usr/bin/xcrun", "vtool", "-show-build", binary).decode()

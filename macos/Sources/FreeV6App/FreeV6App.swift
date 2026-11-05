@@ -69,7 +69,7 @@ private final class MainWindowAnchor: NSView {
     }
 }
 
-@main struct FreeV6App: App {
+struct FreeV6App: App {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var delegate
     private var model: AppModel { delegate.model }
     @AppStorage("appearance") private var appearance = "system"
