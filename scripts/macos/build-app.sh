@@ -41,11 +41,19 @@ cp "$binary_dir/freev6-service-installer" "$bundle/Contents/Helpers/freev6-servi
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product FreeV6
 cp "$binary_dir/FreeV6" "$bundle/Contents/MacOS/FreeV6"
 cp "$project_root/macos/Resources/Info.plist" "$bundle/Contents/Info.plist"
+cp "$project_root/internal/mihomo/runtime-assets.json" "$bundle/Contents/Resources/runtime-assets.json"
+sparkle="$(python3 "$project_root/scripts/macos/prepare-sparkle.py" --directory "$stage/SparkleSDK")"
+trap '/bin/rm -rf "$stage/SparkleSDK"' EXIT
+FREEV6_UPDATE_PROBE_BUILD=0 FREEV6_SPARKLE_FRAMEWORK_DIR="$sparkle" bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-update-agent
+updater_args=("$bundle" "$binary_dir/freev6-update-agent" "$sparkle")
+if [ -n "${FREEV6_UPDATE_CHANNEL_FILE:-}" ]; then updater_args+=(--channel "$FREEV6_UPDATE_CHANNEL_FILE"); fi
+python3 "$project_root/scripts/macos/bundle-updater.py" "${updater_args[@]}"
 notices="$bundle/Contents/Resources/Notices"
 mkdir -p "$notices"
 go_root="$("$go_bin" env GOROOT)"
 cp "$go_root/LICENSE" "$notices/Go-LICENSE.txt"
 cp "$project_root/LICENSE" "$notices/FreeV6-LICENSE.txt"
+cp "$project_root/THIRD-PARTY.txt" "$notices/THIRD-PARTY.txt"
 cp "$project_root/src-tauri/LICENSES/yaml.v3-LICENSE.txt" "$project_root/src-tauri/LICENSES/Apache-2.0.txt" "$notices/"
 cp "$project_root/docs/agreement.md" "$project_root/docs/privacy.md" "$notices/"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.desktop "$bundle"

@@ -95,3 +95,15 @@ BUILD TOOLCHAINS (build/test time only, not redistributed)
 
 Go standard toolchain (BSD-3-Clause) - https://go.dev/
 Rust / Cargo (MIT OR Apache-2.0)      - https://github.com/rust-lang/rust
+
+--------------------------------------------------------------------------
+MACOS UPDATE HELPER (redistributed in the macOS app)
+--------------------------------------------------------------------------
+
+12. Sparkle 2.9.6
+    License:   MIT, with bundled component notices in the distribution LICENSE
+    Copyright: Andy Matuschak and the Sparkle contributors
+    Source:    https://github.com/sparkle-project/Sparkle
+    Full text: FreeV6.app/Contents/Resources/Notices/Sparkle-LICENSE.txt
+    The official release archive is pinned by SHA256 in macos/Dependencies.
+    Sparkle runs inside the ordinary-user FreeV6UpdateAgent app.

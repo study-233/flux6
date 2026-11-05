@@ -267,7 +267,35 @@ python3 scripts/macos/probe-update.py --isolated-agent --invalid-signature
 
 主测试 App 仅链接系统框架；Sparkle 位于普通用户更新助手中，仅助手关闭 Library Validation。助手不在特权服务的客户端登记中。直接加载方案可用 `--profile hardened --load-only` 复现当前系统的 Team ID 拒绝，预期退出失败；`--profile adhoc` 只用于对照实验，不是主程序的发布配置。
 
-`macos/Probes` 中的 Objective-C 宿主和自动应答 driver 是测试夹具，不随产品打包。实际产品将以 Swift 实现更新协调与原生用户确认界面。实验未覆盖下载 quarantine、macOS 13、Intel 或网络服务事务，完整发布验收仍需逐项完成。
+`macos/Probes` 中的 Objective-C 宿主和自动应答 driver 用于早期验证。当前产品的 Swift 更新助手和发布脚本见下一节。上述实验仍需补充下载 quarantine、macOS 13、Intel 及网络服务事务验收。
+
+## Swift 更新助手与发布
+
+FreeV6 菜单的“检查更新…”打开原生检查流程。App 使用私有管道启动 bundle 内的普通用户更新助手。助手校验宿主与父进程，从经过代码签名验证的宿主读取通道和公钥。Sparkle 仅嵌入该助手。主 App 保留严格 Hardened Runtime，打包检查确认主可执行文件的依赖与助手的 entitlement 范围。
+
+更新清单和 ZIP 均要求 Ed25519 签名。清单包含构建号范围、架构、worker/服务协议、设置 schema、核心清单摘要和服务摘要。当前路径支持 worker v1、服务 v6、设置 schema v1；其他协议升级需先实现兼容逻辑。助手先验证清单，再由 Sparkle 校验下载和解压。主程序在安装前确认保存草稿与网络恢复，将升级意图写入用户私有目录，然后退出。新版本检查服务状态，按需引导管理员重新登记。自动安装和系统画像上传在通道配置中关闭。[Sparkle 签名设置](https://sparkle-project.org/documentation/customization/)
+
+Sparkle 的 applicationBundle 指向更新助手，安装目标为外层 FreeV6。助手收到取消后等待 Sparkle 完成撤销，再通知主程序结束，避免把退出误当作允许安装。开发测试覆盖实际升级、坏包签名、未签名清单、错误架构、取消下载、取消安装与安装许可前主进程消失。
+
+```sh
+python3 scripts/macos/probe-native-update.py --scenario upgrade
+python3 scripts/macos/probe-native-update.py --scenario cancel
+python3 scripts/macos/probe-native-update.py --scenario lost-host
+python3 scripts/macos/probe-release-package.py
+```
+
+测试宿主使用随机 bundle ID、回环源和一次性密钥。正式打包强制编译生产助手，关闭测试中的自动应答和回环通道。检查结果位于 `build/native-update-probes` 和 `build/release-package-probes`。其中的网络恢复许可由测试宿主模拟，完整系统服务升级仍需真实管理员环境。
+
+公开发布前需确定通道与备份发布密钥。通道 JSON 只有 `format: 1`、`publicKey` 和 `feeds` 三个字段，其中 feeds 按 `arm64` 或 `x86_64` 映射到 HTTPS 的 `appcast-<架构>.xml`。构建时通过 `FREEV6_UPDATE_CHANNEL_FILE` 指定此文件。普通开发构建显示通道待配置，用户仍可使用 DMG。
+
+```sh
+python3 scripts/macos/package-update.py \
+  --channel /secure/path/mac-channel.json --private-key /secure/path/ed25519-key \
+  --output /path/to/new-release-directory --download-base https://your-download-host/mac/ \
+  --build 2 --version 0.5.3 --minimum-source-build 1 --maximum-source-build 1
+```
+
+该工具验证密钥与公钥对应关系、App 签名、架构及载荷，输出完整 ZIP、签名 appcast 和摘要，全部完成后才发布本地输出目录。私钥通过 stdin 交给签名工具。公开上传独立执行，上一版可安装 DMG 与发布密钥备份需在发行验收时核对。
 
 ## 核心与配置探针
 

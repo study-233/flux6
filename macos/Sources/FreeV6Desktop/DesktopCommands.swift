@@ -136,6 +136,8 @@ public struct DesktopCommandState: Sendable {
     public var promptActive = false
     public var terminating = false
     public var hasVisibleLogs = false
+    public var updateBusy = false
+    public var updatePreparing = false
     public var credentialsBusy = false
     public var credentialsPending = false
     public var configurationReady = false
@@ -166,6 +168,12 @@ public struct DesktopCommandState: Sendable {
     public func availability(_ command: DesktopCommand, in context: CommandContext = .application) -> CommandAvailability {
         if terminating { return .unavailable("正在退出并回收业务进程…") }
         if promptActive { return .unavailable("请先处理当前确认窗口") }
+        if updatePreparing {
+            switch command {
+            case .showMain, .showPage, .help, .exportLogs, .exportDiagnostics: break
+            default: return .unavailable("正在恢复网络并准备应用升级")
+            }
+        }
         if network.busy {
             switch command {
             case .showMain, .showPage, .help, .exportLogs, .exportDiagnostics: break
@@ -229,7 +237,7 @@ public struct DesktopCommandState: Sendable {
             return context == .main(.logs) && hasVisibleLogs ? .available : .unavailable("请打开日志页并选择有记录的级别")
         case .exportDiagnostics: return .available
         case .checkUpdates:
-            return .unavailable("此功能将在后续开发阶段接入")
+            return updateBusy ? .unavailable("更新检查正在进行") : .available
         }
     }
 }

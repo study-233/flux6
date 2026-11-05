@@ -153,4 +153,15 @@ public enum DesktopNetworkPhase: Equatable, Sendable {
             throw error
         }
     }
+
+    public func disconnectBeforeUpdate(status: Status, stop: Stop) async throws {
+        try await disconnectBeforeExit(status: status, stop: stop)
+        // Quitting a user's UI is safe while another user owns the service.
+        // Replacing the shared application requires a fresh idle confirmation.
+        let confirmed = try await status(nil)
+        accept(confirmed)
+        guard confirmed.phase == .stopped else {
+            throw ServiceClientError.rejected("网络服务仍在使用或恢复中，请稍后再安装更新。")
+        }
+    }
 }

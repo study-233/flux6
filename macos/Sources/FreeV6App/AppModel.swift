@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 import FreeV6Desktop
 import FreeV6System
 import FreeV6Business
+import FreeV6UpdateSupport
 
 typealias Page = DesktopPage
 
@@ -24,6 +25,9 @@ typealias Page = DesktopPage
     let network = DesktopNetworkSession()
     let controls: DesktopCoreControls
     let logs: DesktopLogs
+    let updater = DesktopUpdater()
+    @Published var updateRecoveryMessage: String?
+    @Published var updateRecoveryBlocksConnection = true
     @Published var nodeGroup = SessionNodeGroup.access
     @Published private(set) var modeSaveError: String?
     private weak var trackedStatusMenu: NSMenu?
@@ -51,7 +55,7 @@ typealias Page = DesktopPage
     let core: RuntimeModel
     let geodata: GeodataModel
     let warp: WarpModel
-    private let session: BusinessSession
+    let session: BusinessSession
     private let defaults: UserDefaults
     private var observations: Set<AnyCancellable> = []
 
@@ -68,6 +72,7 @@ typealias Page = DesktopPage
         logs.record(.opened)
         observations.formUnion(observeLogEvents())
         logs.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
+        updater.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         // Commands depend on nested models, including text edits and progress.
         business.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         core.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
@@ -133,6 +138,8 @@ typealias Page = DesktopPage
         state.promptActive = promptActive
         state.terminating = terminating
         state.hasVisibleLogs = page == .logs && !logs.visible.isEmpty
+        state.updateBusy = updater.busy
+        state.updatePreparing = updater.preparingInstallation
         state.credentialsBusy = warp.busy || configurationBusy
         state.credentialsPending = warp.hasPending
         state.configurationReady = configurationPrerequisite == nil
@@ -141,6 +148,7 @@ typealias Page = DesktopPage
     }
 
     var configurationPrerequisite: String? {
+        if updateRecoveryBlocksConnection { return updateRecoveryMessage ?? "正在确认本机升级记录。" }
         if configurationBusy || warp.busy || business.busy || serviceBusy || core.busy || geodata.busy { return "请等待当前操作结束。" }
         if serviceState == .ready && network.phase != .idle { return "请先确认网络会话已停止。" }
         if business.snapshot == nil { return "请先载入代理规则。" }
@@ -329,7 +337,7 @@ typealias Page = DesktopPage
         else { await refreshCoreControls(restoreChoices: true) }
     }
 
-    private func stop(_ id: UUID, revision: UInt64, identity: CodeIdentity) async throws -> NetworkSessionReply {
+    func stop(_ id: UUID, revision: UInt64, identity: CodeIdentity) async throws -> NetworkSessionReply {
         let target = SessionControlTarget(sessionID: id, revision: revision)
         let sample = try? await Task.detached {
             try ServiceClient.control(SessionControlRequest(target, .traffic), identity: identity, timeout: 2).traffic
@@ -425,7 +433,11 @@ typealias Page = DesktopPage
                 }
             }
         case .checkUpdates:
-            break // Not advertised as available until their real implementations are connected.
+            page = .overview; openWindow(id: "main"); showWindow()
+            updater.check(prepare: { [weak self] release, source in
+                guard let self else { throw UpdateFailure.cancelled }
+                try await self.prepareUpdate(release, sourceBuild: source)
+            }, install: { NSApp.terminate(nil) })
         }
     }
 
@@ -438,6 +450,7 @@ typealias Page = DesktopPage
     }
 
     private func readServiceStatus() async {
+        defer { Task { await refreshUpdateRecovery() } }
         network.invalidate()
         do {
             let result = try await Task.detached { () throws -> (CodeIdentity, HandshakeReply)? in
@@ -493,6 +506,7 @@ typealias Page = DesktopPage
 
     func beginTermination() -> NSApplication.TerminateReply {
         guard !terminating, !promptActive else { return .terminateCancel }
+        if updater.installationAuthorized { return .terminateNow }
         let availability = commandState.availability(.quit)
         guard availability.enabled else {
             let alert = NSAlert()
@@ -541,6 +555,7 @@ typealias Page = DesktopPage
                 return
             }
             heartbeat?.cancel()
+            await updater.cancelForQuit()
             core.cancel()
             geodata.cancel()
             await session.shutdown()

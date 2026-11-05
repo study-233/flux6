@@ -103,6 +103,14 @@ struct MainView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             ServiceOverviewView(model: model)
+                            if model.updater.busy || model.updater.error != nil || model.updateRecoveryMessage != nil {
+                                GroupBox("应用更新") {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(model.updater.status)
+                                        if let message = model.updater.error ?? model.updateRecoveryMessage { Text(message).foregroundStyle(.secondary) }
+                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                                }
+                            }
                             if model.network.phase == .running { TrafficOverview(controls: model.controls) }
                             TrafficStatisticsView(model: model)
                             WarpAccountView(model: model.warp).disabled(model.serviceBusy || model.configurationBusy)
@@ -127,7 +135,7 @@ struct MainView: View {
                 .toolbar { NativeToolbar(model: model) }
         }
         .focusedSceneValue(\.commandContext, .main(model.page ?? .overview))
-        .disabled(model.terminating || model.promptActive)
+        .disabled(model.terminating || model.promptActive || model.updater.preparingInstallation)
     }
 }
 
@@ -202,7 +210,7 @@ struct SettingsView: View {
         }
         .frame(width: 560, height: 540)
         .focusedSceneValue(\.commandContext, .preferences(selectedTab))
-        .disabled(model.terminating || model.promptActive)
+        .disabled(model.terminating || model.promptActive || model.updater.preparingInstallation)
         .confirmationDialog("卸载网络服务？", isPresented: $confirmUninstall) {
             Button("卸载", role: .destructive) { Task { await model.manageService(.uninstall) } }
         } message: {

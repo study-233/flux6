@@ -23,9 +23,10 @@ import uuid
 from xml.sax.saxutils import quoteattr
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = "2.9.6"
-ARCHIVE_SHA256 = "52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192"
-ARCHIVE_URL = f"https://github.com/sparkle-project/Sparkle/releases/download/{VERSION}/Sparkle-{VERSION}.tar.xz"
+SDK = json.loads((ROOT / "macos/Dependencies/sparkle.json").read_text())
+VERSION = SDK["version"]
+ARCHIVE_SHA256 = SDK["sha256"]
+ARCHIVE_URL = SDK["url"]
 
 
 def run(args, **kwargs):

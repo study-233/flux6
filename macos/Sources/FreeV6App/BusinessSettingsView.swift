@@ -10,7 +10,11 @@ import FreeV6Desktop
         self.client = client
         return client
     }
-    func shutdown() async { await client?.shutdown() }
+    func shutdown() async {
+        let current = client
+        client = nil
+        await current?.shutdown()
+    }
 }
 
 @MainActor final class BusinessModel: ObservableObject {

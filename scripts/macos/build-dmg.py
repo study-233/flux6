@@ -17,6 +17,7 @@ OUTPUT = ROOT / "dist/macos"
 GUIDE = ROOT / "macos/Resources/安装说明.txt"
 BINARIES = (
     "MacOS/FreeV6", "Helpers/freev6-worker", "Helpers/freev6-service-installer",
+    "Helpers/FreeV6UpdateAgent.app/Contents/MacOS/freev6-update-agent",
     "Library/LaunchServices/dev.freev6.network-service",
 )
 
@@ -48,6 +49,16 @@ def readonly_volume(image):
 def verify_bundle(app, arch):
     subprocess.run(["/usr/bin/codesign", "--verify", "--deep", "--strict", app], check=True)
     payload = app / "Contents"
+    agent = payload / "Helpers/FreeV6UpdateAgent.app"
+    agent_info = plistlib.loads((agent / "Contents/Info.plist").read_bytes())
+    if agent_info.get("FreeV6UpdateProbeBuild") is not False:
+        raise RuntimeError("Product bundles must contain the production update helper")
+    rights = plistlib.loads(output("/usr/bin/codesign", "-d", "--entitlements", "-", "--xml", agent))
+    if rights != {"com.apple.security.cs.disable-library-validation": True}:
+        raise RuntimeError("Unexpected update helper entitlements")
+    dependencies = output("/usr/bin/otool", "-L", payload / "MacOS/FreeV6").decode()
+    if "Sparkle.framework" in dependencies:
+        raise RuntimeError("The main application must only load system frameworks")
     for relative in BINARIES:
         binary = payload / relative
         if output("/usr/bin/lipo", "-archs", binary).decode().split() != [arch]:

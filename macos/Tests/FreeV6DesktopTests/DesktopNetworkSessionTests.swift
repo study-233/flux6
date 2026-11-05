@@ -6,6 +6,23 @@ import XCTest
     private let token = UUID()
     private let id = UUID()
 
+    func testUpdateChecksIdleAgainAndDoesNotStopAnotherUsersSession() async throws {
+        let model = DesktopNetworkSession()
+        let idle = try reply(.stopped)
+        let occupied = try reply(.occupied)
+        var reads = 0
+        do {
+            try await model.disconnectBeforeUpdate(status: { _ in
+                reads += 1
+                return reads == 1 ? idle : occupied
+            }, stop: { _, _ in XCTFail("Foreign session must remain untouched"); return idle })
+            XCTFail("Installing while another user is active should fail")
+        } catch { XCTAssertEqual(model.phase, .occupied) }
+        XCTAssertEqual(reads, 2)
+        try await model.disconnectBeforeUpdate(status: { _ in idle }, stop: { _, _ in XCTFail(); return idle })
+        XCTAssertEqual(model.phase, .idle)
+    }
+
     private func reply(_ phase: NetworkSessionPhase, id: UUID? = nil, revision: UInt64 = 2) throws -> NetworkSessionReply {
         var fields: [String: Any] = ["protocolVersion": ServiceProtocolVersion.current, "requestID": UUID().uuidString,
                                      "phase": phase.rawValue]
