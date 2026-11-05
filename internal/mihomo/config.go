@@ -246,7 +246,11 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 
 	b.WriteString("\nproxy-groups:\n")
 	b.WriteString("  - name: 🚀 节点选择\n    type: select\n    proxies:\n      - ♻️ 自动选择\n      - 🔄 故障转移\n      - ☑️ 手动切换\n\n")
-	b.WriteString("  - name: GLOBAL\n    type: select\n    proxies:\n      - ♻️ 自动选择\n      - 🔄 故障转移\n      - ☑️ 手动切换\n\n")
+	if options.Platform == PlatformDarwin && len(options.ChainProxies) > 0 {
+		fmt.Fprintf(&b, "  - name: GLOBAL\n    type: select\n    proxies:\n      - %s\n\n", ChainGroup)
+	} else {
+		b.WriteString("  - name: GLOBAL\n    type: select\n    proxies:\n      - ♻️ 自动选择\n      - 🔄 故障转移\n      - ☑️ 手动切换\n\n")
+	}
 	writeProxyGroup(&b, "☑️ 手动切换", "select", "", names)
 	writeProxyGroup(&b, "♻️ 自动选择", "url-test", "    url: http://www.gstatic.com/generate_204\n    interval: 300\n    tolerance: 50\n    lazy: false\n", names)
 	writeProxyGroup(&b, "🔄 故障转移", "fallback", "    url: http://www.gstatic.com/generate_204\n    interval: 180\n", names)

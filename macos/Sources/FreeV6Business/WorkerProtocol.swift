@@ -14,10 +14,18 @@ public struct ProxyPreferences: Codable, Equatable, Sendable {
     public var devMode: Bool
 }
 
+public struct ChainSummary: Codable, Equatable, Sendable {
+    public enum Source: String, Codable, Sendable { case file, url }
+    public let source: Source
+    public let enabled: Bool
+    public let names: [String]
+}
+
 public struct SettingsSnapshot: Codable, Equatable, Sendable {
     public let schemaVersion: Int
     public let revision: UInt64
     public let settings: ProxyPreferences
+    public let chain: ChainSummary?
 }
 
 public struct WorkerHandshake: Decodable, Sendable {

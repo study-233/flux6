@@ -130,6 +130,14 @@ final class WarpCredentialTests: XCTestCase {
         try await storage.delete(expectedRevision: second.revision)
         let removed = try await storage.read()
         XCTAssertNil(removed)
+        let chainStorage = KeychainSecretStorage(service: "dev.freev6.test.chain", account: "key", keychain: keychain)
+        let keys = ChainProfileKey(storage: chainStorage)
+        do { _ = try await keys.load(allowCreation: false); XCTFail("read-only lookup created a key") }
+        catch { XCTAssertTrue(error.localizedDescription.contains("钥匙串密钥")) }
+        let fresh = try await keys.load(allowCreation: true)
+        let same = try await keys.load(allowCreation: false)
+        XCTAssertEqual(fresh.count, 32)
+        XCTAssertEqual(fresh, same)
     }
 
     func testSavedTunnelRejectsStaleRevisionAndSerializesReplacement() async throws {

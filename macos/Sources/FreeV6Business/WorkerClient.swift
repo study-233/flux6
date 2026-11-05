@@ -133,18 +133,19 @@ public actor WorkerClient {
     }
 
     public func prepareConfiguration(settings: SettingsSnapshot, credentialRevision: UUID, tunnel: TunnelCredential,
-                                     runtimeId: String, geodataId: String) async throws -> PreparedConfiguration {
+                                     runtimeId: String, geodataId: String, chainKey: Data? = nil) async throws -> PreparedConfiguration {
         struct Input: Encodable {
             let source = "warp"
             let settingsRevision: UInt64
             let credentialRevision: UUID
             let tunnel: TunnelCredential
+            let chainKey: Data?
         }
         let handshake = try await connect()
         guard handshake.capabilities.contains("configuration.prepare") else { throw WorkerClientError.incompatible }
         let tunnel = try tunnel.validated()
         let result: PreparedConfiguration = try await request("configuration.prepare",
-            params: Input(settingsRevision: settings.revision, credentialRevision: credentialRevision, tunnel: tunnel), timeout: 35_000_000_000)
+            params: Input(settingsRevision: settings.revision, credentialRevision: credentialRevision, tunnel: tunnel, chainKey: chainKey), timeout: 35_000_000_000)
         return try result.validated(settings: settings, revision: credentialRevision, tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId)
     }
 
@@ -168,6 +169,12 @@ public actor WorkerClient {
     }
 
     private func validate(_ snapshot: SettingsSnapshot) throws -> SettingsSnapshot {
+        if let chain = snapshot.chain {
+            guard (1...64).contains(chain.names.count), Set(chain.names).count == chain.names.count,
+                  chain.names.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 128 && !$0.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) }) else {
+                throw WorkerClientError.invalidResponse
+            }
+        }
         guard snapshot.schemaVersion == 1, snapshot.settings.campusCidrs.count <= 2048, snapshot.settings.blacklist.count <= 2048 else {
             throw WorkerClientError.incompatible
         }
@@ -196,6 +203,7 @@ public actor WorkerClient {
             }
         } onCancel: { Task { await self.cancel(id, session: session) } }
         do { return try JSONDecoder().decode(Reply<Value>.self, from: data).result }
+        catch let failure as ChainImportValidationError { throw failure }
         catch { disconnect(WorkerClientError.invalidResponse, session: session); throw WorkerClientError.invalidResponse }
     }
 
@@ -251,5 +259,60 @@ public actor WorkerClient {
         let items = pending.values
         pending.removeAll()
         for item in items { item.timeout.cancel(); item.continuation.resume(throwing: failure) }
+    }
+}
+
+
+public enum ChainImportSource: Sendable { case file(URL), subscription(String), refresh }
+
+extension WorkerClient {
+    private struct ChainInput: Encodable {
+        let expectedRevision: UInt64
+        let key: Data
+        var file: String?
+        var url: String?
+        var refresh: Bool?
+    }
+    private struct ChainPreview: Decodable { let token: String; let nodes: ImportedChainNodes }
+    private struct ChainMutation: Encodable {
+        let expectedRevision: UInt64
+        var token: String?
+        var enabled: Bool?
+    }
+
+    public func importChain(from source: ChainImportSource, settings: SettingsSnapshot, key: Data) async throws -> SettingsSnapshot {
+        let capabilities = try await connect().capabilities
+        guard capabilities.contains("chain.preview"), capabilities.contains("chain.commit") else { throw WorkerClientError.incompatible }
+        var input = ChainInput(expectedRevision: settings.revision, key: key)
+        let origin: ChainSummary.Source
+        switch source {
+        case .file(let url):
+            guard url.isFileURL else { throw WorkerClientError.invalidResponse }
+            input.file = url.path; origin = .file
+        case .subscription(let url): input.url = url; origin = .url
+        case .refresh: input.refresh = true; origin = .url
+        }
+        let preview: ChainPreview = try await request("chain.preview", params: input, timeout: 35_000_000_000)
+        try Task.checkCancellation()
+        guard preview.token.utf8.count == 32, preview.token.allSatisfy(\.isHexDigit) else { throw WorkerClientError.invalidResponse }
+        let saved: SettingsSnapshot = try await request("chain.commit", params: ChainMutation(expectedRevision: settings.revision, token: preview.token))
+        guard saved.revision > settings.revision, saved.chain?.source == origin, saved.chain?.enabled == true,
+              saved.chain?.names == preview.nodes.names else { throw WorkerClientError.invalidResponse }
+        return try validate(saved)
+    }
+
+    public func setChainEnabled(_ enabled: Bool, settings: SettingsSnapshot) async throws -> SettingsSnapshot {
+        guard try await connect().capabilities.contains("chain.enable") else { throw WorkerClientError.incompatible }
+        let saved: SettingsSnapshot = try await request("chain.enable", params: ChainMutation(expectedRevision: settings.revision, enabled: enabled))
+        guard saved.revision > settings.revision, saved.chain?.enabled == enabled,
+              saved.chain?.names == settings.chain?.names else { throw WorkerClientError.invalidResponse }
+        return try validate(saved)
+    }
+
+    public func clearChain(settings: SettingsSnapshot) async throws -> SettingsSnapshot {
+        guard try await connect().capabilities.contains("chain.clear") else { throw WorkerClientError.incompatible }
+        let saved: SettingsSnapshot = try await request("chain.clear", params: ChainMutation(expectedRevision: settings.revision))
+        guard saved.revision > settings.revision, saved.chain == nil else { throw WorkerClientError.invalidResponse }
+        return try validate(saved)
     }
 }

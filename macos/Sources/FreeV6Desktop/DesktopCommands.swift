@@ -212,7 +212,9 @@ public struct DesktopCommandState: Sendable {
                 ? .available : .unavailable("服务正在检查恢复记录")
         case .measureNodes:
             return network == .running && canMeasureNodes ? .available : .unavailable("请先连接并载入节点列表")
-        case .importChain, .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .importChain:
+            return settingsLoaded && !settingsBusy && !configurationBusy ? .available : .unavailable("请先载入配置并等待当前操作结束")
+        case .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
             return .unavailable("此功能将在后续开发阶段接入")
         }
     }

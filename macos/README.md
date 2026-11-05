@@ -38,9 +38,9 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、核心和规则数据准备、WARP 注册与业务配置生成，以及本月和累计流量统计。启停及运行节点控制通过系统 XPC 服务。订阅导入与备用配置仍待接入。[worker 协议](../shared/protocol/worker-v1.md)
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、核心和规则数据准备、WARP 注册与业务配置生成，以及本月和累计流量统计。启停及运行节点控制通过系统 XPC 服务。可从“文件 → 导入链式代理配置…”打开系统选择器，或在配置页导入和刷新 HTTP/S 订阅。备用配置另行接入。[worker 协议](../shared/protocol/worker-v1.md)
 
-配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
+配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。WARP 凭据保存在 Keychain。订阅地址和节点认证字段使用独立的 Keychain 密钥加密后写入设置文件，节点名称和启用状态保存在公开摘要中。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
 核心缓存：`~/Library/Caches/dev.freev6.desktop/runtime/<archive-sha256>/<archive-name>`。平台资产统一从编译时嵌入的清单选择，压缩包与解压后的二进制均校验固定 SHA256、大小和架构。worker 只保留安装包；App 在服务就绪后的配置检查中交接资源，服务再独立复验与安装，不能把“核心安装包已校验”当作“代理已运行”。主界面与设置共用一个 worker，避免竞争数据目录锁。
 
@@ -78,6 +78,10 @@ python3 scripts/macos/probe-runtime.py \
 
 第一次探针将数据留在其输出的结果目录下 `main-cache/geodata/<revision>`，可作为后两个命令的数据目录。设置 `FREEV6_GEODATA_FIXTURES_DIR` 为该目录，可运行 Go 官方摘要测试和 Swift→Go 种子、缓存损坏修复、重启验证。完整 `-t` 保留 GeoSite、DNS 策略和规则提供者定义，不代表提供者下载、实际 DNS 接管或 TUN 流量通过；这些仍由网络阶段验收。
 
+### 验证导入和实际转发
+
+准备好测试 worker、固定核心和规则数据夹具后运行 `python3 scripts/macos/probe-service.py --chain-worker build/macos-worker/freev6-worker --network-run --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata`。探针通过用户域 XPC 和固定核心检查六类节点，并在回环网络测量规则、全局和直连模式的实际 TCP 与 UDP 路径。真实 WARP 首跳在这项测试中由受控的本机 HTTP CONNECT 代理代替。
+
 ## WARP 与 Keychain
 
 概览及设置的 WARP 页提供检查、注册、重新注册、删除本机凭据和保存失败重试。启动时不自动读取私钥；点击检查或注册后，Security API 在独立串行队列执行，授权交由系统窗口处理。保存失败保留旧记录和待保存的新结果，不自动创建第二个 WARP 设备。
@@ -98,7 +102,7 @@ FREEV6_TEST_PRIVATE_KEYCHAIN=1 bash scripts/macos/swift.sh test --filter WarpCre
 
 保存规则、检查已保存凭据并准备核心/规则数据后，可从概览页、工具栏或“连接”菜单执行“检查连接配置”。该操作按需访问 Keychain，将四项隧道材料经私有管道交给 worker；账户 token 和设备 ID 不参与配置生成。准备时防止替换/删除凭据和保存其他设置，完成前重新核对设置与凭据 revision。
 
-worker 只生成节点、分组、规则、规则提供者和模式。`FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。服务就绪时，App 交接缺少的固定资源并提交配置，服务独立复验、准备私有副本、运行真实核心 `-t`，完成任务与文件清理后返回带 `coreValidated` 的摘要。服务未就绪时只完成本机检查，两种结果在界面中区分。检查成功不能视为代理运行；当前仅支持 WARP，链式与备用配置还需扩展节点协议与订阅流程。
+worker 只生成节点、分组、规则、规则提供者和模式。`FreeV6Configuration` 模块校验结构和受限字段，拒绝任意插件、未知协议、外部控制器、绝对提供者路径及循环分组。服务就绪时，App 交接缺少的固定资源并提交配置，服务独立复验、准备私有副本、运行真实核心 `-t`，完成任务与文件清理后返回带 `coreValidated` 的摘要。服务未就绪时只完成本机检查，两种结果在界面中区分。配置检查通过后，可发起连接。WARP 可单独使用，也可作为用户导入节点的接入点。导入支持六类协议的受限字段，大小上限 2 MiB、节点上限 64 个。
 
 UI 仅显示模式、节点/规则数量与版本摘要，不缓存私钥文档。交接期间保持凭据互斥，并在服务完成后重新核对 worker 设置与 Keychain revision。共享的 `warp-business-configuration.json` 含公开合成密钥，供 Go/Swift 等价性和拒绝测试使用。真实集成测试需要同时设置 worker、runtime、geodata 三项夹具变量。`cmd/macos-probe` 验证 Go 侧生成配置；下述独立服务探针通过真实 XPC 调用产品检查方法，验证核心成功确认及会话清理。配置检查会短暂保存私有配置并启动检查任务，但不会启动实际代理或修改系统网络。
 

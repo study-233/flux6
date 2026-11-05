@@ -8,6 +8,8 @@ import (
 	"syscall"
 )
 
+const importFileFlags = syscall.O_NONBLOCK | syscall.O_NOFOLLOW
+
 // Inherited os.Stdin/Stdout can be blocking, non-pollable files. Closing such
 // a File does not interrupt a concurrent read/write on Darwin. Duplicate and
 // register nonblocking pipe descriptors with Go's runtime poller so SIGTERM

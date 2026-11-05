@@ -31,9 +31,10 @@ import FreeV6Business
         defer { busy = false }
         do {
             let worker = try session.worker()
+            let chainKey = settings.chain?.enabled == true ? try await ChainProfileKey().load(allowCreation: false) : nil
             let result = try await workflow.withSavedTunnel(revision: revision) { tunnel in
                 let prepared = try await worker.prepareConfiguration(settings: settings, credentialRevision: revision,
-                    tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId)
+                    tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId, chainKey: chainKey)
                 let result = try await perform(prepared)
                 guard try await worker.settings().revision == settings.revision else { throw WorkerClientError.staleConfiguration }
                 return result

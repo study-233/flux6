@@ -88,6 +88,31 @@ import FreeV6Desktop
         if !preserveDraftMode { mode = saved.settings.mode }
     }
 
+    enum ChainChange { case load(ChainImportSource), enable(Bool), clear }
+
+    @Published private(set) var chainMessage: String?
+    @Published private(set) var chainError: String?
+
+    func changeChain(_ change: ChainChange) async {
+        guard !busy, let baseline = snapshot else { return }
+        busy = true
+        chainMessage = nil; chainError = nil
+        defer { busy = false }
+        do {
+            let worker = try session.worker()
+            let saved: SettingsSnapshot
+            switch change {
+            case .load(let source):
+                let key = try await ChainProfileKey().load(allowCreation: baseline.chain == nil)
+                saved = try await worker.importChain(from: source, settings: baseline, key: key)
+            case .enable(let enabled): saved = try await worker.setChainEnabled(enabled, settings: baseline)
+            case .clear: saved = try await worker.clearChain(settings: baseline)
+            }
+            snapshot = saved // Proxy rule drafts belong to the editor and survive a profile change.
+            chainMessage = saved.chain.map { $0.enabled ? "链式代理将在下次连接时使用。" : "链式代理已停用。" } ?? "已清除链式配置。"
+        } catch { chainError = error.localizedDescription }
+    }
+
     private func accept(_ snapshot: SettingsSnapshot) {
         self.snapshot = snapshot
         mode = snapshot.settings.mode
@@ -120,6 +145,8 @@ struct BusinessSettingsView: View {
                 Text("保存的配置在下次连接时生效。")
                     .font(.callout).foregroundStyle(.secondary)
             }.disabled(model.busy || app.configurationBusy || model.snapshot == nil)
+            ChainSettingsSection(model: model, app: app)
+
             Section("校园白名单") {
                 Text("每行一个域名或 CIDR，例如 edu.cn 或 202.204.0.0/12。")
                     .font(.callout).foregroundStyle(.secondary)

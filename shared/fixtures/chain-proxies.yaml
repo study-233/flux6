@@ -1,0 +1,10 @@
+# Public, non-routable entries for compatibility checks only.
+proxies:
+  - {name: Socks, type: socks5, server: 192.0.2.1, port: 1080, username: fixture, password: synthetic-only, udp: true, dialer-proxy: DIRECT}
+  - {name: HTTP, type: http, server: proxy.example.test, port: 443, tls: true}
+  - {name: Shadowsocks, type: ss, server: 192.0.2.2, port: 443, cipher: aes-128-gcm, password: synthetic-only}
+  - {name: Trojan, type: trojan, server: 192.0.2.3, port: 443, password: synthetic-only, sni: proxy.example.test}
+  - {name: VLESS, type: vless, server: 192.0.2.4, port: 443, uuid: 05893b4a-0000-4000-8000-000000000001, tls: true, network: ws, ws-opts: {path: /test, headers: {Host: proxy.example.test}}}
+  - {name: VMess, type: vmess, server: 192.0.2.5, port: 443, uuid: 05893b4a-0000-4000-8000-000000000002, cipher: auto, alterId: 0, network: grpc, grpc-opts: {grpc-service-name: fixture}, tls: true}
+external-controller: 0.0.0.0:50000
+rules: ["MATCH,DIRECT"]

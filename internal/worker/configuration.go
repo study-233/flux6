@@ -60,6 +60,7 @@ func ConfigurationHandler(manager *ConfigurationManager, next Handler) Handler {
 			Source             string                 `json:"source"`
 			SettingsRevision   *uint64                `json:"settingsRevision"`
 			CredentialRevision string                 `json:"credentialRevision"`
+			ChainKey           []byte                 `json:"chainKey,omitempty"`
 			Tunnel             warp.TunnelCredentials `json:"tunnel"`
 		}
 		if len(params) > 32*1024 || decodeObject(params, &input) != nil || input.Source != "warp" || input.SettingsRevision == nil || !validRevisionUUID(input.CredentialRevision) || warp.ValidateTunnelCredentials(input.Tunnel) != nil {
@@ -89,7 +90,26 @@ func ConfigurationHandler(manager *ConfigurationManager, next Handler) Handler {
 			return nil, preparationResourceError(ctx)
 		}
 		ReportProgress(ctx, Progress{Phase: "rendering", Total: -1})
-		configuration, err := app.PrepareWarpConfiguration(snapshot.Settings, input.Tunnel)
+		var chain []mihomo.ChainProxy
+		if snapshot.Chain != nil && snapshot.Chain.Enabled {
+			stored, err := snapshot.openChain(input.ChainKey)
+			if err != nil {
+				return nil, &RPCError{ConfigurationError, "无法打开已启用的链式配置"}
+			}
+			document, err := json.Marshal(struct {
+				Proxies []json.RawMessage `json:"proxies"`
+			}{stored.Proxies})
+			if err != nil {
+				return nil, &RPCError{ConfigurationError, "链式节点无效"}
+			}
+			chain, err = mihomo.ParseChainProxies(document)
+			if err != nil || len(chain) == 0 {
+				return nil, &RPCError{ConfigurationError, "已启用的链式节点无效"}
+			}
+		} else if len(input.ChainKey) != 0 {
+			return nil, &RPCError{Conflict, "链式设置已改变"}
+		}
+		configuration, err := app.PrepareWarpWithChain(snapshot.Settings, input.Tunnel, chain)
 		if err != nil {
 			return nil, &RPCError{ConfigurationError, "cannot prepare connection configuration"}
 		}

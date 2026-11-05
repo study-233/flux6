@@ -3,7 +3,7 @@ import Foundation
 
 // A bounded JSON tree preserves the Go renderer's business output without
 // passing arbitrary core configuration to the privileged side. No file I/O.
-private indirect enum Value: Codable, Sendable {
+indirect enum Value: Codable, Sendable {
     case string(String), number(Double), bool(Bool), array([Value]), object([String: Value])
     init(from decoder: Decoder) throws {
         guard decoder.codingPath.count <= 12 else { throw ConfigurationValidationError.invalid }
@@ -64,10 +64,13 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
     public func encode(to encoder: Encoder) throws { try value.encode(to: encoder) }
     public func encoded() throws -> Data { try JSONEncoder().encode(value) }
 
-    public func requireWarp(_ tunnel: TunnelCredential, mode: String) throws {
+    public func requireWarp(_ tunnel: TunnelCredential, mode: String, chainNames: [String] = []) throws {
         let tunnel = try tunnel.validated()
-        guard self.mode == mode, proxyCount == 28, case .object(let object) = value else { throw ConfigurationValidationError.incompatible }
-        for proxy in try object["proxies"]!.list {
+        guard self.mode == mode, proxyCount == 28 + chainNames.count, case .object(let object) = value else { throw ConfigurationValidationError.incompatible }
+        let proxies = try object["proxies"]!.list
+        let imported = try proxies.dropFirst(28).map { try ImportedChainNodes.name(of: $0) }
+        guard imported == chainNames else { throw ConfigurationValidationError.incompatible }
+        for proxy in proxies.prefix(28) {
             let fields = try proxy.object(required: Self.proxyFields)
             guard try fields["private-key"]!.text == tunnel.privateKey, try fields["public-key"]!.text == tunnel.peerPublicKey,
                   try fields["ip"]!.text == tunnel.ipv4, try fields["ipv6"]!.text == tunnel.ipv6 else { throw ConfigurationValidationError.incompatible }
@@ -77,12 +80,22 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
     private static let proxyFields: Set<String> = ["name", "type", "server", "port", "private-key", "public-key", "ip", "ipv6", "mtu", "udp", "remote-dns-resolve", "dns"]
     private func validate(_ object: [String: Value]) throws {
         let proxies = try object["proxies"]!.list
-        guard !proxies.isEmpty, proxies.count <= 28 else { throw ConfigurationValidationError.invalid }
+        guard !proxies.isEmpty, proxies.count <= 28 + ImportedChainNodes.limit else { throw ConfigurationValidationError.invalid }
         var names: Set<String> = ["DIRECT", "REJECT", "PASS", "COMPATIBLE"]
+        var warpNames: [String] = [], importedNames: [String] = []
         for proxy in proxies {
+            guard case .object(let fields) = proxy else { throw ConfigurationValidationError.invalid }
+            if try fields["type"]?.text != "masque" {
+                let name = try ImportedChainNodes.name(of: proxy)
+                guard warpNames.count == 28, names.insert(name).inserted else { throw ConfigurationValidationError.invalid }
+                importedNames.append(name)
+                continue
+            }
+            guard importedNames.isEmpty, warpNames.count < 28 else { throw ConfigurationValidationError.invalid }
             let p = try proxy.object(required: Self.proxyFields)
             let name = try p["name"]!.text
             guard validName(name), names.insert(name).inserted, try p["type"]!.text == "masque" else { throw ConfigurationValidationError.invalid }
+            warpNames.append(name)
             let server = try p["server"]!.text
             guard validIPAddress(server, family: AF_INET) || validIPAddress(server, family: AF_INET6) else { throw ConfigurationValidationError.invalid }
             _ = try p["port"]!.number(in: 1...65535)
@@ -100,6 +113,7 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
         let groups = try object["proxy-groups"]!.list
         guard !groups.isEmpty, groups.count <= 32 else { throw ConfigurationValidationError.invalid }
         var references: [String: [String]] = [:]
+        var groupTypes: [String: String] = [:]
         for group in groups {
             let g = try group.object(required: ["name", "type", "proxies"], optional: ["url", "interval", "tolerance", "lazy"])
             let name = try g["name"]!.text, type = try g["type"]!.text
@@ -115,6 +129,7 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
                 if let lazy = g["lazy"] { try lazy.boolean() }
             }
             references[name] = members
+            groupTypes[name] = type
         }
         var visiting: Set<String> = [], visited: Set<String> = []
         func visit(_ name: String) throws {
@@ -134,9 +149,20 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
             _ = try p["interval"]!.number(in: 3600...604800)
         }
         let rules = try object["rules"]!.list.map { try $0.text }
-        guard !rules.isEmpty, rules.count <= 6000, rules.last?.hasPrefix("MATCH,") == true else { throw ConfigurationValidationError.invalid }
+        guard !rules.isEmpty, rules.count <= 6000 else { throw ConfigurationValidationError.invalid }
+        let chainGroup = "🔗 链式代理"
+        if importedNames.isEmpty {
+            guard references[chainGroup] == nil, rules.last?.hasPrefix("MATCH,") == true else { throw ConfigurationValidationError.invalid }
+        } else {
+            let access = ["♻️ 自动选择", "🔄 故障转移", "☑️ 手动切换"]
+            guard references[chainGroup] == importedNames, groupTypes[chainGroup] == "select",
+                  references["🚀 节点选择"] == access, groupTypes["🚀 节点选择"] == "select",
+                  access.allSatisfy({ references[$0] == warpNames }),
+                  references["GLOBAL"] == [chainGroup], groupTypes["GLOBAL"] == "select", providers.isEmpty,
+                  Array(rules.suffix(2)) == ["MATCH," + chainGroup, "NETWORK,UDP,REJECT"] else { throw ConfigurationValidationError.invalid }
+        }
         var matches = 0
-        for rule in rules {
+        for (index, rule) in rules.enumerated() {
             guard rule.utf8.count <= 1024 else { throw ConfigurationValidationError.invalid }
             let parts = rule.components(separatedBy: ",")
             switch parts.first {
@@ -152,6 +178,8 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
                 guard parts.count == 3, providers[parts[1]] != nil, references[parts[2]] != nil else { throw ConfigurationValidationError.invalid }
             case "GEOIP":
                 guard parts == ["GEOIP", "LAN", "DIRECT", "no-resolve"] else { throw ConfigurationValidationError.invalid }
+            case "NETWORK":
+                guard !importedNames.isEmpty, index == rules.count - 1, parts == ["NETWORK","UDP","REJECT"] else { throw ConfigurationValidationError.invalid }
             case "MATCH":
                 matches += 1
                 guard parts.count == 2, references[parts[1]] != nil else { throw ConfigurationValidationError.invalid }

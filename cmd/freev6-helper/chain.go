@@ -2,27 +2,24 @@ package main
 
 import (
 	"bytes"
-	"context"
+
 	"encoding/json"
 	"errors"
-	"fmt"
+
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/yourname/freev6/internal/app"
 	"github.com/yourname/freev6/internal/mihomo"
 )
 
 // 订阅/文件内容硬上限：机场订阅通常 <100KB，2MB 足够覆盖超长列表，
 // 同时挡住失控的下载与内存空转。
-const maxChainProxyBytes = 2 << 20
-
-// 订阅拉取超时（仅导入/手动刷新触发，启动免流不联网拉订阅）。
-const chainFetchTimeout = 30 * time.Second
+const maxChainProxyBytes = app.MaxSubscriptionBytes
 
 func (h *helper) chainPath() string {
 	return filepath.Join(h.root, "config", "chain-proxy.yaml")
@@ -116,7 +113,7 @@ func (h *helper) chainImport(writer http.ResponseWriter, request *http.Request) 
 		}
 		// Fetch BEFORE touching disk: a failed refresh must never clobber
 		// the last good snapshot (订机场故障时已有缓存仍可用).
-		fetched, fetchErr := fetchChainSubscription(parsed.String())
+		fetched, fetchErr := app.FetchSubscription(request.Context(), parsed.String())
 		if fetchErr != nil {
 			writeJSON(writer, http.StatusBadGateway, map[string]string{"error": "拉取订阅失败: " + fetchErr.Error()})
 			return
@@ -185,34 +182,4 @@ func (h *helper) chainClear(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	writeJSON(writer, http.StatusOK, map[string]bool{"ok": true})
-}
-
-// fetchChainSubscription downloads a Clash-format subscription. The URL is
-// user-supplied through the token-gated API; only plain http(s) is accepted
-// by the caller and the response is size-capped like a file import.
-func fetchChainSubscription(rawURL string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), chainFetchTimeout)
-	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	// Some subscription hosts reject the default Go UA.
-	request.Header.Set("User-Agent", "FreeV6")
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return nil, fmt.Errorf("HTTP %s", response.Status)
-	}
-	data, err := io.ReadAll(io.LimitReader(response.Body, maxChainProxyBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxChainProxyBytes {
-		return nil, fmt.Errorf("订阅内容超过 2MB 上限")
-	}
-	return data, nil
 }

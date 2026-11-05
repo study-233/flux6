@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 import FreeV6Desktop
 import FreeV6System
 import FreeV6Business
@@ -353,7 +354,23 @@ typealias Page = DesktopPage
         case .disconnect, .retryRecovery: Task { await disconnect() }
         case .measureNodes:
             if let group = availableGroup { Task { await measure(group: group.group, members: group.members) } }
-        case .importChain, .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .importChain:
+            page = .configuration
+            openWindow(id: "main"); showWindow()
+            let panel = NSOpenPanel()
+            panel.title = "导入链式代理配置"
+            panel.prompt = "导入"
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            panel.allowedContentTypes = [.yaml, .json, .plainText]
+            promptActive = true
+            panel.begin { [weak self] result in
+                guard let self else { return }
+                self.promptActive = false
+                guard result == .OK, let url = panel.url, self.commandState.availability(.importChain).enabled else { return }
+                Task { await self.business.changeChain(.load(.file(url))) }
+            }
+        case .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
             break // Not advertised as available until their real implementations are connected.
         }
     }

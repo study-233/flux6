@@ -50,8 +50,9 @@ func run() error {
 	handler = worker.WarpHandler(worker.NewWarpManager(warp.NewClient(nil)), handler)
 	handler = worker.GeodataHandler(worker.NewGeodataManager(dirs.Resources, dirs.Cache), handler)
 	handler = worker.ConfigurationHandler(worker.NewConfigurationManager(settings, dirs.Cache), handler)
+	handler = worker.ChainHandler(settings, handler)
 	handler = worker.TrafficHandler(root, handler)
-	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare", "traffic.get", "traffic.observe"}})
+	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare", "traffic.get", "traffic.observe", "chain.preview", "chain.commit", "chain.enable", "chain.clear"}})
 }
 
 func main() {

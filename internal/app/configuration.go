@@ -26,8 +26,12 @@ func (BusinessConfiguration) GoString() string { return "BusinessConfiguration(r
 
 // PrepareWarpConfiguration reuses the shared renderer and Windows blacklist
 // semantics. It does not read credentials, write a config file or run a core.
-// Imported chain/cloud profiles will be added through separate bounded inputs.
+
 func PrepareWarpConfiguration(preferences ProxyPreferences, tunnel warp.TunnelCredentials) (BusinessConfiguration, error) {
+	return PrepareWarpWithChain(preferences, tunnel, nil)
+}
+
+func PrepareWarpWithChain(preferences ProxyPreferences, tunnel warp.TunnelCredentials, chain []mihomo.ChainProxy) (BusinessConfiguration, error) {
 	var result BusinessConfiguration
 	if err := warp.ValidateTunnelCredentials(tunnel); err != nil {
 		return result, errors.New("invalid tunnel credentials")
@@ -50,7 +54,7 @@ func PrepareWarpConfiguration(preferences ProxyPreferences, tunnel warp.TunnelCr
 	data, err := mihomo.RenderJSONWithOptions(warp.Device{
 		PrivateKey: tunnel.PrivateKey, PeerPublicKey: tunnel.PeerPublicKey, IPv4: tunnel.IPv4, IPv6: tunnel.IPv6,
 	}, mihomo.RenderOptions{Platform: mihomo.PlatformDarwin, Mode: preferences.Mode, CampusCIDRs: preferences.CampusCIDRs,
-		Blacklist: blacklist, DevMode: preferences.DevMode})
+		Blacklist: blacklist, DevMode: preferences.DevMode, ChainProxies: chain})
 	if err != nil {
 		return result, errors.New("cannot render business configuration")
 	}
@@ -58,6 +62,9 @@ func PrepareWarpConfiguration(preferences ProxyPreferences, tunnel warp.TunnelCr
 	// from the shared full-core renderer cannot enter the worker response.
 	if err := json.Unmarshal(data, &result); err != nil {
 		return result, errors.New("invalid generated configuration")
+	}
+	if result.RuleProviders == nil {
+		result.RuleProviders = map[string]json.RawMessage{}
 	}
 	encoded, err = json.Marshal(result)
 	if err != nil || len(encoded) > MaxBusinessConfigurationBytes {

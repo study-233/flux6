@@ -16,7 +16,7 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。双方核对版本及架构，拒绝重复握手。当前能力包括 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`、`traffic.get` 和 `traffic.observe`。配置准备当前支持 WARP 本机路径，链式和备用配置输入随订阅模块接入。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。双方核对版本及架构，拒绝重复握手。当前能力包括 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`、`traffic.get`、`traffic.observe` 以及下述四个链式配置方法。
 
 最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 和 `geodata.prepare` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心及规则数据检查为 35 秒，准备为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
 
@@ -90,17 +90,30 @@ App 在用户操作后访问钥匙串；先确认已有凭据的版本和替换�
 
 取消是尽力而为，可能发生在服务端已创建设备之后，不能承诺撤销远端注册。删除本机凭据或放弃待保存结果同样不会删除 Cloudflare 设备。没有确认的远端结果不写入本地，不自动反复注册。
 
+## 链式文件与订阅
+
+| 方法 | 输入及结果 |
+| --- | --- |
+| `chain.preview` | 提供 `expectedRevision`、32 字节 Base64 编码的 `key`，以及 `file`（系统面板选定的绝对路径）、`url`（HTTP/S）或 `refresh: true` 三者之一。成功返回随机 `token` 和规范化的 `nodes` 供 Swift 校验。 |
+| `chain.commit` | 提供相同的 `expectedRevision` 和预览的 `token`。每个 worker 只保留一个候选，令牌有效期两分钟。成功后启用该配置，并返回新的设置快照。 |
+| `chain.enable` | 提供 `expectedRevision` 和布尔值 `enabled`，影响下次连接。 |
+| `chain.clear` | 提供 `expectedRevision`，删除该配置并返回新设置快照。 |
+
+文件和订阅只提取 Clash/mihomo YAML 的 `proxies`。限制为 2 MiB、1 至 64 个节点，加上原订阅地址后的规范化内容上限为 320 KiB。节点名称须唯一。接入点固定为 WARP 选择组；来源文件中的控制器、监听、规则和分组全部忽略。Swift 在提交前逐项校验 HTTP、SOCKS5、Shadowsocks、Trojan、VLESS、VMess 的限定字段。下载、预览、字段校验或版本冲突失败均保留上次的配置。具体加密套件与服务器可达性仍应分别通过核心配置检查与连接验证。
+
+App 以当前用户身份访问独立的钥匙串条目并通过私有管道传递密钥。worker 用 AES-256-GCM 加密节点和原订阅地址，持久化密文与公开摘要。设置响应只含 `chain: {source,enabled,names}`，普通规则保存共用 revision，并保留链式配置。刷新只由用户发起。URL、节点字段和密钥均不得写入诊断。清除配置后可继续使用普通 WARP，清除操作无需解密密文。
+
 ## 连接配置交接
 
-`configuration.prepare` 当前只接受 `source: "warp"`、`settingsRevision`（必填无符号整数）、`credentialRevision`（Keychain 条目的 UUID）、`tunnel`（仅 `privateKey`、`peerPublicKey`、`ipv4`、`ipv6`）。参数最多 32 KiB，未知字段、注册令牌、设备 ID、URL、文件路径及其他 source 拒绝。worker 不读取 Keychain，也不注册账户或自动下载缺失资源。
+`configuration.prepare` 当前只接受 `source: "warp"`、`settingsRevision`（必填无符号整数）、`credentialRevision`（Keychain 条目的 UUID）、`tunnel`（仅 `privateKey`、`peerPublicKey`、`ipv4`、`ipv6`），以及启用链式配置时的 `chainKey`。参数最多 32 KiB，未知字段、注册令牌、设备 ID、URL、文件路径及其他 source 拒绝。worker 不读取 Keychain，也不注册账户或自动下载缺失资源。
 
 worker 先读取并核对已保存设置，再重新检查固定核心和整套规则数据；生成后再次确认设置 revision。没有前置资源返回 -32006，设置已变化返回 -32004，非法输入返回 -32602。单个 worker 仅允许一个准备任务，普通请求期限为 30 秒，Swift 调用为 35 秒。进度为 `checking`、`rendering`，不包含凭据或配置片段。
 
 结果包含 `schemaVersion: 1`、`settingsRevision`、`credentialRevision`、`runtimeId`、`geodataId` 和 `configuration`。后者最大 512 KiB，仅包含 `mode`、`proxies`、`proxy-groups`、`rule-providers`、`rules` 五类业务字段，复用 Go 渲染器及默认黑名单/开发者模式语义；不交接 controller、secret、TUN、DNS、端口、全局路径等系统字段。结果内仍有 MASQUE 私钥，只允许私有进程通信及后续受控 XPC 使用，不写普通配置文件、日志或 UI 状态。
 
-Swift `FreeV6Configuration` 校验模块对未知字段、节点字段及协议、密钥/IP、分组引用和循环、规则语法、固定提供者 URL/相对路径实施限制。当前只接受 MASQUE，链式/备用配置尚未通过此边界开放。客户端同时核对请求的设置/凭据 revision、资源 ID、工作模式和 28 个节点的凭据；不接受旧请求结果冒充当前配置。共享校验模块目前用于 App，尚未接入网络服务，不能代替 root 独立校验或启动授权。
+Swift `FreeV6Configuration` 校验模块对未知字段、节点字段及协议、密钥/IP、分组引用和循环、规则语法、固定提供者 URL/相对路径实施限制。客户端核对设置与凭据 revision、资源 ID、模式、28 个 MASQUE 节点的凭据，以及链式节点的名称及顺序。独立网络服务也执行结构校验，再按服务策略组装配置并交给固定核心检查。链式模式限定接入组与出口组的成员，GLOBAL 指向链式出口，末尾按顺序要求 MATCH 链式和 UDP 拒绝规则。
 
-Keychain 读取由用户点击配置检查触发。`WarpRegistration.withSavedTunnel` 与注册、保存、删除共用互斥状态，读取后只交出隧道材料；异步准备结束后再次检查存储 revision。发现外部替换、拒绝授权或取消即拒绝结果。检查页面只保存版本、模式和数量摘要，含私钥的文档在本次操作结束后不留在 ViewModel。结果是一次配置生成记录；真正启动仍必须复验资源、设置绑定和服务身份。
+配置检查和连接操作按需触发 Keychain 读取。`WarpRegistration.withSavedTunnel` 与注册、保存、删除共用互斥状态，读取后只交出隧道材料；异步准备结束后再次检查存储 revision。发现外部替换、拒绝授权或取消即拒绝结果。检查页面只保存版本、模式和数量摘要，含私钥的文档在本次操作结束后不留在 ViewModel。结果是一次配置生成记录；真正启动仍必须复验资源、设置绑定和服务身份。
 
 ## 流量统计
 

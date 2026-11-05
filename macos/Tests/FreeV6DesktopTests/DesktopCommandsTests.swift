@@ -93,6 +93,17 @@ final class DesktopCommandsTests: XCTestCase {
         XCTAssertFalse(state.availability(.quit).enabled)
     }
 
+    func testImportIsAvailableBeforeNetworkSetupButCannotInterruptConfigurationOrQuit() {
+        var state = DesktopCommandState()
+        XCTAssertFalse(state.availability(.importChain).enabled)
+        state.settingsLoaded = true
+        XCTAssertTrue(state.availability(.importChain).enabled)
+        state.configurationBusy = true
+        XCTAssertFalse(state.availability(.importChain).enabled)
+        state.configurationBusy = false; state.terminating = true
+        XCTAssertFalse(state.availability(.importChain).enabled)
+    }
+
     func testPromptAndTerminationRejectAllNewActions() {
         var state = DesktopCommandState()
         state.service = .ready

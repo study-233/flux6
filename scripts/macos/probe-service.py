@@ -6,6 +6,8 @@ the copied probe's signed identity, verifies both peer directions, and boots the
 job out in a finally block. A rejection counts only between successful calls.
 """
 import argparse
+import base64
+import copy
 import datetime
 import hashlib
 import http.server
@@ -21,6 +23,8 @@ import subprocess
 import time
 import uuid
 
+from chain_route_probe import verify_chain_route
+from worker_probe import call as worker_call
 from session_probe import isolated_network, state, until
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,10 +42,11 @@ def main():
     parser.add_argument("--no-build", action="store_true", help="Use the current debug build")
     parser.add_argument("--runtime-fixtures", type=Path, help="Exercise resource FD transfer with pinned official files")
     parser.add_argument("--geodata-fixtures", type=Path)
+    parser.add_argument("--chain-worker", type=Path, help="Check an imported subscription from the real worker through XPC and the pinned core")
     parser.add_argument("--network-run", action="store_true", help="Verify session RPC and supervisor using isolated DNS and a TUN-free core")
     args = parser.parse_args()
-    if args.network_run and not args.runtime_fixtures:
-        parser.error("--network-run needs the runtime and geodata fixtures")
+    if (args.network_run or args.chain_worker) and not args.runtime_fixtures:
+        parser.error("Session and chain tests need the runtime and geodata fixtures")
     if bool(args.runtime_fixtures) != bool(args.geodata_fixtures):
         parser.error("Supply both runtime and geodata fixtures")
     if os.geteuid() == 0:
@@ -185,6 +190,63 @@ def main():
         check = run([data_root / "resources" / core_id, "-t", "-d", core_config, "-f", core_config / "config.json"])
         (work / "core-check.log").write_text(check.stdout + check.stderr)
         case("App resource transfer and service configuration validation succeed; system-field injection rejected; assembled policy passes real core -t")
+        if args.chain_worker:
+            key = base64.b64encode(os.urandom(32)).decode()
+            device = json.loads((ROOT / "shared/fixtures/warp-credential.json").read_text())["device"]
+            worker_resources = work / "worker-resources"
+            worker_resources.mkdir(mode=0o700)
+            with subprocess.Popen([args.chain_worker.resolve(), "--data-dir", work / "worker-data", "--cache-dir", cache,
+                                   "--resource-dir", worker_resources, "--log-dir", work / "worker-logs"],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE) as child:
+                try:
+                    worker_call(child, "initialize", {"protocolVersion": 1})
+                    imported = worker_call(child, "chain.preview", {"expectedRevision": 0, "key": key,
+                        "file": str(ROOT / "shared/fixtures/chain-proxies.yaml")})["result"]
+                    saved = worker_call(child, "chain.commit", {"expectedRevision": 0, "token": imported["token"]})["result"]
+                    chain = worker_call(child, "configuration.prepare", {"source": "warp", "settingsRevision": saved["revision"],
+                        "chainKey": key, "credentialRevision": original["credentialRevision"],
+                        "tunnel": {k: device[k] for k in ("privateKey", "peerPublicKey", "ipv4", "ipv6")}}, timeout=40)["result"]
+                finally:
+                    child.stdin.close()
+                    child.wait(timeout=10)
+            chain_request = {**original, "requestID": str(uuid.uuid4()), "settingsRevision": chain["settingsRevision"],
+                             "configuration": chain["configuration"]}
+            chain_file = work / "chain-request.json"
+            chain_file.write_text(json.dumps(chain_request))
+            checked = json.loads(run([probe, "check-configuration", label, service_hash, chain_file], timeout=60).stdout)
+            if checked["coreValidated"] is not True or checked["proxyCount"] != 34:
+                raise RuntimeError("Service did not validate all imported protocol families")
+            run([probe, "assemble-configuration", chain_file, core_config / "chain.json"])
+            run([data_root / "resources" / core_id, "-t", "-d", core_config, "-f", core_config / "chain.json"])
+            case("real worker imports six proxy types; native service validates chain policy and pinned core parses the assembled configuration")
+            for mutation in ("plugin", "local-path", "dialer", "global", "access", "missing-udp", "early-udp"):
+                bad = copy.deepcopy(chain_request)
+                bad["requestID"] = str(uuid.uuid4())
+                config = bad["configuration"]
+                groups = {g["name"]: g for g in config["proxy-groups"]}
+                node = config["proxies"][-1]
+                if mutation == "plugin":
+                    node["plugin"] = "rejected-secret-marker"
+                elif mutation == "local-path":
+                    node["certificate"] = "/tmp/rejected-secret-marker"
+                elif mutation == "dialer":
+                    node["dialer-proxy"] = "DIRECT"
+                elif mutation == "global":
+                    groups["GLOBAL"]["proxies"] = ["🚀 节点选择"]
+                elif mutation == "access":
+                    groups["☑️ 手动切换"]["proxies"][0] = node["name"]
+                elif mutation == "missing-udp":
+                    config["rules"].pop()
+                else:
+                    config["rules"].insert(0, "NETWORK,UDP,DIRECT")
+                request_file.write_text(json.dumps(bad))
+                rejected = run([probe, "check-configuration", label, service_hash, request_file], check=False)
+                if rejected.returncode != 1 or "字段无效" not in rejected.stderr or "rejected-secret-marker" in rejected.stderr:
+                    raise RuntimeError("Service did not reject unsafe chain configuration: " + mutation)
+            request_file.write_text(json.dumps(original))
+            case("service independently rejects seven modified chains including unsafe fields, bypasses and missing or injected UDP rules")
+            verify_chain_route(data_root / "resources" / core_id, chain["configuration"], work / "chain-route")
+            case("loopback two-hop TCP follows the imported HTTP dialer in rule and global modes; failed access and unsupported UDP never reach the direct destination")
         for resource_id, source, destination, digest in assets:
             incoming = work / "incoming"
             shutil.copyfile(source, incoming)

@@ -14,7 +14,8 @@ public struct PreparedConfiguration: Decodable, Sendable, CustomStringConvertibl
     func validated(settings: SettingsSnapshot, revision: UUID, tunnel: TunnelCredential, runtimeId: String, geodataId: String) throws -> Self {
         guard schemaVersion == 1, settingsRevision == settings.revision, credentialRevision == revision,
               self.runtimeId == runtimeId, self.geodataId == geodataId else { throw ConfigurationValidationError.incompatible }
-        try configuration.requireWarp(tunnel, mode: settings.settings.mode.rawValue)
+        let chainNames = settings.chain.flatMap { $0.enabled ? $0.names : nil } ?? []
+        try configuration.requireWarp(tunnel, mode: settings.settings.mode.rawValue, chainNames: chainNames)
         return self
     }
 }

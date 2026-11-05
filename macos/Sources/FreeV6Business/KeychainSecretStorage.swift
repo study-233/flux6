@@ -19,18 +19,23 @@ public protocol VersionedSecretStorage: Sendable {
 public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sendable {
     private let service: String
     private let account: String
+    private let label: String
     private let keychain: SecKeychain?
     private let queue = DispatchQueue(label: "dev.freev6.credentials")
 
     public init() {
         service = "dev.freev6.desktop.warp"
         account = "credentials-v1"
+        label = "FreeV6 WARP 凭据"
         keychain = nil
     }
 
-    // Used by isolated tests/probes; production only uses the fixed identity.
-    init(service: String, account: String, keychain: SecKeychain?) {
-        self.service = service; self.account = account; self.keychain = keychain
+    public static func chainKey() -> KeychainSecretStorage {
+        KeychainSecretStorage(service: "dev.freev6.desktop.chain", account: "snapshot-key-v1", keychain: nil, label: "FreeV6 链式代理密钥")
+    }
+
+    init(service: String, account: String, keychain: SecKeychain?, label: String = "FreeV6 WARP 凭据") {
+        self.service = service; self.account = account; self.keychain = keychain; self.label = label
     }
 
     private func query() -> [String: Any] {
@@ -70,7 +75,7 @@ public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sen
             let update: [String: Any] = [
                 kSecValueData as String: data,
                 kSecAttrGeneric as String: Data(revision.uuidString.utf8),
-                kSecAttrLabel as String: "FreeV6 WARP 凭据",
+                kSecAttrLabel as String: self.label,
             ]
             let status: OSStatus
             if let expectedRevision {

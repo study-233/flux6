@@ -11,7 +11,7 @@ struct ConfigurationPreparationView: View {
                     if result.settingsRevision == model.business.snapshot?.revision,
                        result.credentialRevision == model.warp.summary?.revision, !model.business.hasChanges {
                         Text(model.configurationCheckedByService ? "配置已通过核心检查" : "本机配置已检查").font(.headline)
-                        Text("\(result.proxyCount) 个接入点 · \(result.ruleCount) 条规则").font(.callout)
+                        Text("\(result.proxyCount) 个代理节点 · \(result.ruleCount) 条规则").font(.callout)
                     } else { Text("设置或凭据已变化，需要重新检查。") }
                 }
                 DesktopCommandButton(.prepareConfiguration, model: model)
