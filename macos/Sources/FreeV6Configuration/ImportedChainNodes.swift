@@ -8,13 +8,18 @@ public struct ImportedChainNodes: Decodable, Sendable {
     public let names: [String]
 
     public init(from decoder: Decoder) throws {
+        names = try Self.parse(decoder, chained: true)
+    }
+
+    static func parse(_ decoder: Decoder, chained: Bool) throws -> [String] {
         let nodes = try [Value](from: decoder)
-        guard (1...Self.limit).contains(nodes.count) else { throw ConfigurationValidationError.invalid }
-        names = try nodes.enumerated().map { index, node in
-            do { return try Self.name(of: node) }
+        guard (1...(chained ? limit : ImportedCloudNodes.limit)).contains(nodes.count) else { throw ConfigurationValidationError.invalid }
+        let names = try nodes.enumerated().map { index, node in
+            do { return try Self.name(of: node, chained: chained) }
             catch { throw ChainImportValidationError(position: index + 1) }
         }
         guard Set(names).count == names.count else { throw ConfigurationValidationError.invalid }
+        return names
     }
 
     private static func plain(_ value: Value, limit: Int = 4096) throws -> String {
@@ -25,9 +30,10 @@ public struct ImportedChainNodes: Decodable, Sendable {
         return text
     }
 
-    static func name(of node: Value) throws -> String {
+    static func name(of node: Value, chained: Bool = true) throws -> String {
         guard case .object(let object) = node, let kind = try object["type"]?.text else { throw ConfigurationValidationError.invalid }
-        let base: Set<String> = ["name", "type", "server", "port", "dialer-proxy"]
+        var base: Set<String> = ["name", "type", "server", "port"]
+        if chained { base.insert("dialer-proxy") }
         let tls: Set<String> = ["skip-cert-verify", "fingerprint"]
         let transports: Set<String> = ["network", "ws-opts", "grpc-opts", "alpn", "client-fingerprint"]
         var required = base
@@ -55,7 +61,7 @@ public struct ImportedChainNodes: Decodable, Sendable {
                 label.utf8.allSatisfy { (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 45 }
         }
         guard !name.isEmpty, !host.isEmpty, hostname || validIPAddress(host, family: AF_INET6),
-              try fields["dialer-proxy"]!.text == "🚀 节点选择" else { throw ConfigurationValidationError.invalid }
+              try fields["dialer-proxy"]?.text == (chained ? "🚀 节点选择" : nil) else { throw ConfigurationValidationError.invalid }
         _ = try fields["port"]!.number(in: 1...65535)
         for (key, value) in fields where !base.contains(key) {
             switch key {
@@ -103,4 +109,13 @@ public struct ImportedChainNodes: Decodable, Sendable {
 public struct ChainImportValidationError: LocalizedError {
     let position: Int
     public var errorDescription: String? { "第 \(position) 个节点的协议或字段不受当前 Mac 版本支持，请检查节点配置。" }
+}
+
+
+public struct ImportedCloudNodes: Decodable, Sendable {
+    public static let limit = 200
+    public let names: [String]
+    public init(from decoder: Decoder) throws {
+        names = try ImportedChainNodes.parse(decoder, chained: false)
+    }
 }

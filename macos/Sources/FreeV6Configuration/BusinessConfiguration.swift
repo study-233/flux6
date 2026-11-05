@@ -43,6 +43,7 @@ indirect enum Value: Codable, Sendable {
 public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     private let value: Value
     public let mode: String
+    public let isCampusProfile: Bool
     public let proxyCount: Int
     public let ruleCount: Int
     public var description: String { "BusinessConfiguration(redacted)" }
@@ -54,7 +55,10 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
             let object = try value.object(required: ["mode", "proxies", "proxy-groups", "rule-providers", "rules"])
             mode = try object["mode"]!.text
             guard ["rule", "global", "direct"].contains(mode) else { throw ConfigurationValidationError.invalid }
-            proxyCount = try object["proxies"]!.list.count
+            let nodes = try object["proxies"]!.list
+            guard let first = nodes.first, case .object(let firstFields) = first else { throw ConfigurationValidationError.invalid }
+            isCampusProfile = try firstFields["type"]?.text != "masque"
+            proxyCount = nodes.count
             ruleCount = try object["rules"]!.list.count
             self.value = value
             try validate(object)
@@ -77,21 +81,29 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
         }
     }
 
+    public func requireCloud(names: [String], mode: String) throws {
+        guard mode == self.mode, case .object(let object) = value,
+              try object["proxies"]!.list.map({ try ImportedChainNodes.name(of: $0, chained: false) }) == names else {
+            throw ConfigurationValidationError.incompatible
+        }
+    }
+
     private static let proxyFields: Set<String> = ["name", "type", "server", "port", "private-key", "public-key", "ip", "ipv6", "mtu", "udp", "remote-dns-resolve", "dns"]
     private func validate(_ object: [String: Value]) throws {
         let proxies = try object["proxies"]!.list
-        guard !proxies.isEmpty, proxies.count <= 28 + ImportedChainNodes.limit else { throw ConfigurationValidationError.invalid }
+        let campus = isCampusProfile
+        guard proxies.count <= (campus ? ImportedCloudNodes.limit : 28 + ImportedChainNodes.limit) else { throw ConfigurationValidationError.invalid }
         var names: Set<String> = ["DIRECT", "REJECT", "PASS", "COMPATIBLE"]
         var warpNames: [String] = [], importedNames: [String] = []
         for proxy in proxies {
             guard case .object(let fields) = proxy else { throw ConfigurationValidationError.invalid }
             if try fields["type"]?.text != "masque" {
-                let name = try ImportedChainNodes.name(of: proxy)
-                guard warpNames.count == 28, names.insert(name).inserted else { throw ConfigurationValidationError.invalid }
+                let name = try ImportedChainNodes.name(of: proxy, chained: !campus)
+                guard (campus || warpNames.count == 28), names.insert(name).inserted else { throw ConfigurationValidationError.invalid }
                 importedNames.append(name)
                 continue
             }
-            guard importedNames.isEmpty, warpNames.count < 28 else { throw ConfigurationValidationError.invalid }
+            guard !campus, importedNames.isEmpty, warpNames.count < 28 else { throw ConfigurationValidationError.invalid }
             let p = try proxy.object(required: Self.proxyFields)
             let name = try p["name"]!.text
             guard validName(name), names.insert(name).inserted, try p["type"]!.text == "masque" else { throw ConfigurationValidationError.invalid }
@@ -119,7 +131,7 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
             let name = try g["name"]!.text, type = try g["type"]!.text
             guard validName(name), names.insert(name).inserted, ["select", "url-test", "fallback"].contains(type) else { throw ConfigurationValidationError.invalid }
             let members = try g["proxies"]!.list.map { try $0.text }
-            guard !members.isEmpty, members.count <= 64, Set(members).count == members.count else { throw ConfigurationValidationError.invalid }
+            guard !members.isEmpty, members.count <= (campus ? ImportedCloudNodes.limit : 64), Set(members).count == members.count else { throw ConfigurationValidationError.invalid }
             if type == "select" {
                 guard g.count == 3 else { throw ConfigurationValidationError.invalid }
             } else {
@@ -151,10 +163,18 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
         let rules = try object["rules"]!.list.map { try $0.text }
         guard !rules.isEmpty, rules.count <= 6000 else { throw ConfigurationValidationError.invalid }
         let chainGroup = "🔗 链式代理"
-        if importedNames.isEmpty {
+        let access = ["♻️ 自动选择", "🔄 故障转移", "☑️ 手动切换"]
+        if campus {
+            guard references[chainGroup] == nil, references["🚀 节点选择"] == access, references["GLOBAL"] == access,
+                  groupTypes["GLOBAL"] == "select", groupTypes["🚀 节点选择"] == "select",
+                  access.allSatisfy({ references[$0] == importedNames }),
+                  groupTypes[access[0]] == "url-test", groupTypes[access[1]] == "fallback", groupTypes[access[2]] == "select",
+                  references["🛑 全球拦截"] == ["REJECT"], references["🐟 漏网之鱼"] == ["🚀 节点选择", "♻️ 自动选择"],
+                  references.count == 7, Array(rules.suffix(2)) == ["MATCH,🚀 节点选择", "NETWORK,UDP,REJECT"]
+            else { throw ConfigurationValidationError.invalid }
+        } else if importedNames.isEmpty {
             guard references[chainGroup] == nil, rules.last?.hasPrefix("MATCH,") == true else { throw ConfigurationValidationError.invalid }
         } else {
-            let access = ["♻️ 自动选择", "🔄 故障转移", "☑️ 手动切换"]
             guard references[chainGroup] == importedNames, groupTypes[chainGroup] == "select",
                   references["🚀 节点选择"] == access, groupTypes["🚀 节点选择"] == "select",
                   access.allSatisfy({ references[$0] == warpNames }),

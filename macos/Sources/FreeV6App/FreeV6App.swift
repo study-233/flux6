@@ -109,6 +109,7 @@ struct MainView: View {
                             RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
                             GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
                             ConfigurationPreparationView(model: model)
+                            MaintainerNoticeView(model: model.business)
                         }
                     }
                 } else if model.page == .nodes {

@@ -109,10 +109,58 @@ final class ConfigurationPreparationTests: XCTestCase {
             let withoutChain = try await client.prepareConfiguration(settings: off, credentialRevision: revision, tunnel: tunnel,
                 runtimeId: core.resourceId, geodataId: geodata.resourceId)
             XCTAssertEqual(withoutChain.configuration.proxyCount, 28)
-            let cleared = try await client.clearChain(settings: off)
+            let noticeFile = data.appendingPathComponent("maintainer-notice.json")
+            func writeGate(_ allowed: Bool) throws {
+                let record: [String: Any] = ["fetchedAt": ISO8601DateFormatter().string(from: Date()), "cloudProfile": allowed, "items": []]
+                try JSONSerialization.data(withJSONObject: record).write(to: noticeFile, options: .atomic)
+            }
+            try writeGate(true)
+            let notice = try await client.maintainerNotice(refresh: false)
+            XCTAssertTrue(notice.cloudAllowed)
+            let campusFile = repository.appendingPathComponent("shared/fixtures/chain-proxies.yaml")
+            let campusKey = Data(repeating: 23, count: 32)
+            let campus = try await client.importCloud(from: .file(campusFile), settings: off, key: campusKey)
+            XCTAssertEqual(campus.chain, off.chain)
+            XCTAssertEqual(campus.cloud?.ignored, ["external-controller", "rules"])
+            do {
+                _ = try await client.setChainEnabled(true, settings: campus)
+                XCTFail("both exits enabled")
+            } catch let failure as WorkerRemoteError { XCTAssertEqual(failure.code, -32602) }
+            let direct = try await client.prepareCloud(settings: campus, key: campusKey, runtimeId: core.resourceId, geodataId: geodata.resourceId)
+            XCTAssertTrue(direct.configuration.isCampusProfile)
+            XCTAssertEqual(direct.configuration.proxyCount, 6)
+            XCTAssertEqual(direct.credentialRevision, campus.cloud?.id)
+            do {
+                _ = try await client.importCloud(from: .file(bad), settings: campus, key: campusKey)
+                XCTFail("unsafe campus plugin saved")
+            } catch { XCTAssertTrue(error.localizedDescription.contains("第 1 个节点")) }
+            let current = try await client.settings()
+            XCTAssertEqual(current, campus)
+            let manyFile = root.appendingPathComponent("many.yaml")
+            func writeNodes(count: Int) throws {
+                let rows = (1...count).map { "  - {name: campus-\($0), type: http, server: 192.0.2.1, port: 443}" }
+                try ("proxies:\n" + rows.joined(separator: "\n")).write(to: manyFile, atomically: true, encoding: .utf8)
+            }
+            try writeNodes(count: 200)
+            let full = try await client.importCloud(from: .file(manyFile), settings: current, key: campusKey)
+            let many = try await client.prepareCloud(settings: full, key: campusKey, runtimeId: core.resourceId, geodataId: geodata.resourceId)
+            XCTAssertEqual(many.configuration.proxyCount, 200)
+            try writeNodes(count: 201)
+            do {
+                _ = try await client.importCloud(from: .file(manyFile), settings: full, key: campusKey)
+                XCTFail("oversized campus profile accepted")
+            } catch let failure as WorkerRemoteError { XCTAssertEqual(failure.code, -32602) }
+            try writeGate(false)
+            do {
+                _ = try await client.prepareCloud(settings: full, key: campusKey, runtimeId: core.resourceId, geodataId: geodata.resourceId)
+                XCTFail("revoked campus profile still prepared")
+            } catch let failure as WorkerRemoteError { XCTAssertTrue(failure.message.contains("未开放")) }
+            let campusCleared = try await client.changeCloud(.clear, settings: full)
+            XCTAssertNil(campusCleared.cloud)
+            let cleared = try await client.clearChain(settings: campusCleared)
             XCTAssertNil(cleared.chain)
             let files = try FileManager.default.contentsOfDirectory(atPath: data.path)
-            XCTAssertEqual(Set(files), Set(["worker.lock", "proxy-preferences.json"]))
+            XCTAssertEqual(Set(files), Set(["worker.lock", "proxy-preferences.json", "maintainer-notice.json"]))
             let preferences = try String(contentsOf: data.appendingPathComponent("proxy-preferences.json"))
             XCTAssertFalse(preferences.contains(credential.device.privateKey))
             XCTAssertFalse(preferences.contains(credential.device.token))

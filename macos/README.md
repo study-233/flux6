@@ -38,7 +38,7 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、核心和规则数据准备、WARP 注册与业务配置生成，以及本月和累计流量统计。启停及运行节点控制通过系统 XPC 服务。可从“文件 → 导入链式代理配置…”打开系统选择器，或在配置页导入和刷新 HTTP/S 订阅。备用配置另行接入。[worker 协议](../shared/protocol/worker-v1.md)
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、核心和规则数据准备、WARP 注册与业务配置生成，以及本月和累计流量统计。启停及运行节点控制通过系统 XPC 服务。可从“文件 → 导入链式代理配置…”打开系统选择器，或在配置页导入和刷新 HTTP/S 订阅。配置页亦提供备用校园出口，默认出口、链式与备用分别对应 WARP、WARP 再接自有代理、校园节点直接代理。[worker 协议](../shared/protocol/worker-v1.md)
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。WARP 凭据保存在 Keychain。订阅地址和节点认证字段使用独立的 Keychain 密钥加密后写入设置文件，节点名称和启用状态保存在公开摘要中。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
@@ -78,9 +78,15 @@ python3 scripts/macos/probe-runtime.py \
 
 第一次探针将数据留在其输出的结果目录下 `main-cache/geodata/<revision>`，可作为后两个命令的数据目录。设置 `FREEV6_GEODATA_FIXTURES_DIR` 为该目录，可运行 Go 官方摘要测试和 Swift→Go 种子、缓存损坏修复、重启验证。完整 `-t` 保留 GeoSite、DNS 策略和规则提供者定义，不代表提供者下载、实际 DNS 接管或 TUN 流量通过；这些仍由网络阶段验收。
 
+### 备用配置与维护者公告
+
+运行 `python3 scripts/macos/probe-worker.py --refresh-notice` 可用打包后的 worker 在独立测试目录验证公开公告下载与缓存。探针接受维护者当前的开放或关闭决定，仅在结果摘要记录条目数、开关和时间。
+
+在概览页查看或刷新维护者公告，展开会记录已读。普通用户 worker 优先走与 Windows 相同的固定镜像线路，下载失败时显示有效缓存。公告显式开放备用配置后，在配置页填写校园登录页即可派生入口，亦可选择 YAML 或输入自定义获取地址。成功获取会启用这份配置，下次连接无需 WARP 凭据。启用链式时先停用链式，再启用备用；该操作保留另一份配置。仅变更规则会保留两份配置及其启用选择。备用配置的网络刷新可从“连接 → 刷新备用配置”发起。服务未安装时可先进行本机配置检查。
+
 ### 验证导入和实际转发
 
-准备好测试 worker、固定核心和规则数据夹具后运行 `python3 scripts/macos/probe-service.py --chain-worker build/macos-worker/freev6-worker --network-run --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata`。探针通过用户域 XPC 和固定核心检查六类节点，并在回环网络测量规则、全局和直连模式的实际 TCP 与 UDP 路径。真实 WARP 首跳在这项测试中由受控的本机 HTTP CONNECT 代理代替。
+准备好测试 worker、固定核心和规则数据夹具后运行 `python3 scripts/macos/probe-service.py --chain-worker build/macos-worker/freev6-worker --network-run --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata`。探针通过用户域 XPC 和固定核心检查六类节点，并在回环网络测量规则、全局和直连模式的实际 TCP 与 UDP 路径。真实 WARP 首跳在这项测试中由受控的本机 HTTP CONNECT 代理代替。备用配置用独立的合成公告及校园节点，核对无 WARP 路径、组装配置、服务拒绝异常字段、单跳实际转发和测试 DNS 恢复。
 
 ## WARP 与 Keychain
 

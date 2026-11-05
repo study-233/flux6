@@ -129,6 +129,8 @@ public struct DesktopCommandState: Sendable {
     public var coreAvailable = false
     public var coreCancelable = false
     public var settingsBusy = false
+    public var cloudEnabled = false
+    public var cloudRefreshAvailable = false
     public var settingsLoaded = false
     public var settingsChanged = false
     public var promptActive = false
@@ -138,6 +140,10 @@ public struct DesktopCommandState: Sendable {
     public var configurationReady = false
     public var configurationBusy = false
     public init() {}
+
+    public var profileEditingAvailable: Bool {
+        settingsLoaded && !settingsBusy && !configurationBusy && !terminating && !promptActive && !network.busy
+    }
 
     public var primaryCommand: DesktopCommand {
         switch network {
@@ -213,8 +219,12 @@ public struct DesktopCommandState: Sendable {
         case .measureNodes:
             return network == .running && canMeasureNodes ? .available : .unavailable("请先连接并载入节点列表")
         case .importChain:
-            return settingsLoaded && !settingsBusy && !configurationBusy ? .available : .unavailable("请先载入配置并等待当前操作结束")
-        case .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
+            guard !cloudEnabled else { return .unavailable("请先停用备用配置，以便导入链式代理") }
+            return profileEditingAvailable ? .available : .unavailable("请先载入配置并等待当前操作结束")
+        case .refreshCloud:
+            guard cloudRefreshAvailable else { return .unavailable("请先确认公告开放，并获取可刷新的备用配置") }
+            return profileEditingAvailable ? .available : .unavailable("请先载入配置并等待当前操作结束")
+        case .exportLogs, .exportDiagnostics, .checkUpdates:
             return .unavailable("此功能将在后续开发阶段接入")
         }
     }

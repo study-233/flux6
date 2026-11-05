@@ -2,6 +2,20 @@ import XCTest
 @testable import FreeV6Desktop
 
 final class DesktopCommandsTests: XCTestCase {
+    func testCampusRefreshRemainsAvailableWhenChainImportIsLocked() {
+        var state = DesktopCommandState()
+        state.settingsLoaded = true
+        state.cloudEnabled = true
+        state.cloudRefreshAvailable = true
+        XCTAssertFalse(state.availability(.importChain).enabled)
+        XCTAssertTrue(state.profileEditingAvailable)
+        XCTAssertTrue(state.availability(.refreshCloud).enabled)
+        state.cloudRefreshAvailable = false
+        XCTAssertFalse(state.availability(.refreshCloud).enabled)
+        state.promptActive = true
+        XCTAssertFalse(state.profileEditingAvailable)
+    }
+
     func testConfigurationHandoffBlocksConflictingCommandsButKeepsNavigation() {
         var state = DesktopCommandState()
         state.service = .ready; state.settingsLoaded = true; state.settingsChanged = true

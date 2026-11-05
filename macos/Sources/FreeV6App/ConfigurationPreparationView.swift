@@ -9,7 +9,7 @@ struct ConfigurationPreparationView: View {
                     HStack { ProgressView().controlSize(.small); Text("正在检查凭据、资源和配置…") }
                 } else if let result = model.configurationSummary {
                     if result.settingsRevision == model.business.snapshot?.revision,
-                       result.credentialRevision == model.warp.summary?.revision, !model.business.hasChanges {
+                       result.credentialRevision == model.activeCredentialRevision, !model.business.hasChanges {
                         Text(model.configurationCheckedByService ? "配置已通过核心检查" : "本机配置已检查").font(.headline)
                         Text("\(result.proxyCount) 个代理节点 · \(result.ruleCount) 条规则").font(.callout)
                     } else { Text("设置或凭据已变化，需要重新检查。") }

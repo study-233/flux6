@@ -12,19 +12,20 @@ struct ChainSettingsSection: View {
         Section("链式代理") {
             Text("可从 Clash/mihomo YAML 导入 HTTP、SOCKS5、Shadowsocks、Trojan、VLESS 或 VMess 节点。每份文件或订阅最多 2 MiB、64 个节点。")
                 .font(.callout).foregroundStyle(.secondary)
+            if model.snapshot?.cloud?.enabled == true { Text("请先停用备用配置，再导入或启用链式代理。") }
             if let profile = model.snapshot?.chain {
                 Toggle("下次连接使用链式代理", isOn: Binding(get: { profile.enabled }, set: { enabled in
                     Task { await model.changeChain(.enable(enabled)) }
-                }))
+                })).disabled(model.snapshot?.cloud?.enabled == true)
                 DisclosureGroup("已导入 \(profile.names.count) 个节点") {
                     ForEach(profile.names, id: \.self) { Text($0).textSelection(.enabled) }
                 }
             }
             HStack {
                 DesktopCommandButton(.importChain, model: app)
-                Button("导入订阅…") { address = ""; enteringURL = true }
+                Button("导入订阅…") { address = ""; enteringURL = true }.disabled(model.snapshot?.cloud?.enabled == true)
                 if model.snapshot?.chain?.source == .url {
-                    Button("刷新订阅") { Task { await model.changeChain(.load(.refresh)) } }
+                    Button("刷新订阅") { Task { await model.changeChain(.load(.refresh)) } }.disabled(model.snapshot?.cloud?.enabled == true)
                 }
                 if model.snapshot?.chain != nil {
                     Button("清除…", role: .destructive) { confirmClear = true }
@@ -33,7 +34,7 @@ struct ChainSettingsSection: View {
             if let failure = model.chainError { Text(failure).foregroundStyle(.red).textSelection(.enabled) }
             else if let message = model.chainMessage { Text(message).foregroundStyle(.secondary) }
         }
-        .disabled(!app.commandState.availability(.importChain).enabled)
+        .disabled(!app.commandState.profileEditingAvailable)
         .confirmationDialog("清除已导入的节点和订阅地址？", isPresented: $confirmClear) {
             Button("清除链式配置", role: .destructive) { Task { await model.changeChain(.clear) } }
             Button("取消", role: .cancel) {}

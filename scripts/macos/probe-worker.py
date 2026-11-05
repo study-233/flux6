@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--binary", type=Path, default=ROOT / "dist/macos/FreeV6.app/Contents/Helpers/freev6-worker")
 parser.add_argument("--download-runtime", action="store_true", help="download the pinned native core via production mirror selection")
 parser.add_argument("--prepare-geodata", action="store_true", help="download the pinned geodata set via production preparation")
+parser.add_argument("--refresh-notice", action="store_true", help="fetch the public maintainer bulletin using the packaged worker")
 args = parser.parse_args()
 binary = args.binary.resolve(strict=True)
 directory = ROOT / "build/worker-probes" / str(uuid.uuid4())
@@ -43,7 +44,8 @@ def initialize(child):
     result = call(child, "initialize", {"protocolVersion": 1}, fragmented=True)["result"]
     assert result["protocolVersion"] == 1 and result["platform"] == "darwin"
     assert result["capabilities"] == ["settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare", "traffic.get", "traffic.observe",
-                                      "chain.preview", "chain.commit", "chain.enable", "chain.clear"]
+                                      "chain.preview", "chain.commit", "chain.enable", "chain.clear", "notice.status", "notice.refresh",
+                                      "cloud.preview", "cloud.commit", "cloud.portal", "cloud.enable", "cloud.clear"]
     return result
 
 
@@ -56,6 +58,19 @@ try:
     child = launch()
     assert call(child, "settings.get")["error"]["code"] == -32001
     handshake = initialize(child)
+    initial_notice = call(child, "notice.status")["result"]
+    assert initial_notice == {"source": "unavailable", "cloudAllowed": False, "items": []}
+    assert call(child, "notice.refresh", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
+    checks.append("empty bulletin cache keeps campus profiles closed; custom bulletin origins rejected")
+    notice_summary = None
+    if args.refresh_notice:
+        live = call(child, "notice.refresh", timeout=35)["result"]
+        assert live["source"] == "online", "public bulletin unavailable via the configured routes"
+        cached = call(child, "notice.status")["result"]
+        assert cached == {**live, "source": "cache"}
+        notice_summary = {"itemCount": len(live["items"]), "cloudAllowed": live["cloudAllowed"],
+                          "fetchedAt": live["fetchedAt"]}
+        checks.append("published bulletin fetched and reloaded from private cache")
     resource = call(child, "runtime.status")["result"]
     assert not resource["available"] and resource["architecture"] == handshake["architecture"]
     assert call(child, "runtime.download", {"url": "https://example.com/arbitrary"})["error"]["code"] == -32602
@@ -157,7 +172,7 @@ try:
     result = {"binary": str(binary), "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
               "handshake": handshake, "checks": checks, "backpressure": backpressure,
               "runtime": resource, "runtimeProgress": runtime_progress,
-              "geodata": geodata, "geodataProgress": geodata_progress,
+              "geodata": geodata, "geodataProgress": geodata_progress, "notice": notice_summary,
               "allChildrenExited": all(p.poll() is not None for p in children)}
     assert result["allChildrenExited"]
     (directory / "result.json").write_text(json.dumps(result, indent=2) + "\n")

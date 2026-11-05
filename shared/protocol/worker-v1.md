@@ -16,7 +16,7 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。双方核对版本及架构，拒绝重复握手。当前能力包括 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`、`traffic.get`、`traffic.observe` 以及下述四个链式配置方法。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。双方核对版本及架构，拒绝重复握手。当前能力包括 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`、`traffic.get`、`traffic.observe` 以及下述公告、链式和备用配置方法。
 
 最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 和 `geodata.prepare` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心及规则数据检查为 35 秒，准备为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
 
@@ -103,9 +103,22 @@ App 在用户操作后访问钥匙串；先确认已有凭据的版本和替换�
 
 App 以当前用户身份访问独立的钥匙串条目并通过私有管道传递密钥。worker 用 AES-256-GCM 加密节点和原订阅地址，持久化密文与公开摘要。设置响应只含 `chain: {source,enabled,names}`，普通规则保存共用 revision，并保留链式配置。刷新只由用户发起。URL、节点字段和密钥均不得写入诊断。清除配置后可继续使用普通 WARP，清除操作无需解密密文。
 
+## 公告与备用配置
+
+`notice.status` 只读当前缓存；`notice.refresh` 从固定公告线路下载并原子替换缓存。两者均只接收空对象。响应包括 `source`（online、cache、unavailable）、可选 UTC `fetchedAt`、`cloudAllowed` 和公告条目。客户端和 worker 按七天有效期判断许可；缺失、未来时间、过期或无显式 true 时关闭。刷新失败时使用仍有效的缓存。Windows 和 Mac 共用公告解析、条目过期过滤、大小上限和获取线路。
+
+| 方法 | 输入和行为 |
+| --- | --- |
+| `cloud.portal` | `expectedRevision, portalHost`。规范化登录页输入并保存主机，可空。清除节点会保留这个偏好。 |
+| `cloud.preview` | `expectedRevision, key, source, value?`。来源为 portal、url、file、refresh；按门户派生入口、获取自定义 HTTP/S 地址、读取所选文件或刷新原网络来源。公告与链式互斥在读取前检查。 |
+| `cloud.commit` | `expectedRevision, token`。App 校验预览节点后提交，worker 复验公告、版本及互斥，保存并启用。每个 worker 仅保留一个两分钟有效的备用候选。 |
+| `cloud.enable` / `cloud.clear` | `expectedRevision` 和启停时的 `enabled`。维护者关闭后仍可停用、清除；普通规则保存保留两个节点快照。 |
+
+上限为 2 MiB 输入、200 个节点和 320 KiB 规范化内容。服务只接收 HTTP、SOCKS5、Shadowsocks、Trojan、VLESS 和 VMess 的限定字段。采用校园节点作为直接代理出口，解析时剥离来源指定的 dialer。已忽略的规则、TUN 等顶层字段以名称列表展示。portal 派生地址按需生成，显式自定义地址与节点认证字段使用独立的 AES-256-GCM 密钥加密。该密钥属于当前用户的 Keychain 条目 `dev.freev6.desktop.cloud / snapshot-key-v1`。设置摘要公开来源类别、更新时间、节点名、忽略的字段名和配置 UUID。跨进程版本绑定使用此 UUID。收到 401 或 403 时提示切换到校园网；下载或字段校验失败保留上一次完整快照。
+
 ## 连接配置交接
 
-`configuration.prepare` 当前只接受 `source: "warp"`、`settingsRevision`（必填无符号整数）、`credentialRevision`（Keychain 条目的 UUID）、`tunnel`（仅 `privateKey`、`peerPublicKey`、`ipv4`、`ipv6`），以及启用链式配置时的 `chainKey`。参数最多 32 KiB，未知字段、注册令牌、设备 ID、URL、文件路径及其他 source 拒绝。worker 不读取 Keychain，也不注册账户或自动下载缺失资源。
+WARP 分支的 `configuration.prepare` 接受 `source: "warp"`、`settingsRevision`（必填无符号整数）、`credentialRevision`（Keychain 条目的 UUID）、`tunnel`（仅 `privateKey`、`peerPublicKey`、`ipv4`、`ipv6`），以及启用链式配置时的 `chainKey`。参数最多 32 KiB，未知字段、注册令牌、设备 ID、URL、文件路径及其他未声明字段拒绝。备用分支使用 `source: "cloud"`、`settingsRevision`、`credentialRevision`（已保存备用配置的 UUID）以及 `profileKey`。默认和链式路径仍绑定 WARP 凭据版本。备用分支拒绝携带 WARP 隧道材料或链式密钥，并在返回前重新读取公告许可。worker 不读取 Keychain，也不注册账户或自动下载缺失资源。
 
 worker 先读取并核对已保存设置，再重新检查固定核心和整套规则数据；生成后再次确认设置 revision。没有前置资源返回 -32006，设置已变化返回 -32004，非法输入返回 -32602。单个 worker 仅允许一个准备任务，普通请求期限为 30 秒，Swift 调用为 35 秒。进度为 `checking`、`rendering`，不包含凭据或配置片段。
 

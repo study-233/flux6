@@ -87,7 +87,7 @@ public struct SessionControlSnapshot: Codable, Equatable, Sendable {
             throw ServiceClientError.invalidReply
         }
         for group in groups {
-            guard (1...64).contains(group.members.count), Set(group.members).count == group.members.count,
+            guard (1...(group.group == .access ? 200 : 64)).contains(group.members.count), Set(group.members).count == group.members.count,
                   group.preferred.map(group.members.contains) ?? true, group.members.allSatisfy(CoreController.validName), group.selected.map(group.members.contains) ?? true else {
                 throw ServiceClientError.invalidReply
             }

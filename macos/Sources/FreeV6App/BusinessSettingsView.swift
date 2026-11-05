@@ -25,6 +25,22 @@ import FreeV6Desktop
     private let session: BusinessSession
     init(session: BusinessSession) { self.session = session }
 
+    @Published private(set) var notice: MaintainerNotice?
+    @Published private(set) var checkingNotice = false
+    @Published private(set) var noticeError: String?
+
+    func refreshNotice() async {
+        guard !checkingNotice else { return }
+        checkingNotice = true
+        noticeError = nil
+        defer { checkingNotice = false }
+        do {
+            let worker = try session.worker()
+            notice = try await worker.maintainerNotice(refresh: false)
+            notice = try await worker.maintainerNotice(refresh: true)
+        } catch { noticeError = error.localizedDescription }
+    }
+
     var hasChanges: Bool {
         guard let snapshot else { return false }
         return draft != snapshot.settings
@@ -113,6 +129,43 @@ import FreeV6Desktop
         } catch { chainError = error.localizedDescription }
     }
 
+    enum CloudChange { case load(CloudImportSource), edit(CloudMutation) }
+    @Published private(set) var cloudError: String?
+    @Published private(set) var cloudMessage: String?
+    var cloudOpen: Bool {
+        guard let notice, notice.cloudAllowed, let stamp = notice.fetchedAt,
+              let date = ISO8601DateFormatter().date(from: stamp) else { return false }
+        return (0...7 * 24 * 3600).contains(-date.timeIntervalSinceNow)
+    }
+    var canFetchCloud: Bool { cloudOpen && snapshot?.chain?.enabled != true }
+    var canRefreshCloud: Bool {
+        guard canFetchCloud, let source = snapshot?.cloud?.source else { return false }
+        return source == .url || (source == .portal && snapshot?.portalHost != nil)
+    }
+
+    func changeCloud(_ change: CloudChange) async {
+        guard !busy, let baseline = snapshot else { return }
+        busy = true; cloudError = nil; cloudMessage = nil
+        defer { busy = false }
+        do {
+            let worker = try session.worker()
+            switch change {
+            case .load(let source):
+                guard canFetchCloud else { throw WorkerClientError.staleConfiguration }
+                let key = try await ChainProfileKey(storage: KeychainSecretStorage.cloudKey()).load(allowCreation: baseline.cloud == nil)
+                snapshot = try await worker.importCloud(from: source, settings: baseline, key: key)
+                cloudMessage = "已保存备用节点，下次连接时使用。"
+            case .edit(let mutation):
+                snapshot = try await worker.changeCloud(mutation, settings: baseline)
+                switch mutation {
+                case .enable(let value): cloudMessage = value ? "下次连接将使用备用配置。" : "备用配置已停用。"
+                case .clear: cloudMessage = "已清除备用节点。"
+                case .portal: cloudMessage = "已保存校园登录页地址。"
+                }
+            }
+        } catch { cloudError = error.localizedDescription }
+    }
+
     private func accept(_ snapshot: SettingsSnapshot) {
         self.snapshot = snapshot
         mode = snapshot.settings.mode
@@ -146,6 +199,7 @@ struct BusinessSettingsView: View {
                     .font(.callout).foregroundStyle(.secondary)
             }.disabled(model.busy || app.configurationBusy || model.snapshot == nil)
             ChainSettingsSection(model: model, app: app)
+            CloudSettingsSection(model: model, app: app)
 
             Section("校园白名单") {
                 Text("每行一个域名或 CIDR，例如 edu.cn 或 202.204.0.0/12。")

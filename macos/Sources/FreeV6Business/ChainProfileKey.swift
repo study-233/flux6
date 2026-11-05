@@ -17,6 +17,6 @@ public struct ChainProfileKey: Sendable {
     }
 
     private struct MissingKey: LocalizedError {
-        var errorDescription: String? { "无法找到此链式配置的钥匙串密钥。请恢复密钥，或清除配置后重新导入。" }
+        var errorDescription: String? { "无法找到此节点配置的钥匙串密钥。请恢复密钥，或清除配置后重新导入。" }
     }
 }

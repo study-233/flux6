@@ -206,6 +206,14 @@ def main():
                     chain = worker_call(child, "configuration.prepare", {"source": "warp", "settingsRevision": saved["revision"],
                         "chainKey": key, "credentialRevision": original["credentialRevision"],
                         "tunnel": {k: device[k] for k in ("privateKey", "peerPublicKey", "ipv4", "ipv6")}}, timeout=40)["result"]
+                    notice_record = {"fetchedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "items": [], "cloudProfile": True}
+                    (work / "worker-data" / "maintainer-notice.json").write_text(json.dumps(notice_record))
+                    disabled = worker_call(child, "chain.enable", {"expectedRevision": saved["revision"], "enabled": False})["result"]
+                    draft = worker_call(child, "cloud.preview", {"expectedRevision": disabled["revision"], "key": key,
+                        "source": "file", "value": str(ROOT / "shared/fixtures/chain-proxies.yaml")})["result"]
+                    campus_saved = worker_call(child, "cloud.commit", {"expectedRevision": disabled["revision"], "token": draft["token"]})["result"]
+                    campus = worker_call(child, "configuration.prepare", {"source": "cloud", "settingsRevision": campus_saved["revision"],
+                        "profileKey": key, "credentialRevision": campus_saved["cloud"]["id"]}, timeout=40)["result"]
                 finally:
                     child.stdin.close()
                     child.wait(timeout=10)
@@ -247,6 +255,34 @@ def main():
             case("service independently rejects seven modified chains including unsafe fields, bypasses and missing or injected UDP rules")
             verify_chain_route(data_root / "resources" / core_id, chain["configuration"], work / "chain-route")
             case("loopback two-hop TCP follows the imported HTTP dialer in rule and global modes; failed access and unsupported UDP never reach the direct destination")
+            campus_request = {**original, "requestID": str(uuid.uuid4()), "settingsRevision": campus["settingsRevision"],
+                              "credentialRevision": campus["credentialRevision"], "profileSource": "cloud",
+                              "configuration": campus["configuration"]}
+            campus_file = work / "campus-request.json"
+            for edit in ("source", "dialer", "privileged-field", "direct-group", "udp"):
+                bad = copy.deepcopy(campus_request)
+                config = bad["configuration"]
+                if edit == "source":
+                    bad.pop("profileSource")
+                elif edit == "dialer":
+                    config["proxies"][0]["dialer-proxy"] = "DIRECT"
+                elif edit == "privileged-field":
+                    config["proxies"][0]["interface-name"] = "en0"
+                elif edit == "direct-group":
+                    next(g for g in config["proxy-groups"] if g["name"] == "GLOBAL")["proxies"] = ["DIRECT"]
+                else:
+                    config["rules"].pop()
+                campus_file.write_text(json.dumps(bad))
+                rejected = run([probe, "check-configuration", label, service_hash, campus_file], check=False)
+                if rejected.returncode != 1 or "字段无效" not in rejected.stderr:
+                    raise RuntimeError("Service accepted altered campus configuration: " + edit)
+            campus_file.write_text(json.dumps(campus_request))
+            checked = json.loads(run([probe, "check-configuration", label, service_hash, campus_file], timeout=60).stdout)
+            if not checked["coreValidated"] or checked["proxyCount"] != 6:
+                raise RuntimeError("Campus configuration failed the pinned core check")
+            case("backup profile without WARP credentials passes service/core validation; five altered campus requests are refused")
+            verify_chain_route(data_root / "resources" / core_id, campus["configuration"], work / "campus-route", campus=True)
+            case("campus route uses one proxy in rule and global modes; failed egress and unsupported UDP do not bypass it")
         for resource_id, source, destination, digest in assets:
             incoming = work / "incoming"
             shutil.copyfile(source, incoming)
@@ -308,6 +344,16 @@ def main():
             if (data_root / "network-session.json").exists():
                 return False
             return rpc("status")["phase"] == "stopped" and fixture_dns() is None
+        if args.chain_worker:
+            campus_file = work / "campus-request.json"
+            campus = json.loads(campus_file.read_text())
+            active = rpc("start", rpc("status")["idleToken"], campus_file)
+            if (active["phase"] != "running" or active["credentialRevision"].lower() != campus["credentialRevision"].lower()
+                    or active["settingsRevision"] != campus["settingsRevision"]):
+                raise RuntimeError("Campus session did not bind the saved profile version")
+            assert rpc("stop", active["sessionID"], active["revision"])["phase"] == "stopped"
+            assert stopped()
+            case("authenticated campus session starts with its profile UUID and no WARP credential, then restores fixture DNS")
         run([probe, "desktop-session", label, service_hash, request], timeout=90)
         assert stopped()
         case("native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC")

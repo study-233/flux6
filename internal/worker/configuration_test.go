@@ -31,7 +31,7 @@ func configurationParams(t *testing.T) map[string]any {
 
 func testConfigurationManager(t *testing.T) (*ConfigurationManager, string) {
 	s, directory := testStore(t)
-	m := NewConfigurationManager(s, t.TempDir())
+	m := NewConfigurationManager(s, t.TempDir(), NewNoticeManager(s.root))
 	m.inspectRuntime = func(context.Context) (mihomo.RuntimePackage, error) {
 		return mihomo.RuntimePackage{Available: true, ResourceID: "approved-runtime"}, nil
 	}

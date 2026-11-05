@@ -30,11 +30,16 @@ class LoopbackHop(http.server.BaseHTTPRequestHandler):
         pass
 
     def do_CONNECT(self):
-        self.server.hits += 1
-        if self.server.blocked or self.path != "127.0.0.1:" + str(self.server.allowed_port):
+        allowed_port = self.server.allowed_port
+        health_port = getattr(self.server, "health_port", None)
+        if health_port and self.path == f"127.0.0.1:{health_port}":
+            allowed_port = health_port
+        else:
+            self.server.hits += 1
+        if self.server.blocked or self.path != "127.0.0.1:" + str(allowed_port):
             self.send_error(502)
             return
-        with socket.create_connection(("127.0.0.1", self.server.allowed_port), timeout=3) as remote:
+        with socket.create_connection(("127.0.0.1", allowed_port), timeout=3) as remote:
             self.send_response_only(200)
             self.end_headers()
             peers = [self.connection, remote]
@@ -58,6 +63,9 @@ class Destination(http.server.BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"controlled destination")
+
+
+    do_HEAD = do_GET
 
 
 class DatagramEcho(socketserver.BaseRequestHandler):
@@ -93,7 +101,7 @@ def udp_probe(port, destination):
                     return False
 
 
-def verify_chain_route(core, assembled, directory):
+def verify_chain_route(core, assembled, directory, *, campus=False):
     if os.geteuid() == 0:
         raise RuntimeError("Refusing to run a network fixture as root")
     directory.mkdir(mode=0o700)
@@ -115,12 +123,27 @@ def verify_chain_route(core, assembled, directory):
         with socket.socket() as free:
             free.bind(address)
             port = free.getsockname()[1]
+        if campus:
+            health = stack.enter_context(listening(http.server.ThreadingHTTPServer(address, Destination)))
+            health.hits = 0
+            egress.health_port = health.server_port
+            active_groups = []
+            for group in groups.values():
+                clone = dict(group)
+                if group["name"] in ("☑️ 手动切换", "♻️ 自动选择", "🔄 故障转移"):
+                    clone["proxies"] = [outbound["name"]]
+                if "url" in clone:
+                    clone["url"] = f"http://127.0.0.1:{health.server_port}/health"
+                active_groups.append(clone)
+            active_proxies = [outbound]
+        else:
+            active_groups = [groups["GLOBAL"], {**groups["🚀 节点选择"], "proxies": ["Lab Access"]},
+                             {**groups["🔗 链式代理"], "proxies": [outbound["name"]]}]
+            active_proxies = [{"name": "Lab Access", "type": "http", "server": "127.0.0.1", "port": access.server_port}, outbound]
         config = {
             "mixed-port": port, "allow-lan": False, "bind-address": "127.0.0.1", "log-level": "error",
             "tun": {"enable": False}, "dns": {"enable": False}, "profile": {"store-selected": False},
-            "proxies": [{"name": "Lab Access", "type": "http", "server": "127.0.0.1", "port": access.server_port}, outbound],
-            "proxy-groups": [groups["GLOBAL"], {**groups["🚀 节点选择"], "proxies": ["Lab Access"]},
-                             {**groups["🔗 链式代理"], "proxies": [outbound["name"]]}],
+            "proxies": active_proxies, "proxy-groups": active_groups,
             "rules": assembled["rules"][-2:],
         }
         curl = ["/usr/bin/curl", "--silent", "--show-error", "--fail", "--max-time", "3", "--noproxy", "",
@@ -147,17 +170,18 @@ def verify_chain_route(core, assembled, directory):
                     reply = subprocess.run(curl, capture_output=True, timeout=4)
                     hops = 0 if mode == "direct" else 1
                     if reply.stdout != b"controlled destination" or reply.returncode or (access.hits, egress.hits, web.hits) != (
-                            before[0] + hops, before[1] + hops, before[2] + 1):
-                        raise RuntimeError("Unexpected route through the two TCP hops in " + mode)
+                            before[0] + (0 if campus else hops), before[1] + hops, before[2] + 1):
+                        raise RuntimeError("Unexpected TCP route in " + mode)
                     received = udp_probe(port, udp.server_address[1])
                     if received != (mode == "direct") or udp.hits != before[3] + int(mode == "direct"):
                         raise RuntimeError("Unexpected UDP delivery in " + mode)
                     if mode != "direct":
-                        access.blocked = True
+                        blocked_hop = egress if campus else access
+                        blocked_hop.blocked = True
                         failed = subprocess.run(curl, capture_output=True, timeout=4)
-                        if failed.returncode == 0 or web.hits != before[2] + 1 or egress.hits != before[1] + 1:
+                        if failed.returncode == 0 or web.hits != before[2] + 1 or (not campus and egress.hits != before[1] + 1):
                             raise RuntimeError("Unavailable first hop did not block delivery in " + mode)
-                        access.blocked = False
+                        blocked_hop.blocked = False
                 finally:
                     child.terminate()
                     try:

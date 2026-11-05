@@ -9,6 +9,7 @@ public struct ConfigurationCheckRequest: Codable, Sendable, CustomStringConverti
     public let geodataID: String
     public let settingsRevision: UInt64
     public let credentialRevision: UUID
+    public let profileSource: String?
     public let configuration: BusinessConfiguration
     public var description: String { "ConfigurationCheckRequest(redacted)" }
     public var debugDescription: String { description }
@@ -17,6 +18,7 @@ public struct ConfigurationCheckRequest: Codable, Sendable, CustomStringConverti
                 configuration: BusinessConfiguration) {
         protocolVersion = ServiceProtocolVersion.current; requestID = UUID()
         self.runtimeID = runtimeID; self.geodataID = geodataID; self.settingsRevision = settingsRevision
+        self.profileSource = configuration.isCampusProfile ? "cloud" : nil
         self.credentialRevision = credentialRevision; self.configuration = configuration
     }
 }
@@ -46,13 +48,16 @@ extension ServiceMessages {
         guard data.count <= maximumConfigurationBytes else { throw ServiceMessageError.oversized }
         let fields: Set<String> = ["protocolVersion", "requestID", "runtimeID", "geodataID", "settingsRevision", "credentialRevision", "configuration"]
         do {
-            guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any], Set(object.keys) == fields else {
+            guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any], Set(object.keys) == fields || Set(object.keys) == fields.union(["profileSource"]) else {
                 throw ServiceMessageError.invalid
             }
             let request = try JSONDecoder().decode(ConfigurationCheckRequest.self, from: data)
             guard request.protocolVersion == ServiceProtocolVersion.current else {
                 throw ServiceMessageError.incompatibleVersion(request.protocolVersion)
             }
+            if request.configuration.isCampusProfile {
+                guard request.profileSource == "cloud" else { throw ServiceMessageError.invalid }
+            } else if object["profileSource"] != nil { throw ServiceMessageError.invalid }
             try ApprovedResourceCatalog.requirePair(runtimeID: request.runtimeID, geodataID: request.geodataID)
             return request
         } catch let error as ServiceMessageError { throw error }

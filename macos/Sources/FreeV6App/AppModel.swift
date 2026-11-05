@@ -103,6 +103,7 @@ typealias Page = DesktopPage
         }
         Task { await refreshService() }
         Task { await business.reload() }
+        Task { await business.refreshNotice() }
         Task { await loadTrafficReport() }
         Task { await core.refresh() }
         Task { await geodata.refresh() }
@@ -121,6 +122,8 @@ typealias Page = DesktopPage
         state.coreCancelable = core.canCancel
         state.settingsBusy = business.busy || configurationBusy
         state.settingsLoaded = business.snapshot != nil
+        state.cloudRefreshAvailable = business.canRefreshCloud
+        state.cloudEnabled = business.snapshot?.cloud?.enabled == true
         state.settingsChanged = business.hasChanges
         state.promptActive = promptActive
         state.terminating = terminating
@@ -136,7 +139,9 @@ typealias Page = DesktopPage
         if serviceState == .ready && network.phase != .idle { return "请先确认网络会话已停止。" }
         if business.snapshot == nil { return "请先载入代理规则。" }
         if business.hasChanges { return "请先保存代理规则，再检查连接配置。" }
-        if warp.hasPending || warp.summary == nil { return "请先检查或注册已保存的 WARP 凭据。" }
+        if business.snapshot?.cloud?.enabled == true {
+            if !business.cloudOpen { return "备用配置当前未开放，请刷新公告或停用备用配置。" }
+        } else if warp.hasPending || warp.summary == nil { return "请先检查或注册已保存的 WARP 凭据。" }
         if core.package?.available != true { return "请先准备网络核心。" }
         if geodata.package?.available != true { return "请先准备规则数据。" }
         return nil
@@ -150,7 +155,7 @@ typealias Page = DesktopPage
         defer { checkingConfiguration = false }
         do {
             let cache = try WorkerLocation.application().cache
-            let summary = try await warp.withPreparedConfiguration(settings: settings, runtimeId: runtime.resourceId,
+            let summary = try await withPreparedConfiguration(settings: settings, runtimeId: runtime.resourceId,
                                                                    geodataId: data.resourceId) { prepared in
                 if let identity {
                     try await Task.detached {
@@ -164,6 +169,22 @@ typealias Page = DesktopPage
             configurationSummary = summary
             configurationCheckedByService = identity != nil
         } catch { configurationError = error.localizedDescription }
+    }
+
+    var activeCredentialRevision: UUID? {
+        if let cloud = business.snapshot?.cloud, cloud.enabled { return cloud.id }
+        return warp.summary?.revision
+    }
+
+    private func withPreparedConfiguration<T: Sendable>(settings: SettingsSnapshot, runtimeId: String, geodataId: String,
+        perform: @escaping @Sendable (PreparedConfiguration) async throws -> T) async throws -> T {
+        guard settings.cloud?.enabled == true else {
+            return try await warp.withPreparedConfiguration(settings: settings, runtimeId: runtimeId, geodataId: geodataId, perform: perform)
+        }
+        let client = try session.worker()
+        let key = try await ChainProfileKey(storage: KeychainSecretStorage.cloudKey()).load(allowCreation: false)
+        let prepared = try await client.prepareCloud(settings: settings, key: key, runtimeId: runtimeId, geodataId: geodataId)
+        return try await perform(prepared)
     }
 
     private nonisolated static func transfer(_ prepared: PreparedConfiguration, cache: URL,
@@ -286,14 +307,17 @@ typealias Page = DesktopPage
         await network.connect { token in
             try await CampusIPv6.check(developerMode: settings.settings.devMode)
             let cache = try WorkerLocation.application().cache
-            let prepared = try await warp.withPreparedConfiguration(settings: settings, runtimeId: runtime.resourceId,
+            let prepared = try await withPreparedConfiguration(settings: settings, runtimeId: runtime.resourceId,
                                                                      geodataId: data.resourceId) { $0 }
             guard !business.hasChanges, business.snapshot?.revision == prepared.settingsRevision,
-                  warp.summary?.revision == prepared.credentialRevision else { throw WorkerClientError.staleConfiguration }
-            return try await Task.detached {
-                let request = try Self.transfer(prepared, cache: cache, identity: identity)
-                return try ServiceClient.startSession(request, idleToken: token, identity: identity)
-            }.value
+                  activeCredentialRevision == prepared.credentialRevision else { throw WorkerClientError.staleConfiguration }
+            let request = try await Task.detached { try Self.transfer(prepared, cache: cache, identity: identity) }.value
+            if settings.cloud?.enabled == true {
+                let client = try session.worker()
+                guard try await client.settings().revision == settings.revision,
+                      try await client.maintainerNotice(refresh: false).cloudAllowed else { throw WorkerClientError.staleConfiguration }
+            }
+            return try await Task.detached { try ServiceClient.startSession(request, idleToken: token, identity: identity) }.value
         }
         if network.phase == .unknown { await refreshNetwork() }
         else { await refreshCoreControls(restoreChoices: true) }
@@ -370,7 +394,10 @@ typealias Page = DesktopPage
                 guard result == .OK, let url = panel.url, self.commandState.availability(.importChain).enabled else { return }
                 Task { await self.business.changeChain(.load(.file(url))) }
             }
-        case .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .refreshCloud:
+            page = .configuration; openWindow(id: "main"); showWindow()
+            Task { await business.changeCloud(.load(.refresh)) }
+        case .exportLogs, .exportDiagnostics, .checkUpdates:
             break // Not advertised as available until their real implementations are connected.
         }
     }

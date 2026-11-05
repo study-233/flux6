@@ -49,10 +49,13 @@ func run() error {
 	handler := worker.BusinessHandler(settings, worker.NewRuntimeManager(dirs.Cache))
 	handler = worker.WarpHandler(worker.NewWarpManager(warp.NewClient(nil)), handler)
 	handler = worker.GeodataHandler(worker.NewGeodataManager(dirs.Resources, dirs.Cache), handler)
-	handler = worker.ConfigurationHandler(worker.NewConfigurationManager(settings, dirs.Cache), handler)
+	notices := worker.NewNoticeManager(root)
+	handler = worker.ConfigurationHandler(worker.NewConfigurationManager(settings, dirs.Cache, notices), handler)
+	handler = worker.CloudHandler(settings, notices, handler)
+	handler = worker.NoticeHandler(notices, handler)
 	handler = worker.ChainHandler(settings, handler)
 	handler = worker.TrafficHandler(root, handler)
-	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare", "traffic.get", "traffic.observe", "chain.preview", "chain.commit", "chain.enable", "chain.clear"}})
+	return worker.Serve(ctx, input, output, handler, worker.ServerOptions{Capabilities: []string{"settings.get", "settings.patch", "runtime.status", "runtime.download", "warp.register", "geodata.status", "geodata.prepare", "configuration.prepare", "traffic.get", "traffic.observe", "chain.preview", "chain.commit", "chain.enable", "chain.clear", "notice.status", "notice.refresh", "cloud.preview", "cloud.commit", "cloud.portal", "cloud.enable", "cloud.clear"}})
 }
 
 func main() {

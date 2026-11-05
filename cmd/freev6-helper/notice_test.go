@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/yourname/freev6/internal/notice"
 )
 
 // 固定「现在」，让过期/未过期的断言与真实时钟无关。
@@ -31,7 +33,7 @@ func TestParseNoticePayload(t *testing.T) {
 	    {"id":"a","title":"重复 id","published":"2026-10-29T19:00:00+08:00"}
 	  ]
 	}`
-	payload, err := parseNoticePayload([]byte(body), noticeTestNow)
+	payload, err := notice.Parse([]byte(body), noticeTestNow)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -67,7 +69,7 @@ func TestParseNoticePayload(t *testing.T) {
 // 维护者手滑写成顶层数组时也不能把公告板清空。
 func TestParseNoticePayloadBareArray(t *testing.T) {
 	body := `[{"id":"x","title":"数组写法","published":"2026-10-29T19:00:00+08:00"}]`
-	payload, err := parseNoticePayload([]byte(body), noticeTestNow)
+	payload, err := notice.Parse([]byte(body), noticeTestNow)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -78,7 +80,7 @@ func TestParseNoticePayloadBareArray(t *testing.T) {
 
 func TestParseNoticePayloadRejectsGarbage(t *testing.T) {
 	for _, body := range []string{"", "not json", "<html>404</html>", `{"items":"nope"}`} {
-		if _, err := parseNoticePayload([]byte(body), noticeTestNow); err == nil {
+		if _, err := notice.Parse([]byte(body), noticeTestNow); err == nil {
 			t.Errorf("expected error for %q", body)
 		}
 	}
@@ -88,13 +90,13 @@ func TestParseNoticePayloadCapsAndTruncates(t *testing.T) {
 	item := func(i int) map[string]any {
 		return map[string]any{
 			"id":        "id-" + strings.Repeat("x", i%3) + string(rune('a'+i%26)),
-			"title":     strings.Repeat("标", noticeMaxTitle+50),
-			"body":      strings.Repeat("文", noticeMaxBody+50),
+			"title":     strings.Repeat("标", notice.MaxTitle+50),
+			"body":      strings.Repeat("文", notice.MaxBody+50),
 			"published": "2026-10-29T19:00:00+08:00",
 		}
 	}
-	items := make([]map[string]any, 0, noticeMaxItems+5)
-	for i := 0; i < noticeMaxItems+5; i++ {
+	items := make([]map[string]any, 0, notice.MaxItems+5)
+	for i := 0; i < notice.MaxItems+5; i++ {
 		entry := item(i)
 		entry["id"] = "id-" + strings.Repeat("0", i%2) + string(rune('a'+i))
 		items = append(items, entry)
@@ -103,19 +105,19 @@ func TestParseNoticePayloadCapsAndTruncates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload, err := parseNoticePayload(data, noticeTestNow)
+	payload, err := notice.Parse(data, noticeTestNow)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if len(payload.Items) != noticeMaxItems {
-		t.Fatalf("items = %d, want cap %d", len(payload.Items), noticeMaxItems)
+	if len(payload.Items) != notice.MaxItems {
+		t.Fatalf("items = %d, want cap %d", len(payload.Items), notice.MaxItems)
 	}
 	first := payload.Items[0]
-	if got := len([]rune(first.Title)); got != noticeMaxTitle+1 { // +1 = 省略号
-		t.Fatalf("title runes = %d, want %d", got, noticeMaxTitle+1)
+	if got := len([]rune(first.Title)); got != notice.MaxTitle+1 { // +1 = 省略号
+		t.Fatalf("title runes = %d, want %d", got, notice.MaxTitle+1)
 	}
-	if got := len([]rune(first.Body)); got != noticeMaxBody+1 {
-		t.Fatalf("body runes = %d, want %d", got, noticeMaxBody+1)
+	if got := len([]rune(first.Body)); got != notice.MaxBody+1 {
+		t.Fatalf("body runes = %d, want %d", got, notice.MaxBody+1)
 	}
 }
 
@@ -182,7 +184,7 @@ func TestNoticeHandlerRejectsNonGET(t *testing.T) {
 func TestLoadNoticeCacheExpiry(t *testing.T) {
 	h := &helper{root: t.TempDir()}
 	now := noticeTestNow
-	write := func(cache noticeCache) {
+	write := func(cache notice.Cache) {
 		t.Helper()
 		path := h.noticeCachePath()
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -197,14 +199,14 @@ func TestLoadNoticeCacheExpiry(t *testing.T) {
 		}
 	}
 
-	write(noticeCache{FetchedAt: now.Add(-8 * 24 * time.Hour), Items: []noticeItem{{ID: "old", Title: "旧缓存"}}})
+	write(notice.Cache{FetchedAt: now.Add(-8 * 24 * time.Hour), Items: []notice.Item{{ID: "old", Title: "旧缓存"}}})
 	if _, ok := h.loadNoticeCache(now); ok {
 		t.Fatal("cache older than 7 days must be ignored")
 	}
 
-	write(noticeCache{
+	write(notice.Cache{
 		FetchedAt: now.Add(-time.Hour),
-		Items: []noticeItem{
+		Items: []notice.Item{
 			{ID: "gone", Title: "过期", Expires: now.Add(-time.Minute).Format(time.RFC3339)},
 			{ID: "alive", Title: "有效"},
 		},
@@ -226,12 +228,12 @@ func TestLoadNoticeCacheExpiry(t *testing.T) {
 }
 
 type noticeResponse struct {
-	OK        bool         `json:"ok"`
-	Notices   []noticeItem `json:"notices"`
-	Updated   string       `json:"updated"`
-	FetchedAt string       `json:"fetchedAt"`
-	Stale     bool         `json:"stale"`
-	Error     string       `json:"error"`
+	OK        bool          `json:"ok"`
+	Notices   []notice.Item `json:"notices"`
+	Updated   string        `json:"updated"`
+	FetchedAt string        `json:"fetchedAt"`
+	Stale     bool          `json:"stale"`
+	Error     string        `json:"error"`
 }
 
 func decodeNoticeResponse(t *testing.T, h *helper) noticeResponse {

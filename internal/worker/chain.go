@@ -51,11 +51,15 @@ func (s SettingsSnapshot) validChain() bool {
 		return len(s.sealedChain) == 0
 	}
 	c := s.Chain
-	if (c.Source != "file" && c.Source != "url") || len(c.Names) == 0 || len(c.Names) > 64 || len(s.sealedChain) < 28 || len(s.sealedChain) > maxChainPayload+28 {
+	return (c.Source == "file" || c.Source == "url") && validProfile(c.Names, s.sealedChain, 64)
+}
+
+func validProfile(names []string, sealed []byte, maximum int) bool {
+	if len(names) == 0 || len(names) > maximum || len(sealed) < 28 || len(sealed) > maxChainPayload+28 {
 		return false
 	}
-	seen := make(map[string]bool, len(c.Names))
-	for _, name := range c.Names {
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
 		if name == "" || len(name) > 128 || seen[name] || strings.ContainsFunc(name, unicode.IsControl) {
 			return false
 		}
@@ -75,13 +79,20 @@ func chainCipher(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCMWithRandomNonce(block)
 }
 func (s SettingsSnapshot) openChain(key []byte) (chainPayload, error) {
+	if s.Chain == nil {
+		return chainPayload{}, errors.New("missing chain profile")
+	}
+	return openProfile(key, s.sealedChain, "dev.freev6.chain.v1", s.Chain.Source, s.Chain.Names)
+}
+
+func openProfile(key, sealed []byte, binding, source string, expected []string) (chainPayload, error) {
 	var value chainPayload
 	box, err := chainCipher(key)
-	if err != nil || s.Chain == nil {
+	if err != nil {
 		return value, errors.New("missing chain profile or key")
 	}
-	plain, err := box.Open(nil, nil, s.sealedChain, []byte("dev.freev6.chain.v1"))
-	if err != nil || decodeObject(plain, &value) != nil || (value.URL != "") != (s.Chain.Source == "url") {
+	plain, err := box.Open(nil, nil, sealed, []byte(binding))
+	if err != nil || decodeObject(plain, &value) != nil || (value.URL != "") != (source == "url") {
 		return chainPayload{}, errors.New("invalid saved chain profile")
 	}
 	names := make([]string, len(value.Proxies))
@@ -92,7 +103,7 @@ func (s SettingsSnapshot) openChain(key []byte) (chainPayload, error) {
 		}
 		names[i] = n.Name
 	}
-	if !slices.Equal(names, s.Chain.Names) {
+	if !slices.Equal(names, expected) {
 		return chainPayload{}, errors.New("chain summary mismatch")
 	}
 	return value, nil
@@ -108,6 +119,10 @@ func normalizedChain(content []byte) (chainPayload, []string, error) {
 	if len(nodes) > 64 {
 		return chainPayload{}, nil, errors.New("当前 Mac 版本每组最多支持 64 个节点")
 	}
+	return normalizedNodes(nodes)
+}
+
+func normalizedNodes(nodes []mihomo.ChainProxy) (chainPayload, []string, error) {
 	value := chainPayload{}
 	var names []string
 	for _, node := range nodes {
@@ -175,6 +190,9 @@ func (m *chainManager) preview(ctx context.Context, params json.RawMessage) (any
 	}
 	if *input.Revision != current.Revision {
 		return nil, &RPCError{Conflict, "设置已改变"}
+	}
+	if current.Cloud != nil && current.Cloud.Enabled {
+		return nil, &RPCError{InvalidParams, "请先停用备用配置，再导入链式代理"}
 	}
 	var content []byte
 	var source, rawURL string
@@ -272,6 +290,9 @@ func (m *chainManager) apply(ctx context.Context, method string, params json.Raw
 			return nil, &RPCError{InvalidParams, "清除参数无效"}
 		}
 		current.Chain, current.sealedChain = nil, nil
+	}
+	if current.Chain != nil && current.Chain.Enabled && current.Cloud != nil && current.Cloud.Enabled {
+		return nil, &RPCError{InvalidParams, "请先停用备用配置，再启用链式代理"}
 	}
 	if !current.validChain() {
 		return nil, &RPCError{InvalidParams, "链式信息无效"}

@@ -26,16 +26,27 @@ func (BusinessConfiguration) GoString() string { return "BusinessConfiguration(r
 
 // PrepareWarpConfiguration reuses the shared renderer and Windows blacklist
 // semantics. It does not read credentials, write a config file or run a core.
-
 func PrepareWarpConfiguration(preferences ProxyPreferences, tunnel warp.TunnelCredentials) (BusinessConfiguration, error) {
 	return PrepareWarpWithChain(preferences, tunnel, nil)
 }
 
 func PrepareWarpWithChain(preferences ProxyPreferences, tunnel warp.TunnelCredentials, chain []mihomo.ChainProxy) (BusinessConfiguration, error) {
-	var result BusinessConfiguration
 	if err := warp.ValidateTunnelCredentials(tunnel); err != nil {
-		return result, errors.New("invalid tunnel credentials")
+		return BusinessConfiguration{}, errors.New("invalid tunnel credentials")
 	}
+	device := warp.Device{PrivateKey: tunnel.PrivateKey, PeerPublicKey: tunnel.PeerPublicKey, IPv4: tunnel.IPv4, IPv6: tunnel.IPv6}
+	return prepareBusiness(preferences, device, mihomo.RenderOptions{ChainProxies: chain})
+}
+
+func PrepareCloudConfiguration(preferences ProxyPreferences, nodes []mihomo.ChainProxy) (BusinessConfiguration, error) {
+	if len(nodes) == 0 || len(nodes) > mihomo.CloudMaxNodes {
+		return BusinessConfiguration{}, errors.New("invalid campus exits")
+	}
+	return prepareBusiness(preferences, warp.Device{}, mihomo.RenderOptions{CloudNodes: nodes})
+}
+
+func prepareBusiness(preferences ProxyPreferences, device warp.Device, options mihomo.RenderOptions) (BusinessConfiguration, error) {
+	var result BusinessConfiguration
 	encoded, err := json.Marshal(preferences)
 	if err != nil {
 		return result, errors.New("invalid proxy preferences")
@@ -51,10 +62,12 @@ func PrepareWarpWithChain(preferences ProxyPreferences, tunnel warp.TunnelCreden
 			return result, errors.New("invalid built-in blacklist")
 		}
 	}
-	data, err := mihomo.RenderJSONWithOptions(warp.Device{
-		PrivateKey: tunnel.PrivateKey, PeerPublicKey: tunnel.PeerPublicKey, IPv4: tunnel.IPv4, IPv6: tunnel.IPv6,
-	}, mihomo.RenderOptions{Platform: mihomo.PlatformDarwin, Mode: preferences.Mode, CampusCIDRs: preferences.CampusCIDRs,
-		Blacklist: blacklist, DevMode: preferences.DevMode, ChainProxies: chain})
+	options.Platform = mihomo.PlatformDarwin
+	options.Mode = preferences.Mode
+	options.CampusCIDRs = preferences.CampusCIDRs
+	options.Blacklist = blacklist
+	options.DevMode = preferences.DevMode
+	data, err := mihomo.RenderJSONWithOptions(device, options)
 	if err != nil {
 		return result, errors.New("cannot render business configuration")
 	}

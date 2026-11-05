@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/yourname/freev6/internal/app"
+	"github.com/yourname/freev6/internal/notice"
 )
 
 const cloudTestYAML = `port: 7890
@@ -129,12 +133,12 @@ func TestFetchCloudProfileMapsGateToCampusOnly(t *testing.T) {
 		writer.WriteHeader(http.StatusForbidden)
 	}))
 	defer server.Close()
-	_, err := fetchCloudProfile(server.URL)
+	_, err := app.FetchCloudProfile(context.Background(), server.URL)
 	if err == nil {
 		t.Fatal("expected gate error")
 	}
-	if cloudErrorCode(err) != "campus-only" {
-		t.Fatalf("code = %q, err = %v", cloudErrorCode(err), err)
+	if app.CloudErrorCode(err) != "campus-only" {
+		t.Fatalf("code = %q, err = %v", app.CloudErrorCode(err), err)
 	}
 	if !strings.Contains(err.Error(), "校园网") {
 		t.Fatalf("err = %v", err)
@@ -146,7 +150,7 @@ func TestFetchCloudProfileReadsBody(t *testing.T) {
 		_, _ = writer.Write([]byte(cloudTestYAML))
 	}))
 	defer server.Close()
-	data, err := fetchCloudProfile(server.URL)
+	data, err := app.FetchCloudProfile(context.Background(), server.URL)
 	if err != nil {
 		t.Fatalf("fetchCloudProfile: %v", err)
 	}
@@ -180,12 +184,12 @@ func TestCloudProfileAllowedParsing(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			payload, err := parseNoticePayload([]byte(testCase.payload), now)
+			payload, err := notice.Parse([]byte(testCase.payload), now)
 			if err != nil {
-				t.Fatalf("parseNoticePayload: %v", err)
+				t.Fatalf("notice.Parse: %v", err)
 			}
-			if got := cloudProfileAllowed(payload.CloudProfile); got != testCase.want {
-				t.Fatalf("cloudProfileAllowed = %v, want %v", got, testCase.want)
+			if got := notice.CloudAllowed(payload.CloudProfile); got != testCase.want {
+				t.Fatalf("notice.CloudAllowed = %v, want %v", got, testCase.want)
 			}
 		})
 	}

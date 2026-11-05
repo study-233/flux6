@@ -30,6 +30,10 @@ public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sen
         keychain = nil
     }
 
+    public static func cloudKey() -> KeychainSecretStorage {
+        KeychainSecretStorage(service: "dev.freev6.desktop.cloud", account: "snapshot-key-v1", keychain: nil, label: "FreeV6 备用配置密钥")
+    }
+
     public static func chainKey() -> KeychainSecretStorage {
         KeychainSecretStorage(service: "dev.freev6.desktop.chain", account: "snapshot-key-v1", keychain: nil, label: "FreeV6 链式代理密钥")
     }

@@ -302,7 +302,7 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 		matchTarget = ChainGroup
 	}
 	fmt.Fprintf(&b, "  - MATCH,%s\n", matchTarget)
-	if len(options.ChainProxies) > 0 {
+	if len(options.ChainProxies) > 0 || (options.Platform == PlatformDarwin && cloud) {
 		// UDP 泄露兜底（能力自适应，依赖 mihomo match() 的 skip-continue 语义）：
 		// 命中 MATCH→链式 后，若所选链式节点不支持 UDP（如 VLESS+WS），
 		// mihomo 会跳过该规则继续向后找，最终落到 DIRECT —— 这正是真实

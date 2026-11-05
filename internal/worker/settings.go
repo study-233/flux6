@@ -15,7 +15,7 @@ import (
 )
 
 const maxSettingsBytes = 256 * 1024
-const maxStoredSettingsBytes = maxSettingsBytes + 512*1024
+const maxStoredSettingsBytes = maxSettingsBytes + 2*512*1024
 const settingsFile = "proxy-preferences.json"
 
 type SettingsSnapshot struct {
@@ -23,6 +23,9 @@ type SettingsSnapshot struct {
 	Revision      uint64               `json:"revision"`
 	Settings      app.ProxyPreferences `json:"settings"`
 	Chain         *ChainSummary        `json:"chain,omitempty"`
+	Cloud         *CloudSummary        `json:"cloud,omitempty"`
+	PortalHost    string               `json:"portalHost,omitempty"`
+	sealedCloud   []byte
 	sealedChain   []byte
 }
 
@@ -66,7 +69,8 @@ func (s *SettingsStore) read() (SettingsSnapshot, error) {
 	}
 	snapshot := stored.SettingsSnapshot
 	snapshot.sealedChain = stored.SealedChain
-	if !snapshot.validChain() {
+	snapshot.sealedCloud = stored.SealedCloud
+	if !snapshot.validChain() || !snapshot.validCloud() {
 		return defaults, errors.New("invalid chain snapshot")
 	}
 	if snapshot.SchemaVersion != 1 || snapshot.Revision == 0 {
@@ -104,6 +108,7 @@ func (s *SettingsStore) Patch(ctx context.Context, revision uint64, changes json
 type settingsRecord struct {
 	SettingsSnapshot
 	SealedChain []byte `json:"sealedChain,omitempty"`
+	SealedCloud []byte `json:"sealedCloud,omitempty"`
 }
 
 func (s *SettingsStore) commit(ctx context.Context, current SettingsSnapshot) (SettingsSnapshot, error) {
@@ -115,7 +120,7 @@ func (s *SettingsStore) commit(ctx context.Context, current SettingsSnapshot) (S
 	if err != nil || len(public) > maxSettingsBytes {
 		return current, &RPCError{InvalidParams, "settings too large"}
 	}
-	data, err := json.Marshal(settingsRecord{current, current.sealedChain})
+	data, err := json.Marshal(settingsRecord{SettingsSnapshot: current, SealedChain: current.sealedChain, SealedCloud: current.sealedCloud})
 	if err != nil {
 		return current, err
 	}
