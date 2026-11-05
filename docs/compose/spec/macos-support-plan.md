@@ -11,7 +11,9 @@ Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员
 
 首版面向 macOS 13 及以上的 Apple Silicon 设备，交付 ad-hoc 签名的 DMG 和应用内更新。Developer ID 与公证后置。Intel 在真机验证后确定支持级别，热点共享在验证设备条件和维护成本后单独决定。
 
-后续由 Codex 负责开发、测试、修复和交付。开发分支为 `mac`，Windows 审计基线为 `c528f26`。当前已有可安装的 arm64 开发预览、原生窗口和三处菜单入口。三个入口已接入同一套 XPC 会话启停，服务恢复和桌面命令已在隔离环境验证。真实系统接管与菜单操作仍待实机验收。[开发进度](./macos-development-progress.md)
+后续由 Codex 在 `mac` 分支按下表逐项开发、测试、修复和交付。每项记录产物、复现步骤、通过的检查及待验证环境。涉及产品取舍时再请用户决定，例如热点共享值得支持哪些设备组合。Windows 审计基线为 `c528f26`。[开发进度](./macos-development-progress.md)
+
+当前已有 arm64 开发预览 DMG。应用菜单、主窗口工具栏和右上角状态菜单已接入同一套启停命令。隔离服务已验证启停、切换模式和节点、读取速率。开发构建在 macOS 27.0.1 真机上已验证网络服务尚未安装时的命令、窗口收起和从访达重开。右上角后台操作、校园网络出口与系统恢复分别保留真机验收项。[验证记录](./macos-development-progress.md#解锁后的原生顶部栏验收)
 
 **第一项用户验收**是打开 FreeV6，在窗口顶部点“连接”，按 ⌘W 收起主窗口，继续使用浏览器，再从屏幕右上角点“断开”。重新打开主窗口时能看到原网络已经恢复。开发按下面的交付顺序推进。
 
@@ -22,7 +24,7 @@ Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员
 | 3 · 安装、升级和卸载 | 从下载的 DMG 拖入“应用程序”，安装网络服务，完成一次应用内升级和卸载 | 实测首次打开、授权取消、旧版升级、失败回退和系统网络恢复，记录 macOS 13 与当前系统的结果 |
 | 4 · 发布并标明支持范围 | 在发行页获取 Apple Silicon 安装包，并查看经验证的系统与设备 | 核对发布资产、更新签名和 Windows 回归。Intel 依据真机结果标注。热点共享另交可行性与成本结论，由用户决定是否纳入 |
 
-[原生顶部栏布局与命令](#macos-原生顶部栏设计) · [顶部栏开发清单](#顶部栏开发清单) · [完整阶段与验收条件](#实施阶段和验收条件)
+[原生顶部栏布局与命令](#macos-原生顶部栏设计) · [右上角菜单如何显示节点](#右上角菜单如何显示节点) · [下一步开发与验收](#顶部栏开发清单) · [完整阶段与验收条件](#实施阶段和验收条件) · [热点共享可行性与成本](#热点共享可行性与实施复杂度)
 
 ## 已确认范围和建议交付边界
 
@@ -337,7 +339,7 @@ root 服务的状态仍是 UI 的权威来源。GUI 意外消失后默认在短�
 
 表中快捷键均为应用内命令；全局唤出快捷键单独配置。主窗口的红色关闭按钮和 ⌘W 隐藏主窗口，保留后台连接与草稿；设置、帮助等辅助窗口的 ⌘W 只关闭当前窗口，草稿按对应编辑页规则处理。⌘Q 执行完整退出，标题栏不另加退出按钮。功能暂不可用时，由同一命令模型决定禁用状态，并在对应页面说明所缺条件。
 
-当前代码已有 [NativeCommands.swift](/Users/andy/Study/free-v6/macos/Sources/FreeV6App/NativeCommands.swift) 中的菜单、工具栏和状态菜单骨架，以及 [DesktopCommands.swift](/Users/andy/Study/free-v6/macos/Sources/FreeV6Desktop/DesktopCommands.swift) 中的共用命令模型。通用设置现已绑定菜单栏图标的显示偏好。三处共用的启停命令已读取服务会话。后续接入工作模式、最近节点与流量摘要，并验收后台操作和窗口重开。
+顶部栏的界面入口在 [NativeCommands.swift](../../../macos/Sources/FreeV6App/NativeCommands.swift)，启停命令和可用条件在 [DesktopCommands.swift](../../../macos/Sources/FreeV6Desktop/DesktopCommands.swift)。设置中的显示开关控制右上角图标。模式、最近节点与速率正在接入开发版本，交付条件见[顶部栏开发清单](#顶部栏开发清单)。
 
 #### 原生组件与实现落点
 
@@ -345,9 +347,9 @@ root 服务的状态仍是 UI 的权威来源。GUI 意外消失后默认在短�
 
 | 设计部分 | 原生实现 | 当前入口与待完成工作 |
 | --- | --- | --- |
-| 屏幕顶部应用菜单 | SwiftUI Commands、CommandGroup、CommandMenu，焦点通过 FocusedValue 传递 | NativeCommands.swift：补齐模式与节点命令；保存、导出和搜索根据当前窗口与页面启用 |
-| 标题栏和工具栏 | 系统红黄绿按钮、统一工具栏样式、ToolbarItem；需要时使用 NSToolbar | FreeV6App.swift、NativeCommands.swift：连接当前页标题、搜索、过滤和真实连接按钮，验证收窄及隐藏后的操作入口 |
-| 右上角状态菜单 | MenuBarExtra 的菜单样式和显示偏好；需要时使用 NSStatusItem | FreeV6App.swift、NativeCommands.swift：显示开关已接入，待验证隐藏与重开。补齐真实状态、速率、模式与最近节点并验证后台焦点 |
+| 屏幕顶部应用菜单 | SwiftUI Commands、CommandGroup、CommandMenu，焦点通过 FocusedValue 传递 | 在 NativeCommands.swift 中将命令绑定到当前窗口。验证编辑草稿、打开设置和收起主窗口时的快捷键与可用性 |
+| 标题栏和工具栏 | 系统红黄绿按钮、统一工具栏样式、ToolbarItem，需要时使用 NSToolbar | 在 FreeV6App.swift、NativeCommands.swift 中按页面组织操作。检查搜索、过滤、窗口收窄及隐藏工具栏后的替代入口 |
+| 右上角状态菜单 | MenuBarExtra 的原生菜单样式与显示偏好 | 在 NativeCommands.swift 中复用工作模式和节点菜单。验证浏览器在前台时的勾选、速率、错误反馈，以及从 Dock 重开窗口 |
 | 共享命令与状态 | DesktopCommand、命令可用性、AppModel 与连接协调器 | DesktopCommands.swift、AppModel.swift：三处使用同一请求与状态；重复触发、超时和失败按同一规则处理 |
 | 窗口和退出 | NSApplicationDelegate、NSWindowDelegate 与标准 Settings 场景 | FreeV6App.swift、AppModel.swift：区分主窗口隐藏、辅助窗口关闭、Dock 重开和完整退出；连接退出接入网络恢复事务 |
 
@@ -411,6 +413,15 @@ root 服务的状态仍是 UI 的权威来源。GUI 意外消失后默认在短�
 展开菜单依次提供：当前状态与简短流量摘要、连接/断开、工作模式、当前节点与有限数量的快速切换项、打开主窗口、设置…、退出 FreeV6。完整节点列表和错误详情在主窗口查看。关闭主窗口后该入口继续工作；点击打开主窗口会恢复窗口并激活应用。[Apple MenuBarExtra](https://developer.apple.com/documentation/swiftui/menubarextra)
 
 快速节点菜单显示当前节点和最近使用的节点，去重后最多 5 项，末尾提供“全部节点…”进入节点页；首次无历史记录时只显示现有可用项。模式菜单提供规则、全局、直连；开发者模式遵循现有独立业务设置。切换完成前不提前改变勾选，失败时保留服务确认的选择并给出原因。
+
+##### 右上角菜单如何显示节点
+
+| 用户看到的内容 | 显示规则 | 怎样验收 |
+| --- | --- | --- |
+| 菜单首行的“当前接入点” | 显示核心此刻实际使用的节点。自动组下面的勾表示“自动选择”或用户指定的首选接入点 | 自动选到 A 时，摘要显示 A，子菜单勾选“自动选择”。核心自行切到 B 后，摘要更新为 B，选择方式仍为自动 |
+| 手动选择一个接入点 | 收到同一会话的确认后再更新首选项。选择未生效时重新读取实际节点，并就地显示失败原因 | 选用可达的 B，重开主窗口时节点页与摘要都显示 B。随后选用不可达的 C，失败后复查实际节点和原先的首选策略，C 不进入最近使用记录 |
+| “恢复自动选择”与“链式代理” | 恢复自动只清除接入点偏好。链式组按活动配置单列并标出所选成员 | 在含两个组的测试配置中切换链式成员，再恢复接入点自动选择，核对两组结果。普通 WARP 配置只展示核心实际提供的分组 |
+| 等待、失联或重新连接 | 服务状态未确认时显示“正在读取…”或“状态未知”，停止展示旧速率。测量节点期间保留断开入口 | 在菜单展开时断开并重新连接。旧会话迟到的测速、勾选和速率回复均不得写入新会话 |
 
 状态栏默认只显示紧凑模板图标；上传/下载速率放在展开的菜单中，不持续占用屏幕顶部宽度。菜单关闭时停止仅供该菜单使用的刷新任务。后台控制不主动抢占应用焦点；只有打开页面、处理授权或查看错误详情时才激活对应窗口。状态栏位置遵从系统安排，不要求固定在时钟左侧或始终可见，Dock 入口仍可恢复主窗口。
 
@@ -548,25 +559,25 @@ DMG 同时提供签名一致的原生恢复/卸载工具，服务安装时保留
 
 ## 文件级实施拆分
 
-下表为建议落点，文件名可随实现调整。Mac 系统能力放在 Swift 内，不再另建一套 Go 的 Darwin DNS/权限后端。
+下表沿用仓库已有入口。恢复工具和产品更新助手列为待交付目标，开发时优先复用现有服务与安装逻辑。
 
 | 模块 | 建议文件或目录 | 工作 |
 | --- | --- | --- |
-| 原生工程 | macos/FreeV6.xcodeproj、macos/Packages | App/服务/工具/测试 targets、SwiftPM 锁文件、部署目标 |
-| 界面 | macos/FreeV6App/Features、AppModel、Resources | 概览、节点、配置、日志、设置、图标、首次启动和协议 |
-| 桌面系统层 | macos/FreeV6App/Platform | AppKit 生命周期、快捷键、登录启动、Keychain |
-| 顶部栏与共用命令 | macos/FreeV6App/Commands、macos/FreeV6App/Toolbar、macos/FreeV6App/MenuBar | 应用菜单、原生标题栏/工具栏、状态栏入口、焦点与命令可用性、统一连接操作 |
-| Swift 业务连接 | macos/FreeV6App/Clients/WorkerClient | 子进程、stdio 编解码、取消、进度和故障重连 |
+| 原生工程 | [macos/Package.swift](../../../macos/Package.swift)、macos/Resources | SwiftPM 的 App、服务、安装器与测试目标，macOS 13 部署目标，应用打包资源 |
+| 界面 | macos/Sources/FreeV6App | 概览、节点、配置、日志、设置、首次启动和协议 |
+| 桌面系统层 | macos/Sources/FreeV6App、FreeV6Desktop、FreeV6Business | AppKit 管理窗口与退出，桌面模块维护命令状态，业务模块管理钥匙串凭据 |
+| 顶部栏与共用命令 | FreeV6App/NativeCommands.swift、FreeV6Desktop/DesktopCommands.swift、FreeV6App/AppModel.swift（均在 macos/Sources 下） | 绑定应用菜单、主窗口工具栏和右上角菜单。页面焦点决定保存、搜索与导出的目标，会话状态决定启停和切换操作 |
+| Swift 业务连接 | macos/Sources/FreeV6Business/WorkerClient.swift、WorkerTransport.swift | 子进程、stdio 编解码、取消、进度和故障重连 |
 | Go 业务提取 | 新增 internal/app、internal/paths；调整 internal/warp 与 internal/mihomo | 与 HTTP/Windows 解耦、注入目录和凭据存储接口、保持业务语义 |
 | Mac worker | 新增 cmd/freev6-worker | JSON-RPC 适配，仅普通用户业务，无 HTTP 控制端口 |
 | Windows 适配 | cmd/freev6-helper/main.go、chain.go、cloudconfig.go 等 | 调用共享业务，维持原有 API、字段保留与更新行为 |
 | 协议契约 | shared/protocol、shared/fixtures | Swift/Go DTO、版本、错误码、功能能力和等价配置样本 |
-| XPC 共享层 | macos/Packages/ServiceProtocol | 固定方法、受限消息类型、版本握手和调用超时 |
-| 原生网络服务 | macos/FreeV6NetworkService | 身份校验、配置验证、核心安装、进程、controller 代理、DNS 与事务恢复 |
-| 服务管理 | macos/ServiceInstaller、macos/Resources/LaunchDaemons | 固定 bootstrap、plist、身份登记、升级回退、卸载 |
-| 恢复工具 | macos/FreeV6Recovery | GUI/命令入口，复用服务恢复接口；误删 App 后仍有恢复路径 |
+| XPC 共享层 | macos/Sources/FreeV6System/ServiceProtocol.swift、ServiceClient.swift | 固定方法、受限消息类型、版本握手和调用超时 |
+| 原生网络服务 | macos/Sources/FreeV6NetworkService、macos/Sources/FreeV6System | 身份校验、配置验证、核心安装、进程、controller 代理、DNS 与事务恢复 |
+| 服务管理 | macos/Sources/FreeV6Bootstrap、FreeV6System/ServiceInstaller.swift | 固定 bootstrap、plist、身份登记、升级回退、卸载 |
+| 恢复工具（待交付） | 复用 FreeV6Bootstrap 和 FreeV6System 的恢复接口 | 提供用户可执行的恢复路径，验收误删 App 后的网络恢复和服务卸载 |
 | 核心与资源 | internal/mihomo/download.go、runtime.go、config.go、geodata.go | 平台资产映射、格式/哈希、Mac 配置输出、真实资源路径；修正平台相关测试 |
-| 原生更新 | macos/FreeV6App/UpdateCoordinator、macos/FreeV6UpdateAgent | 普通用户更新助手、Sparkle、服务兼容检查、升级事务和重新授权流程；助手无特权 XPC 身份 |
+| 原生更新（待交付） | macos/Probes 下已有 Sparkle 实验，产品助手目标加入 macos/Package.swift | 普通用户更新助手、服务兼容检查、升级事务和重新授权流程 |
 | Mac 发布 | scripts/macos、独立 Mac CI/release jobs | Go 目标构建、xcodebuild、签名、DMG、appcast、来源证明 |
 | 文档 | README、THIRD-PARTY、Mac 开发/安装/更新/恢复指南 | 双平台支持范围、工具链、权限与用户流程 |
 
@@ -591,16 +602,16 @@ Codex 按功能依赖安排开发，每项交付记录可运行产物、复现�
 
 ### 顶部栏开发清单
 
-**先交付连接和断开。** 在 UI-01 定义界面可用的命令与会话状态，接着用 UI-05 接收服务确认，再把该命令绑定到 UI-02、UI-03、UI-04 三个现有入口。先走通 UI-06 的“窗口连接 → ⌘W → 后台断开 → Dock 重开”和“⌘Q → 恢复完成 → 退出”两条路径。模式、最近节点和流量随后按接口逐项补入，同样从服务读回结果并做跨入口回归。
+**接下来先验收一条完整的日常操作。** 在窗口连接，按 ⌘W 收起，切到浏览器，在右上角切换接入点，再打开主窗口核对同一节点。回到浏览器从右上角断开，从 Dock 重开主窗口，核对连接状态和网络恢复。开发时先用隔离服务复现成功、拒绝和迟到回复，再在解锁的 Mac 上走完操作。实际校园出口与系统 DNS 恢复另在获授权的联网设备上记录。
 
 | 任务 / 阶段 | 当前起点 | 剩余交付与完成条件 |
 | --- | --- | --- |
-| UI-01 共用命令 / P2 | 已有 DesktopCommand、可用性判断和场景焦点 | 补充连接/断开、模式和节点命令；三处共用执行入口；保存跟随编辑上下文，标准编辑快捷键跟随输入焦点 |
-| UI-02 应用菜单 / P2 | 已有文件、显示、连接、帮助等命令骨架；未接入能力禁用 | 补齐模式/节点子菜单、搜索和日志命令；验证菜单顺序、分组、快捷键与勾选；无主窗口时仍可打开主窗口、设置和退出 |
-| UI-03 标题栏与工具栏 / P2 | 已有统一工具栏、按页面切换的操作、服务状态和主要按钮 | 按上方四页布局接入搜索、过滤、导入及真实连接状态；验证收窄、隐藏、拖动、全屏与系统窗口按钮；所有动作有应用菜单入口 |
-| UI-04 状态菜单 / P2、P5 | 已有 MenuBarExtra、准备状态、主窗口与设置入口，显示开关已绑定持久偏好 | 补齐真实连接、速率、工作模式与最近节点；关闭窗口后可控制连接；隐藏图标后可从 Dock 恢复；后台操作不无故抢焦点 |
+| UI-01 共用命令 / P2 | 三处已共用启停动作和服务状态，编辑命令已有场景焦点 | 在连接、断开和恢复期间快速交替点击三个入口，核对服务只执行一次有效请求。主窗口和设置之间切换后，保存作用于当前草稿 |
+| UI-02 应用菜单 / P2 | 文件、显示、连接和帮助菜单已有实现。开发中的“连接”菜单已绑定运行模式和节点 | 验收勾选与主窗口一致，补齐按页面启用的搜索和日志命令。收起主窗口后仍可打开设置和退出 |
+| UI-03 标题栏与工具栏 / P2 | 原生工具栏按页切换操作，主按钮读取服务状态 | 按四页布局验证节点搜索与测速，补齐配置导入和日志过滤。隐藏工具栏后用键盘完成同一操作，全屏及收窄时仍能找到连接状态 |
+| UI-04 状态菜单 / P2、P5 | MenuBarExtra 已支持隐藏、打开主窗口和设置。模式、快速节点与速率已有开发接线 | 在浏览器前台按上表验证自动选择、首选失败和恢复自动。核对菜单展开时的实际速率与断开后的显示，确认操作后键盘焦点仍在浏览器 |
 | UI-05 状态联动 / P4、P5 | 桌面已按服务会话启停、续期和退出，失联后重新查询 | App 启动和服务重连时查询本人会话，按会话标识与修订号核对回复。主窗口隐藏后继续跟踪连接。快速重复操作只产生一次启停，旧回复与其他用户的会话均无法改变当前命令 |
-| UI-06 交互验收 / P5、P7 | 早期窗口与快捷键已有部分实测，完整连接流程待验证 | 在 macOS 13 和当前系统执行[顶部栏交互交付检查](#顶部栏交互交付检查)，记录从窗口连接、后台切换节点、断开到退出后的服务状态，并覆盖静默启动、全屏、多显示器、键盘与 VoiceOver |
+| UI-06 交互验收 / P5、P7 | 当前系统已实测未安装服务时的菜单、工具栏、设置、⌘W 和访达重开。实机后台连接操作待验收 | 在 macOS 13 和当前系统执行[顶部栏交互交付检查](#顶部栏交互交付检查)，记录从窗口连接、后台切换节点、断开到退出后的服务状态，并覆盖静默启动、全屏、多显示器、键盘与 VoiceOver |
 
 每项交付记录实现文件、操作步骤和验证证据。当前相关代码入口为 `FreeV6App.swift`、`NativeCommands.swift`、`DesktopCommands.swift` 和 `AppModel.swift`；继续在现有结构上完善。仅完成布局或命令模型测试时，真实连接及系统交互仍保留待验收状态。
 
@@ -648,6 +659,6 @@ CI 分开构建 Windows 和 Mac。Mac job 显式设置 Xcode DEVELOPER_DIR、部
 
 | 范围 | 已有证据 | 下一项验收 |
 | --- | --- | --- |
-| 桌面 | 预览版已有 SwiftUI 应用菜单、统一工具栏、可隐藏的右上角图标和共用命令模型。设置、凭据和资源准备已接入 | 在解锁的真机上验证关闭窗口、后台断开、Dock 重开及恢复失败时的退出行为 |
+| 桌面 | 在 macOS 27.0.1 的开发构建上已实测未安装服务时的菜单、工具栏、⌘W 和访达重开。服务端切换与速率结果另有隔离记录 | 实测从右上角操作和 Dock 重开，在真实连接中核对三处状态，并覆盖恢复失败时的退出行为 |
 | 网络服务 | XPC v4 已通过固定核心配置检查。运行记录 v3 已通过 23 个用户域 launchd 场景。XPC v5 探针已覆盖启停、过期请求、核心崩溃和客户端消失，测试使用隔离 DNS 和模拟隧道 | 在已获授权的设备上完成 root 安装，验证真实 WARP 注册、TUN、DNS、出口，以及断开后其他应用的联网 |
 | 分发与兼容 | arm64 开发 DMG 已通过挂载、复制、验签。更新实验已完成一次隔离升级和拒签 | 产品更新助手、服务升级、下载后的首次打开、macOS 13、Intel 及 Windows 回归分别留存实测结果 |

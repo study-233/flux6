@@ -124,6 +124,7 @@ public struct DesktopCommandState: Sendable {
     public var service: DesktopServiceState = .checking
     public var network = DesktopNetworkPhase.unknown
     public var canTargetSession = false
+    public var canMeasureNodes = false
     public var coreBusy = false
     public var coreAvailable = false
     public var coreCancelable = false
@@ -209,7 +210,9 @@ public struct DesktopCommandState: Sendable {
         case .retryRecovery:
             return service == .ready && network == .recovering && canTargetSession
                 ? .available : .unavailable("服务正在检查恢复记录")
-        case .importChain, .refreshCloud, .measureNodes, .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .measureNodes:
+            return network == .running && canMeasureNodes ? .available : .unavailable("请先连接并载入节点列表")
+        case .importChain, .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
             return .unavailable("此功能将在后续开发阶段接入")
         }
     }

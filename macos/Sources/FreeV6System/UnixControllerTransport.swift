@@ -41,8 +41,9 @@ final class UnixControllerTransport {
 
     func exchange(method: String, target: String, body: Data = Data(), timeout: TimeInterval = 3,
                   firstTrafficSample: Bool = false) throws -> CoreHTTPResponse {
-        guard ["GET", "PATCH", "PUT"].contains(method), target.hasPrefix("/"), target.utf8.count <= 1024,
+        guard ["GET", "PATCH", "PUT", "DELETE"].contains(method), target.hasPrefix("/"), target.utf8.count <= 1024,
               target.utf8.allSatisfy({ $0 > 32 && $0 < 127 }), body.count <= 1024,
+              method != "DELETE" || (target == "/proxies/" + CoreController.escaped(SessionNodeGroup.access.coreName) && body.isEmpty),
               timeout.isFinite, timeout > 0, timeout <= 15,
               !firstTrafficSample || (method == "GET" && target == "/traffic" && body.isEmpty) else {
             throw CoreControllerError.invalidRequest

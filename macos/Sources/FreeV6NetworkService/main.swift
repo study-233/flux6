@@ -9,6 +9,11 @@ final class ServiceSession: NSObject, NetworkServiceProtocol {
         self.resources = resources; self.sessions = sessions; self.clientUID = clientUID
     }
 
+    func controlSession(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
+        do { reply(try JSONEncoder().encode(sessions.control(data, uid: clientUID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
     func startSession(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
         do { reply(try JSONEncoder().encode(sessions.start(data, uid: clientUID)), nil) }
         catch { reply(nil, error.localizedDescription) }
@@ -27,7 +32,7 @@ final class ServiceSession: NSObject, NetworkServiceProtocol {
     func handshake(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
         do {
             let request = try ServiceMessages.decodeHandshake(data)
-            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p4-sessions", privileged: geteuid() == 0)
+            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p5-controls", privileged: geteuid() == 0)
             reply(try JSONEncoder().encode(response), nil)
         } catch { reply(nil, error.localizedDescription) }
     }

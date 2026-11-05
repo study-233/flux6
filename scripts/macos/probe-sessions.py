@@ -48,7 +48,7 @@ def main():
     evidence = ROOT / "build/session-probes" / str(uuid.uuid4())
     evidence.mkdir(parents=True, mode=0o700)
     request = evidence / "request.json"
-    request.write_text(json.dumps({"protocolVersion": 5, "requestID": str(uuid.uuid4()), "runtimeID": runtime_id,
+    request.write_text(json.dumps({"protocolVersion": 6, "requestID": str(uuid.uuid4()), "runtimeID": runtime_id,
         "geodataID": geodata_id, "settingsRevision": 29, "credentialRevision": str(uuid.uuid4()),
         "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text())}))
     request.chmod(0o600)

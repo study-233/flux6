@@ -73,6 +73,21 @@ import FreeV6Desktop
         }
     }
 
+    /// Save only the live mode against the observed worker revision. Preserve
+    /// unsaved fields (including a separately edited default mode) in the UI.
+    func saveConfirmedMode(_ value: ProxyMode, baseline: SettingsSnapshot) async throws {
+        guard !busy, snapshot?.revision == baseline.revision else { throw WorkerClientError.staleConfiguration }
+        guard baseline.settings.mode != value else { return }
+        let preserveDraftMode = mode != baseline.settings.mode
+        busy = true
+        defer { busy = false }
+        var updated = baseline.settings
+        updated.mode = value
+        let saved = try await session.worker().save(updated, revision: baseline.revision)
+        snapshot = saved
+        if !preserveDraftMode { mode = saved.settings.mode }
+    }
+
     private func accept(_ snapshot: SettingsSnapshot) {
         self.snapshot = snapshot
         mode = snapshot.settings.mode

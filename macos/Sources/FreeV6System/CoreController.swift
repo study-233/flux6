@@ -1,11 +1,12 @@
 import Darwin
 import Foundation
 
-enum CoreMode: String, Codable, Sendable { case rule, global, direct }
+public enum CoreMode: String, CaseIterable, Codable, Sendable { case rule, global, direct }
 
 struct CoreProxy: Decodable, Equatable, Sendable {
     let name: String
     let type: String
+    let fixed: String?
     let now: String?
     let all: [String]?
     var canSelect: Bool { ["Selector", "URLTest", "Fallback"].contains(type) && all != nil }
@@ -16,14 +17,14 @@ struct CoreTrafficTotals: Decodable, Equatable, Sendable {
     let downloadTotal: UInt64
 }
 
-struct CoreTrafficSample: Decodable, Equatable, Sendable {
-    let up: UInt64
-    let down: UInt64
-    let upTotal: UInt64
-    let downTotal: UInt64
+public struct CoreTrafficSample: Codable, Equatable, Sendable {
+    public let up: UInt64
+    public let down: UInt64
+    public let upTotal: UInt64
+    public let downTotal: UInt64
 }
 
-enum CoreDelay: Equatable, Sendable { case measured(milliseconds: Int), unavailable, timedOut }
+public enum CoreDelay: Codable, Equatable, Sendable { case measured(milliseconds: Int), unavailable, timedOut }
 
 /// Service-internal, restricted operations for one immutable session. The
 /// caller must hold the session lease and serialize mutations/recovery. A
@@ -99,7 +100,45 @@ final class CoreController {
         guard current.canSelect, current.all?.contains(member) == true else { throw CoreControllerError.invalidRequest }
         try noContent(transport.exchange(method: "PUT", target: "/proxies/" + Self.escaped(group),
                                          body: JSONEncoder().encode(["name": member])))
-        guard try proxy(group).now == member else { throw CoreControllerError.unconfirmed }
+        let readback = try proxy(group)
+        guard readback.now == member else {
+            // URLTest may accept a pin but continue routing over another healthy
+            // node. Undo that latent preference before reporting a failed switch.
+            if readback.fixed == member, group == SessionNodeGroup.access.coreName, current.type == "URLTest" {
+                if let previous = current.fixed, !previous.isEmpty {
+                    try noContent(transport.exchange(method: "PUT", target: "/proxies/" + Self.escaped(group),
+                                                     body: JSONEncoder().encode(["name": previous])))
+                    guard try proxy(group).fixed == previous else { throw CoreControllerError.unconfirmed }
+                } else { try clearAccessPin() }
+            }
+            throw CoreControllerError.unconfirmed
+        }
+    }
+
+    func clearAccessPin() throws {
+        let name = SessionNodeGroup.access.coreName
+        guard try proxy(name).type == "URLTest" else { throw CoreControllerError.invalidRequest }
+        try noContent(transport.exchange(method: "DELETE", target: "/proxies/" + Self.escaped(name)))
+        guard try proxy(name).fixed == "" else { throw CoreControllerError.unconfirmed }
+    }
+
+    func controls(token: UUID) throws -> SessionControlSnapshot {
+        let proxies = try proxies()
+        let groups = try SessionNodeGroup.allCases.compactMap { group -> SessionNodeList? in
+            guard let proxy = proxies[group.coreName] else { return nil }
+            guard proxy.canSelect, let members = proxy.all else { throw CoreControllerError.invalidResponse }
+            return SessionNodeList(group: group, selected: proxy.now, preferred: proxy.fixed.flatMap { $0.isEmpty ? nil : $0 },
+                                   automatic: proxy.type == "URLTest", members: members)
+        }
+        let result = try SessionControlSnapshot(token: token, mode: mode(), groups: groups)
+        try result.validate()
+        return result
+    }
+
+    func measureDelay(group: SessionNodeGroup, member: String) throws -> CoreDelay {
+        let selection = try proxy(group.coreName)
+        guard selection.canSelect, selection.all?.contains(member) == true else { throw CoreControllerError.invalidRequest }
+        return try measureDelay(name: member)
     }
 
     func measureDelay(name: String) throws -> CoreDelay {
@@ -143,6 +182,7 @@ final class CoreController {
         if let members = proxy.all {
             guard !members.isEmpty, members.count <= 1024, members.allSatisfy(Self.validName),
                   Set(members).count == members.count,
+                  proxy.fixed.map({ $0.isEmpty || members.contains($0) }) ?? true,
                   proxy.now == nil || members.contains(proxy.now!) else { throw CoreControllerError.invalidResponse }
         } else if proxy.now != nil { throw CoreControllerError.invalidResponse }
     }

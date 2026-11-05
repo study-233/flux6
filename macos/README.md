@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-SwiftUI/AppKit 原生应用提供连接准备、WARP 凭据、规则设置、核心与规则数据下载。窗口工具栏、应用菜单和右上角状态菜单共用会话状态。服务确认真实会话已生效后显示“已连接”，断开及正常退出会等待网络恢复。界面启停已接入 XPC v5，开发验证使用普通用户域的隔离网络。root 安装、真实校园网络、macOS 13 与 Intel 仍待实机验收。
+SwiftUI/AppKit 原生应用提供连接准备、WARP 凭据、规则设置、核心与规则数据下载。窗口工具栏、应用菜单和右上角状态菜单共用会话状态。开发构建使用 XPC v6 接入启停、运行模式、节点和流量读取。断开及正常退出会等待网络恢复。已验证普通用户域的隔离网络，系统服务安装、真实校园网络、macOS 13 与 Intel 仍待实机验收。[服务协议](../shared/protocol/service-v6.md)
 
 ## 构建
 
@@ -28,17 +28,17 @@ bash scripts/macos/build-app.sh
 
 ## 原生顶部栏与窗口
 
-应用菜单、页面工具栏与右上角状态菜单共用 `FreeV6Desktop` 的命令可用性规则及 `AppModel` 的执行入口。执行前重新检查状态，服务握手成功或核心缓存可用均不会启用尚未实现的 TUN 连接。配置保存（⌘S）和重新载入只在主窗口配置页或设置的代理规则页获得焦点时启用；编辑菜单保留系统焦点行为。
+应用菜单、页面工具栏与右上角状态菜单共用 `FreeV6Desktop` 和 `AppModel`。缺少服务或资源时，主按钮进入对应的准备步骤。连接后可从“连接”菜单或右上角切换模式与接入点，节点页提供完整列表和测速。服务读回核心的实际选择后更新勾选。概览显示上传、下载及按月累计流量。配置保存（⌘S）和重新载入只在当前编辑窗口启用。
 
 ⌘1–⌘4 打开主窗口并切换页面；主窗口关闭后隐藏，Dock 或状态菜单可恢复窗口。应用保存上次页面，并交给 AppKit 保存窗口位置与尺寸。“设置 → 通用 → 在菜单栏中显示 FreeV6”控制右上角图标，默认为开启。隐藏后可从程序坞打开主窗口，再到通用设置恢复。macOS 14+ 的状态菜单使用原生 `SettingsLink`，macOS 13 保留系统设置窗口入口。帮助菜单提供本地使用说明。
 
-退出统一经过应用代理：配置读写或服务操作期间等待；存在草稿时可保存、取消或放弃；下载取消后等待 worker 回收再退出。该流程当前仅覆盖用户级业务进程，真正的网络停止与 DNS 恢复仍待 P4 接入。完整的菜单/窗口/确认框操作及最低系统表现需要实机验收，不能用命令模型测试替代。
+⌘Q 通过应用代理处理草稿、确认当前会话并请求服务恢复网络，最后取消下载并回收 worker。恢复失败时保留主窗口和错误信息。桌面实测、隔离服务验证及仍需真机完成的路径分别记录在[验收记录](../docs/compose/spec/macos-development-progress.md#解锁后的原生顶部栏验收)。
 
 `FreeV6DesktopTests` 覆盖焦点、能力及重复操作限制；`WorkerClientTests` 另验证正在下载时关闭管道、拒绝待处理请求并等待子进程退出。两者包含在 `swift.sh test` 中。菜单与焦点实现参考 [Apple 原生菜单说明](https://developer.apple.com/documentation/swiftui/building-and-customizing-the-menu-bar-with-swiftui)，设置入口参考 [SettingsLink](https://developer.apple.com/documentation/swiftui/settingslink)。
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包、GeoSite/GeoIP 数据准备、WARP 注册及 WARP 业务配置生成；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。启停通过独立的系统 XPC 服务。订阅与节点页仍待接入。
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、核心和规则数据准备、WARP 注册与业务配置生成，以及本月和累计流量统计。启停及运行节点控制通过系统 XPC 服务。订阅导入与备用配置仍待接入。[worker 协议](../shared/protocol/worker-v1.md)
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 

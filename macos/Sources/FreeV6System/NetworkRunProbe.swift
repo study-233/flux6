@@ -50,10 +50,18 @@ public enum NetworkRunProbe {
             dns["default-nameserver"] = ["127.0.0.1"]
             dns["proxy-server-nameserver"] = ["tcp://127.0.0.1:1"]
             dns["nameserver"] = ["tcp://127.0.0.1:1"]
-            let isolated: [String: Any] = ["mode": "direct", "log-level": "error", "tun": ["enable": false],
+            var isolated: [String: Any] = ["mode": "direct", "log-level": "error", "tun": ["enable": false],
                 "mixed-port": 0, "port": 0, "dns": dns, "hosts": hosts, "external-controller-unix": socket,
                 "rule-providers": ["rule01": ["type": "inline", "behavior": "classical", "payload": ["DOMAIN,example.test"]]],
                 "rules": ["MATCH,DIRECT"]]
+            if let port = prefs.healthPort {
+                isolated["proxies"] = [["name": "本地 A", "type": "direct"], ["name": "本地 B", "type": "direct"]]
+                isolated["proxy-groups"] = [
+                    ["name": SessionNodeGroup.access.coreName, "type": "url-test", "proxies": ["本地 A", "本地 B", "REJECT"],
+                     "url": "http://127.0.0.1:" + String(port), "interval": 86400, "lazy": false],
+                    ["name": SessionNodeGroup.chain.coreName, "type": "select", "proxies": ["REJECT", "DIRECT"]]
+                ]
+            }
             return try JSONSerialization.data(withJSONObject: isolated, options: .withoutEscapingSlashes)
         }
 
@@ -108,6 +116,7 @@ private final class RunProbePreferences: SessionDNSPreferences {
     let data: SecureDirectory
     let port: Int
     let serviceID: String
+    let healthPort: Int?
     private let filename = "probe-preferences.plist"
     private let lock = NSLock()
 
@@ -119,6 +128,7 @@ private final class RunProbePreferences: SessionDNSPreferences {
               let id = fields["serviceID"] as? String, UUID(uuidString: id) != nil else { throw ServiceMessageError.invalid }
         data = directory
         self.port = port
+        healthPort = (fields["healthPort"] as? Int).flatMap { (1024...65535).contains($0) ? $0 : nil }
         serviceID = id
     }
 

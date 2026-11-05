@@ -187,6 +187,32 @@ final class WorkerClientTests: XCTestCase {
         XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
     }
 
+    func testTrafficObservationsSurviveWorkerRestartAndDiscardDuplicateSamples() async throws {
+        guard let binary = ProcessInfo.processInfo.environment["FREEV6_WORKER_TEST_BINARY"] else {
+            throw XCTSkip("Set FREEV6_WORKER_TEST_BINARY for traffic accounting integration")
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let resources = root.appendingPathComponent("resources")
+        try FileManager.default.createDirectory(at: resources, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let worker = WorkerClient(location: WorkerLocation(executable: URL(fileURLWithPath: binary),
+            data: root.appendingPathComponent("data"), resources: resources,
+            cache: root.appendingPathComponent("cache"), logs: root.appendingPathComponent("logs")))
+        let session = UUID()
+        do {
+            let empty = try await worker.trafficReport()
+            XCTAssertEqual(empty.total, TrafficBytes(upload: 0, download: 0))
+            let initial = try await worker.observeTraffic(sessionID: session, upload: 13, download: 21)
+            XCTAssertEqual(initial.total, TrafficBytes(upload: 13, download: 21))
+            await worker.shutdown()
+            let older = try await worker.observeTraffic(sessionID: session, upload: 12, download: 18)
+            XCTAssertEqual(older.total, initial.total)
+            let next = try await worker.observeTraffic(sessionID: UUID(), upload: 2, download: 8)
+            XCTAssertEqual(next.total, TrafficBytes(upload: 15, download: 29))
+        } catch { await worker.shutdown(); throw error }
+        await worker.shutdown()
+    }
+
     func testWorkerExitAndUnresponsiveWorkerDoNotHangClient() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("freev6-worker-fault-\(UUID().uuidString)")
         let resources = root.appendingPathComponent("resources")

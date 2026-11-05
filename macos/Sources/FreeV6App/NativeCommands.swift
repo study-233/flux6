@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import FreeV6Desktop
+import FreeV6System
 
 private struct CommandContextKey: FocusedValueKey { typealias Value = CommandContext }
 extension FocusedValues {
@@ -59,14 +60,19 @@ struct NativeCommands: Commands {
         CommandMenu("连接") {
             DesktopCommandButton(model.commandState.primaryCommand, model: model).keyboardShortcut("k", modifiers: [.command, .shift])
             Text(model.connectionTitle)
+            RuntimeMenus(model: model)
             Divider()
             DesktopCommandButton(.showPage(.configuration), model: model)
             DesktopCommandButton(.measureNodes, model: model)
             DesktopCommandButton(.refreshCloud, model: model)
             DesktopCommandButton(.prepareConfiguration, model: model)
             Divider()
-            DesktopCommandButton(.configureService, model: model)
-            DesktopCommandButton(.refreshService, model: model)
+            if model.commandState.primaryCommand != .configureService {
+                DesktopCommandButton(.configureService, model: model)
+            }
+            if model.commandState.primaryCommand != .refreshService {
+                DesktopCommandButton(.refreshService, model: model)
+            }
             Menu("网络核心") {
                 DesktopCommandButton(.downloadCore, model: model)
                 DesktopCommandButton(.checkCore, model: model)
@@ -117,14 +123,17 @@ struct StatusMenu: View {
     var body: some View {
         Text(model.connectionTitle)
         if let error = model.network.statusError ?? model.network.error { Text(error) }
-        Text(model.core.status)
-        Text(model.geodata.status)
-        Text(model.warp.status)
-        if let preferences = model.business.snapshot?.settings {
-            Text("已保存配置：\(preferences.mode.title)")
+        if model.network.phase == .running {
+            if let mode = model.controls.state?.mode { Text("运行模式 · " + mode.title) }
+            if let list = model.availableGroup, let selected = list.selected { Text(list.group.title + " · " + selected) }
+            TrafficRates(controls: model.controls)
+        } else {
+            Text(model.core.status)
+            Text(model.warp.status)
         }
         Divider()
         DesktopCommandButton(model.commandState.primaryCommand, model: model)
+        RuntimeMenus(model: model)
         DesktopCommandButton(.showPage(.configuration), model: model)
         Menu("网络核心") {
             DesktopCommandButton(.downloadCore, model: model)

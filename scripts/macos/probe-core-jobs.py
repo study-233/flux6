@@ -83,7 +83,7 @@ def main():
                     assert hashlib.sha256(source.read_bytes()).hexdigest() == asset["sha256"]
                     shutil.copy2(source, work / asset["name"])
                     os.chmod(work / asset["name"], 0o400)
-                request = {"protocolVersion": 5, "requestID": str(uuid.uuid4()),
+                request = {"protocolVersion": 6, "requestID": str(uuid.uuid4()),
                     "runtimeID": f"mihomo-darwin-{arch}-{catalog['version']}", "geodataID": "geodata-" + geodata["revision"],
                     "settingsRevision": 1, "credentialRevision": str(uuid.uuid4()),
                     "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text())}

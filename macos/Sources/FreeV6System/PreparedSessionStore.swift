@@ -112,6 +112,13 @@ final class PreparedSessionStore {
         return record
     }
 
+    func activeController(target: SessionControlTarget, uid: uid_t) throws -> CoreController {
+        let record = try requireRecord(sessionID: target.sessionID, clientUID: uid)
+        guard record.run?.revision == target.revision, try coreIsPresent(record),
+              let directory = try sessions.privateChild(record.sessionID.uuidString) else { throw SessionStoreError.invalidTransition }
+        return try networkEnvironment(directory, job: makeJob(record.sessionID)).controller
+    }
+
     func coreIsPresent(_ record: PreparedSessionRecord) throws -> Bool {
         guard let run = record.run, run.stage == .active, let tunnel = run.tunnel,
               let directory = try sessions.privateChild(record.sessionID.uuidString) else { return false }

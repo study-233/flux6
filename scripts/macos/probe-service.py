@@ -8,6 +8,8 @@ job out in a finally block. A rejection counts only between successful calls.
 import argparse
 import datetime
 import hashlib
+import http.server
+import threading
 import json
 import os
 from pathlib import Path
@@ -135,7 +137,7 @@ def main():
         if any(a["available"] for a in resources()):
             raise RuntimeError("Fresh service unexpectedly has resources")
         request = {
-            "protocolVersion": 5, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
+            "protocolVersion": 6, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
             "credentialRevision": str(uuid.uuid4()), "runtimeID": core_id,
             "geodataID": "geodata-" + geo["revision"],
             "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text()),
@@ -160,7 +162,7 @@ def main():
         expected_keys = {"protocolVersion", "requestID", "policyVersion", "settingsRevision", "credentialRevision", "mode", "proxyCount", "ruleCount", "coreValidated"}
         if set(prepared) != expected_keys or prepared["requestID"].lower() != request["requestID"].lower() or prepared["proxyCount"] != 28:
             raise RuntimeError("Unexpected configuration acknowledgement")
-        if prepared["protocolVersion"] != 5 or prepared["coreValidated"] is not True:
+        if prepared["protocolVersion"] != 6 or prepared["coreValidated"] is not True:
             raise RuntimeError("Service did not confirm actual core validation")
         if (data_root / "network-session.json").exists() or list((data_root / "sessions").iterdir()):
             raise RuntimeError("Successful core check left private session files")
@@ -246,7 +248,7 @@ def main():
             return rpc("status")["phase"] == "stopped" and fixture_dns() is None
         run([probe, "desktop-session", label, service_hash, request], timeout=90)
         assert stopped()
-        case("native desktop command model starts, renews, disconnects and quits through authenticated XPC")
+        case("native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC")
         token, session, revision = start()
         rpc("status", client=untrusted, reject=True)
         assert rpc("status", session)["phase"] == "running"
@@ -293,6 +295,24 @@ def main():
         assert state("dev.freev6.core." + session.lower()) is None
         case("matching heartbeat extends the owner lease; disappearance expires it and restores DNS")
 
+    health_server = None
+    if args.network_run:
+        class HealthHandler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(204)
+                self.end_headers()
+
+            do_HEAD = do_GET
+
+            def log_message(self, *args):
+                pass
+
+        health_server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+        options = data_root / "probe-options.json"
+        fields = json.loads(options.read_bytes())
+        fields["healthPort"] = health_server.server_port
+        options.write_text(json.dumps(fields))
+        threading.Thread(target=health_server.serve_forever, daemon=True).start()
     installed = False
     try:
         run(["/bin/launchctl", "bootstrap", domain, job])
@@ -348,6 +368,9 @@ def main():
         handshake(upgraded)
         case("client hash rotation requires re-enrollment and revokes the old hash")
     finally:
+        if health_server:
+            health_server.shutdown()
+            health_server.server_close()
         if installed:
             run(["/bin/launchctl", "bootout", target])
             if run(["/bin/launchctl", "print", target], check=False).returncode == 0:

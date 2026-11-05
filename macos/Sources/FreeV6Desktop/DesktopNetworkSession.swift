@@ -54,6 +54,10 @@ public enum DesktopNetworkPhase: Equatable, Sendable {
 
     public init() {}
     deinit { if let activity { ProcessInfo.processInfo.endActivity(activity) } }
+    public var runningTarget: SessionControlTarget? {
+        guard phase == .running, let id = snapshot?.sessionID, let revision = snapshot?.revision else { return nil }
+        return SessionControlTarget(sessionID: id, revision: revision)
+    }
     public var canTargetSession: Bool { snapshot?.sessionID != nil && snapshot?.revision != nil }
 
     public func invalidate() {

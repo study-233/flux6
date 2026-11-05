@@ -161,3 +161,14 @@ public struct WorkerLocation: Sendable {
         )
     }
 }
+
+public struct TrafficBytes: Codable, Equatable, Sendable {
+    public let upload: UInt64
+    public let download: UInt64
+}
+
+public struct TrafficReport: Codable, Equatable, Sendable {
+    public let month: String
+    public let monthly: TrafficBytes
+    public let total: TrafficBytes
+}

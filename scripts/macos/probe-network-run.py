@@ -147,7 +147,7 @@ def main():
     run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--identifier", "dev.freev6.probe.run", probe])
     resources = [p for p in args.resources.iterdir() if p.name != "resources.lock"]
     request = folder / "request.json"
-    request.write_text(json.dumps({"protocolVersion": 5, "requestID": str(uuid.uuid4()),
+    request.write_text(json.dumps({"protocolVersion": 6, "requestID": str(uuid.uuid4()),
         "runtimeID": next(p.name for p in resources if p.name.startswith("mihomo-")),
         "geodataID": "geodata-" + json.loads((ROOT / "internal/mihomo/geodata-assets.json").read_text())["revision"],
         "settingsRevision": 1, "credentialRevision": str(uuid.uuid4()),

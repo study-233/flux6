@@ -16,7 +16,7 @@ worker 是当前用户的子进程，输入输出使用 App 创建的匿名管�
 {"jsonrpc":"2.0","id":"init-1","method":"initialize","params":{"protocolVersion":1}}
 ```
 
-握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。版本或原生架构不兼容时不得继续发送业务请求；重复握手拒绝。当前能力为 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`。配置准备当前支持 WARP 本机路径；链式和备用配置输入随订阅模块另行接入，不能将其标为完整功能已完成。
+握手结果包含 `protocolVersion`、`workerVersion`、`platform`、`architecture`、`capabilities`、`maxFrameBytes`、`maxInFlight`。双方核对版本及架构，拒绝重复握手。当前能力包括 `settings.get`、`settings.patch`、`runtime.status`、`runtime.download`、`warp.register`、`geodata.status`、`geodata.prepare`、`configuration.prepare`、`traffic.get` 和 `traffic.observe`。配置准备当前支持 WARP 本机路径，链式和备用配置输入随订阅模块接入。
 
 最多同时处理 8 个请求，输出队列最多 16 条消息。Swift 客户端的消息与写入队列也有上限。worker 普通请求期限为 30 秒，`runtime.download` 和 `geodata.prepare` 为 180 秒，`warp.register` 为 45 秒；Swift 握手/设置调用期限为 10 秒，核心及规则数据检查为 35 秒，准备为 190 秒，注册为 50 秒。客户端超时会断开连接并回收 worker，重新载入时启动新进程。进度不延长操作的总期限。
 
@@ -101,6 +101,12 @@ worker 先读取并核对已保存设置，再重新检查固定核心和整套�
 Swift `FreeV6Configuration` 校验模块对未知字段、节点字段及协议、密钥/IP、分组引用和循环、规则语法、固定提供者 URL/相对路径实施限制。当前只接受 MASQUE，链式/备用配置尚未通过此边界开放。客户端同时核对请求的设置/凭据 revision、资源 ID、工作模式和 28 个节点的凭据；不接受旧请求结果冒充当前配置。共享校验模块目前用于 App，尚未接入网络服务，不能代替 root 独立校验或启动授权。
 
 Keychain 读取由用户点击配置检查触发。`WarpRegistration.withSavedTunnel` 与注册、保存、删除共用互斥状态，读取后只交出隧道材料；异步准备结束后再次检查存储 revision。发现外部替换、拒绝授权或取消即拒绝结果。检查页面只保存版本、模式和数量摘要，含私钥的文档在本次操作结束后不留在 ViewModel。结果是一次配置生成记录；真正启动仍必须复验资源、设置绑定和服务身份。
+
+## 流量统计
+
+`traffic.get` 接受空对象，返回 `month`（用户本地年月）、`monthly` 和 `total`。后二者分别包含 `upload`、`download` 两个无符号 64 位字节数。`traffic.observe` 接受 `sessionID`、`upload` 和 `download`，其中字节数来自服务已确认的本次会话累计计数，返回同结构的汇总。
+
+每个会话按方向分别记录累计数的最大值。新观测只把高出的部分计入本地观测月份，同一请求重试、旧样本迟到或进程重启均可复用。worker 在用户数据目录下以原子替换保存每个会话的分月增量。异常中止前尚未采集的字节可能遗漏。存储失败时返回 `StorageError`，界面应提示重新读取。
 
 ## 错误
 

@@ -93,6 +93,17 @@ public actor WorkerClient {
         return try validate(snapshot)
     }
 
+    public func trafficReport() async throws -> TrafficReport {
+        guard try await connect().capabilities.contains("traffic.get") else { throw WorkerClientError.incompatible }
+        return try await request("traffic.get", params: Empty())
+    }
+
+    public func observeTraffic(sessionID: UUID, upload: UInt64, download: UInt64) async throws -> TrafficReport {
+        struct Observation: Encodable { let sessionID: UUID; let upload: UInt64; let download: UInt64 }
+        guard try await connect().capabilities.contains("traffic.observe") else { throw WorkerClientError.incompatible }
+        return try await request("traffic.observe", params: Observation(sessionID: sessionID, upload: upload, download: download))
+    }
+
     public func runtimeStatus() async throws -> RuntimePackageInfo {
         try await connect()
         let result: RuntimePackageInfo = try await request("runtime.status", params: Empty(), timeout: 35_000_000_000)

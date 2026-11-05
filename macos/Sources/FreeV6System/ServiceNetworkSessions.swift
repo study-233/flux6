@@ -11,6 +11,8 @@ public final class ServiceNetworkSessions: @unchecked Sendable {
     private let restart: () -> Void
     private var retained: PreparedSessionStore?
     private var idleToken = UUID()
+    private var controlToken = UUID()
+    private let samples = DispatchSemaphore(value: 3)
     private var lastContact: TimeInterval = 0
     private var needsRecovery = true
     private var stopRequested = false
@@ -113,7 +115,48 @@ public final class ServiceNetworkSessions: @unchecked Sendable {
         return NetworkSessionReply(query.requestID, phase: .stopped, idleToken: idleToken)
     }
 
+    private func withActiveController<T>(_ query: SessionControlRequest, uid: uid_t,
+                                         _ perform: (CoreController) throws -> T) throws -> T {
+        guard lock.lock(before: Date(timeIntervalSinceNow: 0.5)) else { throw SessionStoreError.occupied }
+        defer { lock.unlock() }
+        guard uid != 0, let retained, !stopRequested, ProcessInfo.processInfo.systemUptime - lastContact < 30 else {
+            throw SessionStoreError.invalidTransition
+        }
+        return try perform(retained.activeController(target: query.target, uid: uid))
+    }
+
+    public func control(_ data: Data, uid: uid_t) throws -> SessionControlReply {
+        let query = try SessionControlRequest.decode(data)
+        switch query.action {
+        case .delay, .traffic:
+            // A slow node or a one-second traffic sample must not hold up stop or heartbeat.
+            guard samples.wait(timeout: .now()) == .success else { throw SessionStoreError.occupied }
+            defer { samples.signal() }
+            let controller = try withActiveController(query, uid: uid) { $0 }
+            let reply: SessionControlReply
+            if query.action == .traffic { reply = try SessionControlReply(query, traffic: controller.trafficSample()) }
+            else if let group = query.group, let member = query.member {
+                reply = try SessionControlReply(query, delay: controller.measureDelay(group: group, member: member))
+            } else { throw ServiceMessageError.invalid }
+            return try withActiveController(query, uid: uid) { _ in reply }
+        case .inspect, .setMode, .select, .unpin:
+            return try withActiveController(query, uid: uid) { controller in
+                if query.action != .inspect {
+                    guard query.token == controlToken else { throw SessionStoreError.invalidTransition }
+                    // A missing acknowledgement does not prove the core discarded a write.
+                    controlToken = UUID()
+                    if query.action == .unpin { try controller.clearAccessPin() }
+                    else if let mode = query.mode { try controller.setMode(mode) }
+                    else if let group = query.group, let member = query.member { try controller.select(group: group.coreName, member: member) }
+                    else { throw ServiceMessageError.invalid }
+                }
+                return try SessionControlReply(query, state: controller.controls(token: controlToken))
+            }
+        }
+    }
+
     private func release() {
+        controlToken = UUID()
         retained = nil
         stopRequested = false
         restartRequired = false

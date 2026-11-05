@@ -23,6 +23,15 @@ public enum ServiceClient {
         return response
     }
 
+    public static func control(_ query: SessionControlRequest, identity: CodeIdentity,
+                               name: String = ServiceProtocolVersion.machService, privileged: Bool = true,
+                               timeout: TimeInterval = 30) throws -> SessionControlReply {
+        let payload = try JSONEncoder().encode(query)
+        _ = try SessionControlRequest.decode(payload)
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged, timeout: timeout) { $0.controlSession(payload, reply: $1) }
+        return try SessionControlReply.decode(data, for: query)
+    }
+
     public static func sessionStatus(renewing sessionID: UUID? = nil, identity: CodeIdentity,
                                      name: String = ServiceProtocolVersion.machService, privileged: Bool = true) throws -> NetworkSessionReply {
         let query = NetworkSessionQuery(sessionID: sessionID)

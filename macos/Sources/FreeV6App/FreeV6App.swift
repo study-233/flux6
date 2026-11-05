@@ -103,12 +103,16 @@ struct MainView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             ServiceOverviewView(model: model)
+                            if model.network.phase == .running { TrafficOverview(controls: model.controls) }
+                            TrafficStatisticsView(model: model)
                             WarpAccountView(model: model.warp).disabled(model.serviceBusy || model.configurationBusy)
                             RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
                             GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
                             ConfigurationPreparationView(model: model)
                         }
                     }
+                } else if model.page == .nodes {
+                    NodesView(model: model)
                 } else if model.page == .configuration {
                     BusinessSettingsView(model: model.business, app: model, context: .main(.configuration))
                 } else {

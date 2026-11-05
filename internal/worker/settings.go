@@ -104,23 +104,23 @@ func (s *SettingsStore) Patch(ctx context.Context, revision uint64, changes json
 	if err := ctx.Err(); err != nil {
 		return current, err
 	}
-	if err := s.replace(ctx, append(data, '\n')); err != nil {
+	if err := replaceDataFile(ctx, s.root, settingsFile, append(data, '\n')); err != nil {
 		return current, &RPCError{Code: StorageError, Message: "cannot save settings; reload to confirm state"}
 	}
 	return current, nil
 }
 
-func (s *SettingsStore) replace(ctx context.Context, data []byte) error {
+func replaceDataFile(ctx context.Context, root *os.Root, destination string, data []byte) error {
 	var nonce [16]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
 		return err
 	}
 	name := ".preferences-" + hex.EncodeToString(nonce[:])
-	f, err := s.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
-	defer s.root.Remove(name)
+	defer root.Remove(name)
 	if _, err := f.Write(data); err != nil {
 		f.Close()
 		return err
@@ -136,16 +136,16 @@ func (s *SettingsStore) replace(ctx context.Context, data []byte) error {
 		return err
 	}
 	// Cancellation after this commit cannot roll back a successful write.
-	if err := s.root.Rename(name, settingsFile); err != nil {
+	if err := root.Rename(name, destination); err != nil {
 		return err
 	}
-	directory, err := s.root.Open(".")
+	directory, err := root.Open(".")
 	if err != nil {
 		return err
 	}
 	defer directory.Close()
 	if err := directory.Sync(); err != nil {
-		return fmt.Errorf("sync settings directory: %w", err)
+		return fmt.Errorf("sync data directory: %w", err)
 	}
 	return nil
 }

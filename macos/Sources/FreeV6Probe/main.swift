@@ -7,6 +7,7 @@ import FreeV6Desktop
 #endif
 
 final class ProbeService: NSObject, NetworkServiceProtocol {
+    func controlSession(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func startSession(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func stopSession(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func sessionStatus(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
@@ -178,6 +179,57 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
 }
 
 #if DEBUG
+@MainActor func probeDesktopControls(target: SessionControlTarget, identity: CodeIdentity, name: String) async throws {
+    guard let preferences = UserDefaults(suiteName: name) else { throw ServiceMessageError.invalid }
+    defer { preferences.removePersistentDomain(forName: name) }
+    let controls = DesktopCoreControls(defaults: preferences)
+    let exchange: DesktopCoreControls.Exchange = { query in
+        try await Task.detached { try ServiceClient.control(query, identity: identity, name: name, privileged: false) }.value
+    }
+    controls.bind(target)
+    await controls.inspect(using: exchange)
+    guard let initial = controls.state, initial.mode == .direct, initial.groups.count == 2 else {
+        throw ServiceClientError.rejected(controls.error ?? "initial controls")
+    }
+    let mutation = SessionControlRequest(target, .setMode, token: initial.token, mode: .rule)
+    guard await controls.change(mutation, using: exchange), let rule = controls.state,
+          rule.mode == .rule, rule.token != initial.token else { throw ServiceClientError.rejected(controls.error ?? "mode") }
+    do {
+        _ = try await exchange(mutation)
+        throw ServiceMessageError.invalid
+    } catch ServiceClientError.rejected {}
+    for group in SessionNodeGroup.allCases {
+        guard let state = controls.state, let list = state.groups.first(where: { $0.group == group }),
+              let member = list.members.first(where: { $0 != list.selected && (group == .chain || $0 != "REJECT") }) else { throw ServiceMessageError.invalid }
+        guard await controls.change(SessionControlRequest(target, .select, token: state.token, group: group, member: member), using: exchange),
+              controls.state?.groups.first(where: { $0.group == group })?.selected == member,
+              controls.recentMembers(group) == [member] else { throw ServiceClientError.rejected("select " + group.rawValue + ": " + (controls.error ?? "unexpected selection")) }
+    }
+    guard let before = controls.state, let access = before.groups.first(where: { $0.group == .access }),
+          access.preferred != nil else { throw ServiceMessageError.invalid }
+    let unreachable = SessionControlRequest(target, .select, token: before.token, group: .access, member: "REJECT")
+    guard !(await controls.change(unreachable, using: exchange)), let recovered = controls.state,
+          recovered.groups.first(where: { $0.group == .access }) == access else {
+        throw ServiceClientError.rejected("unreachable access node changed the effective or preferred route")
+    }
+    guard await controls.change(SessionControlRequest(target, .unpin, token: recovered.token), using: exchange),
+          controls.preferredMember(.access) == nil, !controls.recentMembers(.access).isEmpty else {
+        throw ServiceClientError.rejected(controls.error ?? "unpin")
+    }
+    await controls.measure(.access, members: ["REJECT"], using: exchange)
+    guard controls.latency[.access]?["REJECT"] == .unavailable else { throw ServiceClientError.rejected(controls.error ?? "delay") }
+    await controls.sample(using: exchange)
+    guard controls.currentTraffic != nil, controls.history.count == 1 else { throw ServiceClientError.rejected(controls.trafficError ?? "sample") }
+    for invalid in [SessionControlRequest(SessionControlTarget(sessionID: UUID(), revision: target.revision), .inspect),
+                    SessionControlRequest(SessionControlTarget(sessionID: target.sessionID, revision: target.revision + 1), .traffic),
+                    SessionControlRequest(target, .delay, group: .access, member: "GLOBAL")] {
+        do { _ = try await exchange(invalid); throw ServiceMessageError.invalid }
+        catch ServiceClientError.rejected {}
+    }
+    controls.bind(nil)
+    guard controls.currentTraffic == nil, controls.state == nil, controls.history.isEmpty else { throw ServiceMessageError.invalid }
+}
+
 @MainActor func probeDesktopSession(_ args: [String]) async throws {
     guard args.count == 4, geteuid() != 0, args[1].hasPrefix("dev.freev6.probe."),
           args[1].utf8.count <= 128 else { throw ServiceMessageError.invalid }
@@ -207,6 +259,10 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
         commands.canTargetSession = desktop.canTargetSession
         guard commands.primaryCommand == .disconnect, commands.availability(.disconnect).enabled else {
             throw ServiceClientError.invalidReply
+        }
+        if !quit {
+            guard let target = desktop.runningTarget else { throw ServiceMessageError.invalid }
+            try await probeDesktopControls(target: target, identity: identity, name: name)
         }
         if quit { try await desktop.disconnectBeforeExit(status: status, stop: stop) }
         else { try await desktop.disconnect(using: stop) }

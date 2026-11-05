@@ -21,6 +21,15 @@ typealias Page = DesktopPage
     @Published private var checkingConfiguration = false
     var configurationBusy: Bool { checkingConfiguration || network.phase.busy }
     let network = DesktopNetworkSession()
+    let controls: DesktopCoreControls
+    @Published var nodeGroup = SessionNodeGroup.access
+    @Published private(set) var modeSaveError: String?
+    private weak var trackedStatusMenu: NSMenu?
+    @Published private(set) var trafficReport: TrafficReport?
+    @Published private(set) var accountingError: String?
+    private var lastObservation: TimeInterval = 0
+    private var collectingTraffic = false
+    private var trafficClock: Task<Void, Never>?
     private var serviceIdentity: CodeIdentity?
     private var heartbeat: Task<Void, Never>?
     var connectionTitle: String {
@@ -46,6 +55,7 @@ typealias Page = DesktopPage
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        controls = DesktopCoreControls(defaults: defaults)
         page = defaults.string(forKey: "lastPage").flatMap(Page.init(rawValue:)) ?? .overview
         session = BusinessSession()
         business = BusinessModel(session: session)
@@ -58,6 +68,32 @@ typealias Page = DesktopPage
         geodata.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         warp.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         network.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
+        controls.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
+        network.$phase.sink { [weak self] phase in
+            if phase != .running {
+                self?.controls.bind(nil)
+                self?.modeSaveError = nil
+            }
+        }.store(in: &observations)
+        let notifications = NotificationCenter.default
+        notifications.publisher(for: NSMenu.didBeginTrackingNotification).sink { [weak self] notice in
+            guard let self, let menu = notice.object as? NSMenu,
+                  menu.item(withTitle: DesktopCommand.showMain.title) != nil,
+                  menu.item(withTitle: DesktopCommand.quit.title) != nil else { return }
+            trackedStatusMenu = menu
+            Task { await self.updateTraffic() }
+        }.store(in: &observations)
+        notifications.publisher(for: NSMenu.didEndTrackingNotification).sink { [weak self] notice in
+            guard let self, let menu = notice.object as? NSMenu, menu === trackedStatusMenu else { return }
+            trackedStatusMenu = nil
+            if !trafficVisible { controls.hideTraffic() }
+        }.store(in: &observations)
+        trafficClock = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(2)) } catch { break }
+                await self?.updateTraffic()
+            }
+        }
         heartbeat = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(5)) } catch { break }
@@ -66,16 +102,18 @@ typealias Page = DesktopPage
         }
         Task { await refreshService() }
         Task { await business.reload() }
+        Task { await loadTrafficReport() }
         Task { await core.refresh() }
         Task { await geodata.refresh() }
     }
 
-    deinit { heartbeat?.cancel() }
+    deinit { heartbeat?.cancel(); trafficClock?.cancel() }
 
     var commandState: DesktopCommandState {
         var state = DesktopCommandState()
         state.service = serviceState
         state.network = network.phase
+        state.canMeasureNodes = !controls.measuring && availableGroup != nil
         state.canTargetSession = network.canTargetSession
         state.coreBusy = core.busy || configurationBusy
         state.coreAvailable = core.package?.available == true
@@ -136,11 +174,109 @@ typealias Page = DesktopPage
             configuration: prepared.configuration)
     }
 
+    var availableGroup: SessionNodeList? {
+        guard let groups = controls.state?.groups else { return nil }
+        return groups.first(where: { $0.group == nodeGroup }) ?? groups.first
+    }
+
+    private var trafficVisible: Bool {
+        if trackedStatusMenu != nil { return true }
+        guard NSApp.isActive, page == .overview else { return false }
+        return NSApp.windows.contains { $0.identifier?.rawValue == "freev6-main" && $0.occlusionState.contains(.visible) }
+    }
+
+    private func acceptTrafficReport(_ report: TrafficReport) {
+        if let previous = trafficReport,
+           previous.total.upload > report.total.upload || previous.total.download > report.total.download { return }
+        accountingError = nil
+        if trafficReport != report { trafficReport = report }
+    }
+
+    private func loadTrafficReport() async {
+        do { acceptTrafficReport(try await session.worker().trafficReport()) }
+        catch { accountingError = error.localizedDescription }
+    }
+
+    private func account(_ sample: CoreTrafficSample, for id: UUID) async {
+        do {
+            acceptTrafficReport(try await session.worker().observeTraffic(sessionID: id, upload: sample.upTotal,
+                                                                           download: sample.downTotal))
+        } catch { accountingError = error.localizedDescription }
+    }
+
+    private func updateTraffic() async {
+        guard !terminating, !collectingTraffic, let target = network.runningTarget, controls.target == target else { return }
+        let visible = trafficVisible
+        let now = ProcessInfo.processInfo.systemUptime
+        if !visible {
+            controls.hideTraffic()
+            guard now - lastObservation >= 20 else { return }
+        }
+        collectingTraffic = true
+        defer { collectingTraffic = false }
+        let sample: CoreTrafficSample?
+        if visible {
+            sample = await controls.sample(using: exchange)
+            if !trafficVisible { controls.hideTraffic() }
+        } else {
+            do { sample = try await exchange(SessionControlRequest(target, .traffic)).traffic }
+            catch { accountingError = error.localizedDescription; return }
+        }
+        if let sample, now - lastObservation >= 5 {
+            lastObservation = now
+            await account(sample, for: target.sessionID)
+        }
+    }
+
+    private func exchange(_ query: SessionControlRequest) async throws -> SessionControlReply {
+        guard !terminating, network.runningTarget == query.target, let identity = serviceIdentity else {
+            throw ServiceClientError.rejected("此会话已经变化，请重新查看连接状态。")
+        }
+        return try await Task.detached { try ServiceClient.control(query, identity: identity) }.value
+    }
+
+    private func refreshCoreControls(restoreChoices: Bool = false) async {
+        let target = network.runningTarget
+        controls.bind(target)
+        guard let target else { return }
+        await controls.inspect(using: exchange)
+        guard restoreChoices, target == network.runningTarget else { return }
+        for group in controls.state?.groups ?? [] {
+            guard let last = controls.preferredMember(group.group), last != (group.automatic ? group.preferred : group.selected),
+                  group.members.contains(last), let token = controls.state?.token else { continue }
+            let request = SessionControlRequest(target, .select, token: token, group: group.group, member: last)
+            guard await controls.change(request, using: exchange) else { break }
+        }
+    }
+
+    func changeMode(_ mode: CoreMode, target: SessionControlTarget, token: UUID) async {
+        guard !business.busy, let baseline = business.snapshot, target == network.runningTarget else { return }
+        modeSaveError = nil
+        let request = SessionControlRequest(target, .setMode, token: token, mode: mode)
+        guard await controls.change(request, using: exchange), let preference = ProxyMode(rawValue: mode.rawValue) else { return }
+        do { try await business.saveConfirmedMode(preference, baseline: baseline) }
+        catch { modeSaveError = "本次模式已切换，默认模式保存失败。\(error.localizedDescription)" }
+    }
+
+    func useAutomaticSelection(target: SessionControlTarget, token: UUID) async {
+        _ = await controls.change(SessionControlRequest(target, .unpin, token: token), using: exchange)
+    }
+
+    func selectMember(_ name: String, group: SessionNodeGroup, target: SessionControlTarget, token: UUID) async {
+        let query = SessionControlRequest(target, .select, token: token, group: group, member: name)
+        _ = await controls.change(query, using: exchange)
+    }
+
+    func measure(group: SessionNodeGroup, members: [String]) async {
+        await controls.measure(group, members: members, using: exchange)
+    }
+
     private func refreshNetwork() async {
         guard !terminating, !serviceBusy, !configurationBusy, let identity = serviceIdentity else { return }
         await network.refresh { id in
             try await Task.detached { try ServiceClient.sessionStatus(renewing: id, identity: identity) }.value
         }
+        Task { await refreshCoreControls() }
     }
 
     private func connect() async {
@@ -159,16 +295,23 @@ typealias Page = DesktopPage
             }.value
         }
         if network.phase == .unknown { await refreshNetwork() }
+        else { await refreshCoreControls(restoreChoices: true) }
     }
 
-    private nonisolated static func stop(_ id: UUID, revision: UInt64, identity: CodeIdentity) async throws -> NetworkSessionReply {
-        try await Task.detached { try ServiceClient.stopSession(sessionID: id, revision: revision, identity: identity) }.value
+    private func stop(_ id: UUID, revision: UInt64, identity: CodeIdentity) async throws -> NetworkSessionReply {
+        let target = SessionControlTarget(sessionID: id, revision: revision)
+        let sample = try? await Task.detached {
+            try ServiceClient.control(SessionControlRequest(target, .traffic), identity: identity, timeout: 2).traffic
+        }.value
+        let stopped = try await Task.detached { try ServiceClient.stopSession(sessionID: id, revision: revision, identity: identity) }.value
+        if let sample { await account(sample, for: id) }
+        return stopped
     }
 
     private func disconnect() async {
         guard !terminating, let identity = serviceIdentity, network.phase == .running || network.phase == .recovering else { return }
         do {
-            try await network.disconnect { id, revision in try await Self.stop(id, revision: revision, identity: identity) }
+            try await network.disconnect { id, revision in try await self.stop(id, revision: revision, identity: identity) }
         } catch { await refreshNetwork() }
     }
 
@@ -208,7 +351,9 @@ typealias Page = DesktopPage
         case .quit: NSApp.terminate(nil)
         case .connect: Task { await connect() }
         case .disconnect, .retryRecovery: Task { await disconnect() }
-        case .importChain, .refreshCloud, .measureNodes, .exportLogs, .exportDiagnostics, .checkUpdates:
+        case .measureNodes:
+            if let group = availableGroup { Task { await measure(group: group.group, members: group.members) } }
+        case .importChain, .refreshCloud, .exportLogs, .exportDiagnostics, .checkUpdates:
             break // Not advertised as available until their real implementations are connected.
         }
     }
@@ -236,6 +381,7 @@ typealias Page = DesktopPage
                 await network.refresh { id in
                     try await Task.detached { try ServiceClient.sessionStatus(renewing: id, identity: identity) }.value
                 }
+                Task { await refreshCoreControls() }
             } else {
                 serviceState = .missing
                 serviceStatus = "网络服务尚未安装"
@@ -313,7 +459,7 @@ typealias Page = DesktopPage
                 if let identity = serviceIdentity {
                     try await network.disconnectBeforeExit(status: { id in
                         try await Task.detached { try ServiceClient.sessionStatus(renewing: id, identity: identity) }.value
-                    }, stop: { id, revision in try await Self.stop(id, revision: revision, identity: identity) })
+                    }, stop: { id, revision in try await self.stop(id, revision: revision, identity: identity) })
                 } else if network.mayOwnSession { throw ServiceClientError.unavailable }
             } catch {
                 self.error = "退出前无法确认网络已恢复。\(error.localizedDescription)"

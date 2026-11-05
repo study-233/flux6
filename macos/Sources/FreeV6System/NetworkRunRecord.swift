@@ -42,6 +42,7 @@ struct NetworkRunRecord: Codable, Equatable {
 }
 
 protocol SessionRunNetwork {
+    var controller: CoreController { get }
     func prepareDNS() throws
     func applyDNS() throws
     func restoreDNS() throws
