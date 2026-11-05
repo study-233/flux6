@@ -9,7 +9,7 @@ baseline: c528f26
 
 Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员权限的系统操作，Go 复用注册、订阅与配置逻辑，Darwin 版 mihomo 承担网络转发。这样既能按 Mac 用户习惯设计窗口和菜单，也能让两端复用同一套代理规则。
 
-首版面向 macOS 13 及以上的 Apple Silicon 设备，交付 ad-hoc 签名的 DMG 和应用内更新。Developer ID 与公证后置。Intel 在真机验证后确定支持级别，热点共享在验证设备条件和维护成本后单独决定。
+首版仅面向 macOS 13 及以上的 Apple Silicon 设备，交付 arm64 原生应用、ad-hoc 签名的 DMG 和应用内更新。Intel 支持已搁置。Developer ID 与公证后置，热点共享在验证设备条件和维护成本后单独决定。
 
 后续由 Codex 在 `mac` 分支按下表逐项开发、测试、修复和交付。每项记录产物、复现步骤、通过的检查及待验证环境。涉及产品取舍时再请用户决定，例如热点共享值得支持哪些设备组合。Windows 审计基线为 `c528f26`。[开发进度](./macos-development-progress.md)
 
@@ -26,7 +26,7 @@ Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员
 | 1 · 从三个入口控制同一条连接 | 用应用菜单、窗口工具栏或右上角图标发起连接、查看状态和断开 | 先在隔离服务验证重复点击、后台运行、失联与退出，再在获授权的 Mac 上核对真实 TUN、DNS、出口及恢复结果 |
 | 2 · 在 Mac 上完成日常操作 | 从右上角切换工作模式和节点，在主窗口管理规则、链式与备用配置，查看流量和日志 | 对照 Windows 功能清单逐项验收。服务确认后再更新勾选，失败时给出可操作的原因 |
 | 3 · 安装、升级和卸载 | 从下载的 DMG 拖入“应用程序”，安装网络服务，完成一次应用内升级和卸载 | 实测首次打开、授权取消、旧版升级、失败回退和系统网络恢复，记录 macOS 13 与当前系统的结果 |
-| 4 · 发布并标明支持范围 | 在发行页获取 Apple Silicon 安装包，并查看经验证的系统与设备 | 核对发布资产、更新签名和 Windows 回归。Intel 依据真机结果标注。热点共享另交可行性与成本结论，由用户决定是否纳入 |
+| 4 · 发布并标明支持范围 | 在发行页获取 Apple Silicon 安装包，并查看经验证的系统与设备 | 核对发布资产、更新签名和 Windows 回归。热点共享另交可行性与成本结论，由用户决定是否纳入 |
 
 [原生顶部栏布局与命令](#macos-原生顶部栏设计) · [右上角菜单如何显示节点](#右上角菜单如何显示节点) · [下一步开发与验收](#顶部栏开发清单) · [完整阶段与验收条件](#实施阶段和验收条件) · [热点共享可行性与成本](#热点共享可行性与实施复杂度)
 
@@ -36,7 +36,7 @@ Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员
 | --- | --- |
 | Apple Silicon | 原生 arm64，完整本机功能，独立 DMG |
 | 最低系统 | macOS 13.0；原生界面与后台服务均以此作为部署目标 |
-| Intel | Swift 界面、登录助手、服务、安装工具、更新助手及 Go worker 已交叉构建；固定核心已核对 x86_64 和最低系统元数据。经 Intel 真机验证后再声明正式支持 |
+| Intel | 暂缓开发、打包和验收。以往的交叉构建结果仅作历史记录 |
 | 安装 | DMG 内含 FreeV6.app 和 Applications 快捷入口，应用内安装网络服务 |
 | Apple 签名公证 | 首版使用 ad-hoc 代码签名，Developer ID 和公证后置；ad-hoc 不提供 Apple 开发者身份信任 |
 | 更新 | 校验版本、架构和更新签名后替换应用；更新签名独立于 Apple 证书 |
@@ -58,7 +58,7 @@ Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员
 | SwiftUI + 全 Swift 业务后端 | Mac 技术栈统一 | 需要重新实现和验证 WARP 注册、订阅解析、配置渲染及下载逻辑；与 Windows 长期分叉 | 首版不采用，后续有具体收益时再逐模块评估 |
 | 改用 Flutter、Qt 或 Electron | 可另建跨平台界面 | 又一次界面迁移，仍要做原生权限服务，无法消除本项目的关键系统工作 | 当前没有足够收益支持更换 |
 
-“原生”优先落实在用户界面、窗口行为、系统权限、网络设置和安装生命周期。Go worker 编译为本机 arm64/amd64 可执行程序，不需要用户安装 Go，也不妨碍 SwiftUI 原生体验。保留 Go 的理由是复用已有业务实现和测试，不能据此把当前 Windows helper 原样搬到 Mac。
+“原生”优先落实在用户界面、窗口行为、系统权限、网络设置和安装生命周期。Mac 版 Go worker 编译为本机 arm64 可执行程序，不需要用户安装 Go，也不妨碍 SwiftUI 原生体验。保留 Go 的理由是复用已有业务实现和测试，不能据此把当前 Windows helper 原样搬到 Mac。
 
 | 职责 | 选型 | 具体边界 |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ Windows 基线的启动链路为：Tauri 启动 → 用 Win32 随机数 API 生�
 
 [runtime.go](/Users/andy/Study/free-v6/internal/mihomo/runtime.go:15) 根据 GOOS 和 GOARCH 拼文件名，却对所有平台加 .exe；两个发现测试也硬编码 Windows 名称。因此 Go 使用了跨平台语法，并不代表运行时和测试已经跨平台。
 
-上游固定版本的构建工作流包含 darwin/arm64 和 darwin/amd64，并对非 Windows 输出 gzip。实施时应核实对应 release 资产存在、下载并锁定实际摘要，不凭文件名推测 SHA256。Intel 优先选择 amd64-v1，避免直接沿用当前 Windows amd64-v3 的 CPU 要求。[mihomo v1.19.31 构建工作流](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/.github/workflows/build.yml)
+上游固定版本的构建工作流包含 darwin/arm64 和 darwin/amd64，并对非 Windows 输出 gzip。Mac 首版选择 darwin/arm64 资产，由下载器和服务校验压缩包与可执行文件的固定摘要。[mihomo v1.19.31 构建工作流](https://github.com/MetaCubeX/mihomo/blob/v1.19.31/.github/workflows/build.yml)
 
 ### 权限和网络操作
 
@@ -514,7 +514,7 @@ Swift UI 状态采用 macOS 13 可用的 ObservableObject/@Published 与 async/a
 
 ## DMG、更新与卸载
 
-产物先按架构分开：`FreeV6_<version>_arm64.dmg`；Intel 验证后提供 `FreeV6_<version>_x86_64.dmg`。首版不要求 Universal 2；以后合并时必须同时处理 App、Go worker、Swift 服务和其他嵌入组件的架构。Intel 使用兼容 CPU 基线，并独立验证所有依赖和最低系统，不以 Rosetta 运行成功替代真机结果。
+首版发布 `FreeV6_<version>_arm64.dmg`。主程序、Go worker、网络服务、登录助手、安装工具及更新助手均以 arm64 构建，嵌入的依赖也应包含可在 macOS 13 上运行的 arm64 代码。
 
 Xcode 工程包含 App、网络服务、bootstrap/恢复工具与测试 target；Swift Package Manager 固定第三方依赖。构建脚本先生成指定 GOOS/GOARCH 的 worker，再放入 bundle 固定位置；构建设置统一最低 macOS 13。Mac 不打包 Web 页面、Tauri Rust 壳或 Windows helper。使用系统 hdiutil 制作 DMG，提供 Applications 拖放入口和简短安装说明。
 
@@ -524,7 +524,7 @@ mihomo 保持首次下载：按架构取得锁定资产、检查摘要与解压�
 
 ### 原生应用更新
 
-采用 Sparkle 2，通过独立的普通用户 Swift 更新助手接入检查更新和安装流程，由主 App 的 UpdateCoordinator 协调。发布每架构独立 appcast 与完整 .app ZIP 更新包。发布包使用 Ed25519 签名，公钥内置 App，私钥仅用于受控发布；Apple 开发者证书不替代该发布密钥。Windows 继续使用现有 version.json，避免旧客户端获取 Mac 资产。[Sparkle 官方接入说明](https://sparkle-project.org/documentation/)
+采用 Sparkle 2，通过独立的普通用户 Swift 更新助手接入检查更新和安装流程，由主 App 的 UpdateCoordinator 协调。首版发布 `appcast-arm64.xml` 与包含完整 .app 的 arm64 ZIP 更新包。发布包使用 Ed25519 签名，公钥内置 App，私钥仅用于受控发布；Apple 开发者证书不替代该发布密钥。Windows 继续使用现有 version.json，避免旧客户端获取 Mac 资产。[Sparkle 官方接入说明](https://sparkle-project.org/documentation/)
 
 依赖锁定经审查的确切版本；P0 已使用 2.9.6 官方资产并验证摘要，安全记录包含该版修复。Sparkle 只在普通用户更新助手中运行，不进入 root 网络服务或安装工具。[Sparkle 安全与可靠性记录](https://sparkle-project.org/documentation/security-and-reliability/)
 
@@ -606,7 +606,7 @@ Codex 按功能依赖安排开发，每项交付记录可运行产物、复现�
 | P4 TUN 与恢复 | 配置策略、DNS 事务、进程管理、断线和恢复冲突处理 | P0、P3 | 启停、强退、核心崩溃、睡眠、网络切换后可恢复；原始基线不被覆盖；无跨用户操作 |
 | P5 功能完整与原生体验 | 全部业务页面、顶部栏状态/焦点联动、图表、日志、快捷键、登录启动、可访问性 | P2、P4 | 功能对应表逐项通过；关闭与退出语义一致；性能、主题和数据保存符合验收 |
 | P6 DMG 与升级 | ad-hoc 分发、Sparkle、客户端登记/服务升级、恢复工具 | P3、P5 | 实际下载的 DMG 可安装；N→N+1 完成；授权取消和升级失败可恢复；误删 App 可卸载服务 |
-| P7 回归与交付 | Apple Silicon/最低系统、Intel 评估、Windows 回归、发布文档 | P6 | 发布矩阵通过；Intel 未过真机验收明确标预览；资产、签名与更新清单一致 |
+| P7 回归与交付 | Apple Silicon/最低系统、Windows 回归、发布文档 | P6 | Apple Silicon 发布矩阵通过，资产、签名与 arm64 更新清单一致 |
 
 每次开发按以下顺序形成可审查的结果：选择依赖已满足的任务 → 细化输入、输出及失败行为 → 实现最小完整功能 → 执行针对性验证并修复 → 更新进度与证据 → 推进下一项。表中依赖落实到具体任务的前置验证：例如，最低系统设备尚未就绪时，可以继续共享业务提取和菜单布局；真实网络启停仍须先通过身份、核心配置与恢复机制的相应验证。暂缺设备的验收保持“未验证”，不据此宣称阶段完成。
 
@@ -633,7 +633,7 @@ P0 要产生明确结论，而非仅展示一个原生窗口：
 2. launchd 安装、双向 XPC 身份校验、无证书客户端升级后的重新授权是否可靠；恢复工具能否独立工作。
 3. Keychain 在 ad-hoc 首装、升级和回退时的行为，以及凭据存储接口如何迁移。
 4. Sparkle 与无证书分发配置能否在最低系统和当前系统完成真实更新；无法达成时应怎样调整实现路线与任务依赖。
-5. Xcode/Go 工具链、依赖与核心资产对 macOS 13/arm64 的实际支持；Intel 构建是否有基础阻碍。
+5. Xcode/Go 工具链、依赖与核心资产对 macOS 13/arm64 的实际支持。
 
 这些问题主要需要实验，不需要现在再让用户选择实现细节。只有原型发现必须提高最低系统、引入 Apple 证书、缩减功能或更改热点范围时，再将结果与具体取舍交用户决定。
 
@@ -643,7 +643,7 @@ P0 要产生明确结论，而非仅展示一个原生窗口：
 
 | 类别 | 必须覆盖的情况 |
 | --- | --- |
-| 系统与架构 | Apple Silicon 的 macOS 13、至少一个中间主版本、当前系统；Intel 真机独立验收；检查 App/worker/服务/核心架构一致 |
+| 系统与架构 | Apple Silicon 的 macOS 13、至少一个中间主版本、当前系统；检查 App/worker/服务/核心架构一致 |
 | 安装与授权 | 实际下载带 quarantine 的 DMG、Applications 安装、直接在 DMG 中运行、标准用户使用管理员授权、拒绝/取消、中断与重启 |
 | IPC 与身份 | worker 协议错版本、截断/超大消息、超时/取消/背压、进程崩溃；XPC 错误身份、旧 CDHash、伪造服务、断线重连、跨用户调用 |
 | 核心与配置 | 平台资产映射、ZIP/gzip、错误哈希/架构、解压限制、执行位、替换竞态；真实核心 -t、字段白名单、危险路径和 controller 字段覆盖 |
@@ -671,4 +671,4 @@ CI 分开构建 Windows 和 Mac。Mac job 显式设置 Xcode DEVELOPER_DIR、部
 | --- | --- | --- |
 | 桌面 | 在 macOS 27.0.1 的开发构建上已实测未安装服务时的菜单、工具栏、⌘W 和访达重开。服务端切换与速率结果另有隔离记录 | 实测从右上角操作和 Dock 重开，在真实连接中核对三处状态，并覆盖恢复失败时的退出行为 |
 | 网络服务 | XPC v4 已通过固定核心配置检查。运行记录 v3 已通过 23 个用户域 launchd 场景。XPC v5 探针已覆盖启停、过期请求、核心崩溃和客户端消失，测试使用隔离 DNS 和模拟隧道 | 在已获授权的设备上完成 root 安装，验证真实 WARP 注册、TUN、DNS、出口，以及断开后其他应用的联网 |
-| 分发与兼容 | arm64 开发 DMG 已通过挂载、复制、验签。原生更新助手已验证签名拒绝、取消、与隔离服务联动升级以及恢复失败时保留旧版 | 主应用在真实系统服务上的升级与重新登记、下载后的首次打开、macOS 13、Intel 及 Windows 回归分别留存实测结果 |
+| 分发与兼容 | arm64 开发 DMG 已通过挂载、复制、验签。原生更新助手已验证签名拒绝、取消、与隔离服务联动升级以及恢复失败时保留旧版 | 主应用在真实系统服务上的升级与重新登记、下载后的首次打开、Apple Silicon 上的 macOS 13 及 Windows 回归分别留存实测结果 |

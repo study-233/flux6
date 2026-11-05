@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-SwiftUI/AppKit 原生应用提供连接准备、WARP 凭据、规则设置、核心与规则数据下载。窗口工具栏、应用菜单和右上角状态菜单共用会话状态。开发构建使用 XPC v6 接入启停、运行模式、节点和流量读取。断开及正常退出会等待网络恢复。已验证普通用户域的隔离网络，系统服务安装、真实校园网络、macOS 13 与 Intel 仍待实机验收。[服务协议](../shared/protocol/service-v6.md)
+当前 Mac 版面向 Apple Silicon（M 系列），最低支持目标为 macOS 13。SwiftUI/AppKit 原生应用提供连接准备、WARP 凭据、规则设置、核心与规则数据下载。窗口工具栏、应用菜单和右上角状态菜单共用会话状态。开发构建使用 XPC v6 接入启停、运行模式、节点和流量读取。断开及正常退出会等待网络恢复。已验证普通用户域的隔离网络，系统服务安装、真实校园网络和 macOS 13 仍待实机验收。[服务协议](../shared/protocol/service-v6.md)
 
 ## 构建
 
@@ -18,7 +18,7 @@ bash scripts/macos/build-app.sh
 
 ### 构建可拖放安装的 DMG
 
-在普通用户会话运行 `python3 scripts/macos/build-dmg.py`。该命令执行 Release 构建，在 `dist/macos` 输出 `FreeV6_<版本>-preview_<架构>.dmg`。挂载后把 FreeV6 拖到 Applications，从“应用程序”打开。镜像内附中文安装说明，App 内附用户协议、隐私说明与 FreeV6、Go 和 YAML 的许可证。
+在 Apple Silicon Mac 的原生 arm64 普通用户会话运行 `python3 scripts/macos/build-dmg.py`。该命令执行 Release 构建，在 `dist/macos` 输出 `FreeV6_<版本>-preview_arm64.dmg`。挂载后把 FreeV6 拖到 Applications，从“应用程序”打开。镜像内附中文安装说明，App 内附用户协议、隐私说明与 FreeV6、Go 和 YAML 的许可证。
 
 打包脚本只读挂载镜像，在临时目录验证拖放副本的签名、六个程序的架构、最低系统、动态库查找路径及安装工具内嵌的服务摘要，随后推出。直接从只读卷或系统转移路径启动时，应用只显示拖放安装指引。安装到可写位置后才进入常规启动流程；安装系统网络服务要求将 App 放在系统的“应用程序”目录。
 
@@ -288,7 +288,7 @@ python3 scripts/macos/probe-update.py --isolated-agent --invalid-signature
 
 主测试 App 仅链接系统框架；Sparkle 位于普通用户更新助手中，仅助手关闭 Library Validation。助手不在特权服务的客户端登记中。直接加载方案可用 `--profile hardened --load-only` 复现当前系统的 Team ID 拒绝，预期退出失败；`--profile adhoc` 只用于对照实验，不是主程序的发布配置。
 
-`macos/Probes` 中的 Objective-C 宿主和自动应答 driver 用于早期验证。当前产品的 Swift 更新助手和发布脚本见下一节。上述实验仍需补充下载 quarantine、macOS 13、Intel 及网络服务事务验收。
+`macos/Probes` 中的 Objective-C 宿主和自动应答 driver 用于早期验证。当前产品的 Swift 更新助手和发布脚本见下一节。上述实验仍需补充下载 quarantine、macOS 13 及网络服务事务验收。
 
 ## Swift 更新助手与发布
 
@@ -317,7 +317,7 @@ python3 scripts/macos/probe-service.py --network-run --update-recovery \
 
 Mac 的发布仓库为 `study-233/free-v6`。签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `macos-v0.5.3-b2`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。Mac 独立 Release 发布时设置 `make_latest=false`，预览版标记为 prerelease；Windows 的工作流沿用现有的 `v*` 标签及 `latest` 入口。[GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
 
-正式发行需要保管和备份发布私钥，再从对应公钥生成通道 JSON。构建首次分发的 DMG 时，通过 `FREEV6_UPDATE_CHANNEL_FILE` 指向该文件。配置按架构给出地址，Intel 包在 Intel 验收后单独发布。普通预览 DMG 继续显示通道待配置。
+正式发行需要保管和备份发布私钥，再从对应公钥生成通道 JSON。构建首次分发的 DMG 时，通过 `FREEV6_UPDATE_CHANNEL_FILE` 指向该文件。首版只发布 arm64 ZIP 与 `appcast-arm64.xml`。普通预览 DMG 继续显示通道待配置。
 
 ```sh
 python3 scripts/macos/github_channel.py --public-key-file /secure/path/mac-public-key.txt \
