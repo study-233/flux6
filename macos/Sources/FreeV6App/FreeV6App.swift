@@ -4,17 +4,37 @@ import FreeV6System
 import FreeV6Desktop
 
 @MainActor final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    lazy var model = AppModel()
+    lazy var model: AppModel = {
+        let model = AppModel()
+        model.onShowWindow = { [weak self] in self?.revealWindow() }
+        return model
+    }()
+    lazy var hideInitialWindow = model.startup.shouldStartHidden
+    var openMainWindow: (() -> Void)?
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         model.beginTermination()
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        revealWindow()
         if let window = sender.windows.first(where: { $0.identifier?.rawValue == "freev6-main" }) {
             if window.isMiniaturized { window.deminiaturize(nil) }
             window.makeKeyAndOrderFront(nil)
-        }
-        return true
+        } else { openMainWindow?() }
+        return false
+    }
+    func windowDidBecomeKey(_ notification: Notification) {
+        guard hideInitialWindow, let window = notification.object as? NSWindow else { return }
+        window.orderOut(nil)
+    }
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard hideInitialWindow, let window = notification.object as? NSWindow,
+              window.isVisible, window.occlusionState.contains(.visible) else { return }
+        window.orderOut(nil)
+    }
+    func revealWindow() {
+        hideInitialWindow = false
+        NSApp.windows.first { $0.identifier?.rawValue == "freev6-main" }?.alphaValue = 1
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         sender.orderOut(nil)
@@ -40,6 +60,12 @@ private final class MainWindowAnchor: NSView {
         window.identifier = NSUserInterfaceItemIdentifier("freev6-main")
         window.delegate = applicationDelegate
         window.setFrameAutosaveName("FreeV6MainWindow")
+        if applicationDelegate?.hideInitialWindow == true {
+            window.alphaValue = 0
+            DispatchQueue.main.async { [weak window, weak applicationDelegate] in
+                if applicationDelegate?.hideInitialWindow == true { window?.orderOut(nil) }
+            }
+        }
     }
 }
 
@@ -48,23 +74,18 @@ private final class MainWindowAnchor: NSView {
     private var model: AppModel { delegate.model }
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
+    @Environment(\.openWindow) private var openWindow
 
     private var colorScheme: ColorScheme? {
         appearance == "dark" ? .dark : appearance == "light" ? .light : nil
     }
 
     var body: some Scene {
-        Window("FreeV6", id: "main") {
-            MainView(model: model)
-                .preferredColorScheme(colorScheme)
-                .background(WindowConfiguration(delegate: delegate))
-                .frame(minWidth: 720, minHeight: 480)
-        }
-        .defaultSize(width: 920, height: 620)
-        .windowToolbarStyle(.unified)
-        .commands { NativeCommands(model: model) }
+        let open = openWindow
+        let _ = delegate.openMainWindow = { open(id: "main") }
+        mainWindow
         Settings {
-            SettingsView(model: model, showMenuBarExtra: $showMenuBarExtra)
+            StartupPreferences(model: model, showMenuBarExtra: $showMenuBarExtra)
                 .preferredColorScheme(colorScheme)
         }
         Window("FreeV6 使用说明", id: "help") {
@@ -76,6 +97,35 @@ private final class MainWindowAnchor: NSView {
         } label: {
             StatusIcon(model: model)
         }.menuBarExtraStyle(.menu)
+    }
+
+    private var mainWindow: some Scene {
+        Window("FreeV6", id: "main") {
+            StartupWindow(model: model)
+                .preferredColorScheme(colorScheme)
+                .background(WindowConfiguration(delegate: delegate))
+                .frame(minWidth: 720, minHeight: 480)
+        }
+        .defaultSize(width: 920, height: 620)
+        .windowToolbarStyle(.unified)
+        .commands { NativeCommands(model: model) }
+    }
+}
+
+private struct StartupPreferences: View {
+    @ObservedObject var model: AppModel
+    @Binding var showMenuBarExtra: Bool
+    var body: some View {
+        if model.startup.accepted { SettingsView(model: model, showMenuBarExtra: $showMenuBarExtra) }
+        else { StartupNoticeView(model: model).frame(width: 560, height: 480) }
+    }
+}
+
+private struct StartupWindow: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        if model.startup.accepted { MainView(model: model) }
+        else { StartupNoticeView(model: model) }
     }
 }
 
@@ -103,6 +153,7 @@ struct MainView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             ServiceOverviewView(model: model)
+                            if let message = model.startup.automaticStatus { Text(message).foregroundStyle(.secondary) }
                             if model.updater.busy || model.updater.error != nil || model.updateRecoveryMessage != nil {
                                 GroupBox("应用更新") {
                                     VStack(alignment: .leading, spacing: 8) {
@@ -186,8 +237,10 @@ struct SettingsView: View {
                 Text("深色").tag("dark")
             }
             Toggle("在菜单栏中显示 FreeV6", isOn: $showMenuBarExtra)
+            StartupSettingsView(startup: model.startup)
             if !showMenuBarExtra {
-                Text("可以从程序坞重新打开主窗口。").font(.callout).foregroundStyle(.secondary)
+                Text(model.startup.silent ? "菜单栏入口已隐藏，启动时会显示主窗口。" : "可以从程序坞重新打开主窗口。")
+                    .font(.callout).foregroundStyle(.secondary)
             }
         }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
         BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)

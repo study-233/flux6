@@ -252,6 +252,36 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
         return
     }
     let request = try ServiceMessages.decodeConfiguration(readConfigurationRequest(args[3]))
+    if args[0] == "desktop-auto-session" {
+        let root = URL(fileURLWithPath: args[3]).deletingLastPathComponent().appendingPathComponent("startup-documents")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        for file in ["agreement.md", "privacy.md"] { try Data("Synthetic test notice".utf8).write(to: root.appendingPathComponent(file)) }
+        let docs = try StartupNotices(directory: root)
+        let suite = name + ".startup"
+        guard let defaults = UserDefaults(suiteName: suite) else { throw ServiceMessageError.invalid }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = DesktopStartup(defaults: defaults, notices: docs)
+        settings.acceptNotices()
+        settings.automatic = true
+        let launch = DesktopStartup(defaults: defaults, notices: docs)
+        var calls = 0
+        for _ in 0..<2 {
+            await launch.runAutomatic(prerequisite: { desktop.phase == .idle ? nil : "occupied" },
+                waitForNetwork: { await launch.waitForNetwork() }, inspect: {}, connect: { attempt in
+                    guard launch.currentAttempt == attempt else { return "cancelled" }
+                    calls += 1
+                    await desktop.connect { token in
+                        try await Task.detached { try ServiceClient.startSession(request, idleToken: token, identity: identity,
+                            name: name, privileged: false) }.value
+                    }
+                    return desktop.error
+                })
+        }
+        guard calls == 1, desktop.phase == .running, launch.automaticStatus == nil else { throw ServiceClientError.invalidReply }
+        try await desktop.disconnectBeforeExit(status: status, stop: stop)
+        guard desktop.phase == .idle else { throw ServiceClientError.invalidReply }
+        return
+    }
     for quit in [false, true] {
         guard desktop.phase == .idle else { throw ServiceClientError.invalidReply }
         await desktop.connect { token in
@@ -363,7 +393,16 @@ do {
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
     #if DEBUG
-    case "desktop-session" where arguments.count == 4, "desktop-update-stop" where arguments.count == 3:
+    case "probe-login-item" where arguments.count == 3:
+        let home = URL(fileURLWithPath: arguments[1]).standardizedFileURL
+        guard geteuid() != 0, home.lastPathComponent == "home",
+              home.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "login-probes",
+              UUID(uuidString: home.deletingLastPathComponent().lastPathComponent) != nil,
+              ["install", "remove"].contains(arguments[2]) else { throw ServiceMessageError.invalid }
+        let manager = LoginItemManager(home: home, app: home.appendingPathComponent("Applications/FreeV6.app"))
+        try manager.setEnabled(arguments[2] == "install")
+    case "desktop-session" where arguments.count == 4, "desktop-update-stop" where arguments.count == 3,
+         "desktop-auto-session" where arguments.count == 4:
         Task { @MainActor in
             do { try await probeDesktopSession(arguments); exit(0) }
             catch { fputs("desktop session: \(error.localizedDescription)\n", stderr); exit(1) }

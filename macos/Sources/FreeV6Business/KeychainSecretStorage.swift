@@ -9,19 +9,28 @@ public struct SecretSnapshot: Sendable {
 
 public protocol VersionedSecretStorage: Sendable {
     func read() async throws -> SecretSnapshot?
+    func read(interactionAllowed: Bool) async throws -> SecretSnapshot?
     func write(_ data: Data, expectedRevision: UUID?) async throws -> SecretSnapshot
     func delete(expectedRevision: UUID) async throws
 }
 
+public extension VersionedSecretStorage {
+    func read(interactionAllowed: Bool) async throws -> SecretSnapshot? {
+        guard interactionAllowed else { throw CredentialError.security(errSecInteractionNotAllowed) }
+        return try await read()
+    }
+}
+
 // The file-based user Keychain uses the creating app's default code ACL. No
 // all-apps access, shared access group or Apple signing entitlement is granted.
-// Calls may invoke system authentication and are only started by user actions.
+// All file-based Keychain calls share one queue. Background reads suppress
+// Keychain UI for their synchronous lookup and restore the process setting.
 public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sendable {
     private let service: String
     private let account: String
     private let label: String
     private let keychain: SecKeychain?
-    private let queue = DispatchQueue(label: "dev.freev6.credentials")
+    private static let queue = DispatchQueue(label: "dev.freev6.credentials")
 
     public init() {
         service = "dev.freev6.desktop.warp"
@@ -54,7 +63,23 @@ public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sen
     }
 
     public func read() async throws -> SecretSnapshot? {
+        try await read(interactionAllowed: true)
+    }
+
+    public func read(interactionAllowed: Bool) async throws -> SecretSnapshot? {
         try await perform {
+            var restore = false
+            if !interactionAllowed {
+                var previous = DarwinBoolean(false)
+                let status = SecKeychainGetUserInteractionAllowed(&previous)
+                guard status == errSecSuccess else { throw CredentialError.security(status) }
+                if previous.boolValue {
+                    let disabled = SecKeychainSetUserInteractionAllowed(false)
+                    guard disabled == errSecSuccess else { throw CredentialError.security(disabled) }
+                    restore = true
+                }
+            }
+            defer { if restore { SecKeychainSetUserInteractionAllowed(true) } }
             var query = self.query()
             query[kSecReturnAttributes as String] = true
             query[kSecReturnData as String] = true
@@ -62,6 +87,7 @@ public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sen
             var result: CFTypeRef?
             let status = SecItemCopyMatching(query as CFDictionary, &result)
             if status == errSecItemNotFound { return nil }
+            if !interactionAllowed && status == errSecAuthFailed { throw CredentialError.security(errSecInteractionNotAllowed) }
             guard status == errSecSuccess else { throw CredentialError.security(status) }
             guard let item = result as? [String: Any], let data = item[kSecValueData as String] as? Data,
                   let version = item[kSecAttrGeneric as String] as? Data,
@@ -109,7 +135,7 @@ public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sen
 
     private func perform<T: Sendable>(_ action: @escaping @Sendable () throws -> T) async throws -> T {
         try await withCheckedThrowingContinuation { continuation in
-            queue.async { continuation.resume(with: Result(catching: action)) }
+            Self.queue.async { continuation.resume(with: Result(catching: action)) }
         }
     }
 }

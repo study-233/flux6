@@ -362,6 +362,9 @@ def main():
         run([probe, "desktop-session", label, service_hash, request], timeout=90)
         assert stopped()
         case("native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC")
+        run([probe, "desktop-auto-session", label, service_hash, request], timeout=90)
+        assert stopped()
+        case("opted-in startup waits for a network path, starts exactly one authenticated fixture session and restores DNS on quit")
         if args.update_recovery:
             exercise_update = runpy.run_path(str(ROOT / "scripts/macos/probe-native-update.py"))["exercise"]
             def test_update(scenario, block_recovery):

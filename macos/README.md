@@ -96,7 +96,19 @@ python3 scripts/macos/probe-runtime.py \
 
 ## WARP 与 Keychain
 
-概览及设置的 WARP 页提供检查、注册、重新注册、删除本机凭据和保存失败重试。启动时不自动读取私钥；点击检查或注册后，Security API 在独立串行队列执行，授权交由系统窗口处理。保存失败保留旧记录和待保存的新结果，不自动创建第二个 WARP 设备。
+概览及设置的 WARP 页提供检查、注册、重新注册、删除本机凭据和保存失败重试。默认由用户主动检查或注册。开启“启动时自动连接”后，启动流程可以无界面读取现有钥匙串条目；需要交互时停止并显示原因。所有文件钥匙串操作共享一条串行队列，静默读取结束后恢复原有交互设置。保存失败保留旧记录和待保存的新结果。
+
+## 首次打开与启动设置
+
+首次打开会显示随包的用户协议与隐私政策，Mac 存储、通信和发行来源说明位于隐私政策开头。应用根据两份文档的实际内容保存本机同意记录。文档变化或缺失时显示主窗口，新的连接、安装与下载命令会等待用户处理。
+
+“设置 → 通用”有三个独立开关，默认均关闭。
+
+- **登录时打开 FreeV6** 要求应用位于 `/Applications/FreeV6.app` 或当前用户的 `~/Applications/FreeV6.app`。FreeV6 写入用户级一次性 LaunchAgent。原生登录助手检查应用进程，已有实例时退出；否则通过 Launch Services 打开同一份 App。设置区分用户意愿、等待下次登录、系统允许和需要批准。安装、移除登录项均由用户显式操作。[Apple 登录项状态](https://developer.apple.com/documentation/servicemanagement/smappservice/statusforlegacyplist(at:))
+- **启动时收起主窗口** 在当前文档已确认且菜单栏图标可用时生效；从 Dock 或状态菜单可重开主窗口。
+- **启动时自动连接** 每次启动最多尝试一次。先完成服务、配置与更新记录核对，再等待网络可用。自动流程只读已有凭据，仍执行普通连接路径的校园网络、版本、资源、会话和公告校验。手动操作、退出或升级会撤销尚未提交的自动连接。
+
+`python3 scripts/macos/probe-login.py` 在临时用户目录和一次性 Aqua 任务中检查登录助手，运行两次并核对观察进程的启动、重开事件及清理结果。探针使用一个独立无窗口 App。真实账号的登录项、钥匙串和网络保持独立。上面的 `probe-service.py --network-run` 另验证自动连接流程与普通用户域 XPC、固定核心和隔离 DNS 的联动。
 
 凭据放在当前用户的文件式 Keychain 中，generic-password 的 service 为 `dev.freev6.desktop.warp`、account 为 `credentials-v1`。使用创建应用的默认代码访问控制，不增加共享访问组、不允许所有应用读取、不添加 Apple 签名 entitlement。Data Protection Keychain 的共享访问组和签名配置不在此无 Developer ID 首版中使用；ad-hoc 更新后的再次授权仍需实测。[Apple Keychain 访问控制](https://developer.apple.com/documentation/security/access-control-lists)、[代码签名与 Keychain 身份](https://developer.apple.com/library/archive/technotes/tn2206/)
 

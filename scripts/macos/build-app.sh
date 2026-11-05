@@ -22,6 +22,9 @@ mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources" "$bundle/Contents
         -o "$bundle/Contents/Helpers/freev6-worker" ./cmd/freev6-worker
 )
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.worker "$bundle/Contents/Helpers/freev6-worker"
+bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-login-launcher
+cp "$binary_dir/freev6-login-launcher" "$bundle/Contents/Helpers/freev6-login-launcher"
+/usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.desktop.login "$bundle/Contents/Helpers/freev6-login-launcher"
 service="$bundle/Contents/Library/LaunchServices/dev.freev6.network-service"
 cp "$binary_dir/freev6-network-service" "$service"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.network-service "$service"
@@ -55,7 +58,8 @@ cp "$go_root/LICENSE" "$notices/Go-LICENSE.txt"
 cp "$project_root/LICENSE" "$notices/FreeV6-LICENSE.txt"
 cp "$project_root/THIRD-PARTY.txt" "$notices/THIRD-PARTY.txt"
 cp "$project_root/src-tauri/LICENSES/yaml.v3-LICENSE.txt" "$project_root/src-tauri/LICENSES/Apache-2.0.txt" "$notices/"
-cp "$project_root/docs/agreement.md" "$project_root/docs/privacy.md" "$notices/"
+cp "$project_root/docs/agreement.md" "$notices/"
+{ cat "$project_root/macos/Resources/privacy-macos.md"; printf '\n\n'; cat "$project_root/docs/privacy.md"; } > "$notices/privacy.md"
 /usr/bin/codesign --force --sign - --options runtime --identifier dev.freev6.desktop "$bundle"
 /usr/bin/codesign --verify --deep --strict "$bundle"
 "$bundle/Contents/Helpers/freev6-service-installer" manifest

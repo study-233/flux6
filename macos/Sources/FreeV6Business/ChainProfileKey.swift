@@ -5,12 +5,12 @@ public struct ChainProfileKey: Sendable {
     private let storage: any VersionedSecretStorage
     public init(storage: any VersionedSecretStorage = KeychainSecretStorage.chainKey()) { self.storage = storage }
 
-    public func load(allowCreation: Bool) async throws -> Data {
-        if let existing = try await storage.read() {
+    public func load(allowCreation: Bool, interactionAllowed: Bool = true) async throws -> Data {
+        if let existing = try await storage.read(interactionAllowed: interactionAllowed) {
             guard existing.data.count == 32 else { throw CredentialError.invalidCredential }
             return existing.data
         }
-        guard allowCreation else { throw MissingKey() }
+        guard allowCreation && interactionAllowed else { throw MissingKey() }
         let key = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }
         do { return try await storage.write(key, expectedRevision: nil).data }
         catch CredentialError.conflict { return try await load(allowCreation: false) }

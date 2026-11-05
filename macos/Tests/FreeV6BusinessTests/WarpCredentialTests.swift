@@ -138,6 +138,22 @@ final class WarpCredentialTests: XCTestCase {
         let same = try await keys.load(allowCreation: false)
         XCTAssertEqual(fresh.count, 32)
         XCTAssertEqual(fresh, same)
+        let silent = try await keys.load(allowCreation: false, interactionAllowed: false)
+        XCTAssertEqual(fresh, silent)
+        // Only this test keychain is locked. Start with UI enabled, so the
+        // actual background read must suppress it and restore the prior flag.
+        XCTAssertEqual(SecKeychainLock(keychain), errSecSuccess)
+        XCTAssertEqual(SecKeychainSetUserInteractionAllowed(true), errSecSuccess)
+        do {
+            _ = try await keys.load(allowCreation: false, interactionAllowed: false)
+            XCTFail("A background read returned data from the locked keychain")
+        } catch {
+            XCTAssertEqual(error as? CredentialError, .security(errSecInteractionNotAllowed))
+        }
+        var allowed = DarwinBoolean(false)
+        XCTAssertEqual(SecKeychainGetUserInteractionAllowed(&allowed), errSecSuccess)
+        XCTAssertTrue(allowed.boolValue)
+        XCTAssertEqual(SecKeychainSetUserInteractionAllowed(false), errSecSuccess)
     }
 
     func testSavedTunnelRejectsStaleRevisionAndSerializesReplacement() async throws {

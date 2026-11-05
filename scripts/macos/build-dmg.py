@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "dist/macos"
 GUIDE = ROOT / "macos/Resources/安装说明.txt"
 BINARIES = (
-    "MacOS/FreeV6", "Helpers/freev6-worker", "Helpers/freev6-service-installer",
+    "MacOS/FreeV6", "Helpers/freev6-worker", "Helpers/freev6-service-installer", "Helpers/freev6-login-launcher",
     "Helpers/FreeV6UpdateAgent.app/Contents/MacOS/freev6-update-agent",
     "Library/LaunchServices/dev.freev6.network-service",
 )
@@ -83,6 +83,10 @@ def main():
     subprocess.run(["/bin/bash", ROOT / "scripts/macos/build-app.sh"], cwd=ROOT, check=True,
                    env={**os.environ, "CONFIGURATION": "release"})
     app = OUTPUT / "FreeV6.app"
+    notices = app / "Contents/Resources/Notices"
+    expected_privacy = (ROOT / "macos/Resources/privacy-macos.md").read_bytes() + b"\n\n" + (ROOT / "docs/privacy.md").read_bytes()
+    if (notices / "privacy.md").read_bytes() != expected_privacy or (notices / "agreement.md").read_bytes() != (ROOT / "docs/agreement.md").read_bytes():
+        raise RuntimeError("The packaged startup notices do not match this build")
     info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     version = info["CFBundleShortVersionString"]
     if not re.fullmatch(r"\d+(?:\.\d+){1,2}", version) or info["LSMinimumSystemVersion"] != "13.0":

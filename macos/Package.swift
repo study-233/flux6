@@ -12,6 +12,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .executable(name: "FreeV6", targets: ["FreeV6App"]),
+        .executable(name: "freev6-login-launcher", targets: ["FreeV6LoginLauncher"]),
         .executable(name: "freev6-probe", targets: ["FreeV6Probe"]),
         .executable(name: "freev6-network-service", targets: ["FreeV6NetworkService"]),
         .executable(name: "freev6-service-installer", targets: ["FreeV6Bootstrap"]),
@@ -24,6 +25,7 @@ let package = Package(
         .target(name: "FreeV6Business", dependencies: ["FreeV6Configuration"]),
         .target(name: "FreeV6Desktop", dependencies: ["FreeV6System", "FreeV6UpdateSupport"]),
         .executableTarget(name: "FreeV6App", dependencies: ["FreeV6System", "FreeV6Business", "FreeV6Desktop", "FreeV6UpdateSupport"]),
+        .executableTarget(name: "FreeV6LoginLauncher"),
         .executableTarget(name: "FreeV6Probe", dependencies: ["FreeV6System", "FreeV6Desktop"]),
         .executableTarget(name: "FreeV6NetworkService", dependencies: ["FreeV6System"]),
         .executableTarget(name: "FreeV6Bootstrap", dependencies: ["FreeV6System"], linkerSettings: bootstrapLinkerSettings),

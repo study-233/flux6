@@ -23,6 +23,8 @@ typealias Page = DesktopPage
     @Published private var checkingConfiguration = false
     var configurationBusy: Bool { checkingConfiguration || network.phase.busy }
     let network = DesktopNetworkSession()
+    let startup: DesktopStartup
+    var onShowWindow: (() -> Void)?
     let controls: DesktopCoreControls
     let logs: DesktopLogs
     let updater = DesktopUpdater()
@@ -38,6 +40,7 @@ typealias Page = DesktopPage
     private var trafficClock: Task<Void, Never>?
     private var serviceIdentity: CodeIdentity?
     private var heartbeat: Task<Void, Never>?
+    private var businessStarted = false
     var connectionTitle: String {
         serviceState == .ready || network.mayOwnSession ? network.phase.title : serviceState.title
     }
@@ -61,6 +64,8 @@ typealias Page = DesktopPage
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        let notices = Bundle.main.resourceURL.flatMap { try? StartupNotices(directory: $0.appendingPathComponent("Notices")) }
+        startup = DesktopStartup(defaults: defaults, notices: notices)
         logs = DesktopLogs(directory: try? WorkerLocation.application().logs)
         controls = DesktopCoreControls(defaults: defaults)
         page = defaults.string(forKey: "lastPage").flatMap(Page.init(rawValue:)) ?? .overview
@@ -71,6 +76,7 @@ typealias Page = DesktopPage
         warp = WarpModel(session: session)
         logs.record(.opened)
         observations.formUnion(observeLogEvents())
+        startup.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         logs.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         updater.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         // Commands depend on nested models, including text edits and progress.
@@ -111,18 +117,56 @@ typealias Page = DesktopPage
                 await self?.refreshNetwork()
             }
         }
-        Task { await refreshService() }
-        Task { await business.reload() }
-        Task { await business.refreshNotice() }
+        if startup.accepted { startBusiness() }
+        else { Task { await refreshService() } }
+    }
+
+    func acceptNotices() {
+        startup.acceptNotices()
+        if startup.accepted { startBusiness() }
+    }
+
+    private func startBusiness() {
+        guard !businessStarted else { return }
+        businessStarted = true
         Task { await loadTrafficReport() }
-        Task { await core.refresh() }
-        Task { await geodata.refresh() }
+        Task {
+            async let settings: Void = business.reload()
+            async let runtime: Void = core.refresh()
+            async let data: Void = geodata.refresh()
+            async let service: Void = refreshService()
+            async let notice: Void = business.refreshNotice()
+            _ = await (settings, runtime, data, service, notice)
+            await startAutomaticConnection()
+        }
+    }
+
+    private func startAutomaticConnection() async {
+        if network.phase == .running { startup.cancelAutomatic(); return }
+        await startup.runAutomatic(prerequisite: {
+            if updateRecoveryMessage != nil || updateRecoveryBlocksConnection || updater.busy {
+                return "本次启动涉及应用升级，请确认网络服务后手动连接。"
+            }
+            guard !terminating, serviceState == .ready, network.phase == .idle else {
+                return "自动连接已跳过：" + connectionTitle
+            }
+            return nil
+        }, waitForNetwork: { await startup.waitForNetwork() }, inspect: {
+            if business.snapshot?.cloud?.enabled == true {
+                if !business.cloudOpen { await business.refreshNotice() }
+            } else { try await warp.inspectForStartup() }
+        }, connect: { attempt in
+            if let reason = configurationPrerequisite { return reason }
+            await connect(automaticAttempt: attempt)
+            return network.phase == .running ? nil : (network.error ?? "自动连接未完成，请检查连接条件。")
+        })
     }
 
     deinit { heartbeat?.cancel(); trafficClock?.cancel() }
 
     var commandState: DesktopCommandState {
         var state = DesktopCommandState()
+        state.noticesAccepted = startup.accepted
         state.service = serviceState
         state.network = network.phase
         state.canMeasureNodes = !controls.measuring && availableGroup != nil
@@ -148,6 +192,7 @@ typealias Page = DesktopPage
     }
 
     var configurationPrerequisite: String? {
+        if !startup.accepted { return "请先在主窗口阅读并同意用户协议与隐私政策。" }
         if updateRecoveryBlocksConnection { return updateRecoveryMessage ?? "正在确认本机升级记录。" }
         if configurationBusy || warp.busy || business.busy || serviceBusy || core.busy || geodata.busy { return "请等待当前操作结束。" }
         if serviceState == .ready && network.phase != .idle { return "请先确认网络会话已停止。" }
@@ -190,13 +235,14 @@ typealias Page = DesktopPage
         return warp.summary?.revision
     }
 
-    private func withPreparedConfiguration<T: Sendable>(settings: SettingsSnapshot, runtimeId: String, geodataId: String,
+    private func withPreparedConfiguration<T: Sendable>(settings: SettingsSnapshot, runtimeId: String, geodataId: String, interactionAllowed: Bool = true,
         perform: @escaping @Sendable (PreparedConfiguration) async throws -> T) async throws -> T {
         guard settings.cloud?.enabled == true else {
-            return try await warp.withPreparedConfiguration(settings: settings, runtimeId: runtimeId, geodataId: geodataId, perform: perform)
+            return try await warp.withPreparedConfiguration(settings: settings, runtimeId: runtimeId, geodataId: geodataId,
+                                                             interactionAllowed: interactionAllowed, perform: perform)
         }
         let client = try session.worker()
-        let key = try await ChainProfileKey(storage: KeychainSecretStorage.cloudKey()).load(allowCreation: false)
+        let key = try await ChainProfileKey(storage: KeychainSecretStorage.cloudKey()).load(allowCreation: false, interactionAllowed: interactionAllowed)
         let prepared = try await client.prepareCloud(settings: settings, key: key, runtimeId: runtimeId, geodataId: geodataId)
         return try await perform(prepared)
     }
@@ -315,14 +361,14 @@ typealias Page = DesktopPage
         Task { await refreshCoreControls() }
     }
 
-    private func connect() async {
+    private func connect(automaticAttempt: UUID? = nil) async {
         guard commandState.availability(.connect).enabled, let identity = serviceIdentity,
               let settings = business.snapshot, let runtime = core.package, let data = geodata.package else { return }
         await network.connect { token in
             try await CampusIPv6.check(developerMode: settings.settings.devMode)
             let cache = try WorkerLocation.application().cache
             let prepared = try await withPreparedConfiguration(settings: settings, runtimeId: runtime.resourceId,
-                                                                     geodataId: data.resourceId) { $0 }
+                geodataId: data.resourceId, interactionAllowed: automaticAttempt == nil) { $0 }
             guard !business.hasChanges, business.snapshot?.revision == prepared.settingsRevision,
                   activeCredentialRevision == prepared.credentialRevision else { throw WorkerClientError.staleConfiguration }
             let request = try await Task.detached { try Self.transfer(prepared, cache: cache, identity: identity) }.value
@@ -330,6 +376,10 @@ typealias Page = DesktopPage
                 let client = try session.worker()
                 guard try await client.settings().revision == settings.revision,
                       try await client.maintainerNotice(refresh: false).cloudAllowed else { throw WorkerClientError.staleConfiguration }
+            }
+            if let automaticAttempt {
+                guard startup.currentAttempt == automaticAttempt, !terminating, !updater.busy,
+                      !updateRecoveryBlocksConnection else { throw CancellationError() }
             }
             return try await Task.detached { try ServiceClient.startSession(request, idleToken: token, identity: identity) }.value
         }
@@ -388,8 +438,8 @@ typealias Page = DesktopPage
         case .help:
             openWindow(id: "help"); NSApp.activate(ignoringOtherApps: true)
         case .quit: NSApp.terminate(nil)
-        case .connect: Task { await connect() }
-        case .disconnect, .retryRecovery: Task { await disconnect() }
+        case .connect: startup.cancelAutomatic(); Task { await connect() }
+        case .disconnect, .retryRecovery: startup.cancelAutomatic(); Task { await disconnect() }
         case .measureNodes:
             if let group = availableGroup { Task { await measure(group: group.group, members: group.members) } }
         case .importChain:
@@ -433,6 +483,7 @@ typealias Page = DesktopPage
                 }
             }
         case .checkUpdates:
+            startup.cancelAutomatic()
             page = .overview; openWindow(id: "main"); showWindow()
             updater.check(prepare: { [weak self] release, source in
                 guard let self else { throw UpdateFailure.cancelled }
@@ -450,7 +501,6 @@ typealias Page = DesktopPage
     }
 
     private func readServiceStatus() async {
-        defer { Task { await refreshUpdateRecovery() } }
         network.invalidate()
         do {
             let result = try await Task.detached { () throws -> (CodeIdentity, HandshakeReply)? in
@@ -477,10 +527,12 @@ typealias Page = DesktopPage
             serviceStatus = "网络服务需要修复"
             self.error = error.localizedDescription
         }
+        await refreshUpdateRecovery()
     }
 
     func manageService(_ action: ServiceInstallationAction) async {
         guard canManageService, !terminating else { return }
+        if action == .install && !startup.accepted { return }
         serviceBusy = true; serviceState = .managing; error = nil; configurationCheckedByService = false
         serviceStatus = "正在等待管理员授权…"
         defer { serviceBusy = false }
@@ -497,6 +549,7 @@ typealias Page = DesktopPage
     }
 
     func showWindow() {
+        onShowWindow?()
         NSApp.activate(ignoringOtherApps: true)
         if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "freev6-main" }) {
             if window.isMiniaturized { window.deminiaturize(nil) }
@@ -505,6 +558,7 @@ typealias Page = DesktopPage
     }
 
     func beginTermination() -> NSApplication.TerminateReply {
+        startup.cancelAutomatic()
         guard !terminating, !promptActive else { return .terminateCancel }
         if updater.installationAuthorized { return .terminateNow }
         let availability = commandState.availability(.quit)

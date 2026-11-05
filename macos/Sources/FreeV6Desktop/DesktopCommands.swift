@@ -121,6 +121,7 @@ public struct CommandAvailability: Equatable, Sendable {
 // This is the capability set actually implemented by the current app, not a
 // simulated connection state. A service handshake does not authorize TUN UI.
 public struct DesktopCommandState: Sendable {
+    public var noticesAccepted = true
     public var service: DesktopServiceState = .checking
     public var network = DesktopNetworkPhase.unknown
     public var canTargetSession = false
@@ -166,6 +167,12 @@ public struct DesktopCommandState: Sendable {
     }
 
     public func availability(_ command: DesktopCommand, in context: CommandContext = .application) -> CommandAvailability {
+        if !noticesAccepted {
+            switch command {
+            case .showMain, .help, .quit, .disconnect, .retryRecovery, .refreshService: break
+            default: return .unavailable("请先在主窗口阅读并同意用户协议与隐私政策")
+            }
+        }
         if terminating { return .unavailable("正在退出并回收业务进程…") }
         if promptActive { return .unavailable("请先处理当前确认窗口") }
         if updatePreparing {

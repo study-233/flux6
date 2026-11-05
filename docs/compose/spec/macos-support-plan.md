@@ -36,7 +36,7 @@ Mac 客户端采用 SwiftUI 和 AppKit。Swift 网络服务负责需要管理员
 | --- | --- |
 | Apple Silicon | 原生 arm64，完整本机功能，独立 DMG |
 | 最低系统 | macOS 13.0；原生界面与后台服务均以此作为部署目标 |
-| Intel | 保留 darwin/amd64 构建；使用兼容 CPU 基线；经 Intel 真机验证后再声明正式支持 |
+| Intel | Swift 界面、登录助手、服务、安装工具、更新助手及 Go worker 已交叉构建；固定核心已核对 x86_64 和最低系统元数据。经 Intel 真机验证后再声明正式支持 |
 | 安装 | DMG 内含 FreeV6.app 和 Applications 快捷入口，应用内安装网络服务 |
 | Apple 签名公证 | 首版使用 ad-hoc 代码签名，Developer ID 和公证后置；ad-hoc 不提供 Apple 开发者身份信任 |
 | 更新 | 校验版本、架构和更新签名后替换应用；更新签名独立于 Apple 证书 |
@@ -508,7 +508,7 @@ Mica、Acrylic 和 WebGL 液态玻璃属于 Windows/Web 实现细节，在 Mac �
 
 提供标准编辑菜单、Cmd+C/V/A、Cmd+W、Cmd+,、键盘导航和 VoiceOver 标签。应用菜单使用 Commands；右上角状态栏入口使用 MenuBarExtra，如最低系统行为有缺口，局部使用 NSStatusItem。全局快捷键采用小型原生注册适配器（优先验证 RegisterEventHotKey），允许修改组合键、检测冲突，不为简单热键默认要求辅助功能监听权限。
 
-登录启动在无证书阶段采用固定用户级 LaunchAgent，参数仅包括静默启动等已定义选项；记录“希望开启”和系统“实际启用”两种状态。通过 LoginItemManager 隔离，后续切换经验证的 SMAppService 登录项方案。禁用登录启动不自动卸载网络服务，卸载服务不应破坏用户的业务配置。
+登录启动已采用固定用户级 LaunchAgent 和内置的 Swift 登录助手。助手仅在 FreeV6 尚未运行时通过 Launch Services 打开应用。设置分开展示用户意愿与系统实际状态。静默启动依赖可用的菜单栏入口，自动连接在当前协议已同意、系统网络可用、服务和凭据就绪时仅尝试一次。已验证临时 Aqua 任务的重复触发、锁定钥匙串时的拒绝，以及普通用户域的自动连接与恢复；真实注销登录和 macOS 13 窗口交互仍需验收。[启动与登录验收](./macos-development-progress.md#首次打开登录项与自动连接)
 
 Swift UI 状态采用 macOS 13 可用的 ObservableObject/@Published 与 async/await；使用 actor 管理连接和并发。避免将整套代码建立在更高系统版本才可用的 SwiftData、@Observable 或新视觉 API 上。日志、节点和流量使用批量更新与有界缓存，P5 记录空闲 CPU、连接时内存及长时间运行曲线作为基线。
 

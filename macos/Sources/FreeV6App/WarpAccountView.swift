@@ -24,15 +24,15 @@ import FreeV6Business
         }
     }
 
-    func withPreparedConfiguration<T: Sendable>(settings: SettingsSnapshot, runtimeId: String, geodataId: String,
+    func withPreparedConfiguration<T: Sendable>(settings: SettingsSnapshot, runtimeId: String, geodataId: String, interactionAllowed: Bool = true,
                                                 perform: @escaping @Sendable (PreparedConfiguration) async throws -> T) async throws -> T {
         guard !busy, !hasPending, let revision = summary?.revision else { throw RegistrationWorkflowError.busy }
         busy = true; error = nil; status = "正在读取连接所需凭据…"
         defer { busy = false }
         do {
             let worker = try session.worker()
-            let chainKey = settings.chain?.enabled == true ? try await ChainProfileKey().load(allowCreation: false) : nil
-            let result = try await workflow.withSavedTunnel(revision: revision) { tunnel in
+            let chainKey = settings.chain?.enabled == true ? try await ChainProfileKey().load(allowCreation: false, interactionAllowed: interactionAllowed) : nil
+            let result = try await workflow.withSavedTunnel(revision: revision, interactionAllowed: interactionAllowed) { tunnel in
                 let prepared = try await worker.prepareConfiguration(settings: settings, credentialRevision: revision,
                     tunnel: tunnel, runtimeId: runtimeId, geodataId: geodataId, chainKey: chainKey)
                 let result = try await perform(prepared)
@@ -56,6 +56,15 @@ import FreeV6Business
             self.inspected = true
             self.status = self.summary == nil ? "尚无本机 WARP 凭据" : "WARP 凭据已保存"
         }
+    }
+
+    func inspectForStartup() async throws {
+        guard !busy, !hasPending else { throw RegistrationWorkflowError.busy }
+        busy = true
+        defer { busy = false }
+        summary = try await workflow.inspect(interactionAllowed: false)
+        inspected = true
+        status = summary == nil ? "尚无本机 WARP 凭据" : "WARP 凭据已保存"
     }
 
     func register(replacing: Bool = false) {

@@ -65,7 +65,7 @@ struct NativeCommands: Commands {
         CommandMenu("连接") {
             DesktopCommandButton(model.commandState.primaryCommand, model: model).keyboardShortcut("k", modifiers: [.command, .shift])
             Text(model.connectionTitle)
-            RuntimeMenus(model: model)
+            RuntimeMenus(model: model).disabled(!model.startup.accepted)
             Divider()
             DesktopCommandButton(.showPage(.configuration), model: model)
             DesktopCommandButton(.measureNodes, model: model)
@@ -129,6 +129,7 @@ struct StatusMenu: View {
     @ObservedObject var model: AppModel
     var body: some View {
         Text(model.connectionTitle)
+        if let message = model.startup.automaticStatus { Text(message) }
         if let error = model.network.statusError ?? model.network.error { Text(error) }
         if model.network.phase == .running {
             if let mode = model.controls.state?.mode { Text("运行模式 · " + mode.title) }
@@ -140,7 +141,7 @@ struct StatusMenu: View {
         }
         Divider()
         DesktopCommandButton(model.commandState.primaryCommand, model: model)
-        RuntimeMenus(model: model)
+        RuntimeMenus(model: model).disabled(!model.startup.accepted)
         DesktopCommandButton(.showPage(.configuration), model: model)
         Menu("网络核心") {
             DesktopCommandButton(.downloadCore, model: model)
