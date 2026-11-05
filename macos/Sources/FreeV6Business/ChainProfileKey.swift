@@ -5,6 +5,10 @@ public struct ChainProfileKey: Sendable {
     private let storage: any VersionedSecretStorage
     public init(storage: any VersionedSecretStorage = KeychainSecretStorage.chainKey()) { self.storage = storage }
 
+    public func checkAccess(interactionAllowed: Bool = true) async throws {
+        _ = try await load(allowCreation: false, interactionAllowed: interactionAllowed)
+    }
+
     public func load(allowCreation: Bool, interactionAllowed: Bool = true) async throws -> Data {
         if let existing = try await storage.read(interactionAllowed: interactionAllowed) {
             guard existing.data.count == 32 else { throw CredentialError.invalidCredential }

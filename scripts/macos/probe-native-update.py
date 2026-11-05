@@ -17,6 +17,7 @@ import threading
 import time
 import uuid
 from xml.sax.saxutils import quoteattr
+from keychain_upgrade import KeychainUpgrade, compiler_arguments
 
 ROOT = Path(__file__).resolve().parents[2]
 ARCH = platform.machine()
@@ -36,7 +37,7 @@ class FeedHandler(SimpleHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--scenario", choices=["upgrade", "bad-archive", "unsigned-feed", "wrong-arch", "cancel", "cancel-download", "lost-host"], default="upgrade")
+    parser.add_argument("--scenario", choices=["upgrade", "keychain-upgrade", "bad-archive", "unsigned-feed", "wrong-arch", "cancel", "cancel-download", "lost-host"], default="upgrade")
     exercise(parser.parse_args().scenario)
 
 
@@ -54,7 +55,10 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
     env.update(DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer", CLANG_MODULE_CACHE_PATH=str(ROOT / "build/macos-module-cache"))
     host_binary = work / "FreeV6"
     support = ROOT / "macos/Sources/FreeV6UpdateSupport"
-    run(["/usr/bin/xcrun", "swiftc", "-parse-as-library", "-target", ARCH + "-apple-macos13.0",
+    compiler = ["/usr/bin/xcrun", "swiftc", "-parse-as-library", "-target", ARCH + "-apple-macos13.0"]
+    keychain = KeychainUpgrade(work) if scenario == "keychain-upgrade" else None
+    keychain_sources = compiler_arguments(ROOT, work, compiler, env, run) if keychain else []
+    run([*compiler, *keychain_sources,
          support / "UpdateRelease.swift", support / "UpdatePipe.swift",
          ROOT / "macos/Probes/NativeUpdateHost.swift", "-o", host_binary], env=env)
     keygen = work / "keygen"
@@ -95,6 +99,8 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
     try:
         app = make_app(work / "installed", 1)
         next_app = make_app(work / "next", 2)
+        if keychain:
+            keychain.seed(ROOT, app)
         package = feed / "update.zip"
         run(["/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", next_app, package])
         signature = run([sdk / "bin/sign_update", "--ed-key-file", key, "-p", package])
@@ -141,7 +147,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         if scenario in ("cancel", "lost-host", "service-recovery-failure"):
             time.sleep(3)
         installed = plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleVersion"]
-        expected = "2" if scenario in ("upgrade", "service-upgrade") else "1"
+        expected = "2" if scenario in ("upgrade", "service-upgrade", "keychain-upgrade") else "1"
         lost_host = scenario == "lost-host" and child.poll() == 19 and any(e["event"] == "ready" for e in history)
         passed = installed == expected and (success if expected == "2" else failure or lost_host)
         if expected == "2":
@@ -159,6 +165,11 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         result = {"passed": passed, "scenario": scenario, "installedVersion": installed, "events": history,
                   "scope": ("signed fixture with the product update helper, native desktop disconnect, user-domain XPC and isolated DNS"
                             if confirm_installation else "ordinary-user signed fixture using product Swift helper; synthetic network preparation")}
+        if keychain and passed:
+            result["keychain"] = keychain.inspect_upgrade_and_rollback(app)
+            result["installedVersionAfterRollback"] = plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleVersion"]
+            keychain.clean()
+            result["keychain"]["privateKeychainRemoved"] = True
         (work / "result.json").write_text(json.dumps(result, indent=2) + "\n")
         if not passed:
             raise RuntimeError("Probe failed; inspect " + str(work))
@@ -176,6 +187,8 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+        if keychain:
+            keychain.clean()
         for name in (identifier, identifier + ".update-agent"):
             subprocess.run(["/usr/bin/defaults", "delete", name], capture_output=True, timeout=10)
             cache = Path.home() / "Library/Caches" / name

@@ -132,9 +132,16 @@ final class WarpCredentialTests: XCTestCase {
         XCTAssertNil(removed)
         let chainStorage = KeychainSecretStorage(service: "dev.freev6.test.chain", account: "key", keychain: keychain)
         let keys = ChainProfileKey(storage: chainStorage)
-        do { _ = try await keys.load(allowCreation: false); XCTFail("read-only lookup created a key") }
+        do { try await keys.checkAccess(); XCTFail("read-only check created a key") }
         catch { XCTAssertTrue(error.localizedDescription.contains("钥匙串密钥")) }
+        let stillMissing = try await chainStorage.read()
+        XCTAssertNil(stillMissing)
         let fresh = try await keys.load(allowCreation: true)
+        let beforeCheck = try await chainStorage.read()
+        try await keys.checkAccess()
+        let afterCheck = try await chainStorage.read()
+        XCTAssertEqual(beforeCheck?.revision, afterCheck?.revision)
+        XCTAssertEqual(beforeCheck?.data, afterCheck?.data)
         let same = try await keys.load(allowCreation: false)
         XCTAssertEqual(fresh.count, 32)
         XCTAssertEqual(fresh, same)
@@ -145,7 +152,7 @@ final class WarpCredentialTests: XCTestCase {
         XCTAssertEqual(SecKeychainLock(keychain), errSecSuccess)
         XCTAssertEqual(SecKeychainSetUserInteractionAllowed(true), errSecSuccess)
         do {
-            _ = try await keys.load(allowCreation: false, interactionAllowed: false)
+            try await keys.checkAccess(interactionAllowed: false)
             XCTFail("A background read returned data from the locked keychain")
         } catch {
             XCTAssertEqual(error as? CredentialError, .security(errSecInteractionNotAllowed))

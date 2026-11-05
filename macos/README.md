@@ -117,7 +117,9 @@ python3 scripts/macos/probe-runtime.py \
 
 `python3 scripts/macos/probe-login.py` 在临时用户目录和一次性 Aqua 任务中检查登录助手，运行两次并核对观察进程的启动、重开事件及清理结果。探针使用一个独立无窗口 App。真实账号的登录项、钥匙串和网络保持独立。上面的 `probe-service.py --network-run` 另验证自动连接流程与普通用户域 XPC、固定核心和隔离 DNS 的联动。
 
-凭据放在当前用户的文件式 Keychain 中，generic-password 的 service 为 `dev.freev6.desktop.warp`、account 为 `credentials-v1`。使用创建应用的默认代码访问控制，不增加共享访问组、不允许所有应用读取、不添加 Apple 签名 entitlement。Data Protection Keychain 的共享访问组和签名配置不在此无 Developer ID 首版中使用；ad-hoc 更新后的再次授权仍需实测。[Apple Keychain 访问控制](https://developer.apple.com/documentation/security/access-control-lists)、[代码签名与 Keychain 身份](https://developer.apple.com/library/archive/technotes/tn2206/)
+WARP 凭据放在当前用户的文件式 Keychain 中，generic-password 的 service 为 `dev.freev6.desktop.warp`、account 为 `credentials-v1`。WARP、链式代理和备用配置各有独立条目，使用创建应用的默认代码访问控制。[Apple Keychain 访问控制](https://developer.apple.com/documentation/security/access-control-lists) · [代码签名与 Keychain 身份](https://developer.apple.com/library/archive/technotes/tn2206/)
+
+在 macOS 27.0.1 的隔离钥匙串实测中，Sparkle 安装到相同位置的 ad-hoc 新版需要重新授权才能读取三项旧数据。回退到原签名版本后可以读回原内容及修订号。WARP 用户可从概览点“检查已保存凭据”；配置页会为已有链式代理或备用配置显示各自的密钥检查按钮。这些操作只读对应条目，用户可以在需要时主动触发系统授权。[升级与回退记录](../docs/compose/spec/macos-development-progress.md#升级与回退时的钥匙串访问)
 
 条目以随机 revision 保护替换和删除；损坏内容或版本冲突保留原记录。Go worker 不写 `warp.json`；Windows helper 继续使用原有凭据文件。删除本机记录不等于注销 Cloudflare 设备，取消注册也不能保证服务端没有创建设备。新结果仅保留在内存时，正常退出要求先保存或明确放弃。
 
@@ -234,7 +236,7 @@ DNS 探针只读。`dns-targets` 统计可选的活动物理服务，并检查 c
 
 XPC 探针使用同一用户下的匿名 listener，分别验证允许的 CDHash 和错误 CDHash；必须先确认可信连接成功，才能将拒绝测试解释为身份校验有效。受限沙箱可能禁止 Mach IPC，需在正常用户环境运行。此探针不证明 root daemon 的安装、重启和升级已通过。
 
-Keychain 探针只创建、读取并删除一个随机标识的 `dev.freev6.probe` 测试项，不读取已有凭据。当前仅验证单次读写；升级后的访问行为单独验收。
+Keychain 探针只创建、读取并删除一个随机标识的 `dev.freev6.probe` 测试项。升级专项可运行 `python3 scripts/macos/probe-native-update.py --scenario keychain-upgrade`。它使用临时钥匙串、随机测试 App 和回环更新源，分别核对原签名、升级签名、无关签名与原版回退后的访问结果，最后删除临时钥匙串并确认用户搜索列表已恢复。
 
 ## 独立服务验证
 

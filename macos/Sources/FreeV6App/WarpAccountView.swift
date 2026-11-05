@@ -52,9 +52,7 @@ import FreeV6Business
 
     func inspect() {
         start("正在读取钥匙串…") {
-            self.summary = try await self.workflow.inspect()
-            self.inspected = true
-            self.status = self.summary == nil ? "尚无本机 WARP 凭据" : "WARP 凭据已保存"
+            try await self.readSavedCredential(interactionAllowed: true)
         }
     }
 
@@ -62,7 +60,17 @@ import FreeV6Business
         guard !busy, !hasPending else { throw RegistrationWorkflowError.busy }
         busy = true
         defer { busy = false }
-        summary = try await workflow.inspect(interactionAllowed: false)
+        try await readSavedCredential(interactionAllowed: false)
+    }
+
+    private func readSavedCredential(interactionAllowed: Bool) async throws {
+        // A failed recheck invalidates the previous state, including a
+        // previous empty result that would otherwise enable registration.
+        inspected = false
+        summary = nil
+        status = "正在读取钥匙串…"
+        do { summary = try await workflow.inspect(interactionAllowed: interactionAllowed) }
+        catch { status = "请手动检查已保存凭据"; throw error }
         inspected = true
         status = summary == nil ? "尚无本机 WARP 凭据" : "WARP 凭据已保存"
     }

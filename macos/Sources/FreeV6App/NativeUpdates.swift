@@ -15,7 +15,7 @@ extension AppModel {
               !warp.busy, !warp.hasPending else { throw UpdateFailure.cancelled }
         let alert = NSAlert()
         alert.messageText = "安装更新并重新打开 FreeV6？"
-        alert.informativeText = "安装前将保存配置并恢复当前网络。更新后，已安装的网络服务需要管理员重新登记。"
+        alert.informativeText = "安装前将保存配置并恢复当前网络。更新后，已安装的网络服务需要管理员重新登记。首次读取已有凭据时，钥匙串可能要求你为新版授权。"
         alert.addButton(withTitle: "安装并重新打开")
         alert.addButton(withTitle: "稍后")
         guard alert.runModal() == .alertFirstButtonReturn else { throw UpdateFailure.cancelled }

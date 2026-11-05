@@ -20,6 +20,7 @@ struct ChainSettingsSection: View {
                 DisclosureGroup("已导入 \(profile.names.count) 个节点") {
                     ForEach(profile.names, id: \.self) { Text($0).textSelection(.enabled) }
                 }
+                Button("检查链式代理密钥…") { Task { await model.changeChain(.checkKey) } }
             }
             HStack {
                 DesktopCommandButton(.importChain, model: app)

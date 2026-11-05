@@ -79,6 +79,16 @@ import AppKit
 @main struct ProbeMain {
     static func main() {
         signal(SIGPIPE, SIG_IGN)
+#if FREEV6_KEYCHAIN_PROBE
+        if CommandLine.arguments.dropFirst().first == "--keychain-upgrade" {
+            let args = Array(CommandLine.arguments.dropFirst(2))
+            Task {
+                do { try await KeychainUpgradeFixture.run(args); exit(0) }
+                catch { fputs("Isolated Keychain probe failed: \(error)\n", stderr); exit(1) }
+            }
+            dispatchMain()
+        }
+#endif
         let app = NSApplication.shared
         let delegate = HostDelegate()
         app.delegate = delegate

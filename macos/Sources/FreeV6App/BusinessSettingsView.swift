@@ -108,7 +108,7 @@ import FreeV6Desktop
         if !preserveDraftMode { mode = saved.settings.mode }
     }
 
-    enum ChainChange { case load(ChainImportSource), enable(Bool), clear }
+    enum ChainChange { case load(ChainImportSource), enable(Bool), clear, checkKey }
 
     @Published private(set) var chainMessage: String?
     @Published private(set) var chainError: String?
@@ -119,21 +119,25 @@ import FreeV6Desktop
         chainMessage = nil; chainError = nil
         defer { busy = false }
         do {
-            let worker = try session.worker()
             let saved: SettingsSnapshot
             switch change {
+            case .checkKey:
+                guard baseline.chain != nil else { throw WorkerClientError.staleConfiguration }
+                try await ChainProfileKey().checkAccess()
+                chainMessage = "已确认可以读取链式代理密钥。"
+                return
             case .load(let source):
                 let key = try await ChainProfileKey().load(allowCreation: baseline.chain == nil)
-                saved = try await worker.importChain(from: source, settings: baseline, key: key)
-            case .enable(let enabled): saved = try await worker.setChainEnabled(enabled, settings: baseline)
-            case .clear: saved = try await worker.clearChain(settings: baseline)
+                saved = try await session.worker().importChain(from: source, settings: baseline, key: key)
+            case .enable(let enabled): saved = try await session.worker().setChainEnabled(enabled, settings: baseline)
+            case .clear: saved = try await session.worker().clearChain(settings: baseline)
             }
             snapshot = saved // Proxy rule drafts belong to the editor and survive a profile change.
             chainMessage = saved.chain.map { $0.enabled ? "链式代理将在下次连接时使用。" : "链式代理已停用。" } ?? "已清除链式配置。"
         } catch { chainError = error.localizedDescription }
     }
 
-    enum CloudChange { case load(CloudImportSource), edit(CloudMutation) }
+    enum CloudChange { case load(CloudImportSource), edit(CloudMutation), checkKey }
     @Published private(set) var cloudError: String?
     @Published private(set) var cloudMessage: String?
     var cloudOpen: Bool {
@@ -152,15 +156,18 @@ import FreeV6Desktop
         busy = true; cloudError = nil; cloudMessage = nil
         defer { busy = false }
         do {
-            let worker = try session.worker()
             switch change {
+            case .checkKey:
+                guard baseline.cloud != nil else { throw WorkerClientError.staleConfiguration }
+                try await ChainProfileKey(storage: KeychainSecretStorage.cloudKey()).checkAccess()
+                cloudMessage = "已确认可以读取备用配置密钥。"
             case .load(let source):
                 guard canFetchCloud else { throw WorkerClientError.staleConfiguration }
                 let key = try await ChainProfileKey(storage: KeychainSecretStorage.cloudKey()).load(allowCreation: baseline.cloud == nil)
-                snapshot = try await worker.importCloud(from: source, settings: baseline, key: key)
+                snapshot = try await session.worker().importCloud(from: source, settings: baseline, key: key)
                 cloudMessage = "已保存备用节点，下次连接时使用。"
             case .edit(let mutation):
-                snapshot = try await worker.changeCloud(mutation, settings: baseline)
+                snapshot = try await session.worker().changeCloud(mutation, settings: baseline)
                 switch mutation {
                 case .enable(let value): cloudMessage = value ? "下次连接将使用备用配置。" : "备用配置已停用。"
                 case .clear: cloudMessage = "已清除备用节点。"

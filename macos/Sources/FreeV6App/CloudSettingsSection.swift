@@ -36,6 +36,7 @@ struct CloudSettingsSection: View {
                 }.disabled(!model.canFetchCloud)
             }
             if let profile = model.snapshot?.cloud {
+                Button("检查备用配置密钥…") { Task { await model.changeCloud(.checkKey) } }
                 Toggle("下次连接使用备用配置", isOn: Binding(get: { profile.enabled }, set: { enabled in
                     Task { await model.changeCloud(.edit(.enable(enabled))) }
                 })).disabled(!profile.enabled && !model.canFetchCloud)
