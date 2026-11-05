@@ -81,7 +81,7 @@ struct RuntimePreparationView: View {
                     if model.canCancel { Button("取消下载") { model.cancel() } }
                 }
                 if let error = model.error { Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
-                Text("准备核心不会开启代理。连接功能将在网络服务接入后开放。")
+                Text("资源校验完成后，可在概览中继续准备并连接。")
                     .font(.callout).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
         }

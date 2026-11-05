@@ -23,6 +23,35 @@ public enum ServiceClient {
         return response
     }
 
+    public static func sessionStatus(renewing sessionID: UUID? = nil, identity: CodeIdentity,
+                                     name: String = ServiceProtocolVersion.machService, privileged: Bool = true) throws -> NetworkSessionReply {
+        let query = NetworkSessionQuery(sessionID: sessionID)
+        let payload = try JSONEncoder().encode(query)
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged, timeout: 6) { $0.sessionStatus(payload, reply: $1) }
+        return try NetworkSessionReply.decode(data, id: query.requestID)
+    }
+
+    public static func startSession(_ request: ConfigurationCheckRequest, idleToken: UUID, identity: CodeIdentity,
+                                    name: String = ServiceProtocolVersion.machService, privileged: Bool = true) throws -> NetworkSessionReply {
+        let payload = try JSONEncoder().encode(NetworkSessionStart(idleToken: idleToken, request: request))
+        guard payload.count <= NetworkSessionStart.limit else { throw ServiceMessageError.oversized }
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged, timeout: 180) { $0.startSession(payload, reply: $1) }
+        let reply = try NetworkSessionReply.decode(data, id: request.requestID)
+        guard reply.phase == .running, reply.credentialRevision == request.credentialRevision,
+              reply.settingsRevision == request.settingsRevision else { throw ServiceClientError.invalidReply }
+        return reply
+    }
+
+    public static func stopSession(sessionID: UUID, revision: UInt64, identity: CodeIdentity,
+                                   name: String = ServiceProtocolVersion.machService, privileged: Bool = true) throws -> NetworkSessionReply {
+        let query = NetworkSessionQuery(sessionID: sessionID, revision: revision)
+        let payload = try JSONEncoder().encode(query)
+        let data = try resourceExchange(identity: identity, name: name, privileged: privileged, timeout: 60) { $0.stopSession(payload, reply: $1) }
+        let reply = try NetworkSessionReply.decode(data, id: query.requestID)
+        guard reply.phase == .stopped else { throw ServiceClientError.invalidReply }
+        return reply
+    }
+
     public static func resources(identity: CodeIdentity, name: String = ServiceProtocolVersion.machService,
                                  privileged: Bool = true) throws -> [ResourceAvailability] {
         let request = ResourceRequest()

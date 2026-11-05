@@ -352,6 +352,15 @@ final class SessionDNSTests: XCTestCase {
         }
     }
 
+    func testListenerReadinessRequiresTheSameJobPID() {
+        var reads = 0
+        XCTAssertThrowsError(try CoreDNSListener.waitUntilReady(port: 1053, sessionID: UUID()) {
+            reads += 1
+            return reads == 1 ? 123 : 456
+        }) { XCTAssertEqual($0 as? SessionDNSError, .resolverUnavailable) }
+        XCTAssertEqual(reads, 2)
+    }
+
     func testPinnedCoreAnswersSessionDNSOverTCPAndUDP() throws {
         guard let fixtures = ProcessInfo.processInfo.environment["FREEV6_RUNTIME_FIXTURES_DIR"] else {
             throw XCTSkip("Set FREEV6_RUNTIME_FIXTURES_DIR for the pinned Darwin core")
@@ -383,16 +392,8 @@ final class SessionDNSTests: XCTestCase {
             defer { try? log.close() }
             let child = try OwnedChildProcess(executable: core, arguments: ["-d", dir.path, "-f", dir.path + "/core.json"], directory: dir.path, standardOutput: log)
             defer { _ = try? child.stop() }
-            let deadline = ProcessInfo.processInfo.systemUptime + 8
-            while true {
-                do { try CoreDNSListener.verify(pid: child.pid, port: port, sessionID: id); break }
-                catch SessionDNSError.resolverUnavailable where ProcessInfo.processInfo.systemUptime < deadline {
-                    if let exit = try child.wait(timeout: 0.05) {
-                        let output = try dir.read("synthetic.log", limit: 8192) ?? Data()
-                        XCTFail("Synthetic core exited \(exit) before DNS readiness: \(String(decoding: output, as: UTF8.self))")
-                        return
-                    }
-                }
+            try CoreDNSListener.waitUntilReady(port: port, sessionID: id) {
+                try child.wait(timeout: 0) == nil ? child.pid : nil
             }
             XCTAssertThrowsError(try CoreDNSListener.verify(pid: getpid(), port: port, sessionID: id))
             XCTAssertThrowsError(try CoreDNSListener.verify(pid: child.pid, port: port, sessionID: UUID()))

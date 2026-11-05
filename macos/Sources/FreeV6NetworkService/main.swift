@@ -3,15 +3,31 @@ import FreeV6System
 
 final class ServiceSession: NSObject, NetworkServiceProtocol {
     private let resources: ServiceResourceStore
+    private let sessions: ServiceNetworkSessions
     private let clientUID: uid_t
-    init(resources: ServiceResourceStore, clientUID: uid_t) {
-        self.resources = resources; self.clientUID = clientUID
+    init(resources: ServiceResourceStore, sessions: ServiceNetworkSessions, clientUID: uid_t) {
+        self.resources = resources; self.sessions = sessions; self.clientUID = clientUID
+    }
+
+    func startSession(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
+        do { reply(try JSONEncoder().encode(sessions.start(data, uid: clientUID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func stopSession(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
+        do { reply(try JSONEncoder().encode(sessions.stop(data, uid: clientUID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func sessionStatus(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
+        do { reply(try JSONEncoder().encode(sessions.status(data, uid: clientUID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
     }
 
     func handshake(_ data: Data, reply: @escaping (Data?, String?) -> Void) {
         do {
             let request = try ServiceMessages.decodeHandshake(data)
-            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p4-core-check", privileged: geteuid() == 0)
+            let response = HandshakeReply(requestID: request.requestID, serviceVersion: "0.5.2-p4-sessions", privileged: geteuid() == 0)
             reply(try JSONEncoder().encode(response), nil)
         } catch { reply(nil, error.localizedDescription) }
     }
@@ -41,15 +57,16 @@ final class ServiceSession: NSObject, NetworkServiceProtocol {
 final class ServiceListener: NSObject, NSXPCListenerDelegate {
     private let registration: ServiceRegistration
     private let resources: ServiceResourceStore
-    init(registration: ServiceRegistration, resources: ServiceResourceStore) {
-        self.registration = registration; self.resources = resources
+    private let sessions: ServiceNetworkSessions
+    init(registration: ServiceRegistration, resources: ServiceResourceStore, sessions: ServiceNetworkSessions) {
+        self.registration = registration; self.resources = resources; self.sessions = sessions
     }
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         guard let requirement = registration.requirement(for: connection.effectiveUserIdentifier) else { return false }
         connection.setCodeSigningRequirement(requirement)
         connection.exportedInterface = NSXPCInterface(with: NetworkServiceProtocol.self)
-        connection.exportedObject = ServiceSession(resources: resources, clientUID: connection.effectiveUserIdentifier)
+        connection.exportedObject = ServiceSession(resources: resources, sessions: sessions, clientUID: connection.effectiveUserIdentifier)
         connection.resume()
         return true
     }
@@ -63,7 +80,7 @@ do {
     let arguments = Array(CommandLine.arguments.dropFirst())
     if !arguments.isEmpty {
         #if DEBUG
-        guard arguments.count == 3, arguments[0] == "--probe",
+        guard arguments.count == 3, ["--probe", "--probe-run"].contains(arguments[0]),
               arguments[1].hasPrefix("dev.freev6.probe."),
               arguments[1].utf8.count <= 128, geteuid() != 0 else {
             throw NSError(domain: "FreeV6Service", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid probe arguments"])
@@ -81,9 +98,11 @@ do {
     let registration = try RegistrationFile.load(path: registrationPath, owner: owner, service: CodeIdentity.current())
     let listener = NSXPCListener(machServiceName: serviceName)
     let resources = try ServiceResourceStore(path: resourcesPath, owner: owner)
-    do { try resources.recoverInterruptedSessions() }
-    catch { fputs("freev6-network-service: 网络会话恢复待处理：\(error.localizedDescription)\n", stderr) }
-    let delegate = ServiceListener(registration: registration, resources: resources)
+    let sessions = ServiceNetworkSessions(resources: resources, restartAfterUncertainLaunch: { exit(EX_TEMPFAIL) })
+    #if DEBUG
+    if arguments.first == "--probe-run" { try sessions.useIsolatedNetwork() }
+    #endif
+    let delegate = ServiceListener(registration: registration, resources: resources, sessions: sessions)
     listener.delegate = delegate
     listener.resume()
     RunLoop.current.run()

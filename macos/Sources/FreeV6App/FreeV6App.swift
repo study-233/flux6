@@ -3,10 +3,10 @@ import SwiftUI
 import FreeV6System
 import FreeV6Desktop
 
-final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
-    var terminationHandler: () -> NSApplication.TerminateReply = { .terminateNow }
+@MainActor final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    lazy var model = AppModel()
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        terminationHandler()
+        model.beginTermination()
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -24,11 +24,9 @@ final class ApplicationDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
 
 struct WindowConfiguration: NSViewRepresentable {
     let delegate: ApplicationDelegate
-    let model: AppModel
     func makeNSView(context: Context) -> NSView {
         let view = MainWindowAnchor()
         view.applicationDelegate = delegate
-        delegate.terminationHandler = { model.beginTermination() }
         return view
     }
     func updateNSView(_ nsView: NSView, context: Context) {}
@@ -47,7 +45,7 @@ private final class MainWindowAnchor: NSView {
 
 @main struct FreeV6App: App {
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) private var delegate
-    @StateObject private var model = AppModel()
+    private var model: AppModel { delegate.model }
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
 
@@ -59,7 +57,7 @@ private final class MainWindowAnchor: NSView {
         Window("FreeV6", id: "main") {
             MainView(model: model)
                 .preferredColorScheme(colorScheme)
-                .background(WindowConfiguration(delegate: delegate, model: model))
+                .background(WindowConfiguration(delegate: delegate))
                 .frame(minWidth: 720, minHeight: 480)
         }
         .defaultSize(width: 920, height: 620)
@@ -76,8 +74,15 @@ private final class MainWindowAnchor: NSView {
         MenuBarExtra(isInserted: $showMenuBarExtra) {
             StatusMenu(model: model)
         } label: {
-            Label("FreeV6 — \(model.serviceState.title)", systemImage: model.serviceState.symbol)
+            StatusIcon(model: model)
         }.menuBarExtraStyle(.menu)
+    }
+}
+
+private struct StatusIcon: View {
+    @ObservedObject var model: AppModel
+    var body: some View {
+        Label("FreeV6 — \(model.connectionTitle)", systemImage: model.connectionSymbol)
     }
 }
 
@@ -98,7 +103,7 @@ struct MainView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 20) {
                             ServiceOverviewView(model: model)
-                            WarpAccountView(model: model.warp).disabled(model.serviceBusy)
+                            WarpAccountView(model: model.warp).disabled(model.serviceBusy || model.configurationBusy)
                             RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
                             GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
                             ConfigurationPreparationView(model: model)
@@ -128,18 +133,23 @@ private struct ServiceOverviewView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 Label(model.serviceStatus, systemImage: "wrench.and.screwdriver").font(.headline)
-                Text("网络服务负责后续的 TUN 与网络恢复。当前支持服务身份、资源与配置检查，连接功能仍在开发。")
+                Label(model.connectionTitle, systemImage: model.connectionSymbol)
+                Text("连接会通过隧道转发流量，并调整系统 DNS。断开时服务先恢复 DNS，再停止核心。")
                     .foregroundStyle(.secondary)
                 HStack {
                     Button(model.serviceInstalled ? "修复 / 重新登记服务…" : "安装网络服务…") {
                         Task { await model.manageService(.install) }
-                    }.disabled(model.serviceBusy || model.warp.busy)
+                    }.disabled(!model.canManageService)
                     DesktopCommandButton(.refreshService, model: model)
                     if model.serviceBusy { ProgressView().controlSize(.small) }
                 }
                 if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-                Text("当前未启动代理，也未修改系统 DNS。")
-                    .font(.callout).foregroundStyle(.secondary)
+                if let message = model.network.statusError ?? model.network.error {
+                    Text(message).font(.callout).foregroundStyle(.red).textSelection(.enabled)
+                }
+                if model.network.phase == .recovering {
+                    DesktopCommandButton(model.commandState.primaryCommand, model: model)
+                }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
         }
     }
@@ -165,7 +175,7 @@ struct SettingsView: View {
             }
         }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
         BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)
-        ScrollView { WarpAccountView(model: model.warp).padding(24).disabled(model.serviceBusy) }.tabItem { Label("WARP", systemImage: "key") }.tag(PreferencesPage.account)
+        ScrollView { WarpAccountView(model: model.warp).padding(24).disabled(model.serviceBusy || model.configurationBusy) }.tabItem { Label("WARP", systemImage: "key") }.tag(PreferencesPage.account)
         ScrollView {
             VStack(spacing: 20) {
                 RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
@@ -175,9 +185,9 @@ struct SettingsView: View {
         Form {
             Section("网络服务") {
                 Text(model.serviceStatus)
-                Button("恢复未完成的安装…") { Task { await model.manageService(.recover) } }.disabled(model.serviceBusy || model.warp.busy)
+                Button("恢复未完成的安装…") { Task { await model.manageService(.recover) } }.disabled(!model.canManageService)
                 Button("卸载网络服务…") { confirmUninstall = true }
-                    .disabled(model.serviceBusy || model.warp.busy || !model.serviceInstalled)
+                    .disabled(!model.canManageService || !model.serviceInstalled)
                 if let error = model.error { Text(error).font(.callout).foregroundStyle(.red) }
             }
         }.padding(24).tabItem { Label("网络服务", systemImage: "network") }.tag(PreferencesPage.service)

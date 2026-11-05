@@ -85,6 +85,7 @@ import FreeV6Desktop
 struct BusinessSettingsView: View {
     @ObservedObject var model: BusinessModel
     @ObservedObject var app: AppModel
+    @State private var confirmDeveloperMode = false
     let context: CommandContext
     var body: some View {
         Form {
@@ -92,8 +93,16 @@ struct BusinessSettingsView: View {
                 Picker("工作模式", selection: $model.mode) {
                     ForEach(ProxyMode.allCases, id: \.self) { mode in Text(mode.title).tag(mode) }
                 }
-                Toggle("开发者模式", isOn: $model.devMode)
-                Text("保存的配置用于后续连接。当前版本尚未开放 TUN 连接。")
+                Toggle("开发者模式", isOn: Binding(get: { model.devMode }, set: { enabled in
+                    if enabled { confirmDeveloperMode = true } else { model.devMode = false }
+                }))
+                .confirmationDialog("开启开发者模式？", isPresented: $confirmDeveloperMode) {
+                    Button("开启") { model.devMode = true }
+                    Button("取消", role: .cancel) {}
+                } message: {
+                    Text("保存后，下次连接将跳过校园 IPv6 检测和域名黑名单。")
+                }
+                Text("保存的配置在下次连接时生效。")
                     .font(.callout).foregroundStyle(.secondary)
             }.disabled(model.busy || app.configurationBusy || model.snapshot == nil)
             Section("校园白名单") {

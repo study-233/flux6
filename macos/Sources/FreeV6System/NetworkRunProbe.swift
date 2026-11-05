@@ -11,23 +11,7 @@ public enum NetworkRunProbe {
         guard geteuid() != 0 else { throw ServiceMessageError.invalid }
         let data = try SecureDirectory(path: path, owner: geteuid())
         let store = try PreparedSessionStore(path: path, owner: geteuid())
-        let prefs = try RunProbePreferences(data)
-        store.probeNetwork = { try RunProbeNetwork(directory: $0, job: $1, prefs: prefs) }
-        store.probeConfiguration = { full, _ in
-            guard let root = try JSONSerialization.jsonObject(with: full) as? [String: Any],
-                  var dns = root["dns"] as? [String: Any], let hosts = root["hosts"],
-                  let socket = root["external-controller-unix"] else { throw ServiceMessageError.invalid }
-            dns["listen"] = "127.0.0.1:" + String(prefs.port)
-            dns.removeValue(forKey: "nameserver-policy")
-            dns["default-nameserver"] = ["127.0.0.1"]
-            dns["proxy-server-nameserver"] = ["tcp://127.0.0.1:1"]
-            dns["nameserver"] = ["tcp://127.0.0.1:1"]
-            let isolated: [String: Any] = ["mode": "direct", "log-level": "error", "tun": ["enable": false],
-                "mixed-port": 0, "port": 0, "dns": dns, "hosts": hosts, "external-controller-unix": socket,
-                "rule-providers": ["rule01": ["type": "inline", "behavior": "classical", "payload": ["DOMAIN,example.test"]]],
-                "rules": ["MATCH,DIRECT"]]
-            return try JSONSerialization.data(withJSONObject: isolated, options: .withoutEscapingSlashes)
-        }
+        try configure(store, data: data)
         if let checkpoint {
             store.checkCheckpoint = { name in
                 guard name == checkpoint else { return }
@@ -53,6 +37,27 @@ public enum NetworkRunProbe {
         catch SessionStoreError.occupied {}
         for _ in 0..<2 { try store.stopRunning(sessionID: active.sessionID, clientUID: geteuid(), revision: run.revision) }
     }
+
+    static func configure(_ store: PreparedSessionStore, data: SecureDirectory) throws {
+        let prefs = try RunProbePreferences(data)
+        store.probeNetwork = { try RunProbeNetwork(directory: $0, job: $1, prefs: prefs) }
+        store.probeConfiguration = { full, _ in
+            guard let root = try JSONSerialization.jsonObject(with: full) as? [String: Any],
+                  var dns = root["dns"] as? [String: Any], let hosts = root["hosts"],
+                  let socket = root["external-controller-unix"] else { throw ServiceMessageError.invalid }
+            dns["listen"] = "127.0.0.1:" + String(prefs.port)
+            dns.removeValue(forKey: "nameserver-policy")
+            dns["default-nameserver"] = ["127.0.0.1"]
+            dns["proxy-server-nameserver"] = ["tcp://127.0.0.1:1"]
+            dns["nameserver"] = ["tcp://127.0.0.1:1"]
+            let isolated: [String: Any] = ["mode": "direct", "log-level": "error", "tun": ["enable": false],
+                "mixed-port": 0, "port": 0, "dns": dns, "hosts": hosts, "external-controller-unix": socket,
+                "rule-providers": ["rule01": ["type": "inline", "behavior": "classical", "payload": ["DOMAIN,example.test"]]],
+                "rules": ["MATCH,DIRECT"]]
+            return try JSONSerialization.data(withJSONObject: isolated, options: .withoutEscapingSlashes)
+        }
+
+    }
 }
 
 private struct RunProbeNetwork: SessionRunNetwork {
@@ -69,8 +74,7 @@ private struct RunProbeNetwork: SessionRunNetwork {
             return pid
         }
         dns = try SessionDNSTransaction(isolated: directory, sessionID: job.sessionID, preferences: prefs, requireReady: {
-            guard let pid = try job.status()?.pid else { throw CoreJobError.invalidState }
-            try CoreDNSListener.verify(pid: pid, port: prefs.port, sessionID: job.sessionID)
+            try CoreDNSListener.waitUntilReady(port: prefs.port, sessionID: job.sessionID) { try job.status()?.pid }
         }, requireEffective: { _ in
             guard try !prefs.resolverReleased() else { throw SessionDNSError.applyFailed }
         })

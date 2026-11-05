@@ -33,7 +33,7 @@ def main():
     runtime = next(p.name for p in resources if p.name.startswith("mihomo-"))
     geodata = "geodata-" + json.loads((ROOT / "internal/mihomo/geodata-assets.json").read_text())["revision"]
     request = evidence / "request.json"
-    request.write_text(json.dumps({"protocolVersion": 4, "requestID": str(uuid.uuid4()), "runtimeID": runtime,
+    request.write_text(json.dumps({"protocolVersion": 5, "requestID": str(uuid.uuid4()), "runtimeID": runtime,
         "geodataID": geodata, "settingsRevision": 1, "credentialRevision": str(uuid.uuid4()),
         "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text())}))
     domain = f"gui/{os.getuid()}"

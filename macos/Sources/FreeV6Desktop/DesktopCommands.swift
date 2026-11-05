@@ -36,7 +36,7 @@ public enum DesktopCommand: Equatable, Sendable {
     case showMain, showPage(DesktopPage), showCore, configureService, refreshService
     case checkCore, downloadCore, cancelCoreDownload, saveConfiguration, reloadConfiguration
     case prepareConfiguration
-    case connect, importChain, refreshCloud, measureNodes, exportLogs, exportDiagnostics, checkUpdates
+    case connect, disconnect, retryRecovery, reviewSetup, importChain, refreshCloud, measureNodes, exportLogs, exportDiagnostics, checkUpdates
     case help, quit
 
     public var title: String {
@@ -53,6 +53,9 @@ public enum DesktopCommand: Equatable, Sendable {
         case .saveConfiguration: return "保存配置"
         case .reloadConfiguration: return "重新载入配置…"
         case .connect: return "连接"
+        case .disconnect: return "断开"
+        case .retryRecovery: return "重试恢复网络"
+        case .reviewSetup: return "查看连接准备…"
         case .importChain: return "导入链式代理配置…"
         case .refreshCloud: return "刷新备用配置"
         case .measureNodes: return "测量节点延迟"
@@ -74,7 +77,9 @@ public enum DesktopCommand: Equatable, Sendable {
         case .prepareConfiguration: return "doc.text"
         case .cancelCoreDownload: return "xmark.circle"
         case .saveConfiguration: return "square.and.arrow.down"
-        case .connect: return "power"
+        case .connect, .disconnect: return "power"
+        case .retryRecovery: return "arrow.counterclockwise"
+        case .reviewSetup: return "checklist"
         case .importChain: return "square.and.arrow.down.on.square"
         case .measureNodes: return "speedometer"
         case .exportLogs, .exportDiagnostics: return "square.and.arrow.up"
@@ -92,7 +97,7 @@ public enum DesktopServiceState: Sendable {
         switch self {
         case .checking: return "正在检查服务…"
         case .missing: return "需要设置网络服务"
-        case .ready: return "连接功能待接入"
+        case .ready: return "网络服务已就绪"
         case .managing: return "正在设置网络服务…"
         case .needsRepair: return "网络服务需要检查"
         }
@@ -117,6 +122,8 @@ public struct CommandAvailability: Equatable, Sendable {
 // simulated connection state. A service handshake does not authorize TUN UI.
 public struct DesktopCommandState: Sendable {
     public var service: DesktopServiceState = .checking
+    public var network = DesktopNetworkPhase.unknown
+    public var canTargetSession = false
     public var coreBusy = false
     public var coreAvailable = false
     public var coreCancelable = false
@@ -132,9 +139,18 @@ public struct DesktopCommandState: Sendable {
     public init() {}
 
     public var primaryCommand: DesktopCommand {
+        switch network {
+        case .running, .disconnecting: return .disconnect
+        case .recovering where canTargetSession: return .retryRecovery
+        case .occupied, .recovering: return .refreshService
+        default: break
+        }
         switch service {
         case .missing, .needsRepair: return .configureService
+        case .ready where network == .unknown: return .refreshService
+        case .ready where network == .connecting: return .connect
         case .ready where !coreAvailable: return .showCore
+        case .ready where !configurationReady: return .reviewSetup
         default: return .connect
         }
     }
@@ -142,17 +158,25 @@ public struct DesktopCommandState: Sendable {
     public func availability(_ command: DesktopCommand, in context: CommandContext = .application) -> CommandAvailability {
         if terminating { return .unavailable("正在退出并回收业务进程…") }
         if promptActive { return .unavailable("请先处理当前确认窗口") }
+        if network.busy {
+            switch command {
+            case .showMain, .showPage, .help: break
+            default: return .unavailable(network.title)
+            }
+        }
         if configurationBusy {
             switch command {
             case .configureService, .refreshService, .checkCore, .downloadCore, .prepareConfiguration,
-                 .saveConfiguration, .reloadConfiguration, .quit:
+                 .saveConfiguration, .reloadConfiguration, .connect, .quit:
                 return .unavailable("连接配置检查正在进行，请等待完成")
             default: break
             }
         }
         switch command {
-        case .showMain, .showPage, .showCore, .help:
+        case .showMain, .showPage, .showCore, .reviewSetup, .help:
             return .available
+        case .configureService where service == .ready && network != .idle:
+            return .unavailable("请先确认网络会话已停止")
         case .configureService, .refreshService:
             return service.busy ? .unavailable("请等待网络服务操作结束") : .available
         case .checkCore:
@@ -177,7 +201,14 @@ public struct DesktopCommandState: Sendable {
             if credentialsPending { return .unavailable("新凭据尚未保存，请先保存或放弃本次注册结果") }
             return service.busy || settingsBusy ? .unavailable("请等待配置读写或网络服务操作结束") : .available
         case .connect:
-            return .unavailable("真实网络连接与恢复功能尚未接入")
+            return service == .ready && network == .idle && coreAvailable && configurationReady
+                ? .available : .unavailable("请先确认会话空闲并完成连接准备")
+        case .disconnect:
+            return service == .ready && network == .running && canTargetSession
+                ? .available : .unavailable("请先确认本人的运行会话")
+        case .retryRecovery:
+            return service == .ready && network == .recovering && canTargetSession
+                ? .available : .unavailable("服务正在检查恢复记录")
         case .importChain, .refreshCloud, .measureNodes, .exportLogs, .exportDiagnostics, .checkUpdates:
             return .unavailable("此功能将在后续开发阶段接入")
         }

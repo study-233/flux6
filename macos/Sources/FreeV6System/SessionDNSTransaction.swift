@@ -86,9 +86,7 @@ final class SessionDNSTransaction {
         access = SystemDNSPreferences()
         requireEffective = { try SystemResolverCheck.verify(sessionID: sessionID, devices: $0.map(\.device)) }
         requireReady = {
-            guard let pid = try job.status()?.pid else { throw SessionDNSError.resolverUnavailable }
-            try CoreDNSListener.verify(pid: pid, port: DNSResolverPolicy.port, sessionID: sessionID)
-            guard try job.status()?.pid == pid else { throw SessionDNSError.resolverUnavailable }
+            try CoreDNSListener.waitUntilReady(port: DNSResolverPolicy.port, sessionID: sessionID) { try job.status()?.pid }
         }
     }
 

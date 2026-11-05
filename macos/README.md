@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前推进技术验证、共用业务、原生应用与网络服务。工程包含 SwiftUI/AppKit 应用、普通用户 Go worker、支持身份握手、固定资源安装与配置复验的网络服务、安装工具和系统探针。原生页面已接入设置读写、核心准备和 WARP 注册/钥匙串存储；真实 Cloudflare 注册尚待实测。连接功能仍禁用，不会启用代理或修改 DNS。完整目标及进度见仓库的 macOS 支持计划与开发记录。
+SwiftUI/AppKit 原生应用提供连接准备、WARP 凭据、规则设置、核心与规则数据下载。窗口工具栏、应用菜单和右上角状态菜单共用会话状态。服务确认真实会话已生效后显示“已连接”，断开及正常退出会等待网络恢复。界面启停已接入 XPC v5，开发验证使用普通用户域的隔离网络。root 安装、真实校园网络、macOS 13 与 Intel 仍待实机验收。
 
 ## 构建
 
@@ -38,7 +38,7 @@ bash scripts/macos/build-app.sh
 
 ## 业务 worker 与配置
 
-App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包、GeoSite/GeoIP 数据准备、WARP 注册及 WARP 业务配置生成；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。订阅和网络控制尚未接入这些页面。
+App 从 `Contents/Helpers/freev6-worker` 启动当前用户子进程，使用私有 stdin/stdout 帧通信。当前提供代理规则读写、固定平台核心安装包、GeoSite/GeoIP 数据准备、WARP 注册及 WARP 业务配置生成；协议见 [worker-v1.md](../shared/protocol/worker-v1.md)。启停通过独立的系统 XPC 服务。订阅与节点页仍待接入。
 
 配置文件：`~/Library/Application Support/dev.freev6.desktop/proxy-preferences.json`。它有独立 schema 和 revision，以原子替换方式写入，拒绝覆盖版本冲突或损坏文件。当前不会向该文件写入 WARP 凭据或订阅 URL。`worker.lock` 防止同一数据目录被多个 worker 同时修改；父进程断开、SIGTERM 或客户端回收后释放锁。
 
@@ -130,7 +130,7 @@ FREEV6_GEODATA_FIXTURES_DIR="$PWD/build/macos-geodata" \
 python3 scripts/macos/probe-core-jobs.py
 ```
 
-结果位于 `build/core-job-probes/<UUID>/result.json`。测试仅使用公开合成配置，不进行 root 安装或修改网络；生产 v4 RPC 已通过检查记录 v2 串联此模块，但尚不支持真实网络会话。Debug 的任意目录和用户域入口不进入 Release。
+结果位于 `build/core-job-probes/<UUID>/result.json`。测试仅使用公开合成配置，不进行 root 安装或修改网络；配置检查使用检查记录 v2，正常运行使用运行记录 v3。Debug 的任意目录和用户域入口不进入 Release。
 
 `python3 scripts/macos/probe-process-group.py` 是独立对照实验：记录服务宿主退出后，继承同一进程组、忽略 SIGTERM 的子进程是否存活，并清理测试夹具。当前系统已观察到存活，因此 `AbandonProcessGroup=false` 不能单独作为核心生命周期保证。该脚本的通过结果只表示实验完成且夹具清理成功，不能当作产品崩溃恢复通过。
 
@@ -209,7 +209,7 @@ python3 scripts/macos/probe-service.py
 
 在正常登录用户环境运行，不能以 root 运行。脚本构建 Debug 服务和探针，在 `build/service-probes/<UUID>` 内复制并启用 Hardened Runtime，然后注册一个随机名称的用户级 launchd job。验证双向 CDHash、UID 绑定、重启、客户端摘要更换后的重新登记与旧摘要撤销，最后移除该 job。只有可信调用在拒绝测试前后均成功，才记录拒绝通过。结果保存在该目录的 `result.json`。
 
-服务读取权限受控的登记文件，提供版本握手、资源状态、固定资源安装和实际核心配置检查，详见 [XPC v4 协议](../shared/protocol/service-v4.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
+服务读取权限受控的登记文件，提供版本握手、资源状态、固定资源安装和实际核心配置检查，运行会话另见 [XPC v5 协议](../shared/protocol/service-v5.md)。Release 构建拒绝探针参数和普通用户启动。这里没有 root 安装、网络启停或生产服务升级；用户级重新登记实验不能替代管理员安装验收。
 
 使用本地官方文件验证跨进程资源交接：
 
@@ -238,7 +238,7 @@ python3 scripts/macos/probe-controller.py \
   --native-client build/macos/out/Products/Debug/freev6-probe
 ```
 
-该模式增加两个仅含 DIRECT/REJECT 的测试分组，实际验证三种模式、特殊字符分组选择、写后回读、错误对端与非法成员拒绝、REJECT 测速失败、累计流量及有界的流量单次采样。仍不启用 TUN、DNS 或 IP 监听。服务内部契约、响应上限与尚未接入的范围见 [核心控制接口 v1](../shared/protocol/core-controller-v1.md)；XPC v4 尚未增加运行会话或控制方法。
+该模式增加两个仅含 DIRECT/REJECT 的测试分组，实际验证三种模式、特殊字符分组选择、写后回读、错误对端与非法成员拒绝、REJECT 测速失败、累计流量及有界的流量单次采样。仍不启用 TUN、DNS 或 IP 监听。服务内部契约、响应上限与尚未接入的范围见 [核心控制接口 v1](../shared/protocol/core-controller-v1.md)；XPC v5 提供会话启停与查询，节点和流量控制待接入。
 
 ## 原生更新验证
 
@@ -263,3 +263,15 @@ python3 scripts/macos/probe-runtime.py --check-config build/macos-probes/config/
 核心资产与压缩包摘要锁定在 `internal/mihomo/runtime-assets.json`，来源是对应上游 release。`binarySha256` 从已通过固定压缩包摘要的官方内容计算；生产下载器与探针均校验它。探针限制解压体积，仅执行版本与配置检查。Windows/Intel 资产的摘要和格式校验不等同于相应系统的运行验收。
 
 配置探针生成合成的 P-256 凭据，不向 Cloudflare 注册，也无法建立真实 WARP 会话。`full-config.json` 保留完整业务配置；`offline-config.json` 移除依赖远端 GeoSite/规则集的配置，用于隔离验证 JSON 和 MASQUE 解析。离线检查成功不能替代完整规则、DNS、TUN 与实际出口验证。
+
+## 原生连接、断开和退出
+
+服务准备完成后，从三个顶部入口均可操作本人的会话。普通模式在启动前向 Windows 客户端使用的固定 IPv6 回显地址发起限时查询，并匹配 2001:da8::/32 或 2001:250::/32。已保存的开发者模式跳过此检查。桌面每 5 秒查询一次，主窗口隐藏时继续续期。退出重新确认会话和修订号，恢复失败时留在概览。旧协议的安装需先通过概览重新登记服务。当前菜单中的“已保存配置”表示下次连接将使用的配置。
+
+已有固定资源夹具时，可复现桌面会话模型与临时签名服务之间的真实 XPC 调用，同时验证后台恢复与客户端消失。此操作在普通用户的临时 launchd 任务中运行，以独立配置文件代替系统 DNS，使用回环 DNS 和模拟隧道。
+
+```sh
+python3 scripts/macos/probe-service.py --network-run --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata
+```
+
+[运行记录 v3](../shared/protocol/network-run-v3.md) · [服务协议 v5](../shared/protocol/service-v5.md)

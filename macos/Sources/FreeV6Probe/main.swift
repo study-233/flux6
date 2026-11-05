@@ -2,8 +2,14 @@ import Foundation
 import Security
 import FreeV6System
 import FreeV6Configuration
+#if DEBUG
+import FreeV6Desktop
+#endif
 
 final class ProbeService: NSObject, NetworkServiceProtocol {
+    func startSession(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
+    func stopSession(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
+    func sessionStatus(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func checkConfiguration(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func resourceStatus(_ request: Data, reply: @escaping (Data?, String?) -> Void) { reply(nil, "Handshake-only probe") }
     func installApprovedResource(_ request: Data, source: FileHandle, reply: @escaping (Data?, String?) -> Void) {
@@ -171,6 +177,67 @@ func probeConfiguration(name: String, hash: String, path: String, cache: String?
     print(String(decoding: try completion.wait(timeout: 180), as: UTF8.self))
 }
 
+#if DEBUG
+@MainActor func probeDesktopSession(_ args: [String]) async throws {
+    guard args.count == 4, geteuid() != 0, args[1].hasPrefix("dev.freev6.probe."),
+          args[1].utf8.count <= 128 else { throw ServiceMessageError.invalid }
+    let name = args[1]
+    let identity = try CodeIdentity(identifier: "probe-service", cdHash: args[2])
+    let request = try ServiceMessages.decodeConfiguration(readConfigurationRequest(args[3]))
+    let desktop = DesktopNetworkSession()
+    let status: DesktopNetworkSession.Status = { id in
+        try await Task.detached { try ServiceClient.sessionStatus(renewing: id, identity: identity, name: name, privileged: false) }.value
+    }
+    let stop: DesktopNetworkSession.Stop = { id, revision in
+        try await Task.detached { try ServiceClient.stopSession(sessionID: id, revision: revision, identity: identity,
+                                                                 name: name, privileged: false) }.value
+    }
+    await desktop.refresh(using: status)
+    for quit in [false, true] {
+        guard desktop.phase == .idle else { throw ServiceClientError.invalidReply }
+        await desktop.connect { token in
+            try await Task.detached { try ServiceClient.startSession(request, idleToken: token, identity: identity,
+                                                                      name: name, privileged: false) }.value
+        }
+        if let error = desktop.error { throw ServiceClientError.rejected(error) }
+        await desktop.refresh(using: status)
+        var commands = DesktopCommandState()
+        commands.service = .ready
+        commands.network = desktop.phase
+        commands.canTargetSession = desktop.canTargetSession
+        guard commands.primaryCommand == .disconnect, commands.availability(.disconnect).enabled else {
+            throw ServiceClientError.invalidReply
+        }
+        if quit { try await desktop.disconnectBeforeExit(status: status, stop: stop) }
+        else { try await desktop.disconnect(using: stop) }
+        guard desktop.phase == .idle, !desktop.mayOwnSession, desktop.error == nil else { throw ServiceClientError.invalidReply }
+    }
+}
+
+func probeSessionRPC(_ args: [String]) throws {
+    guard args.count >= 3, geteuid() != 0, args[1].hasPrefix("dev.freev6.probe."), args[1].utf8.count <= 128 else {
+        throw ServiceMessageError.invalid
+    }
+    let identity = try CodeIdentity(identifier: "probe-service", cdHash: args[2])
+    let reply: NetworkSessionReply
+    switch args[0] {
+    case "session-status" where args.count == 3 || args.count == 4:
+        let id = args.count == 4 ? UUID(uuidString: args[3]) : nil
+        guard args.count == 3 || id != nil else { throw ServiceMessageError.invalid }
+        reply = try ServiceClient.sessionStatus(renewing: id, identity: identity, name: args[1], privileged: false)
+    case "session-start" where args.count == 5:
+        guard let token = UUID(uuidString: args[3]) else { throw ServiceMessageError.invalid }
+        let request = try ServiceMessages.decodeConfiguration(readConfigurationRequest(args[4]))
+        reply = try ServiceClient.startSession(request, idleToken: token, identity: identity, name: args[1], privileged: false)
+    case "session-stop" where args.count == 5:
+        guard let id = UUID(uuidString: args[3]), let revision = UInt64(args[4]) else { throw ServiceMessageError.invalid }
+        reply = try ServiceClient.stopSession(sessionID: id, revision: revision, identity: identity, name: args[1], privileged: false)
+    default: throw ServiceMessageError.invalid
+    }
+    print(String(decoding: try JSONEncoder().encode(reply), as: UTF8.self))
+}
+#endif
+
 func probeKeychain() throws {
     let account = UUID().uuidString
     let query: [String: Any] = [
@@ -226,6 +293,13 @@ do {
         try assembled.data.write(to: URL(fileURLWithPath: arguments[2]), options: .atomic)
         print("PASS: service policy assembled for a local configuration probe; no network changes")
     #if DEBUG
+    case "desktop-session" where arguments.count == 4:
+        Task { @MainActor in
+            do { try await probeDesktopSession(arguments); exit(0) }
+            catch { fputs("desktop session: \(error.localizedDescription)\n", stderr); exit(1) }
+        }
+        dispatchMain()
+    case "session-status", "session-start", "session-stop": try probeSessionRPC(arguments)
     case "probe-network-run" where arguments.count == 4:
         try NetworkRunProbe.run(path: arguments[1], request: readConfigurationRequest(arguments[2]), checkpoint: arguments[3])
         print("PASS: running core, DNS transaction and owner-bound stop completed")

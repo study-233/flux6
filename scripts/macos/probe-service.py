@@ -16,7 +16,10 @@ import platform
 import re
 import shutil
 import subprocess
+import time
 import uuid
+
+from session_probe import isolated_network, state, until
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -33,7 +36,10 @@ def main():
     parser.add_argument("--no-build", action="store_true", help="Use the current debug build")
     parser.add_argument("--runtime-fixtures", type=Path, help="Exercise resource FD transfer with pinned official files")
     parser.add_argument("--geodata-fixtures", type=Path)
+    parser.add_argument("--network-run", action="store_true", help="Verify session RPC and supervisor using isolated DNS and a TUN-free core")
     args = parser.parse_args()
+    if args.network_run and not args.runtime_fixtures:
+        parser.error("--network-run needs the runtime and geodata fixtures")
     if bool(args.runtime_fixtures) != bool(args.geodata_fixtures):
         parser.error("Supply both runtime and geodata fixtures")
     if os.geteuid() == 0:
@@ -47,6 +53,7 @@ def main():
     # Keep sessions/<UUID>/c.sock within Darwin's 104-byte sun_path.
     data_root = ROOT / "build" / ("n-" + uuid.uuid4().hex[:8])
     data_root.mkdir(mode=0o755)
+    fixture_dns = isolated_network(data_root) if args.network_run else None
     probe = work / "freev6-probe"
     service = work / "freev6-network-service"
     untrusted = work / "untrusted-probe"
@@ -84,7 +91,7 @@ def main():
     job = work / "service.plist"
     job.write_bytes(plistlib.dumps({
         "Label": label,
-        "ProgramArguments": [str(service), "--probe", label, str(record)],
+        "ProgramArguments": [str(service), "--probe-run" if args.network_run else "--probe", label, str(record)],
         "MachServices": {label: True},
         "ThrottleInterval": 1,
         "AbandonProcessGroup": False,
@@ -128,7 +135,7 @@ def main():
         if any(a["available"] for a in resources()):
             raise RuntimeError("Fresh service unexpectedly has resources")
         request = {
-            "protocolVersion": 4, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
+            "protocolVersion": 5, "requestID": str(uuid.uuid4()), "settingsRevision": 1,
             "credentialRevision": str(uuid.uuid4()), "runtimeID": core_id,
             "geodataID": "geodata-" + geo["revision"],
             "configuration": json.loads((ROOT / "shared/fixtures/warp-business-configuration.json").read_text()),
@@ -153,7 +160,7 @@ def main():
         expected_keys = {"protocolVersion", "requestID", "policyVersion", "settingsRevision", "credentialRevision", "mode", "proxyCount", "ruleCount", "coreValidated"}
         if set(prepared) != expected_keys or prepared["requestID"].lower() != request["requestID"].lower() or prepared["proxyCount"] != 28:
             raise RuntimeError("Unexpected configuration acknowledgement")
-        if prepared["protocolVersion"] != 4 or prepared["coreValidated"] is not True:
+        if prepared["protocolVersion"] != 5 or prepared["coreValidated"] is not True:
             raise RuntimeError("Service did not confirm actual core validation")
         if (data_root / "network-session.json").exists() or list((data_root / "sessions").iterdir()):
             raise RuntimeError("Successful core check left private session files")
@@ -214,6 +221,78 @@ def main():
         run([probe, "prepare-configuration", label, service_hash, cache, request_file], timeout=45)
         case("real XPC file descriptors install pinned core/geodata; corrupt, unknown and unregistered requests rejected")
 
+    def network_cases():
+        request = work / "configuration-request.json"
+        def rpc(action, *values, reject=False, client=probe):
+            result = run([client, "session-" + action, label, service_hash, *values], check=False, timeout=60)
+            if reject:
+                if result.returncode != 1:
+                    raise RuntimeError(f"Expected {action} rejection")
+                return
+            if result.returncode:
+                raise RuntimeError(f"{action}: {result.stderr}")
+            return json.loads(result.stdout)
+        def start():
+            idle = rpc("status")
+            assert idle["phase"] == "stopped" and fixture_dns() is None
+            active = rpc("start", idle["idleToken"], request)
+            assert active["phase"] == "running" and fixture_dns()["ServerPort"] == 1053
+            return idle["idleToken"], active["sessionID"], active["revision"]
+        def stopped():
+            # A mutation racing the timer may return busy. Read the journal
+            # first, then require a confirmed idle RPC and restored fixture.
+            if (data_root / "network-session.json").exists():
+                return False
+            return rpc("status")["phase"] == "stopped" and fixture_dns() is None
+        run([probe, "desktop-session", label, service_hash, request], timeout=90)
+        assert stopped()
+        case("native desktop command model starts, renews, disconnects and quits through authenticated XPC")
+        token, session, revision = start()
+        rpc("status", client=untrusted, reject=True)
+        assert rpc("status", session)["phase"] == "running"
+        rpc("start", token, request, reject=True)
+        rpc("stop", session, revision - 1, reject=True)
+        rpc("stop", uuid.uuid4(), revision, reject=True)
+        assert rpc("status", session)["sessionID"] == session
+        assert rpc("stop", session, revision)["phase"] == "stopped"
+        assert rpc("stop", session, revision)["phase"] == "stopped"
+        rpc("start", token, request, reject=True)
+        case("XPC start, owner heartbeat, stale/replayed requests, signature rejection and idempotent stop")
+        _, session, revision = start()
+        block = data_root / "block-dns-recovery"
+        block.touch()
+        rpc("stop", session, revision, reject=True)
+        pending = rpc("status")
+        assert pending["phase"] == "recoveryRequired" and pending["revision"] > revision
+        core_label = "dev.freev6.core." + session.lower()
+        assert state(core_label)["pid"] and fixture_dns()["ServerPort"] == 1053
+        block.unlink()
+        until(stopped)
+        assert state(core_label) is None
+        case("supervisor retains core on rollback failure and retries until system state is restored")
+        _, session, _ = start()
+        core_label = "dev.freev6.core." + session.lower()
+        run(["/bin/launchctl", "kill", "SIGKILL", domain + "/" + core_label])
+        until(stopped)
+        assert state(core_label) is None
+        case("supervisor restores DNS when the running core alone crashes")
+        _, session, _ = start()
+        run(["/bin/launchctl", "kickstart", "-k", target])
+        handshake()
+        until(stopped)
+        assert state("dev.freev6.core." + session.lower()) is None
+        case("restarted XPC daemon independently restores an active client session")
+        _, session, _ = start()
+        time.sleep(18)
+        assert rpc("status", session)["phase"] == "running"
+        time.sleep(15)
+        assert rpc("status")["phase"] == "running"
+        # Observing the current state without its session ID does not renew.
+        assert rpc("status", uuid.uuid4())["phase"] == "running"
+        until(stopped, timeout=24)
+        assert state("dev.freev6.core." + session.lower()) is None
+        case("matching heartbeat extends the owner lease; disappearance expires it and restores DNS")
+
     installed = False
     try:
         run(["/bin/launchctl", "bootstrap", domain, job])
@@ -222,6 +301,8 @@ def main():
         case("registered client and service mutually authenticate")
         if args.runtime_fixtures:
             resource_cases()
+        if args.network_run:
+            network_cases()
         handshake(untrusted, rejected=True)
         handshake()
         case("different client CDHash rejected; trusted client remains usable")
@@ -271,6 +352,12 @@ def main():
             run(["/bin/launchctl", "bootout", target])
             if run(["/bin/launchctl", "print", target], check=False).returncode == 0:
                 raise RuntimeError("Probe job remained registered after cleanup")
+            if args.network_run and (data_root / "network-session.json").exists():
+                interrupted = json.loads((data_root / "network-session.json").read_text())
+                session_id = uuid.UUID(interrupted["sessionID"])
+                core_label = "dev.freev6.core." + str(session_id)
+                if state(core_label):
+                    run(["/bin/launchctl", "bootout", domain + "/" + core_label])
             case("temporary launchd job removed")
 
     shutil.move(data_root, work / "service-data")

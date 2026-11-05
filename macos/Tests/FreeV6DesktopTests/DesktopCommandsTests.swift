@@ -29,10 +29,35 @@ final class DesktopCommandsTests: XCTestCase {
         state.service = .missing
         XCTAssertEqual(state.primaryCommand, .configureService)
         state.service = .ready; state.coreAvailable = false
+        XCTAssertEqual(state.primaryCommand, .refreshService)
+        state.network = .idle
         XCTAssertEqual(state.primaryCommand, .showCore)
         state.coreAvailable = true
+        XCTAssertEqual(state.primaryCommand, .reviewSetup)
+        XCTAssertFalse(state.availability(.connect).enabled)
+        state.configurationReady = true
         XCTAssertEqual(state.primaryCommand, .connect)
-        XCTAssertFalse(state.availability(state.primaryCommand).enabled)
+        XCTAssertTrue(state.availability(.connect).enabled)
+    }
+
+    func testRunningAndRecoveryKeepTheirCommandsWhenStartInputsDisappear() {
+        var state = DesktopCommandState()
+        state.service = .ready
+        state.canTargetSession = true
+        state.network = .running
+        XCTAssertEqual(state.primaryCommand, .disconnect)
+        XCTAssertTrue(state.availability(.disconnect).enabled)
+        XCTAssertFalse(state.availability(.configureService).enabled)
+        state.network = .recovering
+        XCTAssertEqual(state.primaryCommand, .retryRecovery)
+        XCTAssertTrue(state.availability(.retryRecovery).enabled)
+        state.canTargetSession = false
+        XCTAssertEqual(state.primaryCommand, .refreshService)
+        for phase in [DesktopNetworkPhase.occupied, .unknown, .connecting, .disconnecting] {
+            state.network = phase
+            XCTAssertFalse(state.availability(.disconnect).enabled)
+            XCTAssertFalse(state.availability(.connect).enabled)
+        }
     }
 
     func testConfigurationCommandsFollowFocusedSceneAndRealWriteState() {

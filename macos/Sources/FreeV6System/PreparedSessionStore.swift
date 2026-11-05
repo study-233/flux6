@@ -83,7 +83,7 @@ struct PreparedSessionRecord: Codable, Equatable {
 final class PreparedSessionStore {
     static let journalName = "network-session.json"
     static let filenames: Set<String> = ["mihomo", "GeoSite.dat", "geoip.dat", "country.mmdb", "config.json"]
-    private let data: SecureDirectory
+    let data: SecureDirectory
     private let sessions: SecureDirectory
     private let lease: FileHandle
     private let lock = NSLock()
@@ -107,7 +107,17 @@ final class PreparedSessionStore {
     func current() throws -> PreparedSessionRecord? {
         guard lock.try() else { throw SessionStoreError.occupied }
         defer { lock.unlock() }
-        return try load()
+        let record = try load()
+        if record == nil, try !sessions.entries().isEmpty { throw SessionStoreError.recoveryRequired }
+        return record
+    }
+
+    func coreIsPresent(_ record: PreparedSessionRecord) throws -> Bool {
+        guard let run = record.run, run.stage == .active, let tunnel = run.tunnel,
+              let directory = try sessions.privateChild(record.sessionID.uuidString) else { return false }
+        let job = try makeJob(record.sessionID)
+        guard let pid = try job.status()?.pid else { return false }
+        return try networkEnvironment(directory, job: job).ownedTunnel(pid: pid) == tunnel && job.status()?.pid == pid
     }
 
     func prepare(_ request: ConfigurationCheckRequest, clientUID: uid_t,

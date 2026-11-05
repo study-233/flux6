@@ -4,12 +4,10 @@ import argparse
 import json
 import os
 from pathlib import Path
-import plistlib
 import shutil
-import socket
 import uuid
 
-from session_probe import boot, run, state, until
+from session_probe import boot, isolated_network, run, state, until
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKPOINTS = [
@@ -18,21 +16,6 @@ CHECKPOINTS = [
     "run-stopping", "run-job-stopped", "run-exited", "run-job-removed", "run-removed",
     "rollback-busy", "core-crash", "missing-job", "known-rule", "unknown-rule", "foreign-socket",
 ]
-
-
-def isolated_network(data):
-    with socket.socket() as reserved:
-        reserved.bind(("127.0.0.1", 0))
-        port = reserved.getsockname()[1]
-    service = str(uuid.uuid4()).upper()
-    location = str(uuid.uuid4()).upper()
-    (data / "probe-options.json").write_text(json.dumps({"serviceID": service, "port": port}))
-    path = data / "probe-preferences.plist"
-    path.write_bytes(plistlib.dumps({"CurrentSet": "/Sets/" + location, "NetworkServices": {service: {
-        "Interface": {"Type": "Ethernet", "DeviceName": "en0", "Hardware": "Ethernet"}}},
-        "Sets": {location: {"Network": {"Service": {service: {"__LINK__": "/NetworkServices/" + service}}}}}}))
-    path.chmod(0o600)
-    return lambda: plistlib.loads(path.read_bytes())["NetworkServices"][service].get("DNS")
 
 
 def exercise(probe, request, resources, folder, scenario):
@@ -164,7 +147,7 @@ def main():
     run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--identifier", "dev.freev6.probe.run", probe])
     resources = [p for p in args.resources.iterdir() if p.name != "resources.lock"]
     request = folder / "request.json"
-    request.write_text(json.dumps({"protocolVersion": 4, "requestID": str(uuid.uuid4()),
+    request.write_text(json.dumps({"protocolVersion": 5, "requestID": str(uuid.uuid4()),
         "runtimeID": next(p.name for p in resources if p.name.startswith("mihomo-")),
         "geodataID": "geodata-" + json.loads((ROOT / "internal/mihomo/geodata-assets.json").read_text())["revision"],
         "settingsRevision": 1, "credentialRevision": str(uuid.uuid4()),

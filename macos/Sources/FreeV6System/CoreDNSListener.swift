@@ -5,6 +5,23 @@ import Network
 enum CoreDNSListener {
     // lsof's machine-readable records identify the listening process. The
     // session-specific .test name is answered from the core's local hosts.
+    static func waitUntilReady(port: Int, sessionID: UUID, currentPID: () throws -> pid_t?) throws {
+        guard let pid = try currentPID() else { throw SessionDNSError.resolverUnavailable }
+        // The controller can accept requests before both DNS sockets answer.
+        // Only retry readiness while the same launchd-owned process is alive.
+        let deadline = ProcessInfo.processInfo.systemUptime + 6
+        while true {
+            guard try currentPID() == pid else { throw SessionDNSError.resolverUnavailable }
+            do { try verify(pid: pid, port: port, sessionID: sessionID) }
+            catch SessionDNSError.resolverUnavailable where ProcessInfo.processInfo.systemUptime < deadline {
+                Thread.sleep(forTimeInterval: 0.15)
+                continue
+            }
+            guard try currentPID() == pid else { throw SessionDNSError.resolverUnavailable }
+            return
+        }
+    }
+
     static func verify(pid: pid_t, port: Int, sessionID: UUID) throws {
         guard pid > 1, (1...65535).contains(port) else { throw SessionDNSError.resolverUnavailable }
         let result = try CapturedCommand.run(executable: "/usr/sbin/lsof",

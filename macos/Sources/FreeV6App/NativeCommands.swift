@@ -57,8 +57,8 @@ struct NativeCommands: Commands {
             }
         }
         CommandMenu("连接") {
-            DesktopCommandButton(.connect, model: model).keyboardShortcut("k", modifiers: [.command, .shift])
-            Text(model.serviceState.title)
+            DesktopCommandButton(model.commandState.primaryCommand, model: model).keyboardShortcut("k", modifiers: [.command, .shift])
+            Text(model.connectionTitle)
             Divider()
             DesktopCommandButton(.showPage(.configuration), model: model)
             DesktopCommandButton(.measureNodes, model: model)
@@ -100,10 +100,10 @@ struct NativeToolbar: ToolbarContent {
             }
         }
         ToolbarItem(placement: .status) {
-            Label(model.serviceState.title, systemImage: model.serviceState.symbol)
+            Label(model.connectionTitle, systemImage: model.connectionSymbol)
                 .foregroundStyle(.secondary).lineLimit(1)
-                .help(model.serviceStatus)
-                .accessibilityLabel(model.serviceState.title)
+                .help(model.network.statusError ?? model.network.error ?? model.connectionTitle)
+                .accessibilityLabel(model.connectionTitle)
         }
         ToolbarItem(placement: .primaryAction) {
             DesktopCommandButton(model.commandState.primaryCommand, model: model)
@@ -115,7 +115,8 @@ struct NativeToolbar: ToolbarContent {
 struct StatusMenu: View {
     @ObservedObject var model: AppModel
     var body: some View {
-        Text(model.serviceState.title)
+        Text(model.connectionTitle)
+        if let error = model.network.statusError ?? model.network.error { Text(error) }
         Text(model.core.status)
         Text(model.geodata.status)
         Text(model.warp.status)
@@ -157,13 +158,13 @@ struct NativeHelpView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("FreeV6 使用说明").font(.title.bold())
-                Text("当前开发版可以编辑代理规则、准备核心安装包，以及检查和设置网络服务。真实代理连接仍在开发中；核心下载或服务就绪不表示已经开启代理。")
+                Text("从概览页准备网络服务、WARP 凭据、网络核心与规则数据。准备完成后可从工具栏、“连接”菜单或右上角的 FreeV6 图标连接或断开。")
                 Text("开始使用").font(.headline)
                 Text("将 FreeV6 拖入“应用程序”后，从概览页设置网络服务。核心可以在概览页或设置的“核心”页下载；下载完成后会自动校验。")
                 Text("编辑配置").font(.headline)
                 Text("在“配置”页编辑模式与规则，用 ⌘S 保存。重新载入会先询问是否放弃草稿；保存失败时保留草稿和错误信息。")
                 Text("窗口与后台").font(.headline)
-                Text("⌘1–⌘4 切换页面，⌘, 打开设置。关闭主窗口会保留后台入口；从 Dock 或右上角 FreeV6 菜单可以重新打开。⌘Q 退出时处理未保存草稿，并停止下载和业务进程。")
+                Text("⌘1–⌘4 切换页面，⌘, 打开设置。关闭主窗口会保留后台入口；从 Dock 或右上角 FreeV6 菜单可以重新打开。⌘Q 退出时处理未保存草稿，等待服务恢复网络，再停止下载和业务进程。")
                 Text("服务需要处理时").font(.headline)
                 Text("先在概览页刷新状态并查看提示。安装中断后的恢复与卸载入口位于设置的“网络服务”页。授权请在 macOS 系统窗口中完成。")
             }.frame(maxWidth: .infinity, alignment: .leading).padding(24)

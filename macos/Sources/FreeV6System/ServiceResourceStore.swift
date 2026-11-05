@@ -86,7 +86,7 @@ public final class ServiceResourceStore {
         try sessionStore().recoverInterruptedSession()
     }
 
-    private func sessionStore() throws -> PreparedSessionStore {
+    func sessionStore() throws -> PreparedSessionStore {
         try PreparedSessionStore(path: URL(fileURLWithPath: directory.path).deletingLastPathComponent().path, owner: directory.owner)
     }
 
