@@ -55,11 +55,14 @@ public enum NetworkRunProbe {
                 "rule-providers": ["rule01": ["type": "inline", "behavior": "classical", "payload": ["DOMAIN,example.test"]]],
                 "rules": ["MATCH,DIRECT"]]
             if let port = prefs.healthPort {
-                isolated["proxies"] = [["name": "本地 A", "type": "direct"], ["name": "本地 B", "type": "direct"]]
+                isolated["proxies"] = [
+                    ["name": "本地 A", "type": "direct"], ["name": "本地 B", "type": "direct"],
+                    ["name": "慢速探针", "type": "http", "server": "127.0.0.1", "port": port]
+                ]
                 isolated["proxy-groups"] = [
                     ["name": SessionNodeGroup.access.coreName, "type": "url-test", "proxies": ["本地 A", "本地 B", "REJECT"],
                      "url": "http://127.0.0.1:" + String(port), "interval": 86400, "lazy": false],
-                    ["name": SessionNodeGroup.chain.coreName, "type": "select", "proxies": ["REJECT", "DIRECT"]]
+                    ["name": SessionNodeGroup.chain.coreName, "type": "select", "proxies": ["REJECT", "DIRECT", "慢速探针"]]
                 ]
             }
             return try JSONSerialization.data(withJSONObject: isolated, options: .withoutEscapingSlashes)

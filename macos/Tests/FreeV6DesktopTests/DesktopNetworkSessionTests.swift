@@ -1,5 +1,5 @@
 import XCTest
-import FreeV6System
+@testable import FreeV6System
 @testable import FreeV6Desktop
 
 @MainActor final class DesktopNetworkSessionTests: XCTestCase {
@@ -45,6 +45,47 @@ import FreeV6System
         XCTAssertEqual(model.phase, .idle)
         XCTAssertNil(model.error)
         XCTAssertFalse(model.mayOwnSession)
+    }
+
+    func testLateMeasurementCannotOverwriteReconnectedSession() async throws {
+        let controls = DesktopCoreControls()
+        let first = SessionControlTarget(sessionID: UUID(), revision: 3)
+        let replacement = SessionControlTarget(sessionID: UUID(), revision: 3)
+        let snapshot = SessionControlSnapshot(token: UUID(), mode: .rule, groups: [
+            SessionNodeList(group: .chain, selected: "A", preferred: nil, automatic: false, members: ["A", "B"])
+        ])
+        controls.bind(first)
+        await controls.inspect { SessionControlReply($0, state: snapshot) }
+        var deliverLate: (() -> Void)?
+        let started = expectation(description: "First session is waiting for the delay response")
+        let measurement = Task {
+            await controls.measure(.chain, members: ["A", "B"]) { request in
+                XCTAssertEqual(request.target, first)
+                guard request.member == "A" else {
+                    XCTFail("The old batch requested its second member")
+                    return SessionControlReply(request, delay: .unavailable)
+                }
+                return await withCheckedContinuation { continuation in
+                    deliverLate = { continuation.resume(returning: SessionControlReply(request, delay: .measured(milliseconds: 900))) }
+                    started.fulfill()
+                }
+            }
+        }
+        await fulfillment(of: [started], timeout: 3)
+        XCTAssertTrue(controls.measuring)
+        controls.bind(nil)
+        controls.bind(replacement)
+        await controls.inspect { SessionControlReply($0, state: snapshot) }
+        await controls.measure(.chain, members: ["A"]) { request in
+            XCTAssertEqual(request.target, replacement)
+            return SessionControlReply(request, delay: .measured(milliseconds: 12))
+        }
+        try XCTUnwrap(deliverLate)()
+        await measurement.value
+        XCTAssertEqual(controls.target, replacement)
+        XCTAssertEqual(controls.latency[.chain], ["A": .measured(milliseconds: 12)])
+        XCTAssertFalse(controls.measuring)
+        XCTAssertNil(controls.error)
     }
 
     func testLostStartReplyAndFailedRecoveryRemainRetryableAcrossExit() async throws {

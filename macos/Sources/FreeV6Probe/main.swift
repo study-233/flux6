@@ -288,6 +288,13 @@ func probeSessionRPC(_ args: [String]) throws {
     case "session-stop" where args.count == 5:
         guard let id = UUID(uuidString: args[3]), let revision = UInt64(args[4]) else { throw ServiceMessageError.invalid }
         reply = try ServiceClient.stopSession(sessionID: id, revision: revision, identity: identity, name: args[1], privileged: false)
+    case "session-slow-delay" where args.count == 5:
+        guard let id = UUID(uuidString: args[3]), let revision = UInt64(args[4]) else { throw ServiceMessageError.invalid }
+        let query = SessionControlRequest(SessionControlTarget(sessionID: id, revision: revision), .delay,
+                                          group: .chain, member: "慢速探针")
+        let measured = try ServiceClient.control(query, identity: identity, name: args[1], privileged: false)
+        print(String(decoding: try JSONEncoder().encode(measured), as: UTF8.self))
+        return
     default: throw ServiceMessageError.invalid
     }
     print(String(decoding: try JSONEncoder().encode(reply), as: UTF8.self))
@@ -355,7 +362,7 @@ do {
             catch { fputs("desktop session: \(error.localizedDescription)\n", stderr); exit(1) }
         }
         dispatchMain()
-    case "session-status", "session-start", "session-stop": try probeSessionRPC(arguments)
+    case "session-status", "session-start", "session-stop", "session-slow-delay": try probeSessionRPC(arguments)
     case "probe-network-run" where arguments.count == 4:
         try NetworkRunProbe.run(path: arguments[1], request: readConfigurationRequest(arguments[2]), checkpoint: arguments[3])
         print("PASS: running core, DNS transaction and owner-bound stop completed")

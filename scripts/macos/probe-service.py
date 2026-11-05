@@ -311,6 +311,31 @@ def main():
         run([probe, "desktop-session", label, service_hash, request], timeout=90)
         assert stopped()
         case("native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC")
+        _, session, revision = start()
+        with subprocess.Popen([probe, "session-slow-delay", label, service_hash, session, str(revision)],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE) as pending:
+            try:
+                if not delay_started.wait(timeout=5) or pending.poll() is not None:
+                    raise RuntimeError("Slow measurement never reached the controlled loopback proxy")
+                stop_started = time.monotonic()
+                confirmed = rpc("stop", session, revision)
+                stop_seconds = time.monotonic() - stop_started
+                # The core delay deadline is five seconds. A stop queued behind
+                # the measurement cannot pass while the proxy withholds its reply.
+                if stop_seconds >= 4 or confirmed["phase"] != "stopped" or fixture_dns() is not None:
+                    raise RuntimeError("Stop waited for a slow measurement or left DNS active")
+                _, replacement, next_revision = start()
+                output, _ = pending.communicate(timeout=10)
+                if pending.returncode != 1 or output or replacement == session:
+                    raise RuntimeError("An obsolete measurement succeeded after disconnect")
+                rpc("slow-delay", session, revision, reject=True)
+                assert rpc("status", replacement)["phase"] == "running"
+                assert rpc("stop", replacement, next_revision)["phase"] == "stopped"
+            finally:
+                if pending.poll() is None:
+                    pending.kill()
+                pending.wait(timeout=5)
+        case(f"slow core measurement in flight: stopped and restored fixture DNS in {stop_seconds:.2f}s; new session rejected old requests")
         token, session, revision = start()
         rpc("status", client=untrusted, reject=True)
         assert rpc("status", session)["phase"] == "running"
@@ -358,8 +383,22 @@ def main():
         case("matching heartbeat extends the owner lease; disappearance expires it and restores DNS")
 
     health_server = None
+    delay_started = threading.Event()
     if args.network_run:
         class HealthHandler(http.server.BaseHTTPRequestHandler):
+            def do_CONNECT(self):
+                if self.path != "www.gstatic.com:80":
+                    self.send_error(403)
+                    return
+                # Hold the CONNECT handshake until the core closes the socket.
+                # This server never connects to the named host.
+                delay_started.set()
+                self.connection.settimeout(8)
+                try:
+                    self.connection.recv(1)
+                except OSError:
+                    pass
+
             def do_GET(self):
                 self.send_response(204)
                 self.end_headers()
