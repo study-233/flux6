@@ -14,59 +14,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  go:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.x'
-      - run: go test -timeout=180s ./cmd/... ./internal/... ./mobileapi/...
-      - run: go vet ./cmd/... ./internal/... ./mobileapi/...
-
-  rust:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      # windows-latest images ship rustup/stable; print the resolved version
-      # so a runner-image drift is visible in the log instead of silent.
-      - name: Show Rust toolchain
-        run: rustup show
-      # tauri_build validates bundle inputs even for cargo check: the
-      # externalBin sidecar AND the GeoSite.dat resource. Both are gitignored
-      # and normally produced by beforeBuildCommand, which only runs under
-      # `tauri build/dev` — plain cargo check skips it, so CI reproduces the
-      # two steps here (same commands as tauri.conf.json).
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.x'
-      - name: Build helper sidecar
-        run: go build -o apps/windows/src-tauri/binaries/freev6-helper-x86_64-pc-windows-msvc.exe ./cmd/freev6-helper
-      - name: Ensure GeoSite.dat resource
-        run: go run ./cmd/ensure-geodata
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: apps/windows/src-tauri
-      # --locked: Cargo.lock is tracked; never re-resolve upstream crates in CI.
-      # cargo test stays out on purpose: the test binary carries a
-      # requireAdministrator manifest (os error 740 when not elevated).
-      - run: cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
-
-  # Windows 直接打包 apps/windows/web/；检查本地图标和模块引用。
-  web:
+  checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Repository contracts
-        run: python3 scripts/maintenance/check-repository.py
-      - name: Maintenance protection tests
-        run: python3 scripts/maintenance/test_maintenance.py
-      - name: Icon subset guard
-        run: python3 scripts/check-icons.py
-      - name: Verify publisher endpoints
-        run: python3 scripts/check-publisher.py
-      - name: Verify frontend module imports
-        run: node --experimental-vm-modules scripts/check-web-modules.mjs
+        with:
+          fetch-depth: 2
+      - name: Repository and Web checks
+        run: |
+          python3 scripts/maintenance/check-repository.py
+          python3 scripts/maintenance/test_maintenance.py
+          python3 scripts/check-icons.py
+          python3 scripts/check-publisher.py
+          node --experimental-vm-modules scripts/check-web-modules.mjs
+      - name: Detect shared Go changes
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ "$EVENT_NAME" == workflow_dispatch || -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo 'go=true' >> "$GITHUB_OUTPUT"
+          else
+            if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+              git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            fi
+            changed=$(git diff --name-only "$BASE_SHA" HEAD -- go.mod go.sum cmd/ internal/ mobileapi/ .github/workflows/ci.yml)
+            if [[ -n "$changed" ]]; then
+              echo 'go=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'go=false' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - uses: actions/setup-go@v5
+        if: steps.scope.outputs.go == 'true'
+        with:
+          go-version: '1.25.x'
+      - name: Shared Go tests and vet
+        if: steps.scope.outputs.go == 'true'
+        run: |
+          go test -timeout=120s ./cmd/... ./internal/... ./mobileapi/...
+          go vet ./cmd/... ./internal/... ./mobileapi/...

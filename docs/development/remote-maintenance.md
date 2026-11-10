@@ -16,7 +16,7 @@
 
 确认旧 tip 未变化且已合并后，删除远端 `codex/own-publisher`。本次 `chore/remote-cleanup` 由合并自动清理；远端只保留 `main`，本地主线同步且任务分支已删除。iOS、OpenWrt 只保留目录说明，不建立长期平台分支。
 
-## CI 与源码验收
+## 首次整合的 CI 与源码验收（历史记录）
 
 合并候选 `91d61b784b35021d36e3731ffa2ca2fc1ec6ea90` 的 6 项检查全部通过：
 
@@ -41,8 +41,14 @@ Android CI 使用 SDK `platforms;android-37.0`、NDK `28.2.13676358`，显式设
 
 ## 主线保护与后续规则
 
-`main-protection` 禁止删除和非快进强推，`no-codex-branches` 禁止创建 `codex/` 前缀分支；没有管理员绕过列表。合并前的必需检查固定为 GitHub Actions 提供的 `web`、`go (ubuntu-latest)`、`go (windows-latest)`、`rust`、`android`、`macos`，并要求分支与主线保持同步。启用必需检查以实际通过的上述检查为依据，最终报告提交同样执行完整主线 CI。
+`main-protection` 禁止删除和非快进强推，`no-codex-branches` 禁止创建 `codex/` 前缀分支；没有管理员绕过列表。按后续精简要求，合并前必需检查调整为 GitHub Actions 提供的单一 `checks`，并要求分支与主线保持同步。此前六项门禁由轻量检查替代，平台完整验证在本地执行。
 
 后续从 `main` 创建 `feat/`、`fix/`、`refactor/`、`chore/` 或 `release/` 短期分支；检查通过后合并、删除分支。不同平台由目录和独立版本管理，未来平台通过占位文档管理。
 
 验收边界：Swift 有 9 项环境相关跳过；Windows 已完成 Windows runner 上的 Rust 编译检查，但 NSIS 安装、Mac 服务安装与升级、macOS 14 实机、手机 VPN 与真实校园网络仍需对应环境验收。Windows 自定义 UI、iOS、OpenWrt 未启动实现。
+
+## 后续调整：远端 Actions 精简
+
+按用户要求停止重复的远端客户端构建，删除 `clients.yml` 和 Windows `release.yml`，日常只保留一个 Ubuntu `checks` 任务。仓库与 Web 静态检查每次执行；共享 Go 代码、根 Go 依赖或 CI 配置变更时才执行根 Go test/vet，手动触发也执行。任务 5 分钟超时，同分支新提交取消旧运行。
+
+Mac、Android、Windows 的完整编译、平台测试、签名与安装包改在本地完成，标签不再自动构建和发布。此前完整整合验证的成功记录保留；最终整理报告的重复 Android 构建已主动取消，不把取消记为通过。已有测试附件按原到期日保留，远端不再生成新安装包。当前规则及本地验证入口见 [开发指南](README.md)。

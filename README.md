@@ -72,7 +72,7 @@ bug、问题和建议欢迎提 [issue](https://github.com/study-233/free-v6/issu
 
 - 公告：修改 `main` 分支的 [notice.json](notice.json)，参见 [公告发布指南](docs/notice.md)。
 - 备用节点：当前关闭，未来按 [公开配置说明](docs/cloud-profile.md) 发布；仓库不包含原作者的节点。
-- Windows 更新：使用 `windows-v<版本>` 标签，兼容历史 `v*` 标签；Release 工作流生成草稿、安装包和 `version.json`，核验后发布。
+- Windows 更新：使用 `windows-v<版本>` 标签，兼容历史 `v*` 标签；安装包在本地 Windows 环境构建，校验安装包和 `version.json` 后手动发布，推送标签不触发远端打包。见 [Windows 发布说明](apps/windows/README.md)。
 - macOS 更新：使用本仓库 `macos-updates` 分支的签名清单，发布工具与签名步骤见 [Mac 开发说明](apps/macos/DEVELOPMENT.md)。未配置签名通道的构建不会自动获得更新能力。
 
 基于原项目作者 `evansrrr` 的 FreeV6；完整版权声明见 [LICENSE](LICENSE)。
