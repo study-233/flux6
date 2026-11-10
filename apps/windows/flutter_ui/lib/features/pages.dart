@@ -659,7 +659,11 @@ class SettingsPage extends StatelessWidget {
                 Panel(
                   title: '关于 FreeV6',
                   children: [
-                    Text(m.preview ? 'Windows 界面预览' : 'Windows 客户端'),
+                    Text(
+                      m.preview
+                          ? 'Windows 界面预览'
+                          : 'Windows 客户端 ${m.runtime['appVersion'] ?? ''}',
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -675,8 +679,20 @@ class SettingsPage extends StatelessWidget {
                           FilledButton(
                             onPressed: m.pending('update.install')
                                 ? null
-                                : () => m.act('update.install'),
+                                : () async {
+                                    if (await confirm(
+                                      context,
+                                      '安装更新',
+                                      '下载并校验后，会停止连接并打开安装器。',
+                                    ))
+                                      await m.act('update.install');
+                                  },
                             child: Text('更新至 ${m.update['version']}'),
+                          ),
+                        if (m.update['available'] == true)
+                          TextButton(
+                            onPressed: () => m.act('update.skip'),
+                            child: const Text('忽略此版本'),
                           ),
                         TextButton(
                           onPressed: () => m.act('external.open', {
@@ -700,7 +716,26 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (m.update['available'] == false) const Text('当前已是最新版本'),
+                    if (m.pending('update.install')) ...[
+                      const LinearProgressIndicator(),
+                      Text(
+                        '已下载 ${m.update['done'] ?? 0} / ${m.update['total'] ?? '未知'} 字节',
+                      ),
+                    ],
+                    if (m.update['notes'] case final String notes)
+                      SelectableText(notes),
+                    if (m.update['available'] == false)
+                      Text(
+                        m.preference('freev6-skip-version') ==
+                                m.update['version']
+                            ? '已忽略此版本，可再次检查更新'
+                            : '当前已是最新版本',
+                      ),
+                    if (!m.preview)
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('返回应用'),
+                      ),
                   ],
                 ),
               ],

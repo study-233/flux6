@@ -3,6 +3,7 @@ import '../dashboard_model.dart';
 typedef JsonMap = Map<String, dynamic>;
 
 abstract class ClientModel extends DashboardModel {
+  Stream<String> get events => const Stream.empty();
   bool get preview;
   String? get message;
   void dismissMessage();

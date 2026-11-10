@@ -1,7 +1,7 @@
 {
   "lib/app_theme.dart": {
-    "sha256": "1db9df9013d17c9b2ec315b57dd0ded35c130df6f7975bafc39b38d06cd0e871",
-    "reason": "Use Windows interaction conventions while retaining the Mac Prism palette."
+    "sha256": "720398583ad08f8b971065562074b89c8eb68073e86ee13c341116e6c7304b24",
+    "reason": "Use Windows conventions and optional dynamic seed / pure-black surfaces while retaining Mac Prism structure."
   },
   "lib/dashboard_model.dart": {
     "sha256": "16d59469a13c8e0e095db2405680b30a343b1122ded920268ade2f011024c70e",

@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:prism_ui/prism_ui.dart' as prism;
+
 import 'prism_localizations.dart';
 
 const _accent = Color(0xff007aff);
-final _prismPalettes = {
-  for (final brightness in Brightness.values)
-    brightness: prism.ColorScheme.fromSeed(
-      seedColor: _accent,
-      brightness: brightness,
-      style: prism.ColorStyle.vivid,
-    ),
-};
+final _paletteCache = <(Color, Brightness, bool), prism.ColorScheme>{};
+prism.ColorScheme paletteFor(Color seed, Brightness brightness, bool black) =>
+    _paletteCache.putIfAbsent((seed, brightness, black), () {
+      final palette = prism.ColorScheme.fromSeed(
+        seedColor: seed,
+        brightness: brightness,
+        style: prism.ColorStyle.vivid,
+      );
+      return black && brightness == Brightness.dark
+          ? palette.copyWith(
+              surface: Colors.black,
+              surfaceContainerLowest: Colors.black,
+              surfaceContainerLow: const Color(0xff090909),
+              surfaceContainer: const Color(0xff111111),
+            )
+          : palette;
+    });
 
 class FreeV6Theme extends StatelessWidget {
   const FreeV6Theme({
@@ -20,15 +30,19 @@ class FreeV6Theme extends StatelessWidget {
     required this.home,
     this.appearance = ThemeMode.system,
     this.reduceMotion = false,
+    this.seedColor = _accent,
+    this.pureBlack = false,
   });
   final String title;
   final Widget home;
   final ThemeMode appearance;
   final bool reduceMotion;
+  final Color seedColor;
+  final bool pureBlack;
   ThemeData _material(Brightness brightness) {
-    final palette = _prismPalettes[brightness]!;
+    final palette = paletteFor(seedColor, brightness, pureBlack);
     final colors = ColorScheme.fromSeed(
-      seedColor: _accent,
+      seedColor: seedColor,
       brightness: brightness,
       primary: palette.primary,
       onPrimary: palette.onPrimary,
@@ -74,7 +88,9 @@ class FreeV6Theme extends StatelessWidget {
             disableAnimations: reduceMotion || media.disableAnimations,
           ),
           child: prism.Theme(
-            data: prism.ThemeData(colorScheme: _prismPalettes[brightness]!),
+            data: prism.ThemeData(
+              colorScheme: paletteFor(seedColor, brightness, pureBlack),
+            ),
             child: child!,
           ),
         );

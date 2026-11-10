@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
+if(FREEV6_LIVE)
+  set(FREEV6_MANIFEST "runner.live.manifest")
+else()
+  set(FREEV6_MANIFEST "runner.exe.manifest")
+endif()
 
 # Define the application target. To change its name, change BINARY_NAME in the
 # top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
@@ -14,7 +19,7 @@ add_executable(${BINARY_NAME} WIN32
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
-  "runner.exe.manifest"
+  "${FREEV6_MANIFEST}"
 )
 
 # Apply the standard set of build settings. This can be removed for applications
@@ -30,11 +35,14 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTT
 
 # Disable Windows macros that collide with C++ standard library functions.
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
+target_compile_definitions(${BINARY_NAME} PRIVATE "FREEV6_LIVE=${FREEV6_LIVE}" "WIN32_LEAN_AND_MEAN")
+target_compile_options(${BINARY_NAME} PRIVATE /utf-8)
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "bcrypt.lib" "ws2_32.lib" "shell32.lib" "ole32.lib" "advapi32.lib" "comdlg32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

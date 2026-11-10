@@ -65,7 +65,7 @@ void main() {
     await pending;
   });
   test('native handshake validates protocol and preview mode', () async {
-    const host = WindowsHost();
+    final host = WindowsHost();
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(
