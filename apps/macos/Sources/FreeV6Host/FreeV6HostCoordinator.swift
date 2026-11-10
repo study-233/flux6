@@ -383,7 +383,13 @@ import FreeV6System
     private func settleNetwork(forUpdate: Bool) async throws {
         if service != .ready {
             // Refresh identity before relying on a stale "not installed" state.
-            service = try await backend.health()
+            do { service = try await backend.health() }
+            catch InstallationError.inconsistentInstallation where !forUpdate && !network.mayOwnSession {
+                // An incomplete installation must not trap an idle/onboarding UI.
+                // Known sessions still require recovery; updates still require a
+                // healthy installation before replacing the shared application.
+                return
+            }
         }
         guard service == .ready else {
             if network.mayOwnSession { throw ServiceClientError.unavailable }
