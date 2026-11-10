@@ -15,7 +15,10 @@ import (
 
 	"github.com/yourname/freev6/internal/app"
 	"github.com/yourname/freev6/internal/mihomo"
+	"github.com/yourname/freev6/internal/publisher"
 )
+
+const cloudBinding = "dev.freev6.cloud." + publisher.CacheNamespace + ".v1/"
 
 type CloudSummary struct {
 	ChainSummary
@@ -47,7 +50,7 @@ func (s SettingsSnapshot) openCloud(key []byte) (chainPayload, error) {
 	if s.Cloud == nil {
 		return chainPayload{}, errors.New("missing campus profile")
 	}
-	return openProfile(key, s.sealedCloud, "dev.freev6.cloud.v1/"+s.Cloud.ID, s.Cloud.Source, s.Cloud.Names)
+	return openProfile(key, s.sealedCloud, cloudBinding+s.Cloud.ID, s.Cloud.Source, s.Cloud.Names)
 }
 
 type cloudDraft struct {
@@ -186,7 +189,7 @@ func (m *cloudManager) preview(ctx context.Context, params json.RawMessage) (any
 	}
 	m.draft = &cloudDraft{token: token, revision: current.Revision, expires: time.Now().Add(2 * time.Minute), portal: location.portal,
 		summary: &CloudSummary{ChainSummary: ChainSummary{Source: location.source, Enabled: true, Names: names}, ID: version, UpdatedAt: time.Now().UTC().Format(time.RFC3339), Ignored: profile.Ignored},
-		sealed:  box.Seal(nil, nil, plain, []byte("dev.freev6.cloud.v1/"+version))}
+		sealed:  box.Seal(nil, nil, plain, []byte(cloudBinding+version))}
 	return chainPreview{Token: token, Nodes: payload.Proxies}, nil
 }
 

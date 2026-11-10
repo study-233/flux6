@@ -1,5 +1,7 @@
 # macOS 网络服务协议 v4
 
+历史协议。当前客户端与服务使用 [XPC v6](service-v6.md)。
+
 v4 保留 [v3](service-v3.md) 的资源、身份和配置字段约束，将 `checkConfiguration` 的成功语义升级为实际核心配置检查。所有方法使用 `protocolVersion: 4`，旧协议不能被当作核心检查成功；Go worker 协议仍为 v1，系统配置策略仍为 v1。
 
 ## 检查流程

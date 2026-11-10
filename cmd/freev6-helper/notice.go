@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/yourname/freev6/internal/notice"
+	"github.com/yourname/freev6/internal/publisher"
 )
 
 // 公告板：唯一发布入口是仓库根目录的 notice.json（见 docs/notice.md），
@@ -22,7 +23,7 @@ import (
 var noticeURLs = func() []string { return notice.Sources(updateMirrorPrefixes) }
 
 func (h *helper) noticeCachePath() string {
-	return filepath.Join(h.root, "state", "notice-cache.json")
+	return filepath.Join(h.root, "state", "notice-cache-"+publisher.CacheNamespace+".json")
 }
 
 // loadNoticeCache 读取本机缓存并按当前时间重新过滤过期条目；

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/yourname/freev6/internal/notice"
+	"github.com/yourname/freev6/internal/publisher"
 	"github.com/yourname/freev6/internal/stallhttp"
 )
 
@@ -317,7 +318,7 @@ func (h *helper) updateProgress(writer http.ResponseWriter, request *http.Reques
 // with a direct fallback and a cache-buster, so the frontend never talks to
 // GitHub directly: no CORS exposure, no shared-pool403s.
 
-const updateRepoSlug = "evansrrr/free-v6"
+const updateRepoSlug = publisher.Repository
 
 // updateLatestURLs is a var so tests can point it at a local server.
 // 缓存穿透参数拼在每条 URL 上；镜像顺序与安装包下载一致。
@@ -357,6 +358,11 @@ func parseVersionJSON(data []byte) (*latestVersionInfo, error) {
 	}
 	if strings.TrimSpace(info.Download) == "" {
 		return nil, fmt.Errorf("version.json missing download url")
+	}
+	u, err := url.Parse(info.Download)
+	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil ||
+		!strings.HasPrefix(u.Path, "/"+publisher.Repository+"/releases/download/") {
+		return nil, fmt.Errorf("version.json download must belong to %s", publisher.Repository)
 	}
 	return &info, nil
 }

@@ -9,7 +9,10 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/yourname/freev6/internal/publisher"
 )
 
 func MirrorPrefixes() []string {
@@ -18,7 +21,7 @@ func MirrorPrefixes() []string {
 }
 
 func Sources(mirrors []string) []string {
-	const direct = "https://github.com/evansrrr/free-v6/raw/main/notice.json"
+	const direct = publisher.NoticeURL
 	sources := make([]string, 0, len(mirrors)+1)
 	for _, prefix := range mirrors {
 		sources = append(sources, prefix+direct)
@@ -28,9 +31,17 @@ func Sources(mirrors []string) []string {
 
 func trustedURL(raw string) error {
 	u, err := url.Parse(raw)
-	if err == nil && u.Scheme == "https" && u.User == nil && u.Port() == "" &&
-		(u.Host == "github.com" || u.Host == "raw.githubusercontent.com" || slices.Contains(MirrorPrefixes(), "https://"+u.Host+"/")) {
-		return nil
+	if err == nil && u.Scheme == "https" && u.User == nil && u.Port() == "" {
+		if slices.Contains(MirrorPrefixes(), "https://"+u.Host+"/") {
+			return trustedURL(strings.TrimPrefix(u.Path, "/"))
+		}
+		prefix := "/" + publisher.Repository + "/"
+		if u.Host == "github.com" && (u.Path == prefix+"raw/"+publisher.Branch+"/notice.json" || u.Path == prefix+"raw/refs/heads/"+publisher.Branch+"/notice.json") {
+			return nil
+		}
+		if u.Host == "raw.githubusercontent.com" && (u.Path == prefix+publisher.Branch+"/notice.json" || u.Path == prefix+"refs/heads/"+publisher.Branch+"/notice.json") {
+			return nil
+		}
 	}
 	return errors.New("untrusted notice origin")
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/yourname/freev6/internal/app"
 	"github.com/yourname/freev6/internal/mihomo"
 	"github.com/yourname/freev6/internal/notice"
+	"github.com/yourname/freev6/internal/publisher"
 )
 
 // 备用配置（cloud profile）：校内服务端下发的出口节点。
@@ -28,17 +29,11 @@ const (
 	maxCloudProfileBytes = 2 << 20
 )
 
-// 入口地址由「校园网登录页地址」派生（见 internal/mihomo/endpoint.go），
-// 仓库里不出现维护者域名的完整入口，避免被爬虫扫到、以及 fork 之后自动
-// 继承一个能用的地址。
-//
-// 但派生不是门禁：本项目是 MIT 开源，规则与输入（README 里都写着）都是
-// 公开的，输出天然可复现。判断权必须留在服务端——Worker 按请求源 IP 段
-// 决定是否下发（详见 docs/cloud-profile.md）。客户端只负责"问"，问到就
-// 存，问不到就明确告诉用户"请连校园网"。
+// 门户地址选择当前发行仓库 profiles/ 中的公开 YAML。旧发行方的节点快照
+// 不自动沿用；迁移后需要从当前来源重新获取或显式导入。
 
 func (h *helper) cloudProfilePath() string {
-	return filepath.Join(h.root, "config", "cloud-profile.yaml")
+	return filepath.Join(h.root, "config", "cloud-profile-"+publisher.CacheNamespace+".yaml")
 }
 
 // cloudProfileUnlocked 读取「公告里维护者开关」的最近一次结果。
@@ -272,6 +267,9 @@ func (h *helper) cloudClear(writer http.ResponseWriter) {
 // maskCloudEntry 只保留子域名前 4 位用于界面回显：完整入口不该出现在
 // 能被截图/贴群的地方。
 func maskCloudEntry(rawURL string) string {
+	if strings.HasPrefix(rawURL, publisher.ProfilesURL) {
+		return publisher.Repository + "/profiles/…"
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
 		return ""

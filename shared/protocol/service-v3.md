@@ -1,6 +1,8 @@
 # macOS 网络服务协议 v3
 
-历史版本；当前实现使用 [v4](service-v4.md)，已接入真实核心检查和私有会话清理。下文保留 v3 当时的内存检查语义。
+历史协议。当前客户端与服务使用 [XPC v6](service-v6.md)。
+
+下文描述 v3 的内存检查语义；[v4](service-v4.md) 开始执行真实核心检查和私有会话清理。
 
 v3 保留 [v2 的资源与身份边界](service-v2.md)，增加 `checkConfiguration(_:reply:)`。所有方法均使用 `protocolVersion: 3`，旧客户端必须停止调用并通过既有重新登记/更新流程处理版本不兼容。Go worker 仍使用独立的 JSON-RPC v1。
 

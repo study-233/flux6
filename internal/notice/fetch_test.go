@@ -29,12 +29,12 @@ func TestOversizedValidPrefixFallsThroughToNextSource(t *testing.T) {
 }
 
 func TestPublishedNoticeOriginPolicy(t *testing.T) {
-	for _, raw := range append(Sources(MirrorPrefixes()), "https://raw.githubusercontent.com/evansrrr/free-v6/main/notice.json") {
+	for _, raw := range append(Sources(MirrorPrefixes()), "https://raw.githubusercontent.com/study-233/free-v6/main/notice.json") {
 		if err := trustedURL(raw); err != nil {
 			t.Fatal("configured origin rejected", err)
 		}
 	}
-	for _, raw := range []string{"http://github.com/x", "https://github.com:443/x", "https://github.com@attacker.test/x", "https://name@github.com/x", "https://v6.gh-proxy.org.other.test/x", "file:///etc/hosts"} {
+	for _, raw := range []string{"http://github.com/x", "https://github.com:443/x", "https://github.com@attacker.test/x", "https://name@github.com/x", "https://v6.gh-proxy.org.other.test/x", "file:///etc/hosts", "https://github.com/evansrrr/free-v6/raw/main/notice.json", "https://raw.githubusercontent.com/evansrrr/free-v6/main/notice.json", "https://v6.gh-proxy.org/https://github.com/evansrrr/free-v6/raw/main/notice.json"} {
 		if trustedURL(raw) == nil {
 			t.Fatal("accepted untrusted notice URL")
 		}
