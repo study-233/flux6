@@ -1,18 +1,6 @@
-# Project Context
+# FreeV6 Android context
 
-FlClash is a multi-platform proxy client based on ClashMeta (mihomo), built with Flutter. It supports Android, Windows, macOS, and Linux, drawing its own components in the `prism_ui` package: a color system of its own with Apple's Human Interface interaction conventions.
-
-## Version Notes
-
-- Flutter stays on the 3.47.x line. Release CI pins 3.47.6 and is the source
-  of truth for release builds; `.fvmrc` and local SDKs may sit on another 3.47
-  patch. The editor in `plugins/code_forge` came from `code_forge` 10.14.0, which
-  needs Dart 3.13.2, so the CI pin cannot go below Flutter 3.47.2.
-- Before moving the pin, walk `flutter-upgrade.md`: it lists the workarounds tied to
-  the current SDK, such as Impeller disabled on the Intel macOS release build.
-- The Dart SDK lower bound in `pubspec.yaml` sets the package language
-  version. `flutter analyze` excludes `lib/**/generated/**`, so a raise is
-  proven by `flutter test`, which parses the generated code, not by analyze.
+This is the Android-only FlClash source export used by FreeV6. Use `FREEV6.md` for current build commands, versions and source revisions; run commands from the monorepo root unless the guide changes directory. The former desktop runners and upstream release/site scripts were removed. Shared Dart code, plugins and host-test infrastructure remain where referenced.
 
 ## Forked Dependencies
 
@@ -83,20 +71,3 @@ what has to change upstream before the pin can move, so the next
 in the plugin at `plugins/dynamic_color`, which keeps the native side out of the UI library's
 own tree. Everything downstream sees `DynamicColorSeeds`.
 
-## Build Dependencies
-
-Linux:
-
-```bash
-sudo apt-get install libayatana-appindicator3-dev
-```
-
-Windows:
-
-- GCC and Inno Setup.
-
-macOS:
-
-```bash
-npm install -g appdmg
-```

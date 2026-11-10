@@ -1,6 +1,6 @@
 # Rules
 
-These are repository coding and testing conventions. Codex command permission rules belong in `.codex/rules/*.rules`; see `.agents/agent-config.md` before adding those.
+These are repository coding and testing conventions. Codex command permission rules belong in `.codex/rules/*.rules`; follow the root `AGENTS.md` before adding those.
 
 ## Dart and Flutter Style
 
@@ -633,8 +633,7 @@ failure, disposal, and any timer boundary that changes visible state.
 
 ## Commit Messages
 
-Subjects follow Conventional Commits and are enforced by the `commit-msg` hook in `.pre-commit-config.yaml`, which runs
-`tool/hooks/commit_msg.sh`:
+Subjects follow Conventional Commits and are enforced by the `commit-msg` hook by `tool/hooks/commit_msg.sh`:
 
 ```text
 <type>[(scope)][!]: <description>
@@ -653,7 +652,7 @@ Subjects follow Conventional Commits and are enforced by the `commit-msg` hook i
 Write what the change does, not that something changed: `perf(views): stop redoing per-frame work in build`, not
 `Optimize more details`.
 
-Install the hooks once with `pre-commit install --hook-type pre-commit --hook-type pre-push --hook-type commit-msg`.
+The monorepo workflows own CI. The retained `tool/hooks/` checks may be run locally from this Android project; the removed upstream hook configuration is not installed.
 
 ### Fixup Commits
 
@@ -669,8 +668,7 @@ commit that introduced what it amends.
 
 ### Changelog Trailers
 
-`tool/changelog.dart` builds the user facing changelog from the commit history, so the trailers below are the copy that
-ships to users. The subject stays the developer facing summary and is only the fallback.
+The upstream commit-message checker accepts the changelog trailers below. FreeV6 releases use the root release documentation; the upstream changelog generator has been removed.
 
 ```text
 feat(profiles): support per-profile override script

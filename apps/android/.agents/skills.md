@@ -1,27 +1,5 @@
-# Agent Skills
+# Android project skills
 
-Repo skills live under `.agents/skills/*/SKILL.md`, where Codex discovers them directly. Claude Code discovers them
-through the symlinks in `.claude/skills/`, one per skill, pointing back at the `.agents/skills/` directory. Both tools
-match a task against the skill `name` and `description`, then load the full instructions only when it matches.
+Read the matching `.agents/skills/*/SKILL.md` when changing the corresponding Android area: localization, UI, core/platform integration, UI performance or structural review. The root `AGENTS.md` and current `FREEV6.md` define repository layout, branch naming and build entry points.
 
-## Available Repo Skills
-
-- `localization`: hardcoded UI text scans, ARB updates, locale generation, and localization verification.
-- `ui-work`: Flutter UI, widgets, color and surface styling, icons and glyphs, shapes and corner radii, navigation surfaces,
-  async feedback, and user-facing interactions.
-- `core-platform`: Core lifecycle/process ownership, Android services, Go event delivery, desktop IPC, platform managers,
-  build hooks, system proxy, tray, VPN/TUN, and the Windows and Linux Helper.
-- `ui-performance`: dropped frames, slow pages and transitions, UI-thread and raster load, isolate decisions, and the
-  probes that measure them.
-- `pre-commit-quality-review`: lightweight triage before commits, with scoped structural review and user decisions on concrete regressions.
-
-## Authoring Notes
-
-- Add new repeatable workflows as `.agents/skills/<skill-name>/SKILL.md`, and add the matching
-  `.claude/skills/<skill-name>` symlink so Claude Code sees it too; remove both when retiring a skill.
-- Git stores the symlinks as links only where the checkout supports them. A Windows checkout needs
-  `core.symlinks=true` and Developer Mode, otherwise the links become plain files and Claude Code loads no repo
-  skill there; Codex is unaffected because it reads `.agents/skills/` directly.
-- Keep skill descriptions trigger-focused and start them with `Use when...`.
-- Keep long reference material in `.agents/*.md`; skills should link to it instead of duplicating it.
-- Put command permission rules in `.codex/rules/*.rules`, not in this file.
+These skills are stored directly with the Android source. Separate Claude, Gemini, editor and worktree configuration copies were removed; no symlink discovery or upstream release workflow is required.

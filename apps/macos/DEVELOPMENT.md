@@ -6,9 +6,6 @@
 
 `python3 scripts/macos/probe-network-run.py --resources <已校验的服务缓存目录>` 在普通用户的 launchd 域执行启停和中断恢复。缓存目录可取 `probe-service.py` 的产物 `service-data/resources`。测试会创建临时 job，配置 TUN 关闭并使用独立的 DNS 配置库。输出每个场景的结果及证据目录。[会话记录 v3](../../shared/protocol/network-run-v3.md)
 
-## SwiftUI 界面对照
-
-正式应用使用 Flutter。若要复现早期 SwiftUI 界面验收，从仓库根目录先运行 `bash scripts/macos/build-app.sh`，再运行 `bash scripts/macos/build-ui-fixture.sh`，打开 `build/macos-ui/FreeV6 UI Fixture.app`。它使用独立的测试偏好与模拟会话；`--preview` 可生成使用另一套偏好的预览。[SwiftUI 验收记录](../../docs/compose/spec/macos-development-progress.md#解锁后的原生顶部栏验收) · [Flutter 验收入口](flutter_ui/README.md)
 
 ## 业务 worker 与配置
 
@@ -88,7 +85,7 @@ WARP 凭据放在当前用户的文件式 Keychain 中，generic-password 的 se
 
 从 0.5.5 起，正式宿主在连接或配置检查时通过共享 `WarpRegistration` 自动补齐缺失凭据，访问失败与条目损坏不触发注册。保存失败保留本次注册结果，设置页可继续保存。后台自动连接对读取和写入均关闭授权 UI。默认本地构建使用 `prepare-local-signing.py` 保存的专用证书，两个不同构建可通过相同的指定要求继续访问钥匙串；`probe-keychain-upgrade.py` 使用临时钥匙串验证此行为及不同签名拒绝。旧 ad-hoc 条目迁移到该身份时仍可能需要一次授权。证书和私钥存储说明见 [构建说明](README.md#构建)。
 
-早期候选在 macOS 27.0.1 的隔离钥匙串实测中，Sparkle 安装到相同位置的 ad-hoc 新版需要重新授权才能读取三项旧数据。回退到原签名版本后可以读回原内容及修订号。WARP 用户可从仪表盘点“检查已保存凭据”；配置页会为已有链式代理或备用配置显示各自的密钥检查按钮。这些操作只读对应条目，用户可以在需要时主动触发系统授权。[升级与回退记录](../../docs/compose/spec/macos-development-progress.md#升级与回退时的钥匙串访问)
+早期候选在 macOS 27.0.1 的隔离钥匙串实测中，Sparkle 安装到相同位置的 ad-hoc 新版需要重新授权才能读取三项旧数据。回退到原签名版本后可以读回原内容及修订号。WARP 用户可从仪表盘点“检查已保存凭据”；配置页会为已有链式代理或备用配置显示各自的密钥检查按钮。这些操作只读对应条目，用户可以在需要时主动触发系统授权。[升级与回退记录](../../docs/releases/macos-validation.md)
 
 条目以随机 revision 保护替换和删除；损坏内容或版本冲突保留原记录。Go worker 不写 `warp.json`；Windows helper 继续使用原有凭据文件。删除本机记录不等于注销 Cloudflare 设备，取消注册也不能保证服务端没有创建设备。新结果仅保留在内存时，正常退出要求先保存或明确放弃。
 

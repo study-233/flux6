@@ -25,4 +25,4 @@ open 'build/macos-ui/FreeV6 Flutter Preview.app'
 3. 通过 `…` 切换「中等窗口」「紧凑窗口」「深色」或「减少动态效果」。收起或展开侧栏，滚动首页，在顶部观察固定的状态或连接操作。⌘1–⌘4 切页。
 4. 在「节点」搜索、测速；在「日志」清空演示历史。清空后下一次连接会产生新事件。「配置」只展示演示配置。真实服务和设置窗口尚未接入。
 
-[源码固定版本、改动清单与许可](vendor/UPSTREAM.md) · [完整阶段计划](../../../docs/compose/spec/macos-flclash-ui-plan.md)
+[源码固定版本、改动清单与许可](vendor/UPSTREAM.md) · [完整阶段计划](../../../docs/releases/macos-validation.md)

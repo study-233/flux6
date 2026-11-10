@@ -1,6 +1,6 @@
 # FreeV6 Flutter 集成验收 · P2、P3、P4
 
-[打开集成验收应用](<../../../../build/macos-ui/FreeV6 Flutter Integration.app>) · [Flutter 工程](../../../../apps/macos/flutter_ui) · [阶段计划](../../spec/macos-flclash-ui-plan.md)
+[打开集成验收应用](<../../../../build/macos-ui/FreeV6 Flutter Integration.app>) · [Flutter 工程](../../../../apps/macos/flutter_ui) · [阶段计划](../../../releases/macos-validation.md)
 
 在这台 Apple Silicon Mac 上直接打开应用，阅读首次启动页里的协议与隐私政策。验收包使用单独的应用身份和数据目录。它启动 FreeV6 的 Go worker 读取、校验和写入配置，用一个独立的本机子进程回报节点、延迟和速率。界面根据进程返回的结果更新。验收包中可以主动导入本地文件或 HTTP(S) 订阅。代理流量、WARP 注册、系统服务与资源准备使用隔离环境，不会更改这台 Mac 的代理或 DNS。
 
