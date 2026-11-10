@@ -1,6 +1,6 @@
 # Mac 业务 worker 协议 v1
 
-实现：`cmd/freev6-worker`、`internal/worker` 与 `macos/Sources/FreeV6Business`。
+实现：`cmd/freev6-worker`、`internal/worker` 与 `apps/macos/Sources/FreeV6Business`。
 
 worker 是当前用户的子进程，输入输出使用 App 创建的匿名管道。它不监听 HTTP 端口，不接收 shell 命令，也不提供 root 网络控制。退出 App 或关闭 stdin 会取消未完成工作并退出 worker。正常用户数据目录持有独占文件锁，同一目录不允许两个 worker 同时写入；锁随进程退出释放。
 

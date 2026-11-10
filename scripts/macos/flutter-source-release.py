@@ -10,10 +10,10 @@ import shutil
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-UI = ROOT / "macos/flutter_ui"
-TREES = ("cmd", "internal", "macos", "scripts/macos", "shared", "src-tauri/LICENSES")
+UI = ROOT / "apps/macos/flutter_ui"
+TREES = ("cmd", "internal", "apps/macos", "scripts/macos", "shared", "third_party/licenses")
 FILES = ("LICENSE", "README.md", "THIRD-PARTY.txt", "go.mod", "go.sum", "notice.json",
-         "docs/agreement.md", "docs/privacy.md", "src-tauri/icons/icon.png")
+         "docs/agreement.md", "docs/privacy.md", "assets/branding/icon.png")
 SKIP = {".git", ".dart_tool", ".DS_Store", ".build", ".swiftpm", "build", "__pycache__", "ephemeral",
         "xcuserdata", "Pods", "coverage", ".flutter-plugins-dependencies", ".gradle", ".idea"}
 
@@ -63,7 +63,7 @@ def notices(contents):
                       (vendor / "prism_ui/LICENSE", "PrismUI-LICENSE.txt"),
                       (vendor / "prism_ui/NOTICE", "PrismUI-NOTICE.txt"),
                       (vendor / "UPSTREAM.json", "Flutter-component-sources.json"),
-                      (ROOT / "macos/Resources/Flutter-Sources.md", "Flutter-Sources.md"),
+                      (ROOT / "apps/macos/Resources/Flutter-Sources.md", "Flutter-Sources.md"),
                       (sdk / "LICENSE", "Flutter-LICENSE.txt")):
         shutil.copyfile(src, out / name)
     with gzip.open(framework / "NOTICES.Z", "rb") as stream, (out / "Flutter-Package-Notices.txt").open("wb") as dest:

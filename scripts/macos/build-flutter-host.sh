@@ -28,6 +28,6 @@ print(base64.b64encode(b''.join(hashlib.sha256((folder / f).read_bytes()).digest
 PY
 )"
 plutil -insert FreeV6QAStartupNotices -string "$seed" "$plist"
-codesign --force --sign - --entitlements "$root/macos/flutter_ui/macos/Runner/Integration.entitlements" "$bundle"
+codesign --force --sign - --entitlements "$root/apps/macos/flutter_ui/macos/Runner/Integration.entitlements" "$bundle"
 codesign --verify --deep --strict "$bundle"
 printf '%s\n' "$bundle"

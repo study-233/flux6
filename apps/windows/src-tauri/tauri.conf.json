@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FreeV6",
+  "version": "0.5.2",
+  "identifier": "dev.freev6.desktop",
+  "build": {
+    "beforeDevCommand": {
+      "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-helper.ps1",
+      "cwd": "../.."
+    },
+    "beforeBuildCommand": {
+      "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-helper.ps1",
+      "cwd": "../.."
+    },
+    "frontendDist": "../web"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "freev6",
+        "width": 900,
+        "height": 600,
+        "minWidth": 720,
+        "minHeight": 480,
+        "resizable": true,
+        "visible": false,
+        "decorations": false,
+        "transparent": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "nsis",
+    "externalBin": [
+      "binaries/freev6-helper"
+    ],
+    "resources": {
+      "../../../third_party/licenses": "LICENSES",
+      "../../../README.md": "README.md",
+      "../../../docs/agreement.md": "docs/agreement.md",
+      "../../../docs/privacy.md": "docs/privacy.md",
+      "../../../GeoSite.dat": "GeoSite.dat"
+    },
+    "icon": [
+      "../../../assets/branding/32x32.png",
+      "../../../assets/branding/128x128.png",
+      "../../../assets/branding/128x128@2x.png",
+      "../../../assets/branding/icon.png",
+      "../../../assets/branding/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installerHooks": "nsis-hooks.nsh"
+      }
+    }
+  }
+}

@@ -11,15 +11,15 @@ baseline: c528f26
 
 首版仅面向 macOS 14 及以上的 Apple Silicon 设备，交付 arm64 原生应用、ad-hoc 签名的 DMG 和应用内更新。Intel 支持已搁置。Developer ID 与公证后置，热点共享在验证设备条件和维护成本后单独决定。
 
-后续由 Codex 在 `mac` 分支按下表逐项开发、测试、修复和交付。每项记录产物、复现步骤、通过的检查及待验证环境。涉及产品取舍时再请用户决定，例如热点共享值得支持哪些设备组合。Windows 审计基线为 `c528f26`。[开发进度](./macos-development-progress.md)
+后续由 Codex 在 `mac` 分支按下表逐项开发、测试、修复和交付。每项记录产物、复现步骤、通过的检查及待验证环境。涉及产品取舍时再请用户决定，例如热点共享值得支持哪些设备组合。Windows 审计基线为 `c528f26`。[开发进度](macos-development-progress.md)
 
-当前已有 arm64 开发预览 DMG。应用菜单、主窗口工具栏和右上角状态菜单已接入同一套启停命令。隔离服务已验证启停、切换模式和节点、读取速率。开发构建在 macOS 27.0.1 真机上已验证网络服务尚未安装时的命令、窗口收起和从访达重开。右上角后台操作、校园网络出口与系统恢复分别保留真机验收项。[验证记录](./macos-development-progress.md#解锁后的原生顶部栏验收)
+当前已有 arm64 开发预览 DMG。应用菜单、主窗口工具栏和右上角状态菜单已接入同一套启停命令。隔离服务已验证启停、切换模式和节点、读取速率。开发构建在 macOS 27.0.1 真机上已验证网络服务尚未安装时的命令、窗口收起和从访达重开。右上角后台操作、校园网络出口与系统恢复分别保留真机验收项。[验证记录](macos-development-progress.md#解锁后的原生顶部栏验收)
 
-文件菜单的链式配置导入和配置页的订阅已经接入。固定核心通过六类节点的配置检查，规则和全局模式通过本机两跳转发测试。备用配置支持维护者公告开关、从校园登录页获取、刷新和与链式代理互斥。已验证无 WARP 凭据的单跳转发，实际校园获取和出口单独验收。[链式验收记录](./macos-development-progress.md#原生链式代理与隔离转发验收) · [备用配置验收记录](./macos-development-progress.md#校园备用配置与维护者公告)
+文件菜单的链式配置导入和配置页的订阅已经接入。固定核心通过六类节点的配置检查，规则和全局模式通过本机两跳转发测试。备用配置支持维护者公告开关、从校园登录页获取、刷新和与链式代理互斥。已验证无 WARP 凭据的单跳转发，实际校园获取和出口单独验收。[链式验收记录](macos-development-progress.md#原生链式代理与隔离转发验收) · [备用配置验收记录](macos-development-progress.md#校园备用配置与维护者公告)
 
 **第一项用户验收**是打开 FreeV6，在窗口顶部点“连接”，按 ⌘W 收起主窗口，继续使用浏览器，再从屏幕右上角点“断开”。重新打开主窗口时能看到原网络已经恢复。开发按下面的交付顺序推进。
 
-日志页已有按级别筛选、暂停显示、复制和系统保存面板。“显示”菜单与窗口工具栏使用同一组状态。脱敏诊断可从“文件”菜单或服务异常详情导出。磁盘持久化、容量和恢复已通过原生测试，实际桌面交互待解锁后验证。[日志与导出进度](./macos-development-progress.md#原生日志与脱敏导出)
+日志页已有按级别筛选、暂停显示、复制和系统保存面板。“显示”菜单与窗口工具栏使用同一组状态。脱敏诊断可从“文件”菜单或服务异常详情导出。磁盘持久化、容量和恢复已通过原生测试，实际桌面交互待解锁后验证。[日志与导出进度](macos-development-progress.md#原生日志与脱敏导出)
 
 | 顺序 | 用户可以做什么 | 交付条件 |
 | --- | --- | --- |
@@ -98,9 +98,9 @@ Windows 基线的启动链路为：Tauri 启动 → 用 Win32 随机数 API 生�
 
 ### 编译和构建
 
-1. [tauri.conf.json](../../../src-tauri/tauri.conf.json#L8) 的构建前命令使用 del、move、Windows 路径和固定的 x86_64-pc-windows-msvc sidecar 名；bundle.targets 仅为 nsis。
-2. [main.rs](../../../src-tauri/src/main.rs#L93) 无条件链接 advapi32、user32、kernel32，使用 SystemFunction036、RegisterHotKey、MessageBoxW 等 Win32 API；update_apply 无条件导入 std::os::windows::process::CommandExt。这是明确的 Darwin 编译或链接阻碍。
-3. [build.rs](../../../src-tauri/build.rs#L1) 围绕 Windows manifest 配置。若选择继续移植 Tauri，需要隔离这些配置；当前原生方案不编译此入口。仅设置 WindowsAttributes 未必本身就造成 Mac 编译失败，不能与上述无条件 Win32 调用混为一谈。
+1. [tauri.conf.json](../../../apps/windows/src-tauri/tauri.conf.json#L8) 的构建前命令使用 del、move、Windows 路径和固定的 x86_64-pc-windows-msvc sidecar 名；bundle.targets 仅为 nsis。
+2. [main.rs](../../../apps/windows/src-tauri/src/main.rs#L93) 无条件链接 advapi32、user32、kernel32，使用 SystemFunction036、RegisterHotKey、MessageBoxW 等 Win32 API；update_apply 无条件导入 std::os::windows::process::CommandExt。这是明确的 Darwin 编译或链接阻碍。
+3. [build.rs](../../../apps/windows/src-tauri/build.rs#L1) 围绕 Windows manifest 配置。若选择继续移植 Tauri，需要隔离这些配置；当前原生方案不编译此入口。仅设置 WindowsAttributes 未必本身就造成 Mac 编译失败，不能与上述无条件 Win32 调用混为一谈。
 4. 当前没有 Mac 图标、Mac bundle 配置、服务安装资源或 Darwin CI。
 
 ### 核心下载和识别
@@ -129,7 +129,7 @@ DNS 是实际功能风险：发往局域网 DNS 的请求不能假定被 dns-hij
 
 ### 数据目录和资源
 
-Rust 将 current_exe().parent() 传给 FREEV6_ROOT；在 .app 内这通常对应 Contents/MacOS。继续在这里写 config、state 和 runtime，会产生安装位置权限、签名完整性和升级丢数据问题。[start_helper](../../../src-tauri/src/main.rs#L543)
+Rust 将 current_exe().parent() 传给 FREEV6_ROOT；在 .app 内这通常对应 Contents/MacOS。继续在这里写 config、state 和 runtime，会产生安装位置权限、签名完整性和升级丢数据问题。[start_helper](../../../apps/windows/src-tauri/src/main.rs#L543)
 
 GeoSite 的种子文件查找也假设 state 的父目录就是安装根，而 Mac bundle 的资源目录与可执行文件目录不同。Rust 的 settings_flag 同样从可执行文件旁读取。原生方案通过 Bundle 和显式目录契约解决 Mac 的资源定位，不复用这段 Rust 路径推断。[geodata.go](../../../internal/mihomo/geodata.go#L194)
 
@@ -147,7 +147,7 @@ Rust 的 stop_helper 直接杀 sidecar；正常退出的网络停止依赖前端
 
 登录启动依赖 schtasks 和注册表；外观取色依赖 reg；快捷键依赖 Win32 消息循环；背景效果是 Windows mica/acrylic；界面窗口按钮也是 Windows 形式。非 Windows 上部分功能会直接报错，部分会返回空结果而表面成功。
 
-macOS 的 WKWebView 与 Windows WebView2 不同。现有 [index.html](../../../web/index.html#L12) 使用 Import Maps，Material Web 通过裸模块名导入。Import Maps 和 constructible stylesheets 在 Safari 16.4 才加入，早期 macOS 13 自带的 WebKit 不能假定兼容。若继续使用 Web 界面，还需检查 Material Web 的 ElementInternals、CSS color-mix 和玻璃效果的降级；单纯打出 .app 可能仍出现控件未注册或主题异常。原生方案避开这部分兼容工作，该项仅保留为技术选型依据。[WebKit 16.4 发布说明](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/)
+macOS 的 WKWebView 与 Windows WebView2 不同。现有 [index.html](../../../apps/windows/web/index.html#L12) 使用 Import Maps，Material Web 通过裸模块名导入。Import Maps 和 constructible stylesheets 在 Safari 16.4 才加入，早期 macOS 13 自带的 WebKit 不能假定兼容。若继续使用 Web 界面，还需检查 Material Web 的 ElementInternals、CSS color-mix 和玻璃效果的降级；单纯打出 .app 可能仍出现控件未注册或主题异常。原生方案避开这部分兼容工作，该项仅保留为技术选型依据。[WebKit 16.4 发布说明](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/)
 
 ### 更新和发布
 
@@ -245,7 +245,7 @@ GeoSite、GeoIP 与 MMDB 通过同一固定版本清单准备，校验每个文�
 
 三个文件全部准备完成后才进入网络启动检查；Darwin 配置固定数据 URL 并关闭核心自动更新，root 服务按自身清单复验副本。上游版本更新经开发验证后随受信应用版本发布，不能接受调用者传入的 URL 或摘要替换可信清单。
 
-Mac 客户端由 Swift 读写文件式钥匙串，按需交给业务组件。已在当前 Apple Silicon 系统使用临时钥匙串验证真实签名升级。新版在相同安装路径后台读取 WARP、链式代理和备用配置条目时均需要授权；恢复原签名版本后，数据与修订号均可读回。升级或回退后的首次授权由用户发起，WARP 使用概览中的凭据检查，已有节点配置使用各自的只读检查。P0 继续验收实际系统授权对话框和 macOS 14。服务运行核心所需的临时配置使用 root 私有目录与 0600 文件，停止后按恢复需求清理，日志与诊断包脱敏。[钥匙串验收](./macos-development-progress.md#升级与回退时的钥匙串访问)
+Mac 客户端由 Swift 读写文件式钥匙串，按需交给业务组件。已在当前 Apple Silicon 系统使用临时钥匙串验证真实签名升级。新版在相同安装路径后台读取 WARP、链式代理和备用配置条目时均需要授权；恢复原签名版本后，数据与修订号均可读回。升级或回退后的首次授权由用户发起，WARP 使用概览中的凭据检查，已有节点配置使用各自的只读检查。P0 继续验收实际系统授权对话框和 macOS 14。服务运行核心所需的临时配置使用 root 私有目录与 0600 文件，停止后按恢复需求清理，日志与诊断包脱敏。[钥匙串验收](macos-development-progress.md#升级与回退时的钥匙串访问)
 
 所有 root 会话按 UID/session 区分。同一时间只允许一个网络会话持有者，其他用户看到占用状态，不能读取其凭据或停止其会话。App 退出与后台存活语义由显式状态机决定，不以窗口是否存在判断。
 
@@ -343,7 +343,7 @@ root 服务的状态仍是 UI 的权威来源。GUI 意外消失后默认在短�
 
 表中快捷键均为应用内命令。主窗口的红色关闭按钮和 ⌘W 隐藏主窗口，保留后台连接与草稿；设置、帮助等辅助窗口的 ⌘W 只关闭当前窗口，草稿按对应编辑页规则处理。⌘Q 执行完整退出，标题栏不另加退出按钮。功能暂不可用时，由同一命令模型决定禁用状态，并在对应页面说明所缺条件。
 
-顶部栏的界面入口在 [NativeCommands.swift](../../../macos/Sources/FreeV6App/NativeCommands.swift)，启停命令和可用条件在 [DesktopCommands.swift](../../../macos/Sources/FreeV6Desktop/DesktopCommands.swift)。设置中的显示开关控制右上角图标。模式、最近节点与速率正在接入开发版本，交付条件见[顶部栏开发清单](#顶部栏开发清单)。
+顶部栏的界面入口在 [NativeCommands.swift](../../../apps/macos/Sources/FreeV6App/NativeCommands.swift)，启停命令和可用条件在 [DesktopCommands.swift](../../../apps/macos/Sources/FreeV6Desktop/DesktopCommands.swift)。设置中的显示开关控制右上角图标。模式、最近节点与速率正在接入开发版本，交付条件见[顶部栏开发清单](#顶部栏开发清单)。
 
 #### 原生组件与实现落点
 
@@ -508,7 +508,7 @@ Mica、Acrylic 和 WebGL 液态玻璃属于 Windows/Web 实现细节，在 Mac �
 
 提供标准编辑菜单、Cmd+C/V/A、Cmd+W、Cmd+,、键盘导航和 VoiceOver 标签。应用菜单使用 Commands；右上角状态栏入口使用 MenuBarExtra，如最低系统行为有缺口，局部使用 NSStatusItem。主窗口隐藏后，可从 Dock 或右上角 FreeV6 菜单重新打开。
 
-登录启动已采用固定用户级 LaunchAgent 和内置的 Swift 登录助手。助手仅在 FreeV6 尚未运行时通过 Launch Services 打开应用。设置分开展示用户意愿与系统实际状态。静默启动依赖可用的菜单栏入口，自动连接在当前协议已同意、系统网络可用、服务和凭据就绪时仅尝试一次。已验证临时 Aqua 任务的重复触发、锁定钥匙串时的拒绝，以及普通用户域的自动连接与恢复；真实注销登录和 macOS 14 窗口交互仍需验收。[启动与登录验收](./macos-development-progress.md#首次打开登录项与自动连接)
+登录启动已采用固定用户级 LaunchAgent 和内置的 Swift 登录助手。助手仅在 FreeV6 尚未运行时通过 Launch Services 打开应用。设置分开展示用户意愿与系统实际状态。静默启动依赖可用的菜单栏入口，自动连接在当前协议已同意、系统网络可用、服务和凭据就绪时仅尝试一次。已验证临时 Aqua 任务的重复触发、锁定钥匙串时的拒绝，以及普通用户域的自动连接与恢复；真实注销登录和 macOS 14 窗口交互仍需验收。[启动与登录验收](macos-development-progress.md#首次打开登录项与自动连接)
 
 Swift UI 状态采用 macOS 14 可用的 ObservableObject/@Published 与 async/await；使用 actor 管理连接和并发。避免将整套代码建立在更高系统版本才可用的 SwiftData、@Observable 或新视觉 API 上。日志、节点和流量使用批量更新与有界缓存，P5 记录空闲 CPU、连接时内存及长时间运行曲线作为基线。
 
@@ -518,7 +518,7 @@ Swift UI 状态采用 macOS 14 可用的 ObservableObject/@Published 与 async/a
 
 Xcode 工程包含 App、网络服务、bootstrap/恢复工具与测试 target；Swift Package Manager 固定第三方依赖。构建脚本先生成指定 GOOS/GOARCH 的 worker，再放入 bundle 固定位置；构建设置统一最低 macOS 14。Mac 不打包 Web 页面、Tauri Rust 壳或 Windows helper。使用系统 hdiutil 制作 DMG，提供 Applications 拖放入口和简短安装说明。
 
-目前可用 `python3 scripts/macos/build-dmg.py` 构建带 `-preview` 标记的开发镜像，验证拖放副本、签名、最低部署目标、动态库查找路径与安装载荷。首版按内部组件到外层 bundle 的顺序进行 ad-hoc 签名。Apple Silicon 上已完成 Safari 下载、隔离标记传播、签名与 Gatekeeper 策略检查。当前系统拒绝默认执行未公证的预览版。只读镜像或系统转移路径有独立安装窗口，在初始化设置、凭据或网络服务之前引导用户完成拖放。后续在干净账号上验证用户自行选择单应用放行后，从“应用程序”首次打开的全流程，在 macOS 14 单独复验。[分发与界面验收](./macos-development-progress.md#下载隔离安装窗口与系统分发检查)
+目前可用 `python3 scripts/macos/build-dmg.py` 构建带 `-preview` 标记的开发镜像，验证拖放副本、签名、最低部署目标、动态库查找路径与安装载荷。首版按内部组件到外层 bundle 的顺序进行 ad-hoc 签名。Apple Silicon 上已完成 Safari 下载、隔离标记传播、签名与 Gatekeeper 策略检查。当前系统拒绝默认执行未公证的预览版。只读镜像或系统转移路径有独立安装窗口，在初始化设置、凭据或网络服务之前引导用户完成拖放。后续在干净账号上验证用户自行选择单应用放行后，从“应用程序”首次打开的全流程，在 macOS 14 单独复验。[分发与界面验收](macos-development-progress.md#下载隔离安装窗口与系统分发检查)
 
 mihomo 保持首次下载：按架构取得锁定资产、检查摘要与解压上限、设置执行位，再交服务复验安装。项目的 THIRD-PARTY 明确把运行时下载的 mihomo 与随包分发区分，本轮不把核心直接加入 DMG；分发方式变更时需同步更新许可与源码交付材料。[当前第三方说明](../../../THIRD-PARTY.txt#L78)
 
@@ -530,13 +530,13 @@ mihomo 保持首次下载：按架构取得锁定资产、检查摘要与解压�
 
 P0 已复现 ad-hoc 主程序启用严格 Hardened Runtime 时，dyld 因 Team ID 不匹配拒绝加载 Sparkle。因此调整为：主 App 只链接系统框架并保留严格库校验，Sparkle 嵌入独立更新助手；仅助手设置 disable-library-validation。助手从自身所属的固定 App bundle 获取更新目标、公钥和 feed，不接受任意目标路径或外部传入的更新公钥。正式客户端采用 Swift；P0 的 Objective-C 测试宿主只用于直接验证框架 API，不随产品交付。
 
-独立助手已在当前 Apple Silicon 系统完成真实本地 N→N+1 更新和重启；错误 Ed25519 签名被拒绝且旧版保留。该实验使用临时密钥、随机测试 bundle ID 和回环更新源。Safari 下载 DMG 的检查另行记录。其余 P0/P6 验证覆盖实际首次放行、macOS 14、公开更新源和更新后的服务重新登记。[验证记录](./macos-development-progress.md)
+独立助手已在当前 Apple Silicon 系统完成真实本地 N→N+1 更新和重启；错误 Ed25519 签名被拒绝且旧版保留。该实验使用临时密钥、随机测试 bundle ID 和回环更新源。Safari 下载 DMG 的检查另行记录。其余 P0/P6 验证覆盖实际首次放行、macOS 14、公开更新源和更新后的服务重新登记。[验证记录](macos-development-progress.md)
 
-Swift 产品助手已嵌入开发 DMG，“检查更新…”已接入原生应用菜单。清单和 ZIP 分别签名，助手从签名清单校验构建范围、架构和兼容信息。主 App 在同意替换前恢复本人的网络会话，再确认系统服务空闲，并留下重启后的升级记录。已通过独立应用的实际升级、拒签、取消下载、取消安装及主程序失联测试。发布工具可以生成完整 ZIP、签名 appcast 和摘要。当前预览包的正式更新通道待配置。[Swift 助手与发布验证](./macos-development-progress.md#swift-应用更新与发布包)
+Swift 产品助手已嵌入开发 DMG，“检查更新…”已接入原生应用菜单。清单和 ZIP 分别签名，助手从签名清单校验构建范围、架构和兼容信息。主 App 在同意替换前恢复本人的网络会话，再确认系统服务空闲，并留下重启后的升级记录。已通过独立应用的实际升级、拒签、取消下载、取消安装及主程序失联测试。发布工具可以生成完整 ZIP、签名 appcast 和摘要。当前预览包的正式更新通道待配置。[Swift 助手与发布验证](macos-development-progress.md#swift-应用更新与发布包)
 
-已在普通用户域将签名升级与运行中的网络服务联动验证。核心退出且测试 DNS 恢复后，新版成功重启。注入恢复故障时保留旧版，解除故障后服务自行恢复。管理员重新登记服务、实际系统网络和下载后首次打开继续单独验收。[联网升级记录](./macos-development-progress.md#已有连接时安装更新)
+已在普通用户域将签名升级与运行中的网络服务联动验证。核心退出且测试 DNS 恢复后，新版成功重启。注入恢复故障时保留旧版，解除故障后服务自行恢复。管理员重新登记服务、实际系统网络和下载后首次打开继续单独验收。[联网升级记录](macos-development-progress.md#已有连接时安装更新)
 
-发布仓库已选定 `study-233/free-v6`。Mac 清单采用独立的 `macos-updates` 分支，每个版本的 ZIP 和 DMG 放入 `macos-v<版本>-b<构建号>` Release。先验证 ZIP 可匿名下载，再提交对应架构的签名清单。正式密钥准备及备份后，首个发行 DMG 将内置生产公钥和清单地址。[发布操作与验证](../../../macos/README.md#swift-更新助手与发布)
+发布仓库已选定 `study-233/free-v6`。Mac 清单采用独立的 `macos-updates` 分支，每个版本的 ZIP 和 DMG 放入 `macos-v<版本>-b<构建号>` Release。先验证 ZIP 可匿名下载，再提交对应架构的签名清单。正式密钥准备及备份后，首个发行 DMG 将内置生产公钥和清单地址。[发布操作与验证](../../../apps/macos/README.md#swift-更新助手与发布)
 
 应用更新协调顺序：取得并验证更新 → 检查 App/worker/服务协议和数据 schema → 恢复网络并停止会话 → 暂停自动运行 → 由 Sparkle 替换 App → 必要时通过固定 bootstrap 更新服务与登记客户端身份 → 握手与健康检查 → 恢复用户操作。服务不兼容时保持断开状态，提供完成升级或回退入口，不允许旧服务接收未知启动请求。
 
@@ -573,7 +573,7 @@ DMG 同时提供签名一致的原生恢复/卸载工具，服务安装时保留
 
 | 模块 | 建议文件或目录 | 工作 |
 | --- | --- | --- |
-| 原生工程 | [macos/Package.swift](../../../macos/Package.swift)、macos/Resources | SwiftPM 的 App、服务、安装器与测试目标，macOS 14 部署目标，应用打包资源 |
+| 原生工程 | [macos/Package.swift](../../../apps/macos/Package.swift)、macos/Resources | SwiftPM 的 App、服务、安装器与测试目标，macOS 14 部署目标，应用打包资源 |
 | 界面 | macos/Sources/FreeV6App | 概览、节点、配置、日志、设置、首次启动和协议 |
 | 桌面系统层 | macos/Sources/FreeV6App、FreeV6Desktop、FreeV6Business | AppKit 管理窗口与退出，桌面模块维护命令状态，业务模块管理钥匙串凭据 |
 | 顶部栏与共用命令 | FreeV6App/NativeCommands.swift、FreeV6Desktop/DesktopCommands.swift、FreeV6App/AppModel.swift（均在 macos/Sources 下） | 绑定应用菜单、主窗口工具栏和右上角菜单。页面焦点决定保存、搜索与导出的目标，会话状态决定启停和切换操作 |
@@ -665,7 +665,7 @@ CI 分开构建 Windows 和 Mac。Mac job 显式设置 Xcode DEVELOPER_DIR、部
 
 ## 分析基线与当前验证范围
 
-原始代码审计以提交 c528f26 为基线，检查了主要启停调用链、Go 业务与平台耦合、Tauri/Web 入口、核心下载、设置、测试及发布流程，并对照 Apple、Sparkle 和固定版本 mihomo 的资料。上文的迁移问题描述基线行为；后续实现的完成情况由[开发进度](../../../docs/compose/spec/macos-development-progress.md)记录。
+原始代码审计以提交 c528f26 为基线，检查了主要启停调用链、Go 业务与平台耦合、Tauri/Web 入口、核心下载、设置、测试及发布流程，并对照 Apple、Sparkle 和固定版本 mihomo 的资料。上文的迁移问题描述基线行为；后续实现的完成情况由[开发进度](macos-development-progress.md)记录。
 
 | 范围 | 已有证据 | 下一项验收 |
 | --- | --- | --- |

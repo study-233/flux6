@@ -3,7 +3,7 @@
 # Run build-flutter-host.sh first. Only the QA clone receives the probe Dart entrypoint.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-project="$root/macos/flutter_ui"
+project="$root/apps/macos/flutter_ui"
 sdk="${FREEV6_FLUTTER_SDK:-$root/build/flutter-toolchain/flutter}"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PUB_CACHE="${PUB_CACHE:-$root/build/flutter-toolchain/pub-cache}"
@@ -20,7 +20,7 @@ esac
 
 cd "$project"
 mkdir -p .dart_tool/freev6-probes
-cp "$root/macos/Probes/FlutterHostSmoke.dart" .dart_tool/freev6-probes/host_smoke.dart
+cp "$root/apps/macos/Probes/FlutterHostSmoke.dart" .dart_tool/freev6-probes/host_smoke.dart
 "$sdk/bin/flutter" pub get --enforce-lockfile
 "$sdk/bin/flutter" build macos --release --no-pub --target .dart_tool/freev6-probes/host_smoke.dart
 

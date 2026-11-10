@@ -126,7 +126,7 @@ if __name__ == "__main__":
     folder.mkdir(mode=0o700, parents=True)
     print(folder, flush=True)
     observer = folder / "window-observer"
-    run(["/usr/bin/xcrun", "swiftc", ROOT / "macos/Probes/ReleaseWindow.swift", "-o", observer], timeout=120)
+    run(["/usr/bin/xcrun", "swiftc", ROOT / "apps/macos/Probes/ReleaseWindow.swift", "-o", observer], timeout=120)
     result = {}
     if args.candidate:
         result["writable"] = exercise(args.candidate.resolve(strict=True), False, folder / "writable", observer)

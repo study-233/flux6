@@ -11,7 +11,7 @@
 | 现有模块 | 手机版处理方式 |
 | --- | --- |
 | FlClash 上游 Android 工程、Flutter 页面与核心桥接 | 作为手机端基础，保留原版导航、组件、动画、节点页、设置和 VPN 生命周期；集中修改 FreeV6 业务差异。 |
-| `macos/flutter_ui/lib/` | 参考既有 FreeV6 文案和状态语义；手机版直接采用上游手机实现，不从 Mac 窗口和主题反向改造。当前上游组件固定版本见 `vendor/UPSTREAM.json`，手机基线另行锁定。 |
+| `apps/macos/flutter_ui/lib` | 参考既有 FreeV6 文案和状态语义；手机版直接采用上游手机实现，不从 Mac 窗口和主题反向改造。当前上游组件固定版本见 `vendor/UPSTREAM.json`，手机基线另行锁定。 |
 | `internal/warp/` | 复用注册、凭据解析和校验；凭据持久化由 Android Keystore 或 iOS Keychain 适配层负责。 |
 | `internal/app/`、`internal/mihomo/` | 复用业务配置、节点、规则解析和校验，拆开平台网络配置。当前生成器仅接受 Windows/macOS，不能直接用于手机。 |
 | `internal/worker/` | 复用业务方法和数据一致性设计，将依赖 stdio、桌面资源包和目录的逻辑隔离；不直接把整个 worker 当作手机版后台进程。 |
@@ -97,7 +97,7 @@ FlClash 当前上游支持列表包含 Android、Windows、macOS 和 Linux，不
 
 ## 建议目录与开工顺序
 
-建议在 `mobile/` 保存固定版本的 FlClash 派生工程及来源清单，尽量保持上游目录结构；在其业务层集中放置 FreeV6 适配。`scripts/mobile/` 保存构建和验收脚本，合成样本继续放在 `shared/`。记录上游提交、核心/子模块版本及本地修改，便于后续同步修复；公共 Dart 包只在出现实际共享需要时提取。
+建议在 `apps/android` 保存固定版本的 FlClash 派生工程及来源清单，尽量保持上游目录结构；在其业务层集中放置 FreeV6 适配。`scripts/android/` 保存构建和验收脚本，合成样本继续放在 `shared/`。记录上游提交、核心/子模块版本及本地修改，便于后续同步修复；公共 Dart 包只在出现实际共享需要时提取。
 
 下一次进入开发先执行 P0：构建原版 FlClash Android，确认真机运行、核心能力和 FreeV6 配置接入位置，再按差异清单估算工期。现有工作区包含大量桌面开发中的改动，应先记录其基线；手机工程独立接入，公共 Go 代码变动配套桌面回归。
 

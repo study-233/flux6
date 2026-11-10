@@ -11,8 +11,8 @@ export XDG_CONFIG_HOME="$root/build/flutter-toolchain/config" CI=true FLUTTER_SU
 if [ "$(uname -m)" = arm64 ]; then export FLUTTER_MACOS_ARM64_ONLY=true; fi
 if [ "${1:-}" = build ]; then
   mkdir -p "$project"
-  rsync -a "$root/macos/Package.swift" "$root/macos/Sources" "$root/macos/Tests" "$work/"
-  rsync -a --exclude .dart_tool --exclude build --exclude ephemeral --exclude Pods --exclude xcuserdata "$root/macos/flutter_ui/" "$project/"
+  rsync -a "$root/apps/macos/Package.swift" "$root/apps/macos/Sources" "$root/apps/macos/Tests" "$work/"
+  rsync -a --exclude .dart_tool --exclude build --exclude ephemeral --exclude Pods --exclude xcuserdata "$root/apps/macos/flutter_ui/" "$project/"
   python3 - "$root" "$work" <<'PY'
 from pathlib import Path
 import sys
@@ -22,7 +22,7 @@ s=path.read_text()
 key='            case "windowRole":'
 assert s.count(key)==1
 s=s.replace(key,'            case "visualAXEnable": reply(FlutterVisualAX.enable(in: window))\n            case "visualAX": reply(FlutterVisualAX.snapshot(window: window))\n            case "visualKey": FlutterVisualAX.sendKey(args["key"] as? String ?? "", to: window); reply(true)\n'+key)
-path.write_text(s+(root/'macos/Probes/FlutterVisualAX.swift').read_text())
+path.write_text(s+(root / 'apps/macos/Probes/FlutterVisualAX.swift').read_text())
 p=work/'Sources/FreeV6Host/IsolatedHostSession.swift'
 old='static let nodes = ["东区", "西区", "北区"]'
 s=p.read_text();assert old in s
@@ -30,7 +30,7 @@ p.write_text(s.replace(old,'static let nodes = ProcessInfo.processInfo.environme
 PY
   cd "$project"
   mkdir -p .dart_tool/freev6-probes
-  cp "$root/macos/Probes/FlutterVisualAudit.dart" .dart_tool/freev6-probes/visual.dart
+  cp "$root/apps/macos/Probes/FlutterVisualAudit.dart" .dart_tool/freev6-probes/visual.dart
   "$sdk/bin/flutter" pub get --offline --enforce-lockfile
   "$sdk/bin/flutter" build macos --release --no-pub --target .dart_tool/freev6-probes/visual.dart
   qa="$(bash "$root/scripts/macos/build-flutter-host.sh" --qa-clone)"

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def prepare(directory):
-    spec = json.loads((ROOT / "macos/Dependencies/sparkle.json").read_text())
+    spec = json.loads((ROOT / "apps/macos/Dependencies/sparkle.json").read_text())
     cache = ROOT / "build/sparkle-probe"
     cache.mkdir(parents=True, exist_ok=True)
     archive = cache / spec["archive"]

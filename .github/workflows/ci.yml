@@ -32,16 +32,16 @@ jobs:
         with:
           go-version: '1.25.x'
       - name: Build helper sidecar
-        run: go build -o src-tauri/binaries/freev6-helper-x86_64-pc-windows-msvc.exe ./cmd/freev6-helper
+        run: go build -o apps/windows/src-tauri/binaries/freev6-helper-x86_64-pc-windows-msvc.exe ./cmd/freev6-helper
       - name: Ensure GeoSite.dat resource
         run: go run ./cmd/ensure-geodata
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: apps/windows/src-tauri
       # --locked: Cargo.lock is tracked; never re-resolve upstream crates in CI.
       # cargo test stays out on purpose: the test binary carries a
       # requireAdministrator manifest (os error 740 when not elevated).
-      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - run: cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
 
   # Windows 直接打包 web/；检查本地图标和模块引用。
   web:

@@ -16,7 +16,7 @@
 
 ## 2. 原始组件如何进入产品
 
-锁定 FlClash 提交 `be84736605527034689c95bf27828ff27d912c5e`，Prism UI 锁定该提交的子模块 `63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。工具链初始采用上游 CI 的 Flutter **3.47.6** 配套 Dart；Prism UI 声明 Flutter ≥3.47.0。将 SDK 版本、Dart 依赖锁文件、资源清单及所用 macOS 最低版本一起纳入 CI。计划保留项目的 macOS 14 和首发 arm64 基线；兼容性以真实构建和设备验收为准。[上游构建配置](https://github.com/chen08209/FlClash/blob/be84736605527034689c95bf27828ff27d912c5e/.github/workflows/build.yaml#L15-L22) · [Prism UI 依赖声明](https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/pubspec.yaml) · [现有 Swift 包](../../../macos/Package.swift)
+锁定 FlClash 提交 `be84736605527034689c95bf27828ff27d912c5e`，Prism UI 锁定该提交的子模块 `63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。工具链初始采用上游 CI 的 Flutter **3.47.6** 配套 Dart；Prism UI 声明 Flutter ≥3.47.0。将 SDK 版本、Dart 依赖锁文件、资源清单及所用 macOS 最低版本一起纳入 CI。计划保留项目的 macOS 14 和首发 arm64 基线；兼容性以真实构建和设备验收为准。[上游构建配置](https://github.com/chen08209/FlClash/blob/be84736605527034689c95bf27828ff27d912c5e/.github/workflows/build.yaml#L15-L22) · [Prism UI 依赖声明](https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/pubspec.yaml) · [现有 Swift 包](../../../apps/macos/Package.swift)
 
 | 来源与部件 | 采用方式 | 需要适配的部分 |
 |---|---|---|
@@ -34,12 +34,12 @@
 
 | 层 | 计划位置 | 职责 |
 |---|---|---|
-| Flutter 应用与原始组件 | 新建 `macos/flutter_ui/`；Dart 侧分为上游组件适配、页面、状态接口和夹具 | 渲染全部用户界面；管理路由、焦点、局部动画、表单草稿和布局编辑。数据通过同一接口切换模拟与真实来源。 |
-| AppKit 宿主与平台通道 | Flutter 工程的 `macos/Runner`，使用本地 Swift 包公开一层最小宿主接口 | 承载 FlutterViewController，管理主窗、独立设置窗、系统菜单、菜单栏图标、文件面板、系统授权及应用退出。保持一个应用级会话所有者。 |
+| Flutter 应用与原始组件 | 新建 `apps/macos/flutter_ui`；Dart 侧分为上游组件适配、页面、状态接口和夹具 | 渲染全部用户界面；管理路由、焦点、局部动画、表单草稿和布局编辑。数据通过同一接口切换模拟与真实来源。 |
+| AppKit 宿主与平台通道 | Flutter 工程的 `apps/macos/Runner`，使用本地 Swift 包公开一层最小宿主接口 | 承载 FlutterViewController，管理主窗、独立设置窗、系统菜单、菜单栏图标、文件面板、系统授权及应用退出。保持一个应用级会话所有者。 |
 | FreeV6 业务与平台能力 | 已有 FreeV6Desktop、FreeV6Business、FreeV6Configuration、FreeV6System 与更新模块 | 负责服务健康、配置校验、账户、日志、偏好、网络会话、代理／DNS 恢复、worker 与系统服务通信。命令授权和结果由这层判定。 |
 | 安装与分发 | 调整现有 build-app、build-ui-fixture、更新包和发行探针 | 组合 Flutter Release runner、框架、资产和现有 helper，维持正式包身份与更新链。预览使用独立的应用 ID 和目录。 |
 
-现有 AppModel 位于 Swift 可执行目标，且部分动作依赖 SwiftUI 场景。先抽出不依赖视图的会话协调器与宿主命令接口，作为 Runner 可以导入的 Swift 包产品，再分别接 Flutter 命令和原生菜单。Swift 继续持有业务真值；Flutter 只保存展示状态、输入中的内容和请求进行态。主窗口关闭后的会话续期、菜单栏控制及退出恢复属于宿主生命周期。设置窗口按需创建 Flutter 内容并共享同一个协调器；关闭设置窗释放订阅，不重复启动 worker、测速或网络会话。[当前 AppModel](../../../macos/Sources/FreeV6App/AppModel.swift) · [现有窗口与退出流程](../../../macos/Sources/FreeV6App/FreeV6App.swift)
+现有 AppModel 位于 Swift 可执行目标，且部分动作依赖 SwiftUI 场景。先抽出不依赖视图的会话协调器与宿主命令接口，作为 Runner 可以导入的 Swift 包产品，再分别接 Flutter 命令和原生菜单。Swift 继续持有业务真值；Flutter 只保存展示状态、输入中的内容和请求进行态。主窗口关闭后的会话续期、菜单栏控制及退出恢复属于宿主生命周期。设置窗口按需创建 Flutter 内容并共享同一个协调器；关闭设置窗释放订阅，不重复启动 worker、测速或网络会话。[当前 AppModel](../../../apps/macos/Sources/FreeV6App/AppModel.swift) · [现有窗口与退出流程](../../../apps/macos/Sources/FreeV6App/FreeV6App.swift)
 
 ### Flutter 与 Swift 的接口
 
@@ -85,7 +85,7 @@
 ## 5. 升级、布局和回退
 
 1. **状态所有权。** 模式默认值、节点偏好、配置修订、用量报告和日志仍由原生持久化层读取。Flutter 路由、侧栏折叠和局部展示偏好可以独立保存。预览使用独立 bundle ID、目录与模拟服务，不申请正式网络授权。
-2. **原有布局。** 现有 v1 包含 connection、mode、node、usage、speed 五种逻辑组件。优先沿用 v1 表示，speed 显示为一组上下行卡，一起移动、显示或隐藏；原有自定义顺序、宽窄与空布局都保留。首次无偏好或用户点「恢复默认」时启用官方式排序。原版桌面默认布局与 FreeV6 自定义布局分别拍图验收；不会在升级时自动覆盖用户的布局。[当前布局格式](../../../macos/Sources/FreeV6Desktop/DashboardLayout.swift)
+2. **原有布局。** 现有 v1 包含 connection、mode、node、usage、speed 五种逻辑组件。优先沿用 v1 表示，speed 显示为一组上下行卡，一起移动、显示或隐藏；原有自定义顺序、宽窄与空布局都保留。首次无偏好或用户点「恢复默认」时启用官方式排序。原版桌面默认布局与 FreeV6 自定义布局分别拍图验收；不会在升级时自动覆盖用户的布局。[当前布局格式](../../../apps/macos/Sources/FreeV6Desktop/DashboardLayout.swift)
 3. **配置与编辑。** 旧配置直接经现有 worker 解码；载入与保存带版本，模式或节点的快捷修改不能覆盖规则草稿。发生冲突时重新取快照，保留用户输入。只在新格式确有需要时引入版本化迁移，迁移先读后写、原子提交、可重复运行，并保留旧版本可读副本。
 4. **切换顺序。** 第一阶段保留旧预览作为行为对照，新预览独立安装。主窗、设置窗、菜单和退出路径都完成后才替换正式入口。候选包有问题时停止晋级，恢复上一个已验证的客户端；回退前按现有流程断开并确认代理／DNS 已恢复，核对已有配置、密钥和日志仍可读取。系统 helper 版本、身份或协议改变时单独验证兼容与恢复。
 

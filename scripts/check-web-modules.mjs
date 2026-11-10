@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { SourceTextModule } from 'node:vm';
 
-const web = new URL('../web/', import.meta.url);
+const web = new URL('../apps/windows/web/', import.meta.url);
 const html = readFileSync(new URL('index.html', web), 'utf8');
 const { imports } = JSON.parse(html.match(/<script type="importmap">([\s\S]*?)<\/script>/)[1]);
 const prefixes = Object.keys(imports).filter(key => key.endsWith('/')).sort((a, b) => b.length - a.length);

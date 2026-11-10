@@ -1,6 +1,6 @@
 # FreeV6 Flutter 集成验收 · P2、P3、P4
 
-[打开集成验收应用](<../../../../build/macos-ui/FreeV6 Flutter Integration.app>) · [Flutter 工程](../../../../macos/flutter_ui) · [阶段计划](../../spec/macos-flclash-ui-plan.md)
+[打开集成验收应用](<../../../../build/macos-ui/FreeV6 Flutter Integration.app>) · [Flutter 工程](../../../../apps/macos/flutter_ui) · [阶段计划](../../spec/macos-flclash-ui-plan.md)
 
 在这台 Apple Silicon Mac 上直接打开应用，阅读首次启动页里的协议与隐私政策。验收包使用单独的应用身份和数据目录。它启动 FreeV6 的 Go worker 读取、校验和写入配置，用一个独立的本机子进程回报节点、延迟和速率。界面根据进程返回的结果更新。验收包中可以主动导入本地文件或 HTTP(S) 订阅。代理流量、WARP 注册、系统服务与资源准备使用隔离环境，不会更改这台 Mac 的代理或 DNS。
 
@@ -21,7 +21,7 @@
 ## 实测记录
 
 - [Flutter 测试](../../../../build/macos-ui/flutter-integration-tests.log)覆盖速率事件与全窗分离、旧回复和旧会话、连续选节点、测速点击不误选、配置行错、订阅失败后重试、设置快捷键及日志分页。
-- [原生全量回归](../../../../build/macos-ui/flutter-host-full-tests.log)与[原生分页用例](../../../../macos/Tests/FreeV6HostTests/HostLogPagesTests.swift)覆盖 worker、配置兼容、服务与恢复、真实本机 HTTP 订阅及日志清空。[独立签名沙盒的日志验证](../../../../build/macos-ui/flutter-sandbox-journal.log)同时检查了符号链接保护。
+- [原生全量回归](../../../../build/macos-ui/flutter-host-full-tests.log)与[原生分页用例](../../../../apps/macos/Tests/FreeV6HostTests/HostLogPagesTests.swift)覆盖 worker、配置兼容、服务与恢复、真实本机 HTTP 订阅及日志清空。[独立签名沙盒的日志验证](../../../../build/macos-ui/flutter-sandbox-journal.log)同时检查了符号链接保护。
 - [实际双进程启动记录](../../../../build/flutter-toolchain/native-qa-smoke.log)覆盖独立设置窗、菜单和正常退出，再次启动时校验模式、节点和新日志持久化。两次进程都正常退出。可用[集成烟测脚本](../../../../scripts/macos/probe-flutter-host.sh)在一次性 QA 身份中复跑。
 
 应用使用固定的 FlClash v0.9.3 / Prism UI 组件，节点页接入上游 ProxyCard 的布局与选中标记。宿主采用版本化 MethodChannel 和 EventChannel，命令带请求 ID、会话 ID、会话修订、控制令牌及配置修订。日志游标失效后从新批次读取。配置和日志显示来自本机 worker 和 Swift 会话；系统服务切换、发行安装与性能基准仍按原计划分阶段验证。

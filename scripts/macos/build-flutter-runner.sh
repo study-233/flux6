@@ -14,18 +14,21 @@ mkdir -p "$project"
 # SwiftPM builds its own targets separately from the Runner's xcconfig. Specialize only its copy
 # of FreeV6Host so fixture transports, scenario channels and QA factory never enter the release.
 if [ -L "$work/macos/Package.swift" ]; then unlink "$work/macos/Package.swift"; fi
-cp "$root/macos/Package.swift" "$work/macos/Package.swift"
+cp "$root/apps/macos/Package.swift" "$work/macos/Package.swift"
 cat >> "$work/macos/Package.swift" <<'MANIFEST'
 package.targets.first { $0.name == "FreeV6Host" }?.swiftSettings = [.define("FREEV6_RELEASE_HOST")]
 MANIFEST
 for member in Sources Tests; do
-    if [ ! -e "$work/macos/$member" ]; then ln -s "$root/macos/$member" "$work/macos/$member"; fi
+    if [ -e "$work/macos/$member" ] && [ ! -L "$work/macos/$member" ]; then
+        echo "Expected a source symlink: $work/macos/$member" >&2; exit 1
+    fi
+    ln -sfn "$root/apps/macos/$member" "$work/macos/$member"
 done
 /usr/bin/rsync -a --delete --exclude '.dart_tool' --exclude 'build' --exclude '.DS_Store' \
-    --exclude '/macos/Flutter/ephemeral' --exclude 'xcuserdata' "$root/macos/flutter_ui/" "$project/"
+    --exclude '/macos/Flutter/ephemeral' --exclude 'xcuserdata' "$root/apps/macos/flutter_ui/" "$project/"
 # Use FreeV6's existing app icon for the shipping bundle rather than the Flutter template.
 for size in 16 32 64 128 256 512 1024; do
-    /usr/bin/sips -z "$size" "$size" "$root/src-tauri/icons/icon.png" --out \
+    /usr/bin/sips -z "$size" "$size" "$root/assets/branding/icon.png" --out \
         "$project/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_${size}.png" >/dev/null
 done
 cat >> "$project/macos/Runner/Configs/AppInfo.xcconfig" <<'CONFIG'
@@ -33,14 +36,14 @@ PRODUCT_NAME = FreeV6
 PRODUCT_BUNDLE_IDENTIFIER = dev.freev6.desktop
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) FREEV6_RELEASE_HOST
 CONFIG
-version="$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$root/macos/Resources/Info.plist")"
-build="$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$root/macos/Resources/Info.plist")"
+version="$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$root/apps/macos/Resources/Info.plist")"
+build="$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$root/apps/macos/Resources/Info.plist")"
 cd "$project"
 "$sdk/bin/flutter" pub get --enforce-lockfile
 "$sdk/bin/flutter" build macos --release --no-pub --target lib/live_main.dart --build-name "$version" --build-number "$build"
 built="$project/build/macos/Build/Products/Release/FreeV6.app"
 /usr/bin/ditto "$built" "$destination"
-python3 - "$destination/Contents/Info.plist" "$root/macos/Resources/Info.plist" <<'PY'
+python3 - "$destination/Contents/Info.plist" "$root/apps/macos/Resources/Info.plist" <<'PY'
 import plistlib, sys
 from pathlib import Path
 file = Path(sys.argv[1])

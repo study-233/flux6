@@ -24,8 +24,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HTML = ROOT / "web" / "index.html"
-APP_JS = ROOT / "web" / "app.js"
+HTML = ROOT / "apps/windows/web" / "index.html"
+APP_JS = ROOT / "apps/windows/web" / "app.js"
 SUBSET_SCRIPT = ROOT / "scripts" / "subset-icons.py"
 
 # Matches the ligature list literal inside subset-icons.py:

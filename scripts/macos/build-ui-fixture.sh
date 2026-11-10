@@ -21,16 +21,16 @@ mkdir -p "$contents/MacOS" "$contents/Resources/Notices" "$contents/Helpers"
 cp "$root/dist/macos/FreeV6.app/Contents/Helpers/freev6-worker" "$contents/Helpers/"
 cp "$root/dist/macos/FreeV6.app/Contents/Resources/"runtime-assets.json "$contents/Resources/"
 printf '%s\n' 'Local UI test fixture' | tee "$contents/Resources/Notices/agreement.md" > "$contents/Resources/Notices/privacy.md"
-cp "$root/macos/Resources/Info.plist" "$contents/Info.plist"
+cp "$root/apps/macos/Resources/Info.plist" "$contents/Info.plist"
 /usr/bin/plutil -replace CFBundleIdentifier -string "$fixture_id" "$contents/Info.plist"
 /usr/bin/plutil -replace CFBundleName -string "$fixture_name" "$contents/Info.plist"
 sources=()
-for source in "$root"/macos/Sources/FreeV6App/*.swift; do
+for source in "$root"/apps/macos/Sources/FreeV6App/*.swift; do
     if [[ "$source" != */InstallationApp.swift ]]; then sources+=("$source"); fi
 done
 /usr/bin/xcrun swiftc -D FREEV6_UI_FIXTURE -parse-as-library -target "$(uname -m)-apple-macos14.0" -sdk "$SDKROOT" \
     -I "$products" -module-cache-path "$root/build/macos-module-cache" \
-    "${sources[@]}" "$root/macos/Probes/InterfaceStates.swift" "$products"/FreeV6{Business,Configuration,Desktop,System,UpdateSupport}.o \
+    "${sources[@]}" "$root/apps/macos/Probes/InterfaceStates.swift" "$products"/FreeV6{Business,Configuration,Desktop,System,UpdateSupport}.o \
     -o "$contents/MacOS/FreeV6"
 /usr/bin/codesign --force --sign - "$bundle"
 /usr/bin/codesign --verify --strict "$bundle"

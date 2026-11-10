@@ -1,8 +1,8 @@
 # P1 体验交付 · 2026-11-06
 
-[打开 FreeV6 Flutter Preview.app](<../../../../../build/macos-ui/FreeV6 Flutter Preview.app>) · [浅色窗口与官方原图并排](compare.html) · [关键操作录屏](interactions.mp4) · [运行与重建](../../../../../macos/flutter_ui/README.md)
+[打开 FreeV6 Flutter Preview.app](<../../../../../build/macos-ui/FreeV6 Flutter Preview.app>) · [浅色窗口与官方原图并排](compare.html) · [关键操作录屏](interactions.mp4) · [运行与重建](../../../../../apps/macos/flutter_ui/README.md)
 
-P0/P1 到此结束，供体验后决定下一步。Release 包使用 Flutter 3.47.6 / Dart 3.13.5，最低 macOS 14。已在 Apple Silicon 上实际打开。保留原 FlClash 连接按钮的形状变化、Prism 侧栏指示器、三段模式控件和每个方向独立的曲线；原代码固定版本、修改范围和许可见[来源清单](../../../../../macos/flutter_ui/vendor/UPSTREAM.md)。
+P0/P1 到此结束，供体验后决定下一步。Release 包使用 Flutter 3.47.6 / Dart 3.13.5，最低 macOS 14。已在 Apple Silicon 上实际打开。保留原 FlClash 连接按钮的形状变化、Prism 侧栏指示器、三段模式控件和每个方向独立的曲线；原代码固定版本、修改范围和许可见[来源清单](../../../../../apps/macos/flutter_ui/vendor/UPSTREAM.md)。
 
 | 实际体验 | 本次看到的结果 |
 |---|---|

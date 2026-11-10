@@ -23,7 +23,7 @@ import uuid
 from xml.sax.saxutils import quoteattr
 
 ROOT = Path(__file__).resolve().parents[2]
-SDK = json.loads((ROOT / "macos/Dependencies/sparkle.json").read_text())
+SDK = json.loads((ROOT / "apps/macos/Dependencies/sparkle.json").read_text())
 VERSION = SDK["version"]
 ARCHIVE_SHA256 = SDK["sha256"]
 ARCHIVE_URL = SDK["url"]
@@ -80,14 +80,14 @@ def main():
     executable = work / "UpdateProbe"
     run(["/usr/bin/xcrun", "clang", "-fobjc-arc", "-Wall", "-Werror", "-target", target,
          "-F", distribution, "-framework", "AppKit", "-framework", "Sparkle",
-         "-Wl,-rpath,@executable_path/../Frameworks", ROOT / "macos/Probes/SparkleUpdateProbe.m",
+         "-Wl,-rpath,@executable_path/../Frameworks", ROOT / "apps/macos/Probes/SparkleUpdateProbe.m",
          "-o", executable], env=env, timeout=120)
     host_executable = work / "UpdateHostProbe"
     if args.isolated_agent:
         run(["/usr/bin/xcrun", "clang", "-fobjc-arc", "-Wall", "-Werror", "-target", target,
-             "-framework", "AppKit", ROOT / "macos/Probes/UpdateHostProbe.m", "-o", host_executable], env=env, timeout=120)
+             "-framework", "AppKit", ROOT / "apps/macos/Probes/UpdateHostProbe.m", "-o", host_executable], env=env, timeout=120)
     keygen = work / "update-key"
-    run(["/usr/bin/xcrun", "swiftc", "-target", target, ROOT / "macos/Probes/UpdateKey.swift", "-o", keygen], env=env, timeout=120)
+    run(["/usr/bin/xcrun", "swiftc", "-target", target, ROOT / "apps/macos/Probes/UpdateKey.swift", "-o", keygen], env=env, timeout=120)
     private_key = work / "ephemeral-key"
     public_key = run([keygen, private_key], timeout=10)
     feed = work / "feed"

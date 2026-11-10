@@ -198,7 +198,7 @@ def audit(candidate, baseline, destination):
 
     key, pub, channel = [work / name for name in ("private-test-key", "test-public-key", "channel.json")]
     try:
-        run("xcrun", "swiftc", ROOT / "macos/Probes/UpdateKey.swift", "-o", work / "keygen")
+        run("xcrun", "swiftc", ROOT / "apps/macos/Probes/UpdateKey.swift", "-o", work / "keygen")
         pub.write_text(run(work / "keygen", key))
         run("python3", ROOT / "scripts/macos/github_channel.py", "--public-key-file", pub, "--output", channel)
         release = work / "release"

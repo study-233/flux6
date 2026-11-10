@@ -76,7 +76,7 @@ def main(resources):
     # producing an update that old clients would be unable to authenticate.
     with tempfile.TemporaryDirectory(prefix="release-check-", dir=ROOT / "build") as temporary:
         verifier = Path(temporary) / "verify-key"
-        subprocess.run(["/usr/bin/xcrun", "swiftc", str(ROOT / "macos/Tools/VerifyUpdateKey.swift"),
+        subprocess.run(["/usr/bin/xcrun", "swiftc", str(ROOT / "apps/macos/Tools/VerifyUpdateKey.swift"),
                         "-o", str(verifier)], env=env, check=True, capture_output=True)
         run(verifier, channel["publicKey"], private=private)
     verify_bundle = runpy.run_path(str(ROOT / "scripts/macos/build-dmg.py"))["verify_bundle"]

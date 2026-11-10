@@ -33,4 +33,4 @@ Apple Silicon，最低部署目标 macOS 14。实测机器为 macOS 27.0.1 的 M
 - [性能数据、窗口缩放与复跑方式](performance/README.md)
 - [正式包安装、升级、回退和恢复实验](release-validation/README.md)
 - [对应源码独立复建](release-validation/source-rebuild.json) · [最终包与签名](release-validation/final-candidate.json)
-- [本机安装说明](../../../../macos/Resources/安装说明.txt) · [组件与源码告知](../../../../macos/Resources/Flutter-Sources.md)
+- [本机安装说明](../../../../apps/macos/Resources/安装说明.txt) · [组件与源码告知](../../../../apps/macos/Resources/Flutter-Sources.md)

@@ -14,7 +14,7 @@ def module(name, path):
 
 HERE = Path(__file__).resolve().parent
 clean = module('clean', HERE / 'clean.py')
-signing = module('signing', HERE.parent / 'mobile/prepare-signing.py')
+signing = module('signing', HERE.parent / 'android/prepare-signing.py')
 
 
 class MaintenanceTests(unittest.TestCase):

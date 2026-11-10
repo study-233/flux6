@@ -18,7 +18,7 @@ action="${1:-build}"
 if [ "$#" -gt 0 ]; then shift; fi
 exec /usr/bin/swift "$action" \
     --sdk "$SDKROOT" \
-    --package-path "$project_root/macos" \
+    --package-path "$project_root/apps/macos" \
     --scratch-path "$project_root/build/macos" \
     --cache-path "$project_root/build/swift-cache" \
     --config-path "$project_root/build/swift-config" \

@@ -17,7 +17,7 @@ work.mkdir(parents=True, mode=0o700)
 env = dict(os.environ, DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer",
            CLANG_MODULE_CACHE_PATH=str(ROOT / "build/macos-module-cache"))
 keygen = work / "keygen"
-subprocess.run(["/usr/bin/xcrun", "swiftc", str(ROOT / "macos/Probes/UpdateKey.swift"), "-o", str(keygen)], env=env, check=True)
+subprocess.run(["/usr/bin/xcrun", "swiftc", str(ROOT / "apps/macos/Probes/UpdateKey.swift"), "-o", str(keygen)], env=env, check=True)
 private = work / "ephemeral-key"
 channel = work / "channel.json"
 try:

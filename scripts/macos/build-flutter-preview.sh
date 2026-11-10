@@ -3,7 +3,7 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "$0")/../.." && pwd)"
-app_dir="$project_root/macos/flutter_ui"
+app_dir="$project_root/apps/macos/flutter_ui"
 toolchain="$project_root/build/flutter-toolchain"
 version=3.47.6
 case "$(uname -m)" in
@@ -116,12 +116,12 @@ if $integration; then
     done
     cp "$project_root/internal/mihomo/runtime-assets.json" "$contents/Resources"
     cp "$project_root/docs/agreement.md" "$notices/agreement.md"
-    { cat "$project_root/macos/Resources/privacy-macos.md"; printf '\n\n'; cat "$project_root/docs/privacy.md"; } > "$notices/privacy.md"
+    { cat "$project_root/apps/macos/Resources/privacy-macos.md"; printf '\n\n'; cat "$project_root/docs/privacy.md"; } > "$notices/privacy.md"
     cp "$project_root/LICENSE" "$notices/FreeV6-LICENSE.txt"
     cp "$project_root/THIRD-PARTY.txt" "$notices/THIRD-PARTY.txt"
     go_root="$("$go_bin" env GOROOT)"
     cp "$go_root/LICENSE" "$notices/Go-LICENSE.txt"
-    cp "$project_root/src-tauri/LICENSES/yaml.v3-LICENSE.txt" "$project_root/src-tauri/LICENSES/Apache-2.0.txt" "$notices/"
+    cp "$project_root/third_party/licenses/yaml.v3-LICENSE.txt" "$project_root/third_party/licenses/Apache-2.0.txt" "$notices/"
 fi
 # Flutter can refresh the signed App.framework on an incremental build after
 # Xcode has sealed the runner. Seal the staged wrapper around the final assets.

@@ -7,10 +7,10 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "internal/publisher/publisher.go").read_text()
 repository = re.search(r'Repository\s*=\s*"([^"]+)"', source).group(1)
 expected = {
-    "web/app.js": f"const UPDATE_OWNER_REPO = '{repository}';",
-    "web/index.html": f"@{repository}",
+    "apps/windows/web/app.js": f"const UPDATE_OWNER_REPO = '{repository}';",
+    "apps/windows/web/index.html": f"@{repository}",
     "scripts/macos/github_channel.py": f'REPOSITORY = "{repository}"',
-    "src-tauri/nsis-hooks.nsh": f"https://github.com/{repository}/blob/main/docs/agreement.md",
+    "apps/windows/src-tauri/nsis-hooks.nsh": f"https://github.com/{repository}/blob/main/docs/agreement.md",
 }
 errors = []
 for path, text in expected.items():
@@ -21,8 +21,8 @@ for path, text in expected.items():
         errors.append(f"{path}: publisher does not match {repository}")
 
 for directory, suffixes in {
-    "internal": {".go"}, "cmd": {".go"}, "web": {".js", ".html"},
-    "src-tauri": {".rs", ".nsh"}, "macos/Sources": {".swift"},
+    "internal": {".go"}, "cmd": {".go"}, "apps/windows/web": {".js", ".html"},
+    "apps/windows/src-tauri": {".rs", ".nsh"}, "apps/macos/Sources": {".swift"},
 }.items():
     for path in (root / directory).rglob("*"):
         if (path.suffix not in suffixes or path.name.endswith("_test.go")

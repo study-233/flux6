@@ -10,13 +10,13 @@ import subprocess
 def compiler_arguments(root, work, compiler, env, run):
     # Link the same business sources as FreeV6 without exposing a public
     # product API for selecting alternate keychains.
-    sources = root / "macos/Sources"
+    sources = root / "apps/macos/Sources"
     config = work / "FreeV6Configuration.swiftmodule"
     library = work / "libFreeV6Configuration.a"
     run([*compiler, "-module-name", "FreeV6Configuration", "-emit-module", "-emit-module-path", config,
          "-emit-library", "-static", *sorted((sources / "FreeV6Configuration").glob("*.swift")), "-o", library], env=env)
     return ["-D", "FREEV6_KEYCHAIN_PROBE", "-I", work, library,
-            *sorted((sources / "FreeV6Business").glob("*.swift")), root / "macos/Probes/KeychainUpgrade.swift"]
+            *sorted((sources / "FreeV6Business").glob("*.swift")), root / "apps/macos/Probes/KeychainUpgrade.swift"]
 
 
 def cdhash(app):

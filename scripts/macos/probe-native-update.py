@@ -58,15 +58,15 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
     shutil.copy2(binary_dir / "freev6-update-agent", agent_binary)
     env.update(DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer", CLANG_MODULE_CACHE_PATH=str(ROOT / "build/macos-module-cache"))
     host_binary = work / "FreeV6"
-    support = ROOT / "macos/Sources/FreeV6UpdateSupport"
+    support = ROOT / "apps/macos/Sources/FreeV6UpdateSupport"
     compiler = ["/usr/bin/xcrun", "swiftc", "-parse-as-library", "-target", ARCH + "-apple-macos14.0"]
     keychain = KeychainUpgrade(work) if scenario == "keychain-upgrade" else None
     keychain_sources = compiler_arguments(ROOT, work, compiler, env, run) if keychain else []
     run([*compiler, *keychain_sources,
          support / "UpdateRelease.swift", support / "UpdatePipe.swift",
-         ROOT / "macos/Probes/NativeUpdateHost.swift", "-o", host_binary], env=env)
+         ROOT / "apps/macos/Probes/NativeUpdateHost.swift", "-o", host_binary], env=env)
     keygen = work / "keygen"
-    run(["/usr/bin/xcrun", "swiftc", ROOT / "macos/Probes/UpdateKey.swift", "-o", keygen], env=env)
+    run(["/usr/bin/xcrun", "swiftc", ROOT / "apps/macos/Probes/UpdateKey.swift", "-o", keygen], env=env)
     key = work / "ephemeral-key"
     public = run([keygen, key])
     feed = work / "feed"
@@ -119,7 +119,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
         info_file.write_bytes(plistlib.dumps(info))
         run(["python3", ROOT / "scripts/macos/sign_flutter_host.py", app])
         run(["/usr/bin/codesign", "--verify", "--strict", "--deep", app])
-        run(["/usr/bin/xcrun", "swiftc", ROOT / "macos/Probes/RunningUpdateTarget.swift", "-o", work / "target-observer"], env=env)
+        run(["/usr/bin/xcrun", "swiftc", ROOT / "apps/macos/Probes/RunningUpdateTarget.swift", "-o", work / "target-observer"], env=env)
         return app
 
     child = None

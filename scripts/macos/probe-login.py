@@ -38,7 +38,7 @@ def main():
         "CFBundleIdentifier": label + ".observer", "CFBundleExecutable": "FreeV6", "CFBundlePackageType": "APPL",
         "CFBundleName": "FreeV6 Login Fixture", "LSUIElement": True, "ProbeEvents": str(events),
     }))
-    run("/usr/bin/xcrun", "swiftc", "-parse-as-library", ROOT / "macos/Probes/LoginObserver.swift", "-o", macos / "FreeV6")
+    run("/usr/bin/xcrun", "swiftc", "-parse-as-library", ROOT / "apps/macos/Probes/LoginObserver.swift", "-o", macos / "FreeV6")
     helpers = app / "Contents/Helpers"
     helpers.mkdir()
     launcher = helpers / "freev6-login-launcher"

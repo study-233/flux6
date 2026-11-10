@@ -17,7 +17,7 @@ GROUPS = {
     'compile': [
         'build/macos', 'build/macos-module-cache', 'build/macos-go-cache',
         'build/mobile-go-cache', 'build/macos-release-runner',
-        'mobile/build', 'mobile/.dart_tool', 'macos/flutter_ui/build', 'macos/flutter_ui/.dart_tool',
+        'apps/android/build', 'apps/android/.dart_tool', 'apps/macos/flutter_ui/build', 'apps/macos/flutter_ui/.dart_tool',
     ],
     'toolchains': ['build/flutter-toolchain', 'build/mobile-sdk', 'build/go-toolchain', 'build/mobile-toolchain'],
 }

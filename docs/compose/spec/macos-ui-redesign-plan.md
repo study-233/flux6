@@ -72,7 +72,7 @@
 | 4. 其余页面与首次使用 | 改造节点、配置、日志、设置、安装与协议页。接好准备、公告、帮助、更新和异常入口，检查快捷键与焦点。 | 从任一相关入口均能到达正确页面；草稿、自动选择、更新和网络恢复等原有行为通过回归。所有页面随同一个候选版本交付。 |
 | 5. 全套验收 | 先在隔离界面测试程序重现状态，再用实际打包应用验证窗口、菜单及系统交互。运行原生测试，保存关键截图、交互结果和待验项。 | 下面的验收项目全部有结果。需要真机的项目单列设备、系统与实际结果，完成后才判定整版通过。 |
 
-**实现位置。** 主窗口、初始路由和菜单位于 FreeV6App；现有概览同时承载首次准备和运行数据，改版时把两类内容拆开。布局偏好由桌面层的小型模型管理，网络配置与流量账本各自继续使用现有存储。运行时模型已经处理会话变更、控制令牌和模式保存反馈，组件应调用这些入口。当前工程的构建基线是 Apple Silicon、macOS 14，核心交互均按该版本设计。[窗口与导航](../../../macos/Sources/FreeV6App/FreeV6App.swift) · [概览及准备步骤](../../../macos/Sources/FreeV6App/OverviewView.swift) · [图表与节点](../../../macos/Sources/FreeV6App/LiveNetworkViews.swift) · [命令与菜单](../../../macos/Sources/FreeV6App/NativeCommands.swift) · [运行状态和采样](../../../macos/Sources/FreeV6App/AppModel.swift) · [工程配置](../../../macos/Package.swift)
+**实现位置。** 主窗口、初始路由和菜单位于 FreeV6App；现有概览同时承载首次准备和运行数据，改版时把两类内容拆开。布局偏好由桌面层的小型模型管理，网络配置与流量账本各自继续使用现有存储。运行时模型已经处理会话变更、控制令牌和模式保存反馈，组件应调用这些入口。当前工程的构建基线是 Apple Silicon、macOS 14，核心交互均按该版本设计。[窗口与导航](../../../apps/macos/Sources/FreeV6App/FreeV6App.swift) · [概览及准备步骤](../../../apps/macos/Sources/FreeV6App/OverviewView.swift) · [图表与节点](../../../apps/macos/Sources/FreeV6App/LiveNetworkViews.swift) · [命令与菜单](../../../apps/macos/Sources/FreeV6App/NativeCommands.swift) · [运行状态和采样](../../../apps/macos/Sources/FreeV6App/AppModel.swift) · [工程配置](../../../apps/macos/Package.swift)
 
 ## 整版验收清单
 
@@ -82,7 +82,7 @@
 - [ ] **会话与数据。** 覆盖未连接、连接中、已连接、断开中、未知、占用、恢复失败，以及无样本和零流量。模拟切换后收到旧会话回复，检查图表、节点及模式都属于新会话。
 - [ ] **其他页面。** 配置保存及失败、日志暂停和导出、设置偏好、公告已读、更新恢复、帮助入口逐项通过。隐藏右上角入口后 Dock 路径可用。
 - [ ] **外观与辅助功能。** 默认和最小窗口分别检查浅色、深色、键盘焦点、VoiceOver 名称与读序；用增大对比度、减少透明度和减少动态效果复验。曲线提供可读速率摘要，颜色之外仍有方向和状态信息。
-- [ ] **实现与实机。** 执行 `bash scripts/macos/swift.sh test`。扩展现有隔离界面程序，使其能切换模式并覆盖首次使用、编辑布局和异常；用正式打包方式得到的候选应用复验菜单跟踪、窗口收起、后台计量和退出恢复。分别记录 macOS 14 及当前开发系统的结果，真实网络启停在授权测试环境验证。[隔离界面程序](../../../macos/Probes/InterfaceStates.swift) · [构建入口](../../../scripts/macos/build-ui-fixture.sh)
+- [ ] **实现与实机。** 执行 `bash scripts/macos/swift.sh test`。扩展现有隔离界面程序，使其能切换模式并覆盖首次使用、编辑布局和异常；用正式打包方式得到的候选应用复验菜单跟踪、窗口收起、后台计量和退出恢复。分别记录 macOS 14 及当前开发系统的结果，真实网络启停在授权测试环境验证。[隔离界面程序](../../../apps/macos/Probes/InterfaceStates.swift) · [构建入口](../../../scripts/macos/build-ui-fixture.sh)
 
 ## 本次隔离验收 · 2026-11-06
 

@@ -1,5 +1,5 @@
 <div align="center">
-<img alt="logo" height="100" width="100" src="src-tauri/icons/128x128.png" />
+<img alt="logo" height="100" width="100" src="assets/branding/128x128.png" />
 <h2> FreeV6 </h2>
 <p> 教育网通用 IPv6 免流客户端 </p>
 
@@ -27,8 +27,8 @@
 
 | 平台 | 状态 | 开发入口 |
 | --- | --- | --- |
-| Windows 11 x64 | 桌面客户端 | [Tauri 构建说明](src-tauri/README.md) |
-| macOS 14+，Apple Silicon | 本地预览版；最低系统和真实校园网络仍待实机验收 | [Mac 构建与安装](macos/README.md) |
+| Windows 11 x64 | 桌面客户端 | [Tauri 构建说明](apps/windows/src-tauri/README.md) |
+| macOS 14+，Apple Silicon | 本地预览版；最低系统和真实校园网络仍待实机验收 | [Mac 构建与安装](apps/macos/README.md) |
 
 以下使用说明针对 Windows。macOS 预览版的安装步骤和已验证范围见上表。
 
@@ -44,8 +44,8 @@ bug、问题和建议欢迎提 [issue](https://github.com/study-233/free-v6/issu
 
 ## 项目结构
 
-- [web](web/) 是 Windows 界面，[src-tauri](src-tauri/) 负责窗口、托盘和安装包。
-- [macos](macos/) 包含 Flutter 界面、Swift 宿主、网络服务及测试；[scripts/macos](scripts/macos/) 提供构建和验收命令。
+- [web](apps/windows/web/) 是 Windows 界面，[src-tauri](apps/windows/src-tauri/) 负责窗口、托盘和安装包。
+- [macos](apps/macos/) 包含 Flutter 界面、Swift 宿主、网络服务及测试；[scripts/macos](scripts/macos/) 提供构建和验收命令。
 - [cmd](cmd/) 是 Go 程序入口，[internal](internal/) 是业务与网络实现，[shared](shared/) 保存跨语言协议及测试样本。
 
 ## 免责声明
@@ -61,13 +61,13 @@ bug、问题和建议欢迎提 [issue](https://github.com/study-233/free-v6/issu
 
 ## 许可证
 
-本项目采用 [MIT](LICENSE) 许可，第三方组件见 [THIRD-PARTY.txt](THIRD-PARTY.txt)。[Windows 随包许可](src-tauri/LICENSES/) 安装在程序的 `LICENSES/` 目录。
+本项目采用 [MIT](LICENSE) 许可，第三方组件见 [THIRD-PARTY.txt](THIRD-PARTY.txt)。[Windows 随包许可](third_party/licenses/) 安装在程序的 `LICENSES/` 目录。
 
 ## 发布维护
 
 - 公告：修改 `main` 分支的 [notice.json](notice.json)，参见 [公告发布指南](docs/notice.md)。
 - 备用节点：当前关闭，未来按 [公开配置说明](docs/cloud-profile.md) 发布；仓库不包含原作者的节点。
 - Windows 更新：在本仓库推送 `v*` 标签，由 Release 工作流生成草稿、安装包和 `version.json`；核验后发布。
-- macOS 更新：使用本仓库 `macos-updates` 分支的签名清单，发布工具与签名步骤见 [Mac 开发说明](macos/DEVELOPMENT.md)。未配置签名通道的构建不会自动获得更新能力。
+- macOS 更新：使用本仓库 `macos-updates` 分支的签名清单，发布工具与签名步骤见 [Mac 开发说明](apps/macos/DEVELOPMENT.md)。未配置签名通道的构建不会自动获得更新能力。
 
 基于原项目作者 `evansrrr` 的 FreeV6；完整版权声明见 [LICENSE](LICENSE)。

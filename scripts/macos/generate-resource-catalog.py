@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "macos/Sources/FreeV6System/ApprovedResources.generated.swift"
+OUTPUT = ROOT / "apps/macos/Sources/FreeV6System/ApprovedResources.generated.swift"
 
 
 def render():
