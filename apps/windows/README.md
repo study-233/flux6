@@ -4,7 +4,7 @@
 
 在 Windows 开发环境，从本目录运行 `cargo tauri dev` 或 `cargo tauri build`。Tauri 的构建钩子调用仓库根 `scripts/windows/build-helper.ps1`，生成 Go sidecar 并准备 GeoSite 数据。完整说明见 [Tauri 工程](src-tauri/README.md) 和 [统一开发指南](../../docs/development/README.md)。
 
-重构准备已完成，功能/接口清单、数据迁移、实施阶段与验收要求见 [Windows Flutter 重构实施方案](../../docs/development/windows-flutter-refactor.md)。Flutter 工程和生产入口尚未修改；下列命令仍用于现有 Tauri 客户端。新客户端完成系统功能、数据迁移和安装回归后，再单独删除旧入口。
+功能/接口清单、数据迁移、实施阶段与验收要求见 [Windows Flutter 重构实施方案](../../docs/development/windows-flutter-refactor.md)。独立 [Flutter 工程](flutter_ui/DEVELOPMENT.md)已开始实现；下列命令仍用于现有 Tauri 客户端。用户后续在 Windows 拉取源码编译验收，验证通过后再切换正式入口并单独删除旧代码。
 
 ## 本地验证与发布
 

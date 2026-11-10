@@ -1,0 +1,6 @@
+{
+  "lib/app_theme.dart": {
+    "sha256": "1db9df9013d17c9b2ec315b57dd0ded35c130df6f7975bafc39b38d06cd0e871",
+    "reason": "Use Windows interaction conventions while retaining the Mac Prism palette."
+  }
+}

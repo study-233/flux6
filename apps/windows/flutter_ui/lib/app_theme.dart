@@ -48,7 +48,7 @@ class FreeV6Theme extends StatelessWidget {
       colorScheme: colors,
       useMaterial3: true,
       visualDensity: VisualDensity.compact,
-      platform: TargetPlatform.macOS,
+      platform: TargetPlatform.windows,
     );
   }
 
