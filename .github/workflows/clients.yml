@@ -47,6 +47,12 @@ jobs:
           cmdline-tools-version: '15859902'
           log-accepted-android-sdk-licenses: false
           packages: 'platform-tools platforms;android-37.0 build-tools;36.0.0 ndk;28.2.13676358'
+      - name: Select the project NDK for Flutter native assets
+        run: |
+          ndk_version=$(python3 -c 'import tomllib; print(tomllib.load(open("apps/android/android/gradle/libs.versions.toml", "rb"))["versions"]["ndkVersion"])')
+          ndk_path="$ANDROID_HOME/ndk/$ndk_version"
+          test -f "$ndk_path/source.properties"
+          echo "ANDROID_NDK_HOME=$ndk_path" >> "$GITHUB_ENV"
       - name: Use JDK 17 for the application build
         uses: actions/setup-java@v5
         with:
