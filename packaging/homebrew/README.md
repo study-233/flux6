@@ -9,7 +9,7 @@ brew tap study-233/tap
 brew install --cask study-233/tap/freev6
 ```
 
-每个 FreeV6 版本共用一个 `v<版本>` Release。Cask 使用其中的 macOS DMG 和实际摘要。更新时先上传并核验 Release 资产，再更新 Tap。
+每个 FreeV6 版本共用一个 `v<版本>` Release。Cask 使用其中的 macOS DMG 和实际摘要。公开安装包按 `FreeV6-<版本>-<平台>.<扩展名>` 命名，源码包追加 `-source`；本地构建文件仍保留 build 以区分构建。校验文件仅用于本地核验，不上传到 Release。更新时先上传并核验 Release 资产，再更新 Tap。
 
 网络服务由应用原有授权流程管理。卸载前在 FreeV6 中断开连接并卸载网络服务。
 
