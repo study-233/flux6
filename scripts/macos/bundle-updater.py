@@ -2,6 +2,7 @@
 """Embed and sign the ordinary-user updater in an unsealed staged application."""
 import argparse
 import json
+import os
 from pathlib import Path
 import plistlib
 import shutil
@@ -14,6 +15,10 @@ def run(*args):
 
 
 def bundle(app, executable, sdk, *, probe=False):
+    identity = "-" if probe else os.environ.get("FREEV6_CODESIGN_IDENTITY", "-")
+    signing = ["/usr/bin/codesign", "--force", "--sign", identity, "--options", "runtime"]
+    if not probe and (keychain := os.environ.get("FREEV6_CODESIGN_KEYCHAIN")):
+        signing += ["--keychain", keychain]
     agent = app / "Contents/Helpers/FreeV6UpdateAgent.app"
     contents = agent / "Contents"
     (contents / "MacOS").mkdir(parents=True)
@@ -26,7 +31,7 @@ def bundle(app, executable, sdk, *, probe=False):
     info = {"CFBundleIdentifier": host["CFBundleIdentifier"] + ".update-agent",
             "CFBundleName": "FreeV6 更新", "CFBundleExecutable": "freev6-update-agent",
             "CFBundlePackageType": "APPL", "CFBundleVersion": host["CFBundleVersion"],
-            "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
+            "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
             "FreeV6UpdateProbeBuild": probe,
             "NSPrincipalClass": "NSApplication"}
     if probe:
@@ -35,13 +40,13 @@ def bundle(app, executable, sdk, *, probe=False):
     framework = contents / "Frameworks/Sparkle.framework"
     shutil.copytree(sdk / "Sparkle.framework", framework, symlinks=True)
     for component in ("XPCServices/Downloader.xpc", "XPCServices/Installer.xpc", "Autoupdate", "Updater.app"):
-        run("/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", framework / "Versions/B" / component)
-    run("/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", framework)
+        run(*signing, framework / "Versions/B" / component)
+    run(*signing, framework)
     rights = contents / "Resources"
     rights.mkdir()
     entitlement = rights / "update-agent.entitlements"
     entitlement.write_bytes(plistlib.dumps({"com.apple.security.cs.disable-library-validation": True}))
-    run("/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--entitlements", entitlement, agent)
+    run(*signing, "--entitlements", entitlement, agent)
     notices = app / "Contents/Resources/Notices"
     notices.mkdir(parents=True, exist_ok=True)
     shutil.copy2(sdk / "LICENSE", notices / "Sparkle-LICENSE.txt")

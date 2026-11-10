@@ -40,6 +40,29 @@ public actor WarpRegistration {
         return try await vault.load(interactionAllowed: interactionAllowed).map(WarpAccountSummary.init)
     }
 
+    /// A missing item is the only reason to create a remote device. An access
+    /// denial, locked Keychain or damaged item must propagate without registration.
+    /// Shared with the settings workflow so failed saves retain one pending result.
+    public func ensureRegistered(name: String = "freev6-macos", interactionAllowed: Bool,
+        progress: @escaping @Sendable (WorkerProgress) -> Void = { _ in }) async throws -> WarpAccountSummary {
+        guard !busy else { throw RegistrationWorkflowError.busy }
+        busy = true; defer { busy = false }
+        if pending != nil {
+            // A manual replacement still requires its explicit retry/discard flow.
+            guard expectedRevision == nil else { throw RegistrationWorkflowError.pendingCredential }
+            try Task.checkCancellation()
+            return try await savePending(interactionAllowed: interactionAllowed)
+        }
+        if let current = try await vault.load(interactionAllowed: interactionAllowed) {
+            return WarpAccountSummary(current)
+        }
+        try Task.checkCancellation()
+        let credential = try await operation(name, progress).validated()
+        pending = credential; expectedRevision = nil
+        try Task.checkCancellation()
+        return try await savePending(interactionAllowed: interactionAllowed)
+    }
+
     // Serialize use of a saved credential with replacement/deletion. Send only
     // tunnel material, never the account token, and recheck the saved revision
     // after asynchronous work so an externally replaced entry is not accepted.
@@ -77,9 +100,9 @@ public actor WarpRegistration {
         return try await savePending()
     }
 
-    private func savePending() async throws -> WarpAccountSummary {
+    private func savePending(interactionAllowed: Bool = true) async throws -> WarpAccountSummary {
         guard let pending else { throw RegistrationWorkflowError.noPendingCredential }
-        let stored = try await vault.save(pending, expectedRevision: expectedRevision)
+        let stored = try await vault.save(pending, expectedRevision: expectedRevision, interactionAllowed: interactionAllowed)
         self.pending = nil; expectedRevision = nil
         return WarpAccountSummary(stored)
     }

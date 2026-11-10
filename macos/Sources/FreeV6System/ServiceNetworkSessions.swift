@@ -13,6 +13,9 @@ public final class ServiceNetworkSessions: @unchecked Sendable {
     private var idleToken = UUID()
     private var controlToken = UUID()
     private let samples = DispatchSemaphore(value: 3)
+    private let downloadLock = NSLock()
+    private var download: (id: UUID, uid: uid_t, target: SessionControlTarget, cancellation: DownloadCancellation)?
+    private var cancelledDownloads: [(UUID, uid_t, SessionControlTarget, TimeInterval)] = []
     private var lastContact: TimeInterval = 0
     private var needsRecovery = true
     private var stopRequested = false
@@ -128,6 +131,35 @@ public final class ServiceNetworkSessions: @unchecked Sendable {
     public func control(_ data: Data, uid: uid_t) throws -> SessionControlReply {
         let query = try SessionControlRequest.decode(data)
         switch query.action {
+        case .download:
+            let cancellation = DownloadCancellation()
+            let controller = try withActiveController(query, uid: uid) { $0 }
+            downloadLock.lock()
+            cancelledDownloads.removeAll { ProcessInfo.processInfo.systemUptime - $0.3 > 60 }
+            if cancelledDownloads.contains(where: { $0.0 == query.requestID && $0.1 == uid && $0.2 == query.target }) {
+                downloadLock.unlock(); throw CancellationError()
+            }
+            guard download == nil else { downloadLock.unlock(); throw SessionStoreError.occupied }
+            download = (query.requestID, uid, query.target, cancellation)
+            downloadLock.unlock()
+            defer { downloadLock.lock(); download = nil; downloadLock.unlock() }
+            guard let group = query.group, let member = query.member else { throw ServiceMessageError.invalid }
+            let result = try controller.measureDownload(group: group, member: member, cancellation: cancellation)
+            return try withActiveController(query, uid: uid) { _ in SessionControlReply(query, download: result) }
+        case .cancelDownload:
+            return try withActiveController(query, uid: uid) { _ in
+                downloadLock.lock(); defer { downloadLock.unlock() }
+                if let download {
+                    guard download.id == query.token, download.uid == uid, download.target == query.target else {
+                        throw SessionStoreError.invalidTransition
+                    }
+                    download.cancellation.cancel()
+                } else if let token = query.token {
+                    cancelledDownloads.append((token, uid, query.target, ProcessInfo.processInfo.systemUptime))
+                    if cancelledDownloads.count > 64 { cancelledDownloads.removeFirst() }
+                }
+                return SessionControlReply(query, cancelled: true)
+            }
         case .delay, .traffic:
             // A slow node or a one-second traffic sample must not hold up stop or heartbeat.
             guard samples.wait(timeout: .now()) == .success else { throw SessionStoreError.occupied }
@@ -156,6 +188,7 @@ public final class ServiceNetworkSessions: @unchecked Sendable {
     }
 
     private func release() {
+        downloadLock.lock(); download?.cancellation.cancel(); downloadLock.unlock()
         controlToken = UUID()
         retained = nil
         stopRequested = false

@@ -23,15 +23,17 @@ def run(args, *, check=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-build", action="store_true")
+    parser.add_argument("--app", type=Path, default=ROOT / "dist/macos/FreeV6.app",
+                        help="Verify this already built application with --no-build.")
     args = parser.parse_args()
     if os.geteuid() == 0:
         raise RuntimeError("This is an unprivileged payload probe")
     if not args.no_build:
         run(["bash", ROOT / "scripts/macos/build-app.sh"])
-        run(["bash", ROOT / "scripts/macos/swift.sh", "build", "--product", "freev6-probe"])
-    binary_dir = Path(run(["bash", ROOT / "scripts/macos/swift.sh", "build", "--show-bin-path"]).stdout.strip())
+        run(["bash", ROOT / "scripts/macos/swift.sh", "build", "-c", "release", "--product", "freev6-probe"])
+    binary_dir = Path(run(["bash", ROOT / "scripts/macos/swift.sh", "build", "-c", "release", "--show-bin-path"]).stdout.strip())
     probe = binary_dir / "freev6-probe"
-    app = ROOT / "dist/macos/FreeV6.app"
+    app = args.app.resolve(strict=True)
     helper = app / "Contents/Helpers/freev6-service-installer"
     service = app / "Contents/Library/LaunchServices/dev.freev6.network-service"
     manifest = json.loads(run([helper, "manifest"]).stdout)

@@ -9,11 +9,41 @@ import FreeV6UpdateSupport
 
 typealias Page = DesktopPage
 
-@MainActor final class AppModel: ObservableObject {
-    @Published var page: Page? {
-        didSet { if let page { defaults.set(page.rawValue, forKey: "lastPage") } }
+#if FREEV6_UI_FIXTURE
+let interfaceFixture = true
+#else
+let interfaceFixture = false
+#endif
+
+@MainActor final class WindowNavigation: ObservableObject {
+    @Published fileprivate(set) var page: Page = .overview
+    func show(_ destination: Page) {
+        if destination != page { page = destination }
     }
+}
+
+@MainActor final class AppModel: ObservableObject {
+    // Navigation isn't a network or data change. Notify only the window shell.
+    let navigation = WindowNavigation()
+    var page: Page? {
+        get { navigation.page }
+        set { navigation.show(newValue ?? .overview) }
+    }
+    @Published private(set) var dashboard: DashboardLayout
+    @Published var dashboardDraft: DashboardLayout?
+    var displayedDashboard: DashboardLayout { dashboardDraft ?? dashboard }
+
+    var dashboardHasChanges: Bool { dashboardDraft.map { $0 != dashboard } ?? false }
+
+    func saveDashboard() {
+        guard let draft = dashboardDraft, let data = try? draft.encoded() else { return }
+        defaults.set(data, forKey: "dashboardLayout")
+        dashboard = draft
+        dashboardDraft = nil
+    }
+    @Published var setupDetail: SetupDetail?
     @Published var error: String?
+    @Published private(set) var serviceActionError: String?
     @Published var serviceStatus = "正在检查网络服务…"
     @Published var serviceState = DesktopServiceState.checking
     @Published var serviceBusy = false
@@ -22,6 +52,12 @@ typealias Page = DesktopPage
     @Published private(set) var terminating = false
     @Published private var checkingConfiguration = false
     var configurationBusy: Bool { checkingConfiguration || network.phase.busy }
+    typealias SendControl = (SessionControlRequest, CodeIdentity?) async throws -> SessionControlReply
+    private let sendControl: SendControl
+    #if FREEV6_UI_FIXTURE
+    var failNextDefaultSave = false
+    var handleFixtureCommand: ((DesktopCommand) -> Bool)?
+    #endif
     let network = DesktopNetworkSession()
     let startup: DesktopStartup
     var onShowWindow: (() -> Void)?
@@ -31,7 +67,13 @@ typealias Page = DesktopPage
     @Published var updateRecoveryMessage: String?
     @Published var updateRecoveryBlocksConnection = true
     @Published var nodeGroup = SessionNodeGroup.access
+    private var pendingNodeRestoreTarget: SessionControlTarget?
+    #if FREEV6_UI_FIXTURE
+    var fixtureAccessNodeNames: [String]?
+    #endif
     @Published private(set) var modeSaveError: String?
+    @Published private(set) var pendingWorkingMode: CoreMode?
+    @Published private(set) var failedWorkingMode: CoreMode?
     private weak var trackedStatusMenu: NSMenu?
     @Published private(set) var trafficReport: TrafficReport?
     @Published private(set) var accountingError: String?
@@ -48,7 +90,7 @@ typealias Page = DesktopPage
         serviceState == .ready || network.mayOwnSession ? network.phase.symbol : serviceState.symbol
     }
     var canManageService: Bool {
-        !serviceBusy && !warp.busy && !configurationBusy && !network.mayOwnSession &&
+        !interfaceFixture && !serviceBusy && !warp.busy && !configurationBusy && !network.mayOwnSession &&
             (serviceState != .ready || network.phase == .idle)
     }
     @Published private(set) var configurationSummary: ConfigurationSummary?
@@ -62,22 +104,24 @@ typealias Page = DesktopPage
     private let defaults: UserDefaults
     private var observations: Set<AnyCancellable> = []
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, workerLocation: WorkerLocation? = nil,
+         sendControl: @escaping SendControl = AppModel.liveControl) {
+        self.sendControl = sendControl
         self.defaults = defaults
         let notices = Bundle.main.resourceURL.flatMap { try? StartupNotices(directory: $0.appendingPathComponent("Notices")) }
         startup = DesktopStartup(defaults: defaults, notices: notices)
-        logs = DesktopLogs(directory: try? WorkerLocation.application().logs)
+        self.logs = DesktopLogs(directory: workerLocation?.logs ?? (try? WorkerLocation.application().logs))
         controls = DesktopCoreControls(defaults: defaults)
-        page = defaults.string(forKey: "lastPage").flatMap(Page.init(rawValue:)) ?? .overview
-        session = BusinessSession()
+        dashboard = DashboardLayout(data: defaults.data(forKey: "dashboardLayout"))
+        session = BusinessSession(location: workerLocation)
         business = BusinessModel(session: session)
         core = RuntimeModel(session: session)
         geodata = GeodataModel(session: session)
         warp = WarpModel(session: session)
-        logs.record(.opened)
+        self.logs.record(.opened)
         observations.formUnion(observeLogEvents())
         startup.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
-        logs.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
+        self.logs.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         updater.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         // Commands depend on nested models, including text edits and progress.
         business.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
@@ -85,13 +129,32 @@ typealias Page = DesktopPage
         geodata.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         warp.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
         network.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
-        controls.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &observations)
-        network.$phase.sink { [weak self] phase in
-            if phase != .running {
-                self?.controls.bind(nil)
-                self?.modeSaveError = nil
-            }
+        // Traffic has its own observers in the speed chart and menu. Publishing every
+        // sample here also invalidates the toolbar, node list and configuration form.
+        func forward<P: Publisher>(_ publisher: P) where P.Failure == Never, P.Output: Equatable {
+            publisher.removeDuplicates().dropFirst().sink { [weak self] _ in self?.objectWillChange.send() }
+                .store(in: &observations)
+        }
+        forward(controls.$nodeCatalogRevision)
+        forward(controls.$state)
+        forward(controls.$inspecting)
+        forward(controls.$writing)
+        forward(controls.$measuring)
+        forward(controls.$measuringMember)
+        forward(controls.$latency)
+        forward(controls.$readError)
+        forward(controls.$modeError)
+        forward(controls.$selectionError)
+        forward(controls.$measurementError)
+        network.$phase.removeDuplicates().sink { [weak self] phase in
+            self?.failedWorkingMode = nil
+            self?.modeSaveError = nil
+            if phase != .running { self?.controls.bind(nil) }
         }.store(in: &observations)
+    }
+
+    func startMonitoring() {
+        guard heartbeat == nil else { return }
         let notifications = NotificationCenter.default
         notifications.publisher(for: NSMenu.didBeginTrackingNotification).sink { [weak self] notice in
             guard let self, let menu = notice.object as? NSMenu,
@@ -169,10 +232,10 @@ typealias Page = DesktopPage
         state.noticesAccepted = startup.accepted
         state.service = serviceState
         state.network = network.phase
-        state.canMeasureNodes = !controls.measuring && availableGroup != nil
+        state.canMeasureNodes = !controls.measuring && availableGroup?.members.isEmpty == false
         state.canTargetSession = network.canTargetSession
         state.coreBusy = core.busy || configurationBusy
-        state.coreAvailable = core.package?.available == true
+        state.coreAvailable = interfaceFixture || core.package?.available == true
         state.coreCancelable = core.canCancel
         state.settingsBusy = business.busy || configurationBusy
         state.settingsLoaded = business.snapshot != nil
@@ -181,7 +244,7 @@ typealias Page = DesktopPage
         state.settingsChanged = business.hasChanges
         state.promptActive = promptActive
         state.terminating = terminating
-        state.hasVisibleLogs = page == .logs && !logs.visible.isEmpty
+        state.hasVisibleLogs = !logs.visible.isEmpty
         state.updateBusy = updater.busy
         state.updatePreparing = updater.preparingInstallation
         state.credentialsBusy = warp.busy || configurationBusy
@@ -198,6 +261,7 @@ typealias Page = DesktopPage
         if serviceState == .ready && network.phase != .idle { return "请先确认网络会话已停止。" }
         if business.snapshot == nil { return "请先载入代理规则。" }
         if business.hasChanges { return "请先保存代理规则，再检查连接配置。" }
+        if interfaceFixture && serviceState == .ready { return nil }
         if business.snapshot?.cloud?.enabled == true {
             if !business.cloudOpen { return "备用配置当前未开放，请刷新公告或停用备用配置。" }
         } else if warp.hasPending || warp.summary == nil { return "请先检查或注册已保存的 WARP 凭据。" }
@@ -261,9 +325,52 @@ typealias Page = DesktopPage
         return groups.first(where: { $0.group == nodeGroup }) ?? groups.first
     }
 
+    var browsingOfflineNodes: Bool {
+        workingModeSource == .savedDefault
+    }
+
+    var nodeOptions: [DesktopNodeGroup] {
+        if network.phase == .running { return (controls.state?.groups ?? []).map(DesktopNodeGroup.init(session:)) }
+        guard browsingOfflineNodes else { return [] }
+        guard let snapshot = business.snapshot else { return controls.previousGroups }
+        if let cloud = snapshot.cloud, cloud.enabled {
+            return [controls.offlineGroup(.access, names: cloud.names, source: .configuration)]
+        }
+        #if FREEV6_UI_FIXTURE
+        let warp = fixtureAccessNodeNames ?? DesktopNodeGroup.warpNames
+        #else
+        let warp = DesktopNodeGroup.warpNames
+        #endif
+        var groups = [controls.offlineGroup(.access, names: warp, source: .configuration)]
+        if let chain = snapshot.chain, chain.enabled {
+            groups.append(controls.offlineGroup(.chain, names: chain.names, source: .configuration))
+        }
+        return groups
+    }
+
+    var displayedNodeGroup: DesktopNodeGroup? {
+        let groups = nodeOptions
+        return groups.first { $0.group == nodeGroup } ?? groups.first
+    }
+
+    @discardableResult func chooseNode(_ member: String?, in group: SessionNodeGroup,
+                                       expecting target: SessionControlTarget?) async -> Bool {
+        guard startup.accepted, !terminating, !promptActive, !updater.preparingInstallation, !controls.writing,
+              target == network.runningTarget, let options = nodeOptions.first(where: { $0.group == group }),
+              member.map(options.members.contains) ?? (options.automatic || options.source != .session) else { return false }
+        if let target, let state = controls.state {
+            guard serviceState == .ready else { return false }
+            if let member { return await selectMember(member, group: group, target: target, token: state.token) }
+            return await useAutomaticSelection(target: target, token: state.token)
+        }
+        guard browsingOfflineNodes else { return false }
+        controls.saveNode(member, in: group)
+        return true
+    }
+
     private var trafficVisible: Bool {
         if trackedStatusMenu != nil { return true }
-        guard NSApp.isActive, page == .overview else { return false }
+        guard NSApp.isActive, page == .overview, displayedDashboard.contains(.speed) else { return false }
         return NSApp.windows.contains { $0.identifier?.rawValue == "freev6-main" && $0.occlusionState.contains(.visible) }
     }
 
@@ -274,7 +381,7 @@ typealias Page = DesktopPage
         if trafficReport != report { trafficReport = report }
     }
 
-    private func loadTrafficReport() async {
+    func loadTrafficReport() async {
         do { acceptTrafficReport(try await session.worker().trafficReport()) }
         catch { accountingError = error.localizedDescription }
     }
@@ -311,42 +418,100 @@ typealias Page = DesktopPage
     }
 
     private func exchange(_ query: SessionControlRequest) async throws -> SessionControlReply {
-        guard !terminating, network.runningTarget == query.target, let identity = serviceIdentity else {
+        guard !terminating, network.runningTarget == query.target else {
             throw ServiceClientError.rejected("此会话已经变化，请重新查看连接状态。")
         }
+        return try await sendControl(query, serviceIdentity)
+    }
+
+    private nonisolated static func liveControl(_ query: SessionControlRequest, identity: CodeIdentity?) async throws -> SessionControlReply {
+        guard let identity else { throw ServiceClientError.rejected("请重新检查网络服务。") }
         return try await Task.detached { try ServiceClient.control(query, identity: identity) }.value
     }
 
-    private func refreshCoreControls(restoreChoices: Bool = false) async {
+    func refreshCoreControls(restoreChoices: Bool = false) async {
         let target = network.runningTarget
         controls.bind(target)
-        guard let target else { return }
+        if restoreChoices { pendingNodeRestoreTarget = target }
+        guard let target else { pendingNodeRestoreTarget = nil; return }
         await controls.inspect(using: exchange)
-        guard restoreChoices, target == network.runningTarget else { return }
-        for group in controls.state?.groups ?? [] {
-            guard let last = controls.preferredMember(group.group), last != (group.automatic ? group.preferred : group.selected),
-                  group.members.contains(last), let token = controls.state?.token else { continue }
-            let request = SessionControlRequest(target, .select, token: token, group: group.group, member: last)
-            guard await controls.change(request, using: exchange) else { break }
+        guard target == network.runningTarget, pendingNodeRestoreTarget == target,
+              !controls.inspecting, !controls.writing, let state = controls.state else { return }
+        pendingNodeRestoreTarget = nil
+        for list in state.groups {
+            guard target == network.runningTarget else { return }
+            if let request = controls.restoration(for: list.group) {
+                _ = await controls.change(request, using: exchange)
+            }
         }
     }
 
-    func changeMode(_ mode: CoreMode, target: SessionControlTarget, token: UUID) async {
-        guard !business.busy, let baseline = business.snapshot, target == network.runningTarget else { return }
+    var workingModeSource: DashboardWorkingMode? {
+        DashboardWorkingMode.source(phase: network.phase, service: serviceState, mayOwnSession: network.mayOwnSession)
+    }
+
+    var workingMode: CoreMode? {
+        switch workingModeSource {
+        case .savedDefault: return business.snapshot.flatMap { CoreMode(rawValue: $0.settings.mode.rawValue) }
+        case .liveSession: return controls.state?.mode
+        case nil: return nil
+        }
+    }
+
+    var canSelectWorkingMode: Bool {
+        guard startup.accepted, !terminating, !promptActive, !updater.preparingInstallation,
+              !serviceBusy, !configurationBusy, !controls.writing, !business.busy, business.snapshot != nil,
+              pendingWorkingMode == nil, let source = workingModeSource else { return false }
+        return source == .savedDefault || (network.runningTarget != nil && controls.state != nil)
+    }
+
+    func selectWorkingMode(_ mode: CoreMode) async {
+        guard canSelectWorkingMode, let source = workingModeSource, let baseline = business.snapshot,
+              let preference = ProxyMode(rawValue: mode.rawValue) else { return }
+        // A retry can save the default without reissuing an already confirmed live change.
+        guard workingMode != mode || failedWorkingMode == mode else { return }
+        let target = network.runningTarget
+        pendingWorkingMode = mode
+        failedWorkingMode = nil
         modeSaveError = nil
-        let request = SessionControlRequest(target, .setMode, token: token, mode: mode)
-        guard await controls.change(request, using: exchange), let preference = ProxyMode(rawValue: mode.rawValue) else { return }
-        do { try await business.saveConfirmedMode(preference, baseline: baseline) }
-        catch { modeSaveError = "本次模式已切换，默认模式保存失败。\(error.localizedDescription)" }
+        defer { pendingWorkingMode = nil }
+
+        if source == .liveSession {
+            guard let state = controls.state, let target else { return }
+            if state.mode != mode {
+                let request = SessionControlRequest(target, .setMode, token: state.token, mode: mode)
+                guard await controls.change(request, using: exchange) else {
+                    if network.runningTarget == target { failedWorkingMode = mode }
+                    return
+                }
+            }
+            guard network.runningTarget == target, controls.state?.mode == mode else { return }
+        }
+
+        do {
+            #if FREEV6_UI_FIXTURE
+            if failNextDefaultSave { failNextDefaultSave = false; throw WorkerClientError.staleConfiguration }
+            #endif
+            try await business.saveConfirmedMode(preference, baseline: baseline)
+        } catch {
+            let saved = try? await business.refreshModeBaseline()
+            guard workingModeSource == source, network.runningTarget == target else { return }
+            if saved == preference { return }
+            failedWorkingMode = mode
+            let next = saved.map { "下次连接使用" + $0.title } ?? "下次默认值未确认"
+            modeSaveError = source == .liveSession
+                ? "当前已切至" + mode.title + "；" + next + "。"
+                : "默认模式未能保存，" + next + "。"
+        }
     }
 
-    func useAutomaticSelection(target: SessionControlTarget, token: UUID) async {
-        _ = await controls.change(SessionControlRequest(target, .unpin, token: token), using: exchange)
+    @discardableResult func useAutomaticSelection(target: SessionControlTarget, token: UUID) async -> Bool {
+        await controls.change(SessionControlRequest(target, .unpin, token: token), using: exchange)
     }
 
-    func selectMember(_ name: String, group: SessionNodeGroup, target: SessionControlTarget, token: UUID) async {
+    @discardableResult func selectMember(_ name: String, group: SessionNodeGroup, target: SessionControlTarget, token: UUID) async -> Bool {
         let query = SessionControlRequest(target, .select, token: token, group: group, member: name)
-        _ = await controls.change(query, using: exchange)
+        return await controls.change(query, using: exchange)
     }
 
     func measure(group: SessionNodeGroup, members: [String]) async {
@@ -407,18 +572,27 @@ typealias Page = DesktopPage
     func perform(_ command: DesktopCommand, in context: CommandContext, openWindow: OpenWindowAction) {
         // Revalidate at execution, even if a menu was opened before state changed.
         guard commandState.availability(command, in: context).enabled else { return }
+        #if FREEV6_UI_FIXTURE
+        if handleFixtureCommand?(command) == true { return }
+        #endif
         switch command {
         case .showMain:
             openWindow(id: "main"); showWindow()
         case .showPage(let page):
-            self.page = page; openWindow(id: "main"); showWindow()
+            setupDetail = nil; self.page = page; openWindow(id: "main"); showWindow()
         case .configureService, .showCore, .reviewSetup:
+            switch command {
+            case .configureService: setupDetail = .service
+            case .showCore: setupDetail = .core
+            default: setupDetail = nextSetupDetail
+            }
             page = .overview; openWindow(id: "main"); showWindow()
         case .refreshService: Task { await refreshService() }
         case .checkCore: Task { await core.refresh() }
         case .downloadCore: core.beginDownload()
         case .cancelCoreDownload: core.cancel()
         case .prepareConfiguration:
+            setupDetail = .configuration
             page = .overview; openWindow(id: "main"); showWindow()
             Task { await prepareConfiguration() }
         case .saveConfiguration: Task { await business.save() }
@@ -443,8 +617,11 @@ typealias Page = DesktopPage
         case .measureNodes:
             if let group = availableGroup { Task { await measure(group: group.group, members: group.members) } }
         case .importChain:
-            page = .configuration
-            openWindow(id: "main"); showWindow()
+            if !context.editsConfiguration {
+                page = .configuration
+                openWindow(id: "main"); showWindow()
+            }
+            let sourceWindow = NSApp.keyWindow
             let panel = NSOpenPanel()
             panel.title = "导入链式代理配置"
             panel.prompt = "导入"
@@ -452,12 +629,15 @@ typealias Page = DesktopPage
             panel.allowsMultipleSelection = false
             panel.allowedContentTypes = [.yaml, .json, .plainText]
             promptActive = true
-            panel.begin { [weak self] result in
+            let finish: (NSApplication.ModalResponse) -> Void = { [weak self] result in
                 guard let self else { return }
                 self.promptActive = false
-                guard result == .OK, let url = panel.url, self.commandState.availability(.importChain).enabled else { return }
+                guard result == .OK, let url = panel.url,
+                      self.commandState.availability(.importChain, in: context).enabled else { return }
                 Task { await self.business.changeChain(.load(.file(url))) }
             }
+            if let sourceWindow { panel.beginSheetModal(for: sourceWindow, completionHandler: finish) }
+            else { panel.begin(completionHandler: finish) }
         case .refreshCloud:
             page = .configuration; openWindow(id: "main"); showWindow()
             Task { await business.changeCloud(.load(.refresh)) }
@@ -531,9 +711,12 @@ typealias Page = DesktopPage
     }
 
     func manageService(_ action: ServiceInstallationAction) async {
+        #if FREEV6_UI_FIXTURE
+        serviceActionError = "授权未完成。请再次点击安装网络服务。"
+        #else
         guard canManageService, !terminating else { return }
         if action == .install && !startup.accepted { return }
-        serviceBusy = true; serviceState = .managing; error = nil; configurationCheckedByService = false
+        serviceBusy = true; serviceState = .managing; serviceActionError = nil; error = nil; configurationCheckedByService = false
         serviceStatus = "正在等待管理员授权…"
         defer { serviceBusy = false }
         do {
@@ -543,9 +726,11 @@ typealias Page = DesktopPage
             try await Task.detached { try request.execute() }.value
             await readServiceStatus()
         } catch {
-            self.error = error.localizedDescription
+            serviceActionError = error.localizedDescription
             await readServiceStatus()
+            self.error = serviceActionError
         }
+        #endif
     }
 
     func showWindow() {
@@ -570,22 +755,28 @@ typealias Page = DesktopPage
             return .terminateCancel
         }
         var saveBeforeExit = false
-        if business.hasChanges {
+        let drafts = [(business.hasChanges, "代理规则"), (business.hasPortalChanges, "校园登录地址"), (dashboardHasChanges, "仪表盘布局")]
+            .compactMap { $0.0 ? $0.1 : nil }
+        if !drafts.isEmpty {
             promptActive = true
             let alert = NSAlert()
-            alert.messageText = "退出前保存代理规则？"
-            alert.informativeText = "未保存的更改将在退出后丢失。"
+            alert.messageText = "退出前保存" + drafts.joined(separator: "和") + "？"
+            alert.informativeText = "只有已保存的更改会在下次打开时保留。"
             alert.addButton(withTitle: "保存并退出")
-            alert.addButton(withTitle: "取消")
-            alert.addButton(withTitle: "不保存退出")
+            alert.addButton(withTitle: "返回编辑")
+            alert.addButton(withTitle: "放弃并退出")
             let response = alert.runModal()
             promptActive = false
-            if response == .alertSecondButtonReturn { return .terminateCancel }
+            if response == .alertSecondButtonReturn {
+                page = (business.hasChanges || business.hasPortalChanges) ? .configuration : .overview
+                showWindow()
+                return .terminateCancel
+            }
             saveBeforeExit = response == .alertFirstButtonReturn
         }
         terminating = true
         Task {
-            if saveBeforeExit {
+            if saveBeforeExit && business.hasChanges {
                 await business.save()
                 if business.error != nil || business.hasChanges {
                     terminating = false
@@ -593,6 +784,12 @@ typealias Page = DesktopPage
                     NSApp.reply(toApplicationShouldTerminate: false)
                     return
                 }
+            }
+            if saveBeforeExit && business.hasPortalChanges, await business.savePortalAddress() != nil {
+                terminating = false
+                page = .configuration; showWindow()
+                NSApp.reply(toApplicationShouldTerminate: false)
+                return
             }
             do {
                 if let identity = serviceIdentity {
@@ -608,6 +805,7 @@ typealias Page = DesktopPage
                 NSApp.reply(toApplicationShouldTerminate: false)
                 return
             }
+            if saveBeforeExit && dashboardHasChanges { saveDashboard() }
             heartbeat?.cancel()
             await updater.cancelForQuit()
             core.cancel()

@@ -7,8 +7,16 @@ import FreeV6Desktop
     lazy var model: AppModel = {
         let model = AppModel()
         model.onShowWindow = { [weak self] in self?.revealWindow() }
+        model.startMonitoring()
         return model
     }()
+    override init() { super.init() }
+    init(model: AppModel) {
+        super.init()
+        self.model = model
+        model.onShowWindow = { [weak self] in self?.revealWindow() }
+    }
+
     lazy var hideInitialWindow = model.startup.shouldStartHidden
     var openMainWindow: (() -> Void)?
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -59,6 +67,9 @@ private final class MainWindowAnchor: NSView {
         guard let window else { return }
         window.identifier = NSUserInterfaceItemIdentifier("freev6-main")
         window.delegate = applicationDelegate
+        window.titleVisibility = .hidden
+        // AppKit measures the entire window, including the system's current toolbar.
+        window.minSize = NSSize(width: 720, height: 480)
         window.setFrameAutosaveName("FreeV6MainWindow")
         if applicationDelegate?.hideInitialWindow == true {
             window.alphaValue = 0
@@ -88,6 +99,9 @@ struct FreeV6App: App {
             StartupPreferences(model: model, showMenuBarExtra: $showMenuBarExtra)
                 .preferredColorScheme(colorScheme)
         }
+        .windowToolbarStyle(.unified)
+        .defaultSize(width: 780, height: 550)
+        .windowResizability(.contentSize)
         Window("FreeV6 使用说明", id: "help") {
             NativeHelpView().preferredColorScheme(colorScheme)
         }
@@ -104,7 +118,7 @@ struct FreeV6App: App {
             StartupWindow(model: model)
                 .preferredColorScheme(colorScheme)
                 .background(WindowConfiguration(delegate: delegate))
-                .frame(minWidth: 720, minHeight: 480)
+                .frame(minWidth: 720)
         }
         .defaultSize(width: 920, height: 620)
         .windowToolbarStyle(.unified)
@@ -138,136 +152,54 @@ private struct StatusIcon: View {
 
 struct MainView: View {
     @ObservedObject var model: AppModel
-
     var body: some View {
-        NavigationSplitView {
-            List(Page.allCases, selection: $model.page) { page in
-                Label(page.title, systemImage: page.symbol).tag(page)
-            }
-            .navigationSplitViewColumnWidth(min: 150, ideal: 180)
-        } detail: {
-            VStack(alignment: .leading, spacing: 20) {
-                Label(model.page?.title ?? "概览", systemImage: model.page?.symbol ?? "network")
-                    .font(.largeTitle.bold())
-                if model.page == .overview {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
-                            ServiceOverviewView(model: model)
-                            if let message = model.startup.automaticStatus { Text(message).foregroundStyle(.secondary) }
-                            if model.updater.busy || model.updater.error != nil || model.updateRecoveryMessage != nil {
-                                GroupBox("应用更新") {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        Text(model.updater.status)
-                                        if let message = model.updater.error ?? model.updateRecoveryMessage { Text(message).foregroundStyle(.secondary) }
-                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                                }
-                            }
-                            if model.network.phase == .running { TrafficOverview(controls: model.controls) }
-                            TrafficStatisticsView(model: model)
-                            WarpAccountView(model: model.warp).disabled(model.serviceBusy || model.configurationBusy)
-                            RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
-                            GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
-                            ConfigurationPreparationView(model: model)
-                            MaintainerNoticeView(model: model.business)
-                        }
-                    }
-                } else if model.page == .nodes {
-                    NodesView(model: model)
-                } else if model.page == .configuration {
-                    BusinessSettingsView(model: model.business, app: model, context: .main(.configuration))
-                } else if model.page == .logs {
-                    DiagnosticsView(logs: model.logs)
-                }
-                Spacer()
-                Text("macOS 原生客户端 · 开发版本")
-                    .font(.caption).foregroundStyle(.secondary)
-            }.padding(28)
-                .navigationTitle(model.page?.title ?? "概览")
-                .toolbar { NativeToolbar(model: model) }
-        }
-        .focusedSceneValue(\.commandContext, .main(model.page ?? .overview))
-        .disabled(model.terminating || model.promptActive || model.updater.preparingInstallation)
+        WindowPages(model: model)
+            .toolbar { NativeToolbar(model: model) }
+            .disabled(model.terminating || model.promptActive || model.updater.preparingInstallation)
     }
 }
 
-private struct ServiceOverviewView: View {
-    @ObservedObject var model: AppModel
-    var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Label(model.serviceStatus, systemImage: "wrench.and.screwdriver").font(.headline)
-                Label(model.connectionTitle, systemImage: model.connectionSymbol)
-                Text("连接会通过隧道转发流量，并调整系统 DNS。断开时服务先恢复 DNS，再停止核心。")
-                    .foregroundStyle(.secondary)
-                HStack {
-                    Button(model.serviceInstalled ? "修复 / 重新登记服务…" : "安装网络服务…") {
-                        Task { await model.manageService(.install) }
-                    }.disabled(!model.canManageService)
-                    DesktopCommandButton(.refreshService, model: model)
-                    if model.serviceBusy { ProgressView().controlSize(.small) }
-                }
-                if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-                if let message = model.network.statusError ?? model.network.error {
-                    Text(message).font(.callout).foregroundStyle(.red).textSelection(.enabled)
-                }
-                if model.network.phase == .recovering {
-                    DesktopCommandButton(model.commandState.primaryCommand, model: model)
-                }
-                if model.serviceState == .needsRepair || model.network.statusError != nil ||
-                    model.network.error != nil || model.network.phase == .recovering {
-                    DesktopCommandButton(.exportDiagnostics, model: model)
-                }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-        }
-    }
-}
+private struct WindowPages: View {
+    let model: AppModel
+    @ObservedObject private var navigation: WindowNavigation
+    @State private var visited: Set<Page> = []
 
-struct SettingsView: View {
-    @ObservedObject var model: AppModel
-    @Binding var showMenuBarExtra: Bool
-    @AppStorage("appearance") private var appearance = "system"
-    @State private var confirmUninstall = false
-    @State private var selectedTab = PreferencesPage.general
+    init(model: AppModel) {
+        self.model = model
+        navigation = model.navigation
+    }
     var body: some View {
-        TabView(selection: $selectedTab) {
-        Form {
-            Picker("外观", selection: $appearance) {
-                Text("跟随系统").tag("system")
-                Text("浅色").tag("light")
-                Text("深色").tag("dark")
+        let selected = navigation.page
+        // Keep visited pages in place, including the scroll position and node search.
+        // Rebuilding an AppKit form/table on every click stalls the toolbar animation.
+        ZStack {
+            ForEach(Page.allCases) { destination in
+                if destination == selected || visited.contains(destination) {
+                    content(destination)
+                        .opacity(destination == selected ? 1 : 0)
+                        .allowsHitTesting(destination == selected)
+                        .accessibilityHidden(destination != selected)
+                        .disabled(destination != selected)
+                }
             }
-            Toggle("在菜单栏中显示 FreeV6", isOn: $showMenuBarExtra)
-            StartupSettingsView(startup: model.startup)
-            if !showMenuBarExtra {
-                Text(model.startup.silent ? "菜单栏入口已隐藏，启动时会显示主窗口。" : "可以从程序坞重新打开主窗口。")
-                    .font(.callout).foregroundStyle(.secondary)
-            }
-        }.padding(24).tabItem { Label("通用", systemImage: "gearshape") }.tag(PreferencesPage.general)
-        BusinessSettingsView(model: model.business, app: model, context: .preferences(.rules)).tabItem { Label("代理规则", systemImage: "slider.horizontal.3") }.tag(PreferencesPage.rules)
-        ScrollView { WarpAccountView(model: model.warp).padding(24).disabled(model.serviceBusy || model.configurationBusy) }.tabItem { Label("WARP", systemImage: "key") }.tag(PreferencesPage.account)
-        ScrollView {
-            VStack(spacing: 20) {
-                RuntimePreparationView(model: model.core).disabled(model.configurationBusy)
-                GeodataPreparationView(model: model.geodata).disabled(model.configurationBusy)
-            }.padding(24)
-        }.tabItem { Label("核心与数据", systemImage: "shippingbox") }.tag(PreferencesPage.core)
-        Form {
-            Section("网络服务") {
-                Text(model.serviceStatus)
-                Button("恢复未完成的安装…") { Task { await model.manageService(.recover) } }.disabled(!model.canManageService)
-                Button("卸载网络服务…") { confirmUninstall = true }
-                    .disabled(!model.canManageService || !model.serviceInstalled)
-                if let error = model.error { Text(error).font(.callout).foregroundStyle(.red) }
-            }
-        }.padding(24).tabItem { Label("网络服务", systemImage: "network") }.tag(PreferencesPage.service)
         }
-        .frame(width: 560, height: 540)
-        .focusedSceneValue(\.commandContext, .preferences(selectedTab))
-        .disabled(model.terminating || model.promptActive || model.updater.preparingInstallation)
-        .confirmationDialog("卸载网络服务？", isPresented: $confirmUninstall) {
-            Button("卸载", role: .destructive) { Task { await model.manageService(.uninstall) } }
-        } message: {
-            Text("将移除后台网络服务。应用和用户配置会保留，之后可以重新安装服务。")
+            .onChange(of: selected, initial: true) { old, new in
+                if !visited.contains(new) { visited.insert(new) }
+                guard old != new, let window = NSApp.keyWindow,
+                      window.identifier?.rawValue == "freev6-main", window.firstResponder is NSText else { return }
+                window.makeFirstResponder(nil)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .focusedSceneValue(\.commandContext, .main(selected))
+    }
+
+    @ViewBuilder private func content(_ page: Page) -> some View {
+        switch page {
+        case .overview: OverviewView(model: model)
+        case .nodes: NodesView(model: model)
+        case .configuration:
+            BusinessSettingsView(model: model.business, app: model, context: .main(.configuration))
+        case .logs: DiagnosticsView(model: model)
         }
     }
 }

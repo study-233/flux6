@@ -45,16 +45,18 @@ public struct InstallationPayload {
         try binaries.write("FreeV6", data: readSource(app.appendingPathComponent("Contents/MacOS/FreeV6"), limit: maximumBinaryBytes), mode: 0o700)
         // Only executable identity/entitlements are enrolled. Resources are never
         // trusted to select root executables; the independent service hash does that.
-        let client = try CodeIdentity.protectedFile(at: URL(fileURLWithPath: clientRoot), identifier: expected.identifier, checkResources: false)
+        let recovery = try readSource(installer, limit: maximumBinaryBytes)
+        try staging.write("candidate-recovery", data: recovery, mode: 0o700)
+        let recoveryIdentity = try CodeIdentity.protectedFile(at: URL(fileURLWithPath: stagingPath + "/candidate-recovery"), identifier: "dev.freev6.service-installer")
+        guard recoveryIdentity == installerIdentity else { throw InstallationError.invalidPayload }
+        let trustedSeal = try CodeIdentity.installerClientSeal(at: URL(fileURLWithPath: stagingPath + "/candidate-recovery"))
+        let client = try CodeIdentity.protectedFile(at: URL(fileURLWithPath: clientRoot), identifier: expected.identifier, checkResources: false,
+                                                    trustedClientSeal: trustedSeal)
         guard client == expected else { throw InstallationError.invalidPayload }
         let service = try readSource(app.appendingPathComponent("Contents/Library/LaunchServices/dev.freev6.network-service"), limit: maximumBinaryBytes)
         guard digest(service) == serviceHash else { throw InstallationError.invalidPayload }
         try staging.write("candidate-service", data: service, mode: 0o700)
         let serviceIdentity = try CodeIdentity.protectedFile(at: URL(fileURLWithPath: stagingPath + "/candidate-service"), identifier: ServiceProtocolVersion.machService)
-        let recovery = try readSource(installer, limit: maximumBinaryBytes)
-        try staging.write("candidate-recovery", data: recovery, mode: 0o700)
-        let recoveryIdentity = try CodeIdentity.protectedFile(at: URL(fileURLWithPath: stagingPath + "/candidate-recovery"), identifier: "dev.freev6.service-installer")
-        guard recoveryIdentity == installerIdentity else { throw InstallationError.invalidPayload }
         let registration = try ServiceRegistration(service: serviceIdentity, clients: [
             RegisteredClient(uid: uid, identity: client), RegisteredClient(uid: 0, identity: recoveryIdentity),
         ])

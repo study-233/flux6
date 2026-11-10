@@ -76,7 +76,7 @@ def main():
     env = os.environ.copy()
     env["DEVELOPER_DIR"] = env.get("DEVELOPER_DIR", "/Applications/Xcode.app/Contents/Developer")
     env["CLANG_MODULE_CACHE_PATH"] = str(ROOT / "build/macos-module-cache")
-    target = f"{platform.machine()}-apple-macos13.0"
+    target = f"{platform.machine()}-apple-macos14.0"
     executable = work / "UpdateProbe"
     run(["/usr/bin/xcrun", "clang", "-fobjc-arc", "-Wall", "-Werror", "-target", target,
          "-F", distribution, "-framework", "AppKit", "-framework", "Sparkle",
@@ -125,7 +125,7 @@ def main():
         info = {
             "CFBundleIdentifier": identifier, "CFBundleExecutable": "UpdateProbe", "CFBundlePackageType": "APPL",
             "CFBundleName": "FreeV6 Update Probe", "CFBundleVersion": version, "CFBundleShortVersionString": version,
-            "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
+            "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
             "SUFeedURL": feed_url + "/appcast.xml", "SUPublicEDKey": public_key,
             "SUEnableAutomaticChecks": False, "SUAutomaticallyUpdate": False,
             "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
@@ -168,7 +168,7 @@ def main():
             (feed / "appcast.xml").write_text(
                 '<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">'
                 '<channel><title>Isolated FreeV6 update test</title><item><title>Version 2</title>'
-                '<sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>' + enclosure + '</item></channel></rss>')
+                '<sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>' + enclosure + '</item></channel></rss>')
         print(f"Running {args.profile}: {'load' if args.load_only else 'signature rejection' if args.invalid_signature else 'N -> N+1'}", flush=True)
         with (work / "process.log").open("w") as log:
             child = subprocess.Popen([str(app / "Contents/MacOS/UpdateProbe")], stdout=log, stderr=log)

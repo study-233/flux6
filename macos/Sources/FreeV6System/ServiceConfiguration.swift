@@ -127,6 +127,7 @@ public enum ServiceConfigurationAssembler {
         // BusinessConfiguration's strict decoder rejects every system key.
         guard Set(document.keys).isDisjoint(with: Set(system.keys)) else { throw ServiceMessageError.invalid }
         document.merge(system) { _, _ in preconditionFailure("System key collision") }
+        try CoreDownload.addChannel(to: &document, password: secret.map { String(format: "%02x", $0) }.joined())
         let encoded = try JSONSerialization.data(withJSONObject: document, options: [.sortedKeys, .withoutEscapingSlashes])
         guard encoded.count <= ServiceMessages.maximumConfigurationBytes else { throw ServiceMessageError.oversized }
         return AssembledServiceConfiguration(data: encoded)

@@ -5,8 +5,17 @@ import Security
 private actor MemorySecretStorage: VersionedSecretStorage {
     var value: SecretSnapshot?
     var failWrites = false
+    var readError: CredentialError?
     func setFailure(_ value: Bool) { failWrites = value }
-    func read() -> SecretSnapshot? { value }
+    func setReadError(_ error: CredentialError?) { readError = error }
+    func read() throws -> SecretSnapshot? {
+        if let readError { throw readError }
+        return value
+    }
+    func read(interactionAllowed: Bool) throws -> SecretSnapshot? { try read() }
+    func write(_ data: Data, expectedRevision: UUID?, interactionAllowed: Bool) throws -> SecretSnapshot {
+        try write(data, expectedRevision: expectedRevision)
+    }
     func write(_ data: Data, expectedRevision: UUID?) throws -> SecretSnapshot {
         if failWrites { throw CredentialError.security(errSecUserCanceled) }
         guard value?.revision == expectedRevision else { throw CredentialError.conflict }
@@ -23,6 +32,22 @@ private actor MemorySecretStorage: VersionedSecretStorage {
 private actor RegistrationCounter {
     var value = 0
     func increment() { value += 1 }
+}
+
+private actor RegistrationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var waiter: CheckedContinuation<Void, Never>?
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            waiter?.resume(); waiter = nil
+        }
+    }
+    func untilWaiting() async {
+        if continuation != nil { return }
+        await withCheckedContinuation { waiter = $0 }
+    }
+    func release() { continuation?.resume(); continuation = nil }
 }
 
 final class WarpCredentialTests: XCTestCase {
@@ -89,6 +114,123 @@ final class WarpCredentialTests: XCTestCase {
         XCTAssertEqual(count, 0)
     }
 
+    func testMissingCredentialRegistersOnceAndReusesAcrossWorkflowInstances() async throws {
+        let credential = try fixture(), storage = MemorySecretStorage(), counter = RegistrationCounter()
+        let vault = WarpCredentialVault(storage: storage)
+        let operation: WarpRegistrationOperation = { _, _ in await counter.increment(); return credential }
+        let first = WarpRegistration(vault: vault, operation: operation)
+        let created = try await first.ensureRegistered(interactionAllowed: false)
+        let reused = try await first.ensureRegistered(interactionAllowed: true)
+        let restarted = WarpRegistration(vault: WarpCredentialVault(storage: storage), operation: operation)
+        let afterRestart = try await restarted.ensureRegistered(interactionAllowed: false)
+        XCTAssertEqual(created, reused); XCTAssertEqual(created, afterRestart)
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
+    }
+
+    func testDeniedLockedOrDamagedCredentialNeverTriggersAutomaticRegistration() async throws {
+        let credential = try fixture(), storage = MemorySecretStorage(), counter = RegistrationCounter()
+        let workflow = WarpRegistration(vault: WarpCredentialVault(storage: storage)) { _, _ in
+            await counter.increment(); return credential
+        }
+        for error in [CredentialError.security(errSecUserCanceled), .security(errSecInteractionNotAllowed),
+                      .security(errSecAuthFailed), .invalidCredential] {
+            await storage.setReadError(error)
+            do { _ = try await workflow.ensureRegistered(interactionAllowed: false); XCTFail("Access failure ignored") }
+            catch let received { XCTAssertEqual(received as? CredentialError, error) }
+        }
+        let count = await counter.value
+        XCTAssertEqual(count, 0)
+    }
+
+    func testAutomaticSaveFailureRetainsOneDeviceAndSharesManualRetry() async throws {
+        let credential = try fixture(), storage = MemorySecretStorage(), counter = RegistrationCounter()
+        let workflow = WarpRegistration(vault: WarpCredentialVault(storage: storage)) { _, _ in
+            await counter.increment(); return credential
+        }
+        await storage.setFailure(true)
+        for _ in 0..<2 {
+            do { _ = try await workflow.ensureRegistered(interactionAllowed: true); XCTFail("Save failure ignored") }
+            catch { XCTAssertEqual(error as? CredentialError, .security(errSecUserCanceled)) }
+        }
+        let pending = await workflow.hasPendingCredential
+        XCTAssertTrue(pending)
+        await storage.setFailure(false)
+        let saved = try await workflow.retrySave()
+        let reused = try await workflow.ensureRegistered(interactionAllowed: false)
+        XCTAssertEqual(saved, reused)
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
+    }
+
+    func testConcurrentEnsureAndManualRegistrationCannotCreateAnotherDevice() async throws {
+        let credential = try fixture(), counter = RegistrationCounter()
+        let vault = WarpCredentialVault(storage: MemorySecretStorage())
+        let gate = RegistrationGate()
+        let workflow = WarpRegistration(vault: vault) { _, _ in
+            await counter.increment(); await gate.wait(); return credential
+        }
+        let first = Task { try await workflow.ensureRegistered(interactionAllowed: true) }
+        await gate.untilWaiting()
+        do { _ = try await workflow.ensureRegistered(interactionAllowed: true); XCTFail("Concurrent registration") }
+        catch { XCTAssertTrue(error is RegistrationWorkflowError) }
+        do { _ = try await workflow.register(name: "Mac", replacing: nil) { _ in }; XCTFail("Concurrent manual registration") }
+        catch { XCTAssertTrue(error is RegistrationWorkflowError) }
+        await gate.release()
+        _ = try await first.value
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
+    }
+
+    func testAutomaticRegistrationNeverOverwritesAnExternallyCreatedCredential() async throws {
+        let credential = try fixture(), storage = MemorySecretStorage()
+        let vault = WarpCredentialVault(storage: storage)
+        let workflow = WarpRegistration(vault: vault) { _, _ in
+            _ = try await vault.save(credential, expectedRevision: nil)
+            return credential
+        }
+        do { _ = try await workflow.ensureRegistered(interactionAllowed: true); XCTFail("Overwrite accepted") }
+        catch { XCTAssertEqual(error as? CredentialError, .conflict) }
+        let external = try await vault.load()
+        XCTAssertNotNil(external)
+        let pending = await workflow.hasPendingCredential
+        XCTAssertTrue(pending)
+        do { _ = try await workflow.ensureRegistered(interactionAllowed: true); XCTFail("Pending overwrote external item") }
+        catch { XCTAssertEqual(error as? CredentialError, .conflict) }
+        let retained = try await vault.load()
+        XCTAssertEqual(external?.revision, retained?.revision)
+    }
+
+    func testCancelledAutomaticRegistrationRetainsReturnedDeviceForRetry() async throws {
+        let credential = try fixture(), counter = RegistrationCounter(), gate = RegistrationGate()
+        let workflow = WarpRegistration(vault: WarpCredentialVault(storage: MemorySecretStorage())) { _, _ in
+            await counter.increment(); await gate.wait(); return credential
+        }
+        let first = Task { try await workflow.ensureRegistered(interactionAllowed: true) }
+        await gate.untilWaiting(); first.cancel(); await gate.release()
+        do { _ = try await first.value; XCTFail("Cancellation ignored") } catch { XCTAssertTrue(error is CancellationError) }
+        _ = try await workflow.ensureRegistered(interactionAllowed: true)
+        let count = await counter.value
+        XCTAssertEqual(count, 1)
+    }
+
+    func testFailedRegistrationCanBeRetriedWithoutSavingInvalidState() async throws {
+        let credential = try fixture(), counter = RegistrationCounter()
+        let vault = WarpCredentialVault(storage: MemorySecretStorage())
+        let workflow = WarpRegistration(vault: vault) { _, _ in
+            await counter.increment()
+            if await counter.value == 1 { throw URLError(.notConnectedToInternet) }
+            return credential
+        }
+        do { _ = try await workflow.ensureRegistered(interactionAllowed: true); XCTFail("Network failure ignored") }
+        catch { XCTAssertTrue(error is URLError) }
+        let saved = try await vault.load(), pending = await workflow.hasPendingCredential
+        XCTAssertNil(saved); XCTAssertFalse(pending)
+        _ = try await workflow.ensureRegistered(interactionAllowed: true)
+        let count = await counter.value
+        XCTAssertEqual(count, 2)
+    }
+
     func testPrivateKeychainRoundTripAndRevisionConflicts() async throws {
         guard ProcessInfo.processInfo.environment["FREEV6_TEST_PRIVATE_KEYCHAIN"] == "1" else {
             throw XCTSkip("Opt in to an isolated temporary Keychain test; never uses login Keychain")
@@ -110,16 +252,27 @@ final class WarpCredentialTests: XCTestCase {
         } }
         guard status == errSecSuccess, let keychain else { throw CredentialError.security(status) }
         defer { XCTAssertEqual(SecKeychainDelete(keychain), errSecSuccess) }
-        let storage = KeychainSecretStorage(service: "dev.freev6.test.\(UUID().uuidString)", account: "fixture", keychain: keychain)
+        let service = "dev.freev6.test.\(UUID().uuidString)"
+        let storage = KeychainSecretStorage(service: service, account: "fixture", keychain: keychain)
+        let otherStorage = KeychainSecretStorage(service: service, account: "fixture", keychain: keychain)
         let empty = try await storage.read()
         XCTAssertNil(empty)
-        let first = try await storage.write(Data("synthetic first".utf8), expectedRevision: nil)
+        let first = try await storage.write(Data("synthetic first".utf8), expectedRevision: nil, interactionAllowed: false)
         let read = try await storage.read()
         XCTAssertEqual(read?.revision, first.revision)
         XCTAssertEqual(read?.data, first.data)
+        let reads = try await storage.secretReadsForTesting()
+        for _ in 0..<4 { _ = try await storage.read(interactionAllowed: false) }
+        let reusedReads = try await storage.secretReadsForTesting()
+        XCTAssertEqual(reusedReads, reads, "Repeated preparation must reuse authorized bytes, not request secret data again")
         do { _ = try await storage.write(Data("duplicate".utf8), expectedRevision: nil); XCTFail("duplicate insert replaced item") }
         catch { XCTAssertEqual(error as? CredentialError, .conflict) }
-        let second = try await storage.write(Data("synthetic second".utf8), expectedRevision: first.revision)
+        // A second instance changes an entry that the first has cached. Reuse
+        // must detect the new revision before returning any secret bytes.
+        let second = try await otherStorage.write(Data("synthetic second".utf8), expectedRevision: first.revision)
+        let external = try await storage.read(interactionAllowed: false)
+        XCTAssertEqual(external?.revision, second.revision)
+        XCTAssertEqual(external?.data, second.data)
         do { _ = try await storage.write(Data("stale".utf8), expectedRevision: first.revision); XCTFail("stale update replaced item") }
         catch { XCTAssertEqual(error as? CredentialError, .conflict) }
         do { try await storage.delete(expectedRevision: first.revision); XCTFail("stale deletion removed item") }
@@ -127,7 +280,7 @@ final class WarpCredentialTests: XCTestCase {
         let retained = try await storage.read()
         XCTAssertEqual(retained?.revision, second.revision)
         XCTAssertEqual(retained?.data, second.data)
-        try await storage.delete(expectedRevision: second.revision)
+        try await otherStorage.delete(expectedRevision: second.revision)
         let removed = try await storage.read()
         XCTAssertNil(removed)
         let chainStorage = KeychainSecretStorage(service: "dev.freev6.test.chain", account: "key", keychain: keychain)

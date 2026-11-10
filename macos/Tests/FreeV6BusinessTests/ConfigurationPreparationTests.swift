@@ -109,7 +109,7 @@ final class ConfigurationPreparationTests: XCTestCase {
             let withoutChain = try await client.prepareConfiguration(settings: off, credentialRevision: revision, tunnel: tunnel,
                 runtimeId: core.resourceId, geodataId: geodata.resourceId)
             XCTAssertEqual(withoutChain.configuration.proxyCount, 28)
-            let noticeFile = data.appendingPathComponent("maintainer-notice.json")
+            let noticeFile = data.appendingPathComponent("maintainer-notice-study-233-free-v6.json")
             func writeGate(_ allowed: Bool) throws {
                 let record: [String: Any] = ["fetchedAt": ISO8601DateFormatter().string(from: Date()), "cloudProfile": allowed, "items": []]
                 try JSONSerialization.data(withJSONObject: record).write(to: noticeFile, options: .atomic)
@@ -160,7 +160,7 @@ final class ConfigurationPreparationTests: XCTestCase {
             let cleared = try await client.clearChain(settings: campusCleared)
             XCTAssertNil(cleared.chain)
             let files = try FileManager.default.contentsOfDirectory(atPath: data.path)
-            XCTAssertEqual(Set(files), Set(["worker.lock", "proxy-preferences.json", "maintainer-notice.json"]))
+            XCTAssertEqual(Set(files), Set(["worker.lock", "proxy-preferences.json", "maintainer-notice-study-233-free-v6.json"]))
             let preferences = try String(contentsOf: data.appendingPathComponent("proxy-preferences.json"))
             XCTAssertFalse(preferences.contains(credential.device.privateKey))
             XCTAssertFalse(preferences.contains(credential.device.token))

@@ -32,8 +32,15 @@ public enum CoreDelay: Codable, Equatable, Sendable { case measured(milliseconds
 /// that the write did not happen. This class does not restore DNS or stop jobs.
 final class CoreController {
     private let transport: UnixControllerTransport
+    private let directory: SecureDirectory
+    private let currentPID: () throws -> pid_t
 
     init(directory: SecureDirectory, job: ManagedCoreJob) throws {
+        self.directory = directory
+        currentPID = {
+            guard let pid = try job.status()?.pid else { throw CoreControllerError.notRunning }
+            return pid
+        }
         guard directory.owner == 0, geteuid() == 0,
               URL(fileURLWithPath: directory.path).lastPathComponent == job.sessionID.uuidString else {
             throw CoreControllerError.identity
@@ -46,11 +53,15 @@ final class CoreController {
 
     #if DEBUG
     init(probeDirectory: SecureDirectory, currentPID: @escaping () throws -> pid_t) throws {
+        self.directory = probeDirectory
+        self.currentPID = currentPID
         guard geteuid() != 0, probeDirectory.owner == geteuid() else { throw CoreControllerError.identity }
         transport = UnixControllerTransport(directory: probeDirectory, currentPID: currentPID)
     }
     #endif
 
+    /// Only the authenticated controller is ready here. Provider loading and
+    /// forwarding may still be pending; the network run must verify real egress.
     @discardableResult
     func waitUntilReady(timeout: TimeInterval = 12) throws -> String {
         guard timeout.isFinite, timeout > 0, timeout <= 30 else { throw CoreControllerError.invalidRequest }
@@ -139,6 +150,28 @@ final class CoreController {
         let selection = try proxy(group.coreName)
         guard selection.canSelect, selection.all?.contains(member) == true else { throw CoreControllerError.invalidRequest }
         return try measureDelay(name: member)
+    }
+
+    func measureDownload(group: SessionNodeGroup, member: String, cancellation: DownloadCancellation,
+                         endpoint: String = CoreDownload.endpoint, caFile: String? = nil) throws -> CoreDownloadResult {
+        let selection = try proxy(group.coreName)
+        guard selection.canSelect, selection.all?.contains(member) == true,
+              try proxy(member).all == nil, !["DIRECT", "REJECT"].contains(member) else {
+            throw CoreControllerError.invalidRequest
+        }
+        try cancellation.check()
+        do { try select(group: CoreDownload.group, member: member) }
+        catch {
+            try? select(group: CoreDownload.group, member: "REJECT")
+            throw error
+        }
+        let outcome = Result { try CoreDownload.run(directory: directory, cancellation: cancellation, endpoint: endpoint, caFile: caFile) { port in
+            try CoreDNSListener.verifyTCP(pid: currentPID(), port: port)
+        } }
+        // A test never changes the normal access/chain selector. Disable its
+        // dedicated channel when finished, including timeout and cancellation.
+        try select(group: CoreDownload.group, member: "REJECT")
+        return try outcome.get()
     }
 
     func measureDelay(name: String) throws -> CoreDelay {

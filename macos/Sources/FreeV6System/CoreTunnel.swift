@@ -64,21 +64,18 @@ struct CoreTunnel: Codable, Equatable {
 
     /// A controller handshake proves neither routing nor usable egress. Use a
     /// fixed TLS destination, then check the route to the actual peer address.
-    func verifyEgress() throws {
-        let http = try CapturedCommand.run(executable: "/usr/bin/curl", arguments: [
-            "--disable", "--noproxy", "*", "--silent", "--proto", "=https", "--max-time", "8",
-            "--connect-timeout", "4", "--max-filesize", "1024", "--output", "/dev/null",
-            "--write-out", "%{http_code} %{remote_ip}", "https://www.gstatic.com/generate_204"
-        ], timeout: 10, limit: 256)
-        guard http.exit == .exited(0), let text = String(data: http.output, encoding: .utf8) else {
-            throw NetworkRunError.egressUnavailable
-        }
-        let fields = text.split(separator: " ")
-        guard fields.count == 2, fields[0] == "204" else { throw NetworkRunError.egressUnavailable }
-        let ip = String(fields[1])
-        var v4 = in_addr(), v6 = in6_addr()
-        let ipv4 = inet_pton(AF_INET, ip, &v4) == 1
-        guard ipv4 || inet_pton(AF_INET6, ip, &v6) == 1 else { throw NetworkRunError.egressUnavailable }
+    func verifyEgress(validateIdentity: () throws -> Void) throws {
+        try CoreEgressCheck.waitUntilUsable(validateIdentity: validateIdentity, request: { timeout in
+            try CapturedCommand.run(executable: "/usr/bin/curl", arguments: [
+                "--disable", "--noproxy", "*", "--silent", "--proto", "=https",
+                "--max-time", String(max(0.001, timeout)), "--connect-timeout", "4",
+                "--max-filesize", "1024", "--output", "/dev/null", "--write-out", "%{http_code} %{remote_ip}",
+                "https://www.gstatic.com/generate_204"
+            ], timeout: timeout + 2, limit: 256)
+        }, validatePeer: verifyPeerRoute)
+    }
+
+    private func verifyPeerRoute(ip: String, ipv4: Bool) throws {
         let route = try CapturedCommand.run(executable: "/sbin/route",
             arguments: ["-n", "get", ipv4 ? "-inet" : "-inet6", ip], timeout: 3, limit: 8192)
         guard route.exit == .exited(0), let table = String(data: route.output, encoding: .utf8),

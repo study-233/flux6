@@ -15,7 +15,7 @@ public enum SessionNodeGroup: String, CaseIterable, Codable, Sendable {
     public var title: String { self == .access ? "接入点" : "链式代理" }
 }
 
-public enum SessionControlAction: String, Codable, Sendable { case inspect, setMode, select, unpin, delay, traffic }
+public enum SessionControlAction: String, Codable, Sendable { case inspect, setMode, select, unpin, delay, traffic, download, cancelDownload }
 
 public struct SessionControlRequest: Codable, Sendable {
     public let protocolVersion: Int
@@ -50,13 +50,13 @@ public struct SessionControlRequest: Codable, Sendable {
         var required: Set<String> = ["protocolVersion", "requestID", "target", "action"]
         switch value.action {
         case .inspect, .traffic: break
-        case .unpin:
+        case .unpin, .cancelDownload:
             guard value.token != nil else { throw ServiceMessageError.invalid }
             required.insert("token")
         case .setMode:
             guard value.token != nil, value.mode != nil else { throw ServiceMessageError.invalid }
             required.formUnion(["mode", "token"])
-        case .select, .delay:
+        case .select, .delay, .download:
             guard value.group != nil, let name = value.member, CoreController.validName(name) else { throw ServiceMessageError.invalid }
             required.formUnion(["group", "member"])
             if value.action == .select {
@@ -103,8 +103,10 @@ public struct SessionControlReply: Codable, Sendable {
     public let state: SessionControlSnapshot?
     public let traffic: CoreTrafficSample?
     public let delay: CoreDelay?
+    public let download: CoreDownloadResult?
+    public let cancelled: Bool?
 
-    init(_ request: SessionControlRequest, state: SessionControlSnapshot? = nil, traffic: CoreTrafficSample? = nil, delay: CoreDelay? = nil) {
+    init(_ request: SessionControlRequest, state: SessionControlSnapshot? = nil, traffic: CoreTrafficSample? = nil, delay: CoreDelay? = nil, download: CoreDownloadResult? = nil, cancelled: Bool? = nil) {
         protocolVersion = ServiceProtocolVersion.current
         requestID = request.requestID
         target = request.target
@@ -112,9 +114,11 @@ public struct SessionControlReply: Codable, Sendable {
         self.state = state
         self.traffic = traffic
         self.delay = delay
+        self.download = download
+        self.cancelled = cancelled
     }
 
-    static func decode(_ data: Data, for request: SessionControlRequest) throws -> Self {
+    package static func decode(_ data: Data, for request: SessionControlRequest) throws -> Self {
         guard data.count <= 64 * 1024, let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ServiceClientError.invalidReply
         }
@@ -135,6 +139,13 @@ public struct SessionControlReply: Codable, Sendable {
             if request.action == .select, state.groups.first(where: { $0.group == request.group })?.selected != request.member {
                 throw CoreControllerError.unconfirmed
             }
+        case .download:
+            payload = "download"
+            guard let download = value.download else { throw ServiceClientError.invalidReply }
+            try download.validate()
+        case .cancelDownload:
+            payload = "cancelled"
+            guard value.cancelled == true else { throw ServiceClientError.invalidReply }
         case .traffic:
             payload = "traffic"
             guard value.traffic != nil else { throw ServiceClientError.invalidReply }

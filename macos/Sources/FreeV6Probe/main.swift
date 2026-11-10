@@ -367,6 +367,8 @@ func probeKeychain() throws {
 do {
     let arguments = Array(CommandLine.arguments.dropFirst())
     switch arguments.first {
+    case "flutter-client-seal" where arguments.count == 2:
+        print(try FlutterClientSeal.digest(executable: URL(fileURLWithPath: arguments[1])))
     case "identity":
         let identity = try arguments.count == 2 ? CodeIdentity.file(at: URL(fileURLWithPath: arguments[1])) : CodeIdentity.current()
         let data = try JSONEncoder().encode(identity)
@@ -429,6 +431,14 @@ do {
     case "core-controller" where arguments.count == 3:
         guard let pid = pid_t(arguments[2]) else { throw ServiceMessageError.invalid }
         try CoreControllerProbe.run(path: arguments[1], pid: pid)
+    case "download-probe" where arguments.count == 5:
+        guard let pid = pid_t(arguments[2]), let port = Int(arguments[3]) else { throw ServiceMessageError.invalid }
+        try CoreDownloadProbe.run(path: arguments[1], pid: pid, port: port, scenario: arguments[4])
+    case "startup-egress" where arguments.count == 5:
+        guard let pid = pid_t(arguments[2]), let proxyPort = Int(arguments[3]), let targetPort = Int(arguments[4]) else {
+            throw ServiceMessageError.invalid
+        }
+        try CoreEgressProbe.run(path: arguments[1], pid: pid, proxyPort: proxyPort, targetPort: targetPort)
     case "hold-group" where arguments.count == 3:
         try SessionPreparationProbe.holdGroup(executable: arguments[1], directory: arguments[2])
     case "hold-session" where arguments.count == 3, "hold-partial-session" where arguments.count == 3:

@@ -1,5 +1,15 @@
 import SwiftUI
 
+extension AppModel {
+    var configurationCheckStatus: String {
+        if configurationBusy { return "正在检查" }
+        guard let result = configurationSummary else { return configurationError == nil ? "待检查" : "检查失败" }
+        guard result.settingsRevision == business.snapshot?.revision,
+              result.credentialRevision == activeCredentialRevision, !business.hasChanges else { return "需要重新检查" }
+        return configurationCheckedByService ? "配置已通过核心检查" : "本机配置已检查"
+    }
+}
+
 struct ConfigurationPreparationView: View {
     @ObservedObject var model: AppModel
     var body: some View {

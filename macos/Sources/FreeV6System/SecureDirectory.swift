@@ -8,19 +8,25 @@ final class SecureDirectory {
     let owner: uid_t
     let descriptor: Int32
 
-    init(path: String, owner: uid_t, create: Bool = false, mode: mode_t = 0o700) throws {
+    init(path: String, owner: uid_t, create: Bool = false, mode: mode_t = 0o700,
+         searchAncestors: Bool = false) throws {
         let components = path.split(separator: "/").map(String.init)
         guard path.hasPrefix("/"), !components.isEmpty,
               components.allSatisfy({ $0 != "." && $0 != ".." && !$0.contains("\0") }) else { throw RegistrationError.insecureFile }
-        var current = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        // Sandboxed apps may traverse /Users and container ancestors but may
+        // not enumerate them. Search-only descriptors still support openat,
+        // fstat and ACL inspection. The final directory is always readable.
+        let ancestorFlags = (searchAncestors ? O_SEARCH : O_RDONLY | O_DIRECTORY) | O_CLOEXEC
+        var current = open("/", ancestorFlags)
         guard current >= 0 else { throw RegistrationError.insecureFile }
         do {
             for (index, component) in components.enumerated() {
-                var next = openat(current, component, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
+                let flags = (index == components.count - 1 ? O_RDONLY | O_DIRECTORY | O_CLOEXEC : ancestorFlags) | O_NOFOLLOW
+                var next = openat(current, component, flags)
                 if next < 0, errno == ENOENT, create, index == components.count - 1 {
                     guard mkdirat(current, component, mode) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
                     guard fsync(current) == 0 else { throw POSIXError(.EIO) }
-                    next = openat(current, component, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)
+                    next = openat(current, component, flags)
                 }
                 guard next >= 0 else { throw RegistrationError.insecureFile }
                 close(current)

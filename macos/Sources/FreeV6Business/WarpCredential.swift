@@ -52,7 +52,7 @@ public enum CredentialError: Error, LocalizedError, Equatable, Sendable {
         case .conflict: return "已保存的凭据发生变化。请重新检查后再操作。"
         case .security(-128): return "已取消钥匙串授权。凭据未保存或读取。"
         case .security(-25293), .security(-25308):
-            return "钥匙串需要解锁或授权。WARP 凭据可在概览中检查，节点密钥可在配置页检查。"
+            return "钥匙串需要解锁或授权。WARP 凭据可在设置的 WARP 账户页检查，节点密钥可在配置页检查。"
         case .security(let status): return "钥匙串操作未完成（\(status)）。请检查系统授权后重试。"
         }
     }
@@ -76,11 +76,11 @@ public actor WarpCredentialVault {
         return StoredWarpCredential(revision: item.revision, credential: credential)
     }
 
-    public func save(_ credential: WarpCredential, expectedRevision: UUID?) async throws -> StoredWarpCredential {
+    public func save(_ credential: WarpCredential, expectedRevision: UUID?, interactionAllowed: Bool = true) async throws -> StoredWarpCredential {
         let value = try credential.validated()
         let data = try JSONEncoder().encode(value)
         guard data.count <= 32_768 else { throw CredentialError.invalidCredential }
-        let item = try await storage.write(data, expectedRevision: expectedRevision)
+        let item = try await storage.write(data, expectedRevision: expectedRevision, interactionAllowed: interactionAllowed)
         return StoredWarpCredential(revision: item.revision, credential: value)
     }
 

@@ -1,4 +1,4 @@
-// Test-only child. Never included in the application bundle.
+// Test and isolated acceptance builds only. Never shipped in FreeV6.app.
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -9,10 +9,48 @@
 
 extern char **environ;
 
+// Acceptance build only: retain mode, preferred node and traffic counters in a
+// separate process. EOF releases the child even if the UI crashes. This branch
+// opens no sockets and has no access to system proxy or DNS.
+static int session_fixture(void) {
+    char line[64], mode[8] = "rule";
+    int selected = -1, chain = 0, sample = 0, zero = 0;
+    unsigned long long uploaded = 0, downloaded = 0;
+    while (fgets(line, sizeof(line), stdin)) {
+        line[strcspn(line, "\r\n")] = 0;
+        if (!strcmp(line, "STOP")) { puts("STOPPED"); fflush(stdout); return 0; }
+        if (!strcmp(line, "ZERO 1")) zero = 1;
+        else if (!strcmp(line, "ZERO 0")) zero = 0;
+        else if (!strcmp(line, "MODE global")) strcpy(mode, "global");
+        else if (!strcmp(line, "MODE direct")) strcpy(mode, "direct");
+        else if (!strcmp(line, "MODE rule")) strcpy(mode, "rule");
+        else if (!strncmp(line, "NODE ", 5) || !strncmp(line, "CHAIN ", 6)) {
+            int value; char tail;
+            int is_chain = line[0] == 'C';
+            if (sscanf(line + (is_chain ? 6 : 5), "%d%c", &value, &tail) != 1 || value < (is_chain ? 0 : -1) || value > 199) return 96;
+            if (is_chain) chain = value; else selected = value;
+        } else if (!strncmp(line, "DELAY ", 6)) {
+            int index; char tail;
+            if (sscanf(line + 6, "%d%c", &index, &tail) != 1 || index < 0 || index > 199) return 96;
+            printf("DELAY %d\n", 12 + (index * 7) % 29); fflush(stdout); continue;
+        } else if (!strcmp(line, "TRAFFIC")) {
+            static const unsigned int profile[] = {2, 3, 2, 6, 8, 7, 4, 6, 5, 4, 6, 3};
+            unsigned int n = zero ? 0 : profile[(sample++) % 12];
+            unsigned int up = n * 31250, down = n * 232000;
+            uploaded += up * 2; downloaded += down * 2;
+            printf("TRAFFIC %u %u %llu %llu\n", up, down, uploaded, downloaded); fflush(stdout); continue;
+        } else if (strcmp(line, "STATE")) return 96;
+        printf("STATE %s %d %d\n", mode, selected, chain);
+        fflush(stdout);
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 90;
+    if (!strcmp(argv[1], "session-fixture") && argc == 2) return session_fixture();
     // A bounded fixture for the real launchd job runner. The product core has
-    // its own parser; this test executable is never bundled with the app.
+    // its own parser; this test executable is never bundled with the live app.
     if (!strcmp(argv[1], "-t") && argc == 6 && !strcmp(argv[2], "-d") && !strcmp(argv[4], "-f")) {
         alarm(30);
         int env_count = 0;

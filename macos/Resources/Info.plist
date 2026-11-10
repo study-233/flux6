@@ -8,10 +8,15 @@
     <key>CFBundleName</key><string>FreeV6</string>
     <key>CFBundleDisplayName</key><string>FreeV6</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.5.2</string>
-    <key>CFBundleVersion</key><string>1</string>
-    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>CFBundleShortVersionString</key><string>0.5.7</string>
+    <key>CFBundleVersion</key><string>6</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>UTExportedTypeDeclarations</key>
+    <array><dict>
+        <key>UTTypeIdentifier</key><string>dev.freev6.dashboard-tile</string>
+        <key>UTTypeConformsTo</key><array><string>public.data</string></array>
+    </dict></array>
     <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
 </plist>

@@ -5,7 +5,7 @@ public enum DesktopPage: String, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .overview: return "概览"
+        case .overview: return "仪表盘"
         case .nodes: return "节点"
         case .configuration: return "配置"
         case .logs: return "日志"
@@ -13,7 +13,7 @@ public enum DesktopPage: String, CaseIterable, Identifiable, Sendable {
     }
     public var symbol: String {
         switch self {
-        case .overview: return "network"
+        case .overview: return "rectangle.grid.2x2"
         case .nodes: return "point.3.connected.trianglepath.dotted"
         case .configuration: return "slider.horizontal.3"
         case .logs: return "text.alignleft"
@@ -21,7 +21,7 @@ public enum DesktopPage: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-public enum PreferencesPage: String, Sendable {
+public enum PreferencesPage: String, CaseIterable, Sendable {
     case general, rules, account, core, service
 }
 
@@ -50,15 +50,15 @@ public enum DesktopCommand: Equatable, Sendable {
         case .prepareConfiguration: return "检查连接配置"
         case .downloadCore: return "下载核心"
         case .cancelCoreDownload: return "取消下载"
-        case .saveConfiguration: return "保存配置"
-        case .reloadConfiguration: return "重新载入配置…"
+        case .saveConfiguration: return "保存代理规则"
+        case .reloadConfiguration: return "重新载入代理规则…"
         case .connect: return "连接"
         case .disconnect: return "断开"
         case .retryRecovery: return "重试恢复网络"
         case .reviewSetup: return "查看连接准备…"
         case .importChain: return "导入链式代理配置…"
         case .refreshCloud: return "刷新备用配置"
-        case .measureNodes: return "测量节点延迟"
+        case .measureNodes: return "测量当前整组节点"
         case .exportLogs: return "导出日志…"
         case .exportDiagnostics: return "导出脱敏诊断…"
         case .checkUpdates: return "检查更新…"

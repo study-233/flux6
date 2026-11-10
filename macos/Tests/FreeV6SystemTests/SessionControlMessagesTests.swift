@@ -5,6 +5,24 @@ final class SessionControlMessagesTests: XCTestCase {
     private let target = SessionControlTarget(sessionID: UUID(), revision: 1)
     private let encoder = JSONEncoder()
 
+    func testDownloadOnlyAcceptsNodeAndBoundedMatchingResults() throws {
+        let request = SessionControlRequest(target, .download, group: .access, member: "A")
+        let encoded = try encoder.encode(request)
+        _ = try SessionControlRequest.decode(encoded)
+        var fields = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        fields["url"] = "https://localhost/"
+        XCTAssertThrowsError(try SessionControlRequest.decode(JSONSerialization.data(withJSONObject: fields)))
+        for result in [CoreDownloadResult(bytes: 0, seconds: 1), .init(bytes: 33 * 1024 * 1024, seconds: 1), .init(bytes: 100, seconds: 0)] {
+            XCTAssertThrowsError(try SessionControlReply.decode(encoder.encode(SessionControlReply(request, download: result)), for: request))
+        }
+        let reply = try encoder.encode(SessionControlReply(request, download: .init(bytes: 1000000, seconds: 2)))
+        XCTAssertEqual(try SessionControlReply.decode(reply, for: request).download?.bytesPerSecond, 500000)
+        XCTAssertThrowsError(try SessionControlReply.decode(reply, for: SessionControlRequest(target, .download, group: .access, member: "B")))
+        let cancel = SessionControlRequest(target, .cancelDownload, token: request.requestID)
+        _ = try SessionControlRequest.decode(encoder.encode(cancel))
+        XCTAssertThrowsError(try SessionControlRequest.decode(encoder.encode(SessionControlRequest(target, .cancelDownload))))
+    }
+
     func testMenusCanOnlyRequestKnownActionsAndGroups() throws {
         let select = SessionControlRequest(target, .select, token: UUID(), group: .access, member: "A")
         let data = try encoder.encode(select)

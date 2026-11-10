@@ -187,7 +187,7 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
             let parts = rule.components(separatedBy: ",")
             switch parts.first {
             case "DOMAIN-SUFFIX":
-                guard parts.count == 3, validDomain(parts[1]), ["DIRECT", "REJECT"].contains(parts[2]) else { throw ConfigurationValidationError.invalid }
+                guard parts.count == 3, ProxyRuleSyntax.isDomain(parts[1]), ["DIRECT", "REJECT"].contains(parts[2]) else { throw ConfigurationValidationError.invalid }
             case "IP-CIDR", "IP-CIDR6":
                 guard parts.count == 4, parts[2] == "DIRECT", parts[3] == "no-resolve" else { throw ConfigurationValidationError.invalid }
                 let cidr = parts[1].split(separator: "/", omittingEmptySubsequences: false)
@@ -211,13 +211,6 @@ public struct BusinessConfiguration: Codable, Sendable, CustomStringConvertible,
 
     private func validName(_ value: String) -> Bool {
         !value.isEmpty && value.utf8.count <= 128 && !value.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }
-    }
-    private func validDomain(_ value: String) -> Bool {
-        guard value.utf8.count <= 253, value.contains(".") else { return false }
-        return value.split(separator: ".", omittingEmptySubsequences: false).allSatisfy { label in
-            !label.isEmpty && label.utf8.count <= 63 && label.first != "-" && label.last != "-" &&
-                label.utf8.allSatisfy { (97...122).contains($0) || (48...57).contains($0) || $0 == 45 }
-        }
     }
     private static let providerURLs: Set<String> = [
         "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/CFnat.list",

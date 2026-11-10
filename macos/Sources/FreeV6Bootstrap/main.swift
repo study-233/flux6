@@ -13,8 +13,9 @@ do {
     let identity = try CodeIdentity.protectedFile(at: executable, identifier: "dev.freev6.service-installer")
     let arguments = Array(CommandLine.arguments.dropFirst())
     if arguments == ["manifest"] {
-        let result: [String: Any] = ["serviceSHA256": digest, "protocolVersion": ServiceProtocolVersion.current,
+        var result: [String: Any] = ["serviceSHA256": digest, "protocolVersion": ServiceProtocolVersion.current,
                                    "installer": ["identifier": identity.identifier, "cdHash": identity.cdHash]]
+        result["flutterClientSeal"] = signedPlist[FlutterClientSeal.manifestKey]
         let bytes = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
         print(String(decoding: bytes, as: UTF8.self))
     } else {

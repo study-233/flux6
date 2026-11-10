@@ -212,7 +212,7 @@ def main():
                         "chainKey": key, "credentialRevision": original["credentialRevision"],
                         "tunnel": {k: device[k] for k in ("privateKey", "peerPublicKey", "ipv4", "ipv6")}}, timeout=40)["result"]
                     notice_record = {"fetchedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "items": [], "cloudProfile": True}
-                    (work / "worker-data" / "maintainer-notice.json").write_text(json.dumps(notice_record))
+                    (work / "worker-data" / "maintainer-notice-study-233-free-v6.json").write_text(json.dumps(notice_record))
                     disabled = worker_call(child, "chain.enable", {"expectedRevision": saved["revision"], "enabled": False})["result"]
                     draft = worker_call(child, "cloud.preview", {"expectedRevision": disabled["revision"], "key": key,
                         "source": "file", "value": str(ROOT / "shared/fixtures/chain-proxies.yaml")})["result"]

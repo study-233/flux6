@@ -59,6 +59,12 @@ public enum DesktopNetworkPhase: Equatable, Sendable {
         return SessionControlTarget(sessionID: id, revision: revision)
     }
     public var canTargetSession: Bool { snapshot?.sessionID != nil && snapshot?.revision != nil }
+    /// Recovery still needs the last confirmed owner and revision even when
+    /// live core controls are unavailable.
+    public var ownedTarget: SessionControlTarget? {
+        guard mayOwnSession, let id = snapshot?.sessionID, let revision = snapshot?.revision else { return nil }
+        return SessionControlTarget(sessionID: id, revision: revision)
+    }
 
     public func invalidate() {
         readID = nil

@@ -80,6 +80,76 @@ final class DesktopLogsTests: XCTestCase {
         XCTAssertThrowsError(try UserEventJournal(root: directory).history())
     }
 
+    @MainActor func testClearDuringInitialReadDropsPausedFilteredAndPendingHistoryButKeepsNewEvents() async throws {
+        let directory = try freshDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let journal = UserEventJournal(root: directory)
+        try journal.append([UserEvent(.settingsReady)])
+        let logs = DesktopLogs(directory: directory)
+        logs.record(.opened)
+        logs.record(.serviceMissing)
+        logs.level = .warning
+        logs.togglePause()
+        // These calls run in one main-actor turn before the initial read/drain can finish.
+        logs.clear()
+        logs.record(.noticeMissing)
+        await logs.finishWrites()
+        XCTAssertNil(logs.clearError)
+        XCTAssertTrue(logs.didClear)
+        XCTAssertTrue(logs.visible.isEmpty)
+        XCTAssertNotNil(logs.paused)
+        XCTAssertEqual(logs.records.map(\.event), [.noticeMissing])
+        logs.togglePause()
+        XCTAssertEqual(logs.level, .warning)
+        XCTAssertEqual(logs.visible.map(\.event), [.noticeMissing])
+        let nextLaunch = DesktopLogs(directory: directory)
+        await nextLaunch.finishWrites()
+        XCTAssertEqual(nextLaunch.records.map(\.id), logs.records.map(\.id))
+    }
+
+    func testClearRejectsDelayedReplayAndPreservesConcurrentAndUnrelatedFiles() throws {
+        let directory = try freshDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let journal = UserEventJournal(root: directory)
+        let other = UserEventJournal(root: directory)
+        let cutoff = Date()
+        let old = UserEvent(.opened, at: cutoff.addingTimeInterval(-2))
+        let newer = UserEvent(.connected, at: cutoff.addingTimeInterval(2))
+        try other.append([old, newer])
+        let exported = directory.appendingPathComponent("journal-v1/my-export.txt")
+        try Data("keep".utf8).write(to: exported)
+        XCTAssertEqual(try journal.clear(through: cutoff), [newer])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("journal-v1/app.events.json").path))
+        try other.append([old, newer])
+        XCTAssertEqual(try journal.history(), [newer])
+        XCTAssertEqual(try String(contentsOf: exported, encoding: .utf8), "keep")
+    }
+
+    @MainActor func testFailedClearProtectsLinksAndCanBeRetried() async throws {
+        let directory = try freshDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let logs = DesktopLogs(directory: directory)
+        logs.record(.opened)
+        await logs.finishWrites()
+        let target = directory.appendingPathComponent("service-private.txt")
+        try Data("safe".utf8).write(to: target)
+        let link = directory.appendingPathComponent("journal-v1/service.events.json")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        logs.clear()
+        await logs.finishWrites()
+        XCTAssertNotNil(logs.clearError)
+        XCTAssertFalse(logs.didClear)
+        XCTAssertEqual(logs.records.map(\.event), [.opened])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("journal-v1/app.events.json").path))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "safe")
+        try FileManager.default.removeItem(at: link)
+        logs.clear()
+        await logs.finishWrites()
+        XCTAssertNil(logs.clearError)
+        XCTAssertTrue(logs.records.isEmpty)
+        XCTAssertTrue(try UserEventJournal(root: directory).history().isEmpty)
+    }
+
     func testLogCommandsFollowFocusWhileDiagnosticsRemainAvailableDuringRecovery() {
         var state = DesktopCommandState()
         state.network = .disconnecting

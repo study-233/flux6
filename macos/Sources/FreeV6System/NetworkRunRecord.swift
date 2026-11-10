@@ -55,7 +55,9 @@ protocol SessionRunNetwork {
 struct SystemRunNetwork: SessionRunNetwork {
     let dns: SessionDNSTransaction
     let controller: CoreController
+    private let job: ManagedCoreJob
     init(directory: SecureDirectory, job: ManagedCoreJob) throws {
+        self.job = job
         dns = try SessionDNSTransaction(directory: directory, job: job)
         controller = try CoreController(directory: directory, job: job)
     }
@@ -67,10 +69,25 @@ struct SystemRunNetwork: SessionRunNetwork {
     }
     func ownedTunnel(pid: pid_t) throws -> CoreTunnel? { try CoreTunnel.owned(by: pid) }
     func checkReadiness(pid: pid_t) throws -> CoreTunnel {
+        let deadline = ProcessInfo.processInfo.systemUptime + 30
         try controller.waitUntilReady(timeout: 30)
-        guard let tunnel = try ownedTunnel(pid: pid) else { throw NetworkRunError.tunnelUnavailable }
-        return tunnel
+        // The controller can also precede TUN creation. Wait for this job's
+        // tunnel within the same readiness budget, without accepting a restart.
+        while true {
+            guard try job.status()?.pid == pid else { throw CoreControllerError.notRunning }
+            if let tunnel = try ownedTunnel(pid: pid) { return tunnel }
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            guard remaining > 0 else { throw NetworkRunError.tunnelUnavailable }
+            Thread.sleep(forTimeInterval: min(0.05, remaining))
+        }
     }
-    func verifyEgress(_ tunnel: CoreTunnel) throws { try tunnel.verifyEgress() }
+    func verifyEgress(_ tunnel: CoreTunnel) throws {
+        guard let pid = try job.status()?.pid else { throw CoreControllerError.notRunning }
+        try tunnel.verifyEgress {
+            guard try job.status()?.pid == pid, try ownedTunnel(pid: pid) == tunnel else {
+                throw NetworkRunError.tunnelUnavailable
+            }
+        }
+    }
     func verifyRelease(_ tunnel: CoreTunnel) throws { try tunnel.waitForRelease() }
 }

@@ -34,7 +34,7 @@ public enum ServiceResourceTransfer {
             directory = cache.appendingPathComponent("geodata/" + String(parts[0].dropFirst(8)))
             name = String(parts[1])
         }
-        let folder = try SecureDirectory(path: directory.path, owner: geteuid())
+        let folder = try SecureDirectory(path: directory.path, owner: geteuid(), searchAncestors: true)
         guard let handle = try folder.withFile(name, { source -> FileHandle in
             let file = fcntl(source, F_DUPFD_CLOEXEC, 3)
             guard file >= 0 else { throw ResourceStoreError.invalidSource }

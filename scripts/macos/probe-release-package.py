@@ -39,10 +39,14 @@ try:
     assert len(assets) == 3 and "SHA256SUMS" in assets
     arch = platform.machine()
     archive = work / "release" / f"FreeV6_0.5.3_2_{arch}.zip"
-    enclosure = ET.parse(work / "release" / f"appcast-{arch}.xml").find("./channel/item/enclosure")
+    item = ET.parse(work / "release" / f"appcast-{arch}.xml").find("./channel/item")
+    minimum = item.findtext("{http://www.andymatuschak.org/xml-namespaces/sparkle}minimumSystemVersion")
+    assert minimum == "14.0"
+    enclosure = item.find("enclosure")
     assert enclosure.get("url") == "https://github.com/study-233/free-v6/releases/download/macos-v0.5.3-b2/" + archive.name
     with zipfile.ZipFile(archive) as zipped:
         settings = plistlib.loads(zipped.read("FreeV6.app/Contents/Info.plist"))
+        assert settings["LSMinimumSystemVersion"] == minimum
         assert settings["SUFeedURL"] == spec["feeds"][arch] and settings["SUPublicEDKey"] == public
     args[args.index("--output") + 1] = str(work / "rejected")
     wrong_destination = subprocess.run(args + ["--download-base", "https://example.invalid/releases"], capture_output=True)

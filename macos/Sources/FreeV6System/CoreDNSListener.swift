@@ -35,7 +35,14 @@ enum CoreDNSListener {
         }
     }
 
-    static func ownsListeners(_ text: String, pid: pid_t, port: Int) -> Bool {
+    static func verifyTCP(pid: pid_t, port: Int) throws {
+        let result = try CapturedCommand.run(executable: "/usr/sbin/lsof",
+            arguments: ["-nP", "-FpfPnT", "-iTCP:\(port)"], timeout: 3, limit: 262_144)
+        guard result.exit == .exited(0), let text = String(data: result.output, encoding: .utf8),
+              ownsListeners(text, pid: pid, port: port, requireUDP: false) else { throw CoreControllerError.identity }
+    }
+
+    static func ownsListeners(_ text: String, pid: pid_t, port: Int, requireUDP: Bool = true) -> Bool {
         guard text.hasSuffix("\n") else { return false }
         var inFile = false
         var owner: pid_t?
@@ -72,7 +79,7 @@ enum CoreDNSListener {
             default: return false
             }
         }
-        return acceptFile() && tcp && udp
+        return acceptFile() && tcp && (!requireUDP || udp)
     }
 }
 

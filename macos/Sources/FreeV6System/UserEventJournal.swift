@@ -91,7 +91,7 @@ public struct UserEventJournal: Sendable {
     public init(root: URL) { self.root = root }
 
     private func openDirectory() throws -> SecureDirectory {
-        let folder = try SecureDirectory(path: root.path, owner: geteuid(), create: true)
+        let folder = try SecureDirectory(path: root.path, owner: geteuid(), create: true, searchAncestors: true)
         try folder.requirePrivate()
         guard let journal = try folder.privateChild("journal-v1", create: true) else { throw CocoaError(.fileNoSuchFile) }
         return journal
@@ -105,12 +105,29 @@ public struct UserEventJournal: Sendable {
         return rows
     }
 
+    // A delayed retry from another FreeV6 process must not reintroduce events from before a clear.
+    private func clearedThrough(in folder: SecureDirectory) throws -> Date {
+        guard let data = try folder.read("cleared-through.json", limit: 128) else { return .distantPast }
+        let cutoff = try JSONDecoder().decode(Date.self, from: data)
+        guard cutoff.timeIntervalSinceReferenceDate.isFinite else { throw CocoaError(.fileReadCorruptFile) }
+        return cutoff
+    }
+
+    private func write(_ rows: [UserEvent], for source: EventSource, in folder: SecureDirectory) throws {
+        let data = try JSONEncoder().encode(rows)
+        try folder.publish(source.rawValue + ".events.json", mode: 0o600) { fd in
+            try FileHandle(fileDescriptor: fd, closeOnDealloc: false).write(contentsOf: data)
+        }
+    }
+
     public func history() throws -> [UserEvent] {
         let folder = try openDirectory()
         let lock = try folder.acquireLock("events.lock")
         defer { try? lock.close() }
         try folder.discardStagingFiles()
-        return try EventSource.allCases.flatMap { try read($0, from: folder) }.sorted { $0.date < $1.date }
+        let cutoff = try clearedThrough(in: folder)
+        return try EventSource.allCases.flatMap { try read($0, from: folder) }
+            .filter { $0.date > cutoff }.sorted { $0.date < $1.date }
     }
 
     // Serialize the read/append/replace transaction across application processes.
@@ -120,16 +137,39 @@ public struct UserEventJournal: Sendable {
         let folder = try openDirectory()
         let lock = try folder.acquireLock("events.lock")
         defer { try? lock.close() }
-        for (source, incoming) in Dictionary(grouping: rows, by: { $0.event.source }) {
-            let previous = try read(source, from: folder)
+        let cutoff = try clearedThrough(in: folder)
+        for (source, incoming) in Dictionary(grouping: rows.filter { $0.date > cutoff }, by: { $0.event.source }) {
+            let previous = try read(source, from: folder).filter { $0.date > cutoff }
             var ids = Set(previous.map(\.id))
             let additions = incoming.filter { ids.insert($0.id).inserted }
             guard !additions.isEmpty else { continue }
             let bounded = (previous + additions).sorted { $0.date < $1.date }.suffix(Self.perSourceLimit)
-            let data = try JSONEncoder().encode(Array(bounded))
-            try folder.publish(source.rawValue + ".events.json", mode: 0o600) { fd in
-                try FileHandle(fileDescriptor: fd, closeOnDealloc: false).write(contentsOf: data)
-            }
+            try write(Array(bounded), for: source, in: folder)
         }
+    }
+
+    /// The lock and durable cutoff cover all four sources. A concurrent process can already have
+    /// appended a newer event while this caller was waiting for its own writer to finish.
+    @discardableResult public func clear(through requested: Date) throws -> [UserEvent] {
+        let folder = try openDirectory()
+        let lock = try folder.acquireLock("events.lock")
+        defer { try? lock.close() }
+        let cutoff = max(try clearedThrough(in: folder), requested)
+        var survivors: [EventSource: [UserEvent]] = [:]
+        for source in EventSource.allCases {
+            let name = source.rawValue + ".events.json"
+            guard try folder.withFile(name, { _ in true }) == true else { continue }
+            // Validate every target before touching any. Leave links and unrelated files alone.
+            try folder.requirePrivateFile(name)
+            do { survivors[source] = try read(source, from: folder).filter { $0.date > cutoff } }
+            catch is DecodingError { survivors[source] = [] }
+            catch let error as CocoaError where error.code == .fileReadCorruptFile { survivors[source] = [] }
+        }
+        try folder.write("cleared-through.json", data: JSONEncoder().encode(cutoff), mode: 0o600)
+        for (source, keep) in survivors {
+            if keep.isEmpty { try folder.removeRegularFile(source.rawValue + ".events.json") }
+            else { try write(keep, for: source, in: folder) }
+        }
+        return survivors.values.flatMap { $0 }.sorted { $0.date < $1.date }
     }
 }

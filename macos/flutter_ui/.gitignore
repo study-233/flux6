@@ -1,0 +1,9 @@
+.dart_tool/
+.flutter-plugins-dependencies
+.metadata.tmp
+build/
+coverage/
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Runner.xcworkspace/xcuserdata/
+*.iml

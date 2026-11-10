@@ -81,7 +81,7 @@ struct RuntimePreparationView: View {
                     if model.canCancel { Button("取消下载") { model.cancel() } }
                 }
                 if let error = model.error { Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
-                Text("资源校验完成后，可在概览中继续准备并连接。")
+                Text("资源校验完成后，可在仪表盘中继续准备并连接。")
                     .font(.callout).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
         }

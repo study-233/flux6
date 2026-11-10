@@ -38,10 +38,14 @@ class FeedHandler(SimpleHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", choices=["upgrade", "keychain-upgrade", "bad-archive", "unsigned-feed", "wrong-arch", "cancel", "cancel-download", "lost-host"], default="upgrade")
-    exercise(parser.parse_args().scenario)
+    parser.add_argument("--flutter-target", type=Path, help="Use a QA-identified copy of the signed Flutter build-2 application as the actual Sparkle update target.")
+    args = parser.parse_args()
+    if args.flutter_target and args.scenario != "upgrade":
+        parser.error("--flutter-target is supported for upgrade only")
+    exercise(args.scenario, flutter_target=args.flutter_target)
 
 
-def exercise(scenario, *, before_check=None, confirm_installation=None):
+def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_target=None):
     assert os.geteuid() != 0
     work = ROOT / "build/native-update-probes" / str(uuid.uuid4())
     work.mkdir(parents=True, mode=0o700)
@@ -55,7 +59,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
     env.update(DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer", CLANG_MODULE_CACHE_PATH=str(ROOT / "build/macos-module-cache"))
     host_binary = work / "FreeV6"
     support = ROOT / "macos/Sources/FreeV6UpdateSupport"
-    compiler = ["/usr/bin/xcrun", "swiftc", "-parse-as-library", "-target", ARCH + "-apple-macos13.0"]
+    compiler = ["/usr/bin/xcrun", "swiftc", "-parse-as-library", "-target", ARCH + "-apple-macos14.0"]
     keychain = KeychainUpgrade(work) if scenario == "keychain-upgrade" else None
     keychain_sources = compiler_arguments(ROOT, work, compiler, env, run) if keychain else []
     run([*compiler, *keychain_sources,
@@ -72,7 +76,8 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
     thread.start()
     base = "http://127.0.0.1:" + str(server.server_port)
     events = work / "events.jsonl"
-    identifier = "dev.freev6.update-probe." + uuid.uuid4().hex
+    identifier = ("dev.freev6.flutter-host.qa." + str(uuid.uuid4()) if flutter_target
+                  else "dev.freev6.update-probe." + uuid.uuid4().hex)
     embed = runpy.run_path(str(ROOT / "scripts/macos/bundle-updater.py"))["bundle"]
 
     def make_app(parent, version):
@@ -81,7 +86,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         shutil.copy2(host_binary, app / "Contents/MacOS/FreeV6")
         info = {"CFBundleIdentifier": identifier, "CFBundleExecutable": "FreeV6", "CFBundlePackageType": "APPL",
                 "CFBundleName": "FreeV6 Update Fixture", "CFBundleVersion": str(version), "CFBundleShortVersionString": str(version),
-                "LSMinimumSystemVersion": "13.0", "LSUIElement": True,
+                "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
                 "SUFeedURL": base + "/appcast-" + ARCH + ".xml", "SUPublicEDKey": public,
                 "SURequireSignedFeed": True, "SUVerifyUpdateBeforeExtraction": True, "SUSignedFeedFailureExpirationInterval": 0,
                 "SUEnableAutomaticChecks": False, "SUAutomaticallyUpdate": False, "SUAllowsAutomaticUpdates": False,
@@ -95,10 +100,32 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         run(["/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", app])
         return app
 
+    def make_flutter_target(parent):
+        # Keep the release runner and its AOT/frameworks intact. Give this copy
+        # its own defaults/worker scope and local feed; separately validate the
+        # original production signature and package without these QA overrides.
+        source = Path(flutter_target).resolve(strict=True)
+        run(["/usr/bin/codesign", "--verify", "--strict", "--deep", source])
+        app = parent / "FreeV6.app"
+        parent.mkdir()
+        run(["/usr/bin/ditto", source, app])
+        info_file = app / "Contents/Info.plist"
+        info = plistlib.loads(info_file.read_bytes())
+        if info.get("CFBundleIdentifier") != "dev.freev6.desktop" or info["CFBundleVersion"] != "2":
+            raise ValueError("Expected the signed FreeV6 Flutter build 2 update target")
+        if not (app / "Contents/Frameworks/App.framework/Versions/A/App").is_file():
+            raise ValueError("Target does not carry the Dart AOT framework")
+        info.update(CFBundleIdentifier=identifier, SUFeedURL=base + "/appcast-" + ARCH + ".xml", SUPublicEDKey=public)
+        info_file.write_bytes(plistlib.dumps(info))
+        run(["python3", ROOT / "scripts/macos/sign_flutter_host.py", app])
+        run(["/usr/bin/codesign", "--verify", "--strict", "--deep", app])
+        run(["/usr/bin/xcrun", "swiftc", ROOT / "macos/Probes/RunningUpdateTarget.swift", "-o", work / "target-observer"], env=env)
+        return app
+
     child = None
     try:
         app = make_app(work / "installed", 1)
-        next_app = make_app(work / "next", 2)
+        next_app = make_flutter_target(work / "next") if flutter_target else make_app(work / "next", 2)
         if keychain:
             keychain.seed(ROOT, app)
         package = feed / "update.zip"
@@ -110,10 +137,17 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
                         "architecture": ({"arm64": "x86_64", "x86_64": "arm64"}[ARCH] if scenario == "wrong-arch" else ARCH),
                         "workerProtocol": 1, "serviceProtocol": 6, "settingsSchema": 1,
                         "runtimeCatalogSHA256": "a" * 64, "serviceSHA256": "b" * 64}
+        if flutter_target:
+            metadata = next_app / "Contents/Resources/update-compatibility.json"
+            if metadata.is_file():
+                requirements = json.loads(metadata.read_bytes())
+            else:
+                requirements["runtimeCatalogSHA256"] = hashlib.sha256((next_app / "Contents/Resources/runtime-assets.json").read_bytes()).hexdigest()
+                requirements["serviceSHA256"] = hashlib.sha256((next_app / "Contents/Library/LaunchServices/dev.freev6.network-service").read_bytes()).hexdigest()
         encoded = base64.b64encode(json.dumps(requirements).encode()).decode()
         xml = ('<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" '
                'xmlns:freev6="urn:freev6:update:1"><channel><title>FreeV6 isolated update</title><item><title>Version 2</title>'
-               '<sparkle:version>2</sparkle:version><sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>'
+               '<sparkle:version>2</sparkle:version><sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>'
                f'<enclosure url={quoteattr(base + "/update.zip")} sparkle:edSignature={quoteattr(signature)} '
                f'length="{package.stat().st_size}" type="application/octet-stream" freev6:requirements={quoteattr(encoded)}/>'
                '</item></channel></rss>')
@@ -126,9 +160,10 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         with (work / "process.log").open("w") as log:
             child = subprocess.Popen([app / "Contents/MacOS/FreeV6"], stdout=log, stderr=log,
                                      stdin=subprocess.PIPE if confirm_installation else subprocess.DEVNULL)
-            deadline = time.monotonic() + 90
+            deadline = time.monotonic() + (120 if flutter_target else 90)
             history = []
             service_approved = None
+            target_pid = None
             while time.monotonic() < deadline:
                 if events.exists():
                     lines = events.read_text().splitlines()
@@ -138,6 +173,11 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
                     child.stdin.write(bytes([int(service_approved)]))
                     child.stdin.close()
                 success = any(e["event"] == "launched" and e["version"] == "2" for e in history)
+                if flutter_target and child.poll() == 0 and plistlib.loads((app / "Contents/Info.plist").read_bytes()).get("CFBundleVersion") == "2":
+                    observed = subprocess.run([work / "target-observer", identifier, app, str(child.pid), "inspect"], capture_output=True, text=True)
+                    if observed.returncode == 0:
+                        target_pid = int(observed.stdout)
+                        success = True
                 failure = any(e["event"] == "failed" for e in history)
                 if success or failure:
                     break
@@ -165,6 +205,15 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         result = {"passed": passed, "scenario": scenario, "installedVersion": installed, "events": history,
                   "scope": ("signed fixture with the product update helper, native desktop disconnect, user-domain XPC and isolated DNS"
                             if confirm_installation else "ordinary-user signed fixture using product Swift helper; synthetic network preparation")}
+        if flutter_target and passed:
+            mapped = subprocess.run(["/usr/sbin/lsof", "-nP", "-a", "-p", str(target_pid), "-d", "txt"],
+                                    capture_output=True, timeout=10, text=True).stdout
+            frameworks = {name: name + ".framework/" in mapped for name in ["FlutterMacOS", "App"]}
+            if not all(frameworks.values()):
+                raise RuntimeError("Relaunched process did not map both Flutter frameworks: " + str(frameworks))
+            result["flutter"] = {"freshProcess": True, "sourcePID": child.pid, "targetPID": target_pid, "mappedFrameworks": frameworks,
+                                "probeBundleIdentifier": identifier}
+            result["scope"] = "Shipping update-helper code with automated test consent, signed loopback feed, and privately identified copy of the actual Flutter runner/AOT target. Production app defaults, service, and DNS are untouched."
         if keychain and passed:
             result["keychain"] = keychain.inspect_upgrade_and_rollback(app)
             result["installedVersionAfterRollback"] = plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleVersion"]
@@ -176,6 +225,14 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
         print("PASS " + scenario + " " + str(work / "result.json"))
         return work / "result.json"
     finally:
+        stop_failed = False
+        if flutter_target and child is not None and (work / "target-observer").is_file():
+            try:
+                stopped = subprocess.run([work / "target-observer", identifier, work / "installed/FreeV6.app",
+                                          str(child.pid), "finish"], capture_output=True, timeout=15)
+                stop_failed = stopped.returncode not in (0, 2)
+            except subprocess.TimeoutExpired:
+                stop_failed = True
         if child and child.poll() is None:
             child.terminate()
             try: child.wait(timeout=5)
@@ -194,6 +251,8 @@ def exercise(scenario, *, before_check=None, confirm_installation=None):
             cache = Path.home() / "Library/Caches" / name
             if cache.is_dir() and not cache.is_symlink():
                 shutil.rmtree(cache)
+        if stop_failed:
+            raise RuntimeError("Failed to close disposable Flutter target before rollback")
 
 
 if __name__ == "__main__":

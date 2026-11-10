@@ -33,7 +33,7 @@ public struct UpdateTransactionStore: Sendable {
     public init(root: URL) { self.root = root }
 
     private func directory() throws -> SecureDirectory {
-        let parent = try SecureDirectory(path: root.path, owner: geteuid(), create: true)
+        let parent = try SecureDirectory(path: root.path, owner: geteuid(), create: true, searchAncestors: true)
         try parent.requirePrivate()
         guard let child = try parent.privateChild("update-v1", create: true) else { throw UpdateFailure.installation }
         return child

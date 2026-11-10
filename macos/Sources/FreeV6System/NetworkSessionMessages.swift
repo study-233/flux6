@@ -23,7 +23,7 @@ public struct NetworkSessionReply: Codable, Sendable {
         credentialRevision = record?.credentialRevision
     }
 
-    static func decode(_ data: Data, id: UUID) throws -> Self {
+    package static func decode(_ data: Data, id: UUID) throws -> Self {
         guard data.count <= ServiceMessages.maximumHandshakeBytes,
               let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw ServiceClientError.invalidReply }
         let reply = try JSONDecoder().decode(Self.self, from: data)

@@ -43,7 +43,8 @@ public struct CodeIdentity: Codable, Equatable {
         return try inspect(code)
     }
 
-    public static func protectedFile(at url: URL, identifier: String? = nil, checkResources: Bool = true) throws -> CodeIdentity {
+    public static func protectedFile(at url: URL, identifier: String? = nil, checkResources: Bool = true,
+                                     trustedClientSeal: String? = nil) throws -> CodeIdentity {
         var code: SecStaticCode?
         try check(SecStaticCodeCreateWithPath(url as CFURL, [], &code))
         guard let code else { throw IdentityError.missingCode }
@@ -51,11 +52,35 @@ public struct CodeIdentity: Codable, Equatable {
         if !checkResources { flags |= kSecCSDoNotValidateResources }
         try check(SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: flags), nil))
         let values = try information(code)
-        try RuntimeProtection.validate(flags: (values[kSecCodeInfoFlags as String] as? NSNumber)?.uint32Value ?? 0,
-                                       entitlements: values[kSecCodeInfoEntitlementsDict as String] as? [String: Any] ?? [:])
         let identity = try inspect(code)
         guard identifier == nil || identity.identifier == identifier else { throw IdentityError.invalidIdentity }
+        let runtimeFlags = (values[kSecCodeInfoFlags as String] as? NSNumber)?.uint32Value ?? 0
+        let rights = values[kSecCodeInfoEntitlementsDict as String] as? [String: Any] ?? [:]
+        // Both ad-hoc and certificate-signed local hosts lack a Team ID.
+        // This exception is authorized only by the exact installer-pinned
+        // executable and kernel library constraint, independent of signer type.
+        if trustedClientSeal != nil || (identity.identifier == "dev.freev6.desktop" && !rights.isEmpty) {
+            guard identity.identifier == "dev.freev6.desktop", runtimeFlags & SecCodeSignatureFlags.runtime.rawValue != 0,
+                  rights as? [String: Bool] == FlutterClientSeal.rights,
+                  let executable = values[kSecCodeInfoMainExecutable as String] as? URL else { throw IdentityError.unprotectedCode }
+            let expected = try trustedClientSeal ?? installerClientSeal(at: url.appendingPathComponent("Contents/Helpers/freev6-service-installer"))
+            guard let expected, expected.count == 64, try FlutterClientSeal.digest(executable: executable) == expected else {
+                throw IdentityError.unprotectedCode
+            }
+        } else {
+            try RuntimeProtection.validate(flags: runtimeFlags, entitlements: rights)
+        }
         return identity
+    }
+
+    /// Read the fixed client program/constraint fingerprint from an independently validated installer.
+    static func installerClientSeal(at installer: URL) throws -> String? {
+        _ = try protectedFile(at: installer, identifier: "dev.freev6.service-installer")
+        var code: SecStaticCode?
+        try check(SecStaticCodeCreateWithPath(installer as CFURL, [], &code))
+        guard let code else { throw IdentityError.missingCode }
+        let info = try information(code)[kSecCodeInfoPList as String] as? [String: Any]
+        return info?[FlutterClientSeal.manifestKey] as? String
     }
 
     /// Security's signed Info.plist and executable URL, not mutable Bundle metadata.
@@ -93,8 +118,8 @@ public struct CodeIdentity: Codable, Equatable {
 public enum RuntimeProtection {
     public static func validate(flags: UInt32, entitlements: [String: Any]) throws {
         guard flags & SecCodeSignatureFlags.runtime.rawValue != 0 else { throw IdentityError.unprotectedCode }
-        // The current non-sandboxed app/service need no entitlements. New rights
-        // require a reviewed policy change instead of an incomplete deny list.
+        // Privileged helpers, Team-signed hosts, and legacy clients need no entitlements.
+        // The separately pinned local Flutter client is checked before this common path.
         guard entitlements.isEmpty else { throw IdentityError.unprotectedCode }
     }
 }

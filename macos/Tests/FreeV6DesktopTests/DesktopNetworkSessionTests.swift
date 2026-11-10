@@ -105,6 +105,49 @@ import XCTest
         XCTAssertNil(controls.error)
     }
 
+    func testSuccessfulNodeReadClearsOnlyTheReadFailure() async {
+        let controls = DesktopCoreControls()
+        let target = SessionControlTarget(sessionID: id, revision: 1)
+        let group = SessionNodeList(group: .access, selected: "A", preferred: nil, automatic: true, members: ["A", "B"])
+        let snapshot = SessionControlSnapshot(token: token, mode: .rule, groups: [group])
+        controls.bind(target)
+        await controls.inspect { SessionControlReply($0, state: snapshot) }
+
+        let select = SessionControlRequest(target, .select, token: token, group: .access, member: "B")
+        let changed = await controls.change(select) { request in
+            if request.action == .select { throw ServiceClientError.rejected("无法选择 B") }
+            throw ServiceClientError.timeout
+        }
+        XCTAssertFalse(changed)
+        XCTAssertNil(controls.state)
+        XCTAssertNotNil(controls.readError)
+        let selectionFailure = controls.selectionError
+        XCTAssertNotNil(selectionFailure)
+        await controls.inspect { SessionControlReply($0, state: snapshot) }
+        XCTAssertEqual(controls.state, snapshot)
+        XCTAssertNil(controls.readError)
+        XCTAssertEqual(controls.selectionError, selectionFailure)
+
+        await controls.measure(.access, members: ["B"]) { request in
+            XCTAssertEqual(request.member, "B")
+            throw ServiceClientError.timeout
+        }
+        let measurementFailure = controls.measurementError
+        XCTAssertNotNil(measurementFailure)
+        await controls.inspect { SessionControlReply($0, state: snapshot) }
+        XCTAssertEqual(controls.measurementError, measurementFailure)
+        await controls.measure(.access, members: ["B"]) { request in
+            XCTAssertEqual(request.member, "B")
+            return SessionControlReply(request, delay: .measured(milliseconds: 15))
+        }
+        XCTAssertNil(controls.measurementError)
+        XCTAssertEqual(controls.selectionError, selectionFailure)
+        XCTAssertEqual(controls.latency[.access], ["B": .measured(milliseconds: 15)])
+        XCTAssertNil(controls.measuringMember)
+        controls.bind(nil)
+        XCTAssertNil(controls.error)
+    }
+
     func testLostStartReplyAndFailedRecoveryRemainRetryableAcrossExit() async throws {
         let model = DesktopNetworkSession()
         await model.refresh { _ in try self.reply(.stopped) }

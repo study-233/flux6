@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Produce a signed, architecture-specific update ZIP and appcast without publishing."""
+import sign_flutter_host
 import argparse
 import base64
 import contextlib
@@ -108,9 +109,9 @@ def main(resources):
         agent_info = plistlib.loads(agent_info_file.read_bytes())
         agent_info["CFBundleVersion"] = str(args.build)
         agent_info_file.write_bytes(plistlib.dumps(agent_info))
-        run("/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", "--entitlements",
+        run("/usr/bin/codesign", "--force", "--sign", os.environ.get("FREEV6_CODESIGN_IDENTITY", "-"), "--options", "runtime", "--entitlements",
             agent / "Contents/Resources/update-agent.entitlements", agent)
-        run("/usr/bin/codesign", "--force", "--sign", "-", "--options", "runtime", app)
+        sign_flutter_host.sign_host(app, os.environ.get("FREEV6_CODESIGN_IDENTITY", "-"))
         verify_bundle(app, arch)
         package = products / ("FreeV6_" + args.version + "_" + str(args.build) + "_" + arch + ".zip")
         run("/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, package)
@@ -120,7 +121,7 @@ def main(resources):
                'xmlns:freev6="urn:freev6:update:1"><channel><title>FreeV6 macOS</title><item>'
                f'<title>FreeV6 {args.version}</title><sparkle:version>{args.build}</sparkle:version>'
                f'<sparkle:shortVersionString>{args.version}</sparkle:shortVersionString>'
-               '<sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>'
+               f'<sparkle:minimumSystemVersion>{host["LSMinimumSystemVersion"]}</sparkle:minimumSystemVersion>'
                f'<enclosure url={quoteattr(base + "/" + package.name)} '
                f'sparkle:edSignature={quoteattr(signature)} length="{package.stat().st_size}" '
                f'type="application/octet-stream" freev6:requirements={quoteattr(encoded)}/></item></channel></rss>')

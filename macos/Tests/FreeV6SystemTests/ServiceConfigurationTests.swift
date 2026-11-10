@@ -58,8 +58,17 @@ final class ServiceConfigurationTests: XCTestCase {
         XCTAssertEqual(String(reflecting: result), "AssembledServiceConfiguration(redacted)")
         let document = try JSONSerialization.jsonObject(with: result.data) as! [String: Any]
         let original = try JSONSerialization.jsonObject(with: business.encoded()) as! NSDictionary
-        let projection = document.filter { original[$0.key] != nil } as NSDictionary
-        XCTAssertEqual(projection, original)
+        var projection = document.filter { original[$0.key] != nil }
+        var groups = try XCTUnwrap(projection["proxy-groups"] as? [[String: Any]])
+        let benchmark = try XCTUnwrap(groups.popLast())
+        XCTAssertEqual(benchmark["name"] as? String, CoreDownload.group)
+        XCTAssertEqual((benchmark["proxies"] as? [String])?.first, "REJECT")
+        projection["proxy-groups"] = groups
+        XCTAssertEqual(projection as NSDictionary, original)
+        let listener = try XCTUnwrap((document["listeners"] as? [[String: Any]])?.first)
+        XCTAssertEqual(listener["listen"] as? String, "127.0.0.1")
+        XCTAssertEqual(listener["proxy"] as? String, CoreDownload.group)
+        XCTAssertEqual((listener["users"] as? [[String: String]])?.first?["password"]?.count, 64)
         let socket = try XCTUnwrap(document["external-controller-unix"] as? String)
         XCTAssertEqual(socket, ServiceConfigurationAssembler.sessions + "/" + id.uuidString + "/c.sock")
         XCTAssertLessThan(socket.utf8.count, 104)
