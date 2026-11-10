@@ -73,6 +73,13 @@ def check():
         ast.parse(path.read_text(), filename=str(path))
     for path in (ROOT / 'scripts').rglob('*.sh'):
         subprocess.run(['bash', '-n', path], check=True)
+    if (ROOT / '.git').exists():
+        tracked = set(subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0'))
+        android_sources = runpy.run_path(str(ROOT / 'scripts/android/package-source.py'))['sources']()
+        macos_sources = runpy.run_path(str(ROOT / 'scripts/macos/flutter-source-release.py'))['sources']()
+        inputs = {str(path.relative_to(ROOT)) for path in android_sources} | set(macos_sources)
+        for path in sorted(inputs - tracked):
+            errors.append(f'Untracked build/source-package input: {path}')
     if errors:
         raise SystemExit('\n'.join(errors))
     print('Repository checks passed: ' + ', '.join(f'{p} {v["version"]}' for p, v in versions.items()))

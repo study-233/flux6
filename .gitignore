@@ -8,7 +8,7 @@ apps/windows/src-tauri/gen/
 *.exe
 *.test
 
-state/
+/state/
 *.local.json
 mihomo.yaml
 /GeoSite.dat

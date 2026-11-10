@@ -13,7 +13,7 @@ OMIT_DIRS = {
     '.idea', '.vscode', '.claude', '.github', '__pycache__', '.cxx', '.kotlin',
     '.symlinks', 'ephemeral', 'Pods', '.plugin_symlinks',
 }
-OMIT_FILES = {'local.properties', '.DS_Store', '.flutter-plugins-dependencies', '.packages'}
+OMIT_FILES = {'local.properties', '.DS_Store', '.flutter-plugins-dependencies', '.packages', 'GeneratedPluginRegistrant.java'}
 
 
 def sources():

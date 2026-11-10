@@ -46,7 +46,7 @@ jobs:
       # requireAdministrator manifest (os error 740 when not elevated).
       - run: cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
 
-  # Windows 直接打包 web/；检查本地图标和模块引用。
+  # Windows 直接打包 apps/windows/web/；检查本地图标和模块引用。
   web:
     runs-on: ubuntu-latest
     steps:
