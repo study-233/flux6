@@ -3,21 +3,20 @@ set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$FREEV6_ROOT"
 
-# Keep the preview key between builds so users can install updates in place.
-# It is deliberately outside the source tree shipped with the APK.
 if [[ -z "${FREEV6_KEYSTORE:-}" ]]; then
-  mkdir -p build/mobile-signing
-  if [[ ! -f build/mobile-signing/password ]]; then
-    python3 - <<'PY'
+  signing_dir="$(python3 scripts/mobile/prepare-signing.py)"
+  if [[ ! -f "$signing_dir/password" ]]; then
+    python3 - "$signing_dir/password" <<'PY'
 import os, secrets
-path = 'build/mobile-signing/password'
+import sys
+path = sys.argv[1]
 fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, 'w') as f:
     f.write(secrets.token_urlsafe(32))
 PY
   fi
-  export FREEV6_KEYSTORE="$FREEV6_ROOT/build/mobile-signing/preview.jks"
-  export FREEV6_STORE_PASSWORD="$(cat build/mobile-signing/password)"
+  export FREEV6_KEYSTORE="$signing_dir/preview.jks"
+  export FREEV6_STORE_PASSWORD="$(cat "$signing_dir/password")"
   export FREEV6_KEY_PASSWORD="$FREEV6_STORE_PASSWORD"
   export FREEV6_KEY_ALIAS=freev6-preview
   if [[ ! -f "$FREEV6_KEYSTORE" ]]; then
