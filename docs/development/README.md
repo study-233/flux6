@@ -19,6 +19,10 @@
 
 业务复用以已有 Go 模块和协议为边界。UI、权限、服务生命周期、系统网络适配由各平台负责。暂不引入跨平台“大一统”框架，也不为 iOS/OpenWrt 添加空工程、依赖或 CI。
 
+## AI 代理规范与技能
+
+[根 AGENTS.md](../../AGENTS.md) 是统一入口；[技能索引](../../.agents/skills.md) 提供 `localization`、`ui-work`、`core-platform`、`ui-performance`、`pre-commit-quality-review` 五个无前缀技能，覆盖各平台及共享 Go。Android 不再保留重复的技能文件，其架构、命令和编码细则仍由 `apps/android/.agents/` 维护。来源提交、许可和适配范围见 [借鉴记录](../../.agents/UPSTREAM.md)。
+
 ## 分支与提交
 
 从最新 `main` 创建短期分支，例如 `feat/android-onboarding`、`fix/macos-reconnect`、`refactor/windows-ui`、`chore/repository-cleanup`。不使用 `codex/` 前缀，不维护长期 `mac`、`android` 等平台开发分支，不额外建立 `develop`。一个分支处理一个可审查目标；完成检查后合入主线并删除已合并的任务分支。

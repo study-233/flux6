@@ -7,6 +7,6 @@ Read the root `AGENTS.md` first. Current Android build and source information is
 - Android lifecycle remains owned by ServiceState. UI code must not add a second source of lifecycle truth.
 - Host tests still use shared desktop Core code and build hooks. Retain referenced support code even though desktop application runners have been removed.
 - Preserve pinned upstream sources, licenses and local patch records. No Git submodule update or upstream release scripts apply to this source export.
-- Follow the local skills in `.agents/skills/` for core/platform, UI, localization, performance and structural review when their scope applies.
+- Use the five shared [repository skills](../../.agents/skills.md) for core/platform, UI, localization, performance and structural review. There are no Android-local skill copies; Android-specific technical references remain in this directory's `.agents/`.
 - Use short-lived `feat/`, `fix/`, `refactor/`, `chore/` branches without a `codex/` prefix. Do not add agent co-author trailers.
 - Never start real host networking or stop user-owned processes for checks; use isolated fixtures and recorded process IDs.

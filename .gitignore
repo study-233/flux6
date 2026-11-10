@@ -14,7 +14,20 @@ apps/windows/src-tauri/gen/
 mihomo.yaml
 /GeoSite.dat
 
-/.agents/
+# Track shared agent guidance; keep local agent state ignored.
+/.agents/*
+!/.agents/skills.md
+!/.agents/UPSTREAM.md
+!/.agents/LICENSE
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/localization/
+!/.agents/skills/ui-work/
+!/.agents/skills/core-platform/
+!/.agents/skills/ui-performance/
+!/.agents/skills/pre-commit-quality-review/
+/.agents/skills/*/*
+!/.agents/skills/*/SKILL.md
 docs/agent/
 skills-lock.json
 .mimocode/

@@ -331,3 +331,12 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 按用户要求移除 Release 正文及活动发行清单中的旧 Android 测试版迁移提示。公开安装包统一采用 `FreeV6-0.1.0-macOS.dmg`、`FreeV6-0.1.0-Android.apk`；Mac 应用 ZIP 与两端对应源码也去掉 build 和架构后缀，源码保留 `-source` 标识。Release 不再提供三个 SHA256 校验附件，剩余五个正式附件。同步文档下载链接与 Homebrew Cask 的 DMG 地址。
 
 仅调整现有 GitHub 附件名称和发布展示，不重新构建、重签或修改安装包及源码内容；本地构建目录、校验文件和签名记录保留，Homebrew 使用实际 DMG 摘要。仓库结构、发行来源与 Cask 语法检查用于核验本次文档和链接变更，不重复应用构建、安装或真实网络测试。
+
+
+## 2026-11-10 统一代理规范与仓库技能
+
+借鉴 FlClash v0.9.3 的 `AGENTS.md` 和五个技能，固定来源为 `be84736605527034689c95bf27828ff27d912c5e`。根入口增加按平台阅读导航、任务范围、生命周期归属、生成代码、隔离验证和检查结果报告要求，保留 FreeV6 原有分支、签名、联网、第三方来源及预留平台约束。来源文件映射、本地适配与 GPL-3.0 许可见 [代理规范来源](../../.agents/UPSTREAM.md)。
+
+按用户要求，删除 Android 内的五个技能及旧索引，在根 `.agents/skills/` 维护 `localization`、`ui-work`、`core-platform`、`ui-performance`、`pre-commit-quality-review`，名称不加前缀。Android 的架构、命令、设置归属、界面与编码参考保留，入口改为引用 [统一技能索引](../../.agents/skills.md)。根忽略规则仅开放这套技能、索引和来源许可，本地代理状态继续忽略。技能按 Mac Swift/XPC、Android ServiceState、Windows Go helper 和各端实际文案机制适配，未引入上游 hooks、子代理配置或发布流程。
+
+验证：五个技能通过 `skill-creator` 的 `quick_validate.py`；根仓库检查通过；新增及修改的代理文档本地链接、代码路径、技能名称唯一性、Android 技能目录移除、GPL 原文一致性、文案扫描命令和 Git 忽略边界均已核对；`git diff --check` 通过。校验依赖只安装到临时目录。此次为代理文档与配置整理，没有修改应用代码或构建/源码打包脚本，因此没有重复平台编译、安装、签名或真实联网验收；现有验证结论不因此扩大。
