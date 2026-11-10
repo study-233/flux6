@@ -4,9 +4,10 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import '../dashboard_model.dart';
+import 'client_model.dart';
 
 /// Memory-only fixture. This library deliberately has no IO or HTTP imports.
-class PreviewModel extends DashboardModel {
+class PreviewModel extends ClientModel {
   PreviewModel() {
     _logs.add(PreviewLog(DateTime(2026, 11, 10, 12), '已载入演示数据，不会连接网络'));
   }
@@ -16,6 +17,110 @@ class PreviewModel extends DashboardModel {
   final _delays = <String, int>{};
   final _measuring = <String>{};
   final _logs = <PreviewLog>[];
+  @override
+  bool get preview => true;
+  String? _message;
+  @override
+  String? get message => _message;
+  @override
+  void dismissMessage() {
+    _message = null;
+    notifyListeners();
+  }
+
+  @override
+  final JsonMap settings = {
+    'mode': 'rule',
+    'campusCidrs': ['edu.cn'],
+    'devMode': false,
+  };
+  @override
+  final Map<String, String> preferences = {};
+  @override
+  final JsonMap chain = {'enabled': false, 'count': 0, 'names': <String>[]};
+  @override
+  final JsonMap cloud = {'enabled': false, 'count': 0, 'locked': false};
+  @override
+  final JsonMap runtime = {'present': true, 'warpRegistered': true};
+  @override
+  final JsonMap coreDownload = {};
+  @override
+  final JsonMap update = {};
+  @override
+  final notices = <JsonMap>[
+    {
+      'id': 'preview',
+      'title': '欢迎使用 FreeV6',
+      'body': '这是演示公告。所有连接、设置和下载操作均为本地模拟。',
+    },
+  ];
+  @override
+  String proxyTab = 'access';
+  final _pending = <String>{};
+  @override
+  bool pending(String action) => _pending.contains(action);
+  @override
+  Future<bool> act(String action, [JsonMap arguments = const {}]) async {
+    if (!_pending.add(action)) return false;
+    notifyListeners();
+    try {
+      switch (action) {
+        case 'settings.save':
+          settings.addAll(arguments);
+        case 'preferences.set':
+          preferences[arguments['key'] as String] =
+              arguments['value'] as String;
+        case 'node.group':
+          proxyTab = arguments['tab'] == 'chain' ? 'chain' : 'access';
+        case 'nodes.measure':
+          await Future.wait(nodes.map(measure));
+        case 'chain.import' || 'chain.file':
+          chain.addAll({
+            'count': 2,
+            'names': ['演示链式节点 A', '演示链式节点 B'],
+            'sourceType': action == 'chain.file' ? 'file' : 'url',
+          });
+        case 'chain.clear':
+          chain.addAll({'enabled': false, 'count': 0, 'names': <String>[]});
+          settings['chainEnabled'] = false;
+        case 'cloud.import':
+          cloud.addAll({
+            'count': 2,
+            'portalHost': arguments['portalHost'],
+            'entryMasked': '演示来源',
+          });
+        case 'cloud.clear':
+          cloud.addAll({'enabled': false, 'count': 0});
+          settings['cloudEnabled'] = false;
+        case 'core.download':
+          coreDownload['state'] = 'done';
+          runtime['present'] = true;
+        case 'warp.register':
+          runtime['warpRegistered'] = true;
+        case 'update.check':
+          update.addAll({'version': '0.5.3', 'available': false});
+        case 'settings.reset':
+          settings
+            ..clear()
+            ..addAll({
+              'mode': 'rule',
+              'campusCidrs': ['edu.cn'],
+            });
+        case 'logs.clear':
+          _logs.clear();
+        case 'refresh' || 'notice.read':
+          break;
+        default:
+          _message = '演示模式：该操作不会修改文件、打开外部应用或连接网络。';
+      }
+      _log('演示操作已完成');
+      return true;
+    } finally {
+      _pending.remove(action);
+      if (!_disposed) notifyListeners();
+    }
+  }
+
   @override
   final traffic = ValueNotifier<int>(0);
   @override

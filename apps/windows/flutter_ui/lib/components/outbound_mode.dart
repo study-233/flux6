@@ -15,10 +15,12 @@ class OutboundModeBar extends StatelessWidget {
     super.key,
     required this.selected,
     required this.onChanged,
+    this.allowDirect = false,
   }) : assert(selected >= -1 && selected < 3);
 
   final int selected;
   final ValueChanged<int>? onChanged;
+  final bool allowDirect;
 
   static const _items = [
     (AppGlyphs.rules, '规则'),
@@ -30,6 +32,7 @@ class OutboundModeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final items = allowDirect ? _items : _items.take(2).toList();
     final density = DashboardDensityScope.of(context);
     final outer = dashboardCardRadius(density) - _inset;
     final style = AppTextStyle.subheadline.of(context, emphasized: true);
@@ -63,12 +66,12 @@ class OutboundModeBar extends StatelessWidget {
               child: DashboardConnectedGroup(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final (index, item) in _items.indexed)
+                  for (final (index, item) in items.indexed)
                     Expanded(
                       child: DashboardConnectedButton(
                         selected: index == selected,
                         first: index == 0,
-                        last: index == _items.length - 1,
+                        last: index == items.length - 1,
                         outer: outer,
                         inner: 10,
                         background: DashboardColors.of(context).tone,

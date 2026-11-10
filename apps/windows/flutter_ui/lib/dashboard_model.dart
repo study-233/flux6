@@ -38,6 +38,7 @@ abstract class DashboardModel extends ChangeNotifier {
   bool get canChangeMode => !busy;
   bool get canSelectNode => !busy;
   bool get canMeasure => connected && !busy;
+  bool get allowDirectMode => false;
   String get phaseLabel;
   String? get actionLabel => null;
   String get displayNode;

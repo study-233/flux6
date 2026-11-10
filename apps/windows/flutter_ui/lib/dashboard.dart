@@ -133,6 +133,7 @@ class PreviewDashboard extends StatelessWidget {
           animation: model,
           builder: (_, __) {
             final mode = OutboundModeBar(
+              allowDirect: model.allowDirectMode,
               selected: DashboardModel.modeNames.indexOf(model.mode),
               onChanged: model.canChangeMode
                   ? (index) => model.selectMode(DashboardModel.modeNames[index])

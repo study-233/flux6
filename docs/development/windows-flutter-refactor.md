@@ -116,14 +116,14 @@ Flutter 的 Windows 工程使用可定制的 C++ runner，可通过平台通道�
 | `get_api_token`、`get_helper_port` | 启动参数由宿主管理；Dart 获取同一实例的连接信息 |
 | `window_minimize`、`window_toggle_maximize`、`window_maximized`、`window_start_dragging` | Windows 标题栏、命中区域和窗口状态同步 |
 | `window_close`、`window_show` | 关闭隐藏到托盘；托盘/F6 能恢复主窗 |
-| `app_quit`、托盘退出 | 运行中显示退出选择；停止失败时继续显示错误；保留现有直接退出选项的语义 |
+| `app_quit`、托盘退出 | 运行中显示取消/停止并退出；停止失败时继续显示错误；未运行时直接退出 |
 | `hotkey_set` | 原生线程接收 F6；冲突/超时返回失败，界面恢复原设置 |
 | `set_background` | 返回实际应用的背景，处理降级和明暗切换 |
 | `update_apply` | 承接 helper 校验完成的安装包、原有静默参数、退出和重新启动流程 |
 | helper 监督 | 生成 token、传入环境变量、观察子进程退出、记录有界诊断；关闭本实例拥有的 helper |
 | 单实例与自启动 | 与旧程序互斥；尊重任务管理器的禁用状态及 `--autostart`、静默设置 |
 
-当前退出逻辑区分“停止后退出”和“直接退出”：停止后退出须等待 `/proxy/stop` 成功，直接退出不等于停止 mihomo。迁移不能把杀掉 helper 当作已恢复系统网络。[当前宿主](../../apps/windows/src-tauri/src/main.rs)和[前端流程](../../apps/windows/web/app.js)是行为基线。
+当前运行中的退出弹窗仅提供“取消”和“停止并退出”，须等待 `/proxy/stop` 成功；`quitDirectly` 用于未运行的退出路径，不是运行中的用户选项。迁移不能把杀掉 helper 当作已恢复系统网络。[当前宿主](../../apps/windows/src-tauri/src/main.rs)和[前端流程](../../apps/windows/web/app.js)是行为基线。
 
 应用状态模型需要区分连接中、运行中、停止中、helper 离线和失败，保留设置写入序号与启停操作序号的竞态保护；停止后迟到的状态、流量和测速结果不能恢复旧界面。初始轮询基线为状态 3 秒、流量 1 秒、节点 5 秒；隐藏到托盘不能意外取消自动运行和退出响应。
 

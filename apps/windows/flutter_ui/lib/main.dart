@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'app/preview_app.dart';
 import 'platform/windows_host.dart';
+import 'app/licenses.dart';
 
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
+  registerComponentLicenses();
   if (arguments.contains('--host-probe')) {
     const host = WindowsHost();
     try {
