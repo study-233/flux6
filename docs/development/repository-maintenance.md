@@ -213,3 +213,11 @@ Mac 设置增加五款选择，通过现有宿主偏好保存，更新 Dock 图�
 按用户要求，将 `feat/cat-icon-themes` 的 `0872bce` 合入当前 `refactor/windows-flutter`（合并前 `5a13b42`），保留双方提交历史。维护记录的追加冲突保留双方完整阶段；Web 页面保留旧版偏好导出与新增图标选择入口。同步 Windows Flutter Runner 的 ICO 为共享奶牛猫默认图标，并将品牌生成脚本纳入 Windows 对应源码包。当前 Tauri 的五款选择功能保持生效；Flutter 候选继续遵循原有验收与正式入口切换计划。
 
 合并后验证：仓库结构/版本/来源检查、7 项维护测试、2 项 Windows 源码打包测试、209 个视觉来源及 4 个补丁哈希、128 个 JS 模块、45 个界面图标、发行来源检查均通过；图标选择/旧偏好导出/Web 运行时共 10 项 Node 测试通过，Windows Flutter analyze 无问题。确认默认清单和共享 SVG 均指向奶牛猫，Flutter Runner ICO 与共享 ICO 逐字节一致，Web 中图标选择与偏好导出入口并存。本次未重复未改动的 Mac/Android 平台构建，既有 Windows 原生验收边界继续适用。
+
+## 2026-11-10 GitHub 交付准备
+
+用户追加授权将全部本地代码改动提交到自有 GitHub 仓库，并清理无用分支，替代此前仅本地提交的安排。Windows Flutter W1–W4 与小猫图标已汇入 `refactor/windows-flutter`，保留各阶段提交历史。刷新远端后确认本分支包含最新 `origin/main`，主线要求 GitHub Actions `checks` 成功且分支与主线同步，不绕过保护规则。
+
+唯一未跟踪目录 `output/` 为图标导出与预览副本，现加入忽略列表并原地保留；其中最新五款 SVG、PNG、预览和默认奶牛猫清单均与已跟踪的 `assets/branding/cats/` 逐字节一致，生成脚本也已纳入 `scripts/branding/`。导出 ZIP、旧版预览和构建缓存不重复提交。清理仅针对已经合入主线的任务分支，工作树中的本地构建与验证资料保留。
+
+本次交付不创建正式发行版或切换 Windows 正式构建入口。各平台原生验收边界及 Android 广泛回归的已知失败仍以上述记录为准；推送与主线合并的最终提交、检查结果以 GitHub PR 和 CI 运行记录为准。
