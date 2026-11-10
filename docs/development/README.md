@@ -23,7 +23,7 @@
 
 从最新 `main` 创建短期分支，例如 `feat/android-onboarding`、`fix/macos-reconnect`、`refactor/windows-ui`、`chore/repository-cleanup`。不使用 `codex/` 前缀，不维护长期 `mac`、`android` 等平台开发分支，不额外建立 `develop`。一个分支处理一个可审查目标；完成检查后合入主线并删除已合并的任务分支。
 
-远端 `main` 禁止删除和强推，合并要求 `web`、Linux/Windows Go、Windows `rust`、`android`、`macos` 六项检查通过并与主线同步。仓库规则禁止新建 `codex/` 分支，合并后自动删除任务分支。
+远端 `main` 禁止删除和强推，合并要求轻量 `checks` 检查通过并与主线同步。仓库规则禁止新建 `codex/` 分支，合并后自动删除任务分支。
 
 使用 Conventional Commits；目录迁移、删除旧内容和功能修改分开提交。多人或多个工作目录同时开发时，每个 worktree 使用独立任务分支，构建产物也留在对应工作目录。删除分支前确认没有未合并提交和活动 worktree。
 
@@ -39,7 +39,7 @@
 | Android | `apps/android/pubspec.yaml` 的 `version: 版本+build` | `android-v<版本>-b<build>` |
 | Windows | `apps/windows/src-tauri/tauri.conf.json`；Cargo 版本须一致 | `windows-v<版本>` |
 
-Windows Release 工作流兼容历史 `v*` 标签。Mac 和 Android CI 只做验证，不因标签自动上传发行版。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
+各平台均在本地构建和验收，推送标签不会自动打包或上传发行版。Windows 继续使用 `windows-v*`，历史 `v*` 标签保持可读。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
 
 Android 构建读取版本源，输出到 `dist/android/<版本>-b<build>/`，包名包含版本及 build。源码包和 APK 分别生成校验文件。Mac 本地应用保持 `dist/macos/FreeV6.app`；DMG/更新包由对应打包脚本生成。已发布版本的产物不可覆盖，新发行应先提升版本或 build。旧本地产物放 `dist/archive/<平台>/`，Git 只保存源码、锁文件和必要的验收结论。
 
@@ -92,10 +92,18 @@ Windows 构建在 Windows 主机完成，详见 [Windows 入口](../../apps/wind
 
 ## CI 与验收边界
 
-`.github/workflows/ci.yml` 检查目录、文档链接、组件来源、版本、清理保护、Windows Web、Linux/Windows Go 以及 Windows Rust。`clients.yml` 增加 Android Go/Flutter/Kotlin/APK 和 Mac Swift/Flutter/App 构建。Android CI 使用测试签名，不读取本机私钥、不作为可覆盖安装的正式发行包。Mac CI 使用 ad-hoc 签名。
+远端只保留 `.github/workflows/ci.yml` 的一个 Ubuntu `checks` 任务，5 分钟超时。同一分支的新提交取消过时运行；任务分支由 PR 触发，合入 `main` 后再做轻量检查。
 
-Mac job 默认选择 GitHub 的 `xcode-27` Apple Silicon 镜像，并显式检查 arm64 与 Xcode 27+；需要替换时可配置仓库变量 `FREEV6_MACOS_RUNNER`，不能把跳过或失败视为通过。[镜像说明](https://github.blog/changelog/2026-10-15-xcode-27-runner-image-generally-available/)。工具版本固定；升级时同步本地说明、构建入口和 CI。普通 Actions 日志保留 30 天，Android CI 测试附件保留 14 天；正式发行资产不套用此清理周期。
+| 检查 | 远端执行条件 |
+| --- | --- |
+| 目录、文档链接、版本、第三方来源、源码包输入跟踪 | 每次执行 |
+| 7 项维护保护测试、图标、发布来源、Web 模块引用 | 每次执行 |
+| 共享 Go test/vet | `cmd/`、`internal/`、`mobileapi/`、根 Go 依赖或 CI 配置变化；手动运行时也执行 |
 
-未接入自有文档站前不保留继承的 Vercel 发布 Hook 工作流；将来启用时单独配置自己的站点与凭据。
+只改文档、UI 或平台文件时不安装 Go 工具链、不跑 Go 编译；共享业务变更才增加 Go 验证。使用单一稳定的 `checks` 门禁，避免按路径跳过整个工作流使合并永远等待。
 
-远端整合已通过 6 项 Actions 检查，执行记录见 [远端整理记录](remote-maintenance.md)。Windows NSIS 实机安装、Mac 服务安装与升级、macOS 14、Android 真机 VPN、校园网络出口等仍需对应环境验收。当前检查不启动实际网络代理、不替换正在运行的应用。阶段结果见 [整理记录](repository-maintenance.md)。
+Mac Swift/Flutter/App、Android 嵌套 Go/Flutter/Kotlin/APK/源码包、Windows Go/Rust/NSIS 均在对应本地环境按改动范围执行。已删除远端客户端工作流和 Windows 标签自动打包工作流，不安装 Flutter、Xcode、Android SDK/NDK 或 Rust 工具链，不上传新的 CI 安装包。Android 本地完整命令见 [构建说明](../../apps/android/FREEV6.md)，Mac 见 [开发说明](../../apps/macos/DEVELOPMENT.md)，Windows 见 [本地验证与发布](../../apps/windows/README.md)。
+
+远端 `checks` 通过仅表示轻量门禁通过；平台改动的 PR 应记录对应本地测试与构建结果。正式发布前仍要完成所涉及平台的打包、签名与安装验收。Actions 日志保留 30 天，已有 Android CI 附件按原 14 天周期到期；不再持续生成这些附件。未接入自有文档站前不保留 Vercel 发布 Hook。
+
+完整跨平台远端验证曾在整理 PR 中通过，详见 [远端整理记录](remote-maintenance.md)，当前日常策略以本节为准。Windows NSIS 实机安装、Mac 服务安装与升级、macOS 14、Android 真机 VPN、校园网络出口等仍需对应环境验收。当前检查不启动实际网络代理、不替换正在运行的应用。
