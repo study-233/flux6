@@ -180,7 +180,7 @@ class _AboutHero extends StatelessWidget {
                 foregroundColor: colorScheme.onSurfaceVariant,
               ),
               _Pill(
-                label: appLocalizations.freev6Preview,
+                label: appLocalizations.freev6ManualUpdates,
                 color: context.raisedSurfaceLevel.colorOf(colorScheme),
                 foregroundColor: colorScheme.onSurfaceVariant,
               ),

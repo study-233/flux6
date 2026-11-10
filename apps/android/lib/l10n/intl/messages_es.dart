@@ -694,7 +694,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "Versión de prueba de FreeV6 para Android, basada en FlClash, con WARP sobre IPv6 y rutas del campus.",
+      "Cliente FreeV6 para Android, basado en FlClash, con WARP sobre IPv6 y rutas del campus.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("Destino"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage(
@@ -1002,9 +1002,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Ocultar detalles",
     ),
     "freev6Intro": MessageLookupByLibrary.simpleMessage(
-      "Conexión IPv6 del campus. Esta versión solo usa Wi-Fi. Prepare WARP y pulse el botón de conexión.",
+      "Conexión IPv6 del campus mediante Wi-Fi. Prepare WARP y pulse el botón de conexión.",
     ),
     "freev6Ipv6Addresses": m30,
+    "freev6ManualUpdates": MessageLookupByLibrary.simpleMessage(
+      "Actualización manual",
+    ),
     "freev6NetworkCheckFailed": MessageLookupByLibrary.simpleMessage(
       "Falló la comprobación de red. Vuelve a conectar el Wi-Fi e inténtalo de nuevo.",
     ),
@@ -1039,9 +1042,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Configuración lista. Pulse el botón de conexión de abajo.",
     ),
     "freev6Preparing": MessageLookupByLibrary.simpleMessage("Preparando WARP…"),
-    "freev6Preview": MessageLookupByLibrary.simpleMessage(
-      "Versión de prueba FreeV6 · actualización manual",
-    ),
     "freev6Previous": MessageLookupByLibrary.simpleMessage("Anterior"),
     "freev6ProbeFailed": MessageLookupByLibrary.simpleMessage(
       "Fallaron ambas pruebas TCP IPv6. Los sitios pueden estar bloqueados; aún puedes preparar WARP. Comprueba el reenvío IPv6 y prueba WARP tras conectarlo.",

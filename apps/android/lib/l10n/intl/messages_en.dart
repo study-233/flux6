@@ -645,7 +645,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 Android preview, based on FlClash, with WARP over IPv6 and campus routing.",
+      "FreeV6 for Android, based on FlClash, with WARP over IPv6 and campus routing.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("Destination"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage(
@@ -935,9 +935,12 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "freev6HideDetails": MessageLookupByLibrary.simpleMessage("Hide details"),
     "freev6Intro": MessageLookupByLibrary.simpleMessage(
-      "Campus IPv6 connection. This preview uses Wi-Fi only. Prepare WARP, then tap the connection button.",
+      "Campus IPv6 connection over Wi-Fi. Prepare WARP, then tap the connection button.",
     ),
     "freev6Ipv6Addresses": m30,
+    "freev6ManualUpdates": MessageLookupByLibrary.simpleMessage(
+      "Install updates manually",
+    ),
     "freev6NetworkCheckFailed": MessageLookupByLibrary.simpleMessage(
       "Network check failed. Reconnect Wi-Fi and retry.",
     ),
@@ -972,9 +975,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Configuration ready. Tap the connection button below.",
     ),
     "freev6Preparing": MessageLookupByLibrary.simpleMessage("Preparing WARP…"),
-    "freev6Preview": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 preview · install updates manually",
-    ),
     "freev6Previous": MessageLookupByLibrary.simpleMessage("Previous"),
     "freev6ProbeFailed": MessageLookupByLibrary.simpleMessage(
       "Neither IPv6 TCP probe succeeded. The sites may be blocked; this does not prevent preparing WARP. Check IPv6 forwarding and test WARP after connecting.",

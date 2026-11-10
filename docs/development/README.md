@@ -33,6 +33,8 @@
 
 运行 `python3 scripts/version.py` 查看各端版本。平台独立发布，不为凑齐相同版本号而同步升级。
 
+macOS 与 Android 的首个公开正式版为 [0.1.0](../releases/first-public-release.md)。用户已确认安装验收和 Android 真机验证完成；本次 macOS 发行不进行 Apple 公证。用户已于 2026-11-10 明确授权发布。
+
 | 平台 | 版本来源 | 后续标签规则 |
 | --- | --- | --- |
 | macOS | `apps/macos/Resources/Info.plist` 的版本与 build | `macos-v<版本>-b<build>` |
@@ -106,4 +108,4 @@ Mac Swift/Flutter/App、Android 嵌套 Go/Flutter/Kotlin/APK/源码包、Windows
 
 远端 `checks` 通过仅表示轻量门禁通过；平台改动的 PR 应记录对应本地测试与构建结果。正式发布前仍要完成所涉及平台的打包、签名与安装验收。Actions 日志保留 30 天，已有 Android CI 附件按原 14 天周期到期；不再持续生成这些附件。未接入自有文档站前不保留 Vercel 发布 Hook。
 
-完整跨平台远端验证曾在整理 PR 中通过，详见 [远端整理记录](remote-maintenance.md)，当前日常策略以本节为准。Windows NSIS 实机安装、Mac 服务安装与升级、macOS 14、Android 真机 VPN、校园网络出口等仍需对应环境验收。当前检查不启动实际网络代理、不替换正在运行的应用。
+完整跨平台远端验证曾在整理 PR 中通过，详见 [远端整理记录](remote-maintenance.md)，当前日常策略以本节为准。2026-11-10 用户确认 Mac/Android 安装验收及 Android 真机验证完成，记录见 [首发准备](../releases/first-public-release.md)；历史 CI 与隔离测试的覆盖范围不因该确认而改变。Windows 原生安装及其他未明确覆盖的系统、升级和网络场景仍按各平台验收记录管理。当前仓库检查不启动实际网络代理、不替换正在运行的应用。

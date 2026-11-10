@@ -128,6 +128,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verify-app", type=Path, help="verify an already built candidate and exit")
     parser.add_argument("--from-app", type=Path, help="package an already built candidate without rebuilding")
+    parser.add_argument("--output-dir", type=Path, help="directory for versioned release artifacts")
     args = parser.parse_args()
     arch = platform.machine()
     if platform.system() != "Darwin" or arch not in ("arm64", "x86_64") or os.geteuid() == 0:
@@ -148,8 +149,18 @@ def main():
     version = info["CFBundleShortVersionString"]
     if not re.fullmatch(r"\d+(?:\.\d+){1,2}", version) or info["LSMinimumSystemVersion"] != "14.0":
         raise RuntimeError("Unexpected release metadata")
-    filename = f"FreeV6_{version}-preview_{arch}.dmg"
-    with tempfile.TemporaryDirectory(prefix=".disk-image-", dir=OUTPUT) as tmp:
+    build = info["CFBundleVersion"]
+    if not re.fullmatch(r"[1-9]\d*", build):
+        raise RuntimeError("Unexpected build number")
+    destination = args.output_dir or OUTPUT / f"{version}-b{build}"
+    filename = f"FreeV6-{version}-b{build}-{arch}.dmg"
+    zip_name = f"FreeV6-{version}-b{build}-{arch}.zip"
+    source_name = f"FreeV6-{version}-b{build}-source.zip"
+    artifact_names = (filename, zip_name, source_name, "SHA256SUMS")
+    if any((destination / name).exists() for name in artifact_names):
+        raise SystemExit(f"Release output already exists: {destination}")
+    destination.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".disk-image-", dir=destination) as tmp:
         stage = Path(tmp)
         source = stage / "volume"
         source.mkdir()
@@ -167,7 +178,6 @@ def main():
             copied = stage / "Applications" / app.name
             subprocess.run(["/usr/bin/ditto", volume / app.name, copied], check=True)
             verify_bundle(copied, arch)
-        zip_name = f"FreeV6_{version}_{info['CFBundleVersion']}_{arch}.zip"
         archive = stage / zip_name
         subprocess.run(["/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, archive], check=True)
         unpacked = stage / "unpacked"
@@ -175,12 +185,15 @@ def main():
         verify_bundle(unpacked / app.name, arch)
         if sign_flutter_host.cdhash(unpacked / app.name) != sign_flutter_host.cdhash(app):
             raise RuntimeError("The ZIP contains a different app")
+        source_archive = stage / source_name
+        subprocess.run(["python3", ROOT / "scripts/macos/flutter-source-release.py", "archive",
+                        "--contents", app / "Contents", "--output", source_archive], check=True)
         sums = stage / "SHA256SUMS"
-        sums.write_text("".join(f"{hashlib.sha256(item.read_bytes()).hexdigest()}  {item.name}\n" for item in (image, archive)))
-        image.replace(OUTPUT / filename)
-        archive.replace(OUTPUT / zip_name)
-        sums.replace(OUTPUT / "SHA256SUMS")
-    artifact = OUTPUT / filename
+        sums.write_text("".join(f"{hashlib.sha256(item.read_bytes()).hexdigest()}  {item.name}\n"
+                               for item in (image, archive, source_archive)))
+        for name in artifact_names:
+            (stage / name).replace(destination / name)
+    artifact = destination / filename
     print(f"{artifact}\nSHA256 {hashlib.sha256(artifact.read_bytes()).hexdigest()}")
 
 

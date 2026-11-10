@@ -281,9 +281,9 @@ python3 scripts/macos/probe-service.py --network-run --update-recovery \
   --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata
 ```
 
-Mac 的发布仓库为 `study-233/free-v6`。签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `macos-v0.5.3-b2`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。Mac 独立 Release 发布时设置 `make_latest=false`，预览版标记为 prerelease；Windows 的工作流沿用现有的 `v*` 标签及 `latest` 入口。[GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
+Mac 的发布仓库为 `study-233/free-v6`。启用应用内更新时，签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `macos-v0.1.0-b9`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。首个公开正式版使用 `prerelease=false`；Mac 独立 Release 设置 `make_latest=false`，下载及 Homebrew Cask 使用固定 macOS 标签，不依赖跨平台 `latest`。Windows 采用本地构建与手动发布，当前不在首发范围。[首发准备](../../docs/releases/first-public-release.md) · [GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
 
-正式发行需要保管和备份发布私钥，再从对应公钥生成通道 JSON。构建首次分发的 DMG 时，通过 `FREEV6_UPDATE_CHANNEL_FILE` 指向该文件。首版只发布 arm64 ZIP 与 `appcast-arm64.xml`。普通预览 DMG 继续显示通道待配置。
+启用应用内更新需要保管和备份发布私钥，再从对应公钥生成通道 JSON。构建带更新能力的 DMG 时，通过 `FREEV6_UPDATE_CHANNEL_FILE` 指向该文件。首发仅覆盖 arm64；启用通道时另附 arm64 更新 ZIP 与 `appcast-arm64.xml`。未配置通道的构建仍显示通道待配置，不把 DMG 或 Homebrew 的可下载状态当作应用内更新已上线。本次不进行 Apple 公证，通道签名与代码签名校验仍须保留。
 
 ```sh
 python3 scripts/macos/github_channel.py --public-key-file /secure/path/mac-public-key.txt \
