@@ -61,6 +61,34 @@ func TestNoticeCacheAndRevocation(t *testing.T) {
 	}
 }
 
+func TestPublisherMigrationRejectsLegacyNoticeAndProfile(t *testing.T) {
+	settings, dir := testStore(t)
+	allowed := true
+	data, _ := json.Marshal(notice.Cache{FetchedAt: time.Now(), CloudProfile: &allowed})
+	if err := os.WriteFile(filepath.Join(dir, "maintainer-notice.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if NewNoticeManager(settings.root).cached().CloudAllowed {
+		t.Fatal("previous publisher notice unlocked backup profiles")
+	}
+	key := bytes.Repeat([]byte{7}, 32)
+	box, err := chainCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "11111111-2222-4333-8444-555555555555"
+	payload := []byte(`{"proxies":[{"name":"old-node","type":"http","server":"example.test","port":8080}]}`)
+	snapshot := SettingsSnapshot{Cloud: &CloudSummary{ChainSummary: ChainSummary{Source: "portal", Names: []string{"old-node"}}, ID: id}}
+	snapshot.sealedCloud = box.Seal(nil, nil, payload, []byte("dev.freev6.cloud.v1/"+id))
+	if _, err := snapshot.openCloud(key); err == nil {
+		t.Fatal("previous publisher nodes were reused")
+	}
+	snapshot.sealedCloud = box.Seal(nil, nil, payload, []byte(cloudBinding+id))
+	if _, err := snapshot.openCloud(key); err != nil {
+		t.Fatal("current publisher nodes rejected", err)
+	}
+}
+
 func TestPortalAndCustomRefreshDoNotReplaceValidSnapshotOnFailure(t *testing.T) {
 	settings, dir := testStore(t)
 	notices := NewNoticeManager(settings.root)

@@ -51,7 +51,7 @@ func seedNoticeGate(t *testing.T, h *helper, allowed *bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(stateDir, "notice-cache.json"), data, 0o644); err != nil {
+	if err := os.WriteFile(h.noticeCachePath(), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -79,7 +79,7 @@ func TestCloudImportFromContent(t *testing.T) {
 	if strings.Join(result.Ignored, ",") != "port,rules" {
 		t.Fatalf("ignored = %v, want [port rules]", result.Ignored)
 	}
-	raw, err := os.ReadFile(filepath.Join(h.root, "config", "cloud-profile.yaml"))
+	raw, err := os.ReadFile(h.cloudProfilePath())
 	if err != nil {
 		t.Fatalf("snapshot must be persisted: %v", err)
 	}
@@ -160,8 +160,8 @@ func TestFetchCloudProfileReadsBody(t *testing.T) {
 }
 
 func TestMaskCloudEntry(t *testing.T) {
-	masked := maskCloudEntry("https://0f6d31cf1f09ea10.freev6.cc.cd/p")
-	if masked != "0f6d…freev6.cc.cd/p" {
+	masked := maskCloudEntry("https://raw.githubusercontent.com/study-233/free-v6/main/profiles/0f6d31cf1f09ea10.yaml")
+	if masked != "study-233/free-v6/profiles/…" {
 		t.Fatalf("masked = %q", masked)
 	}
 	if strings.Contains(masked, "31cf1f09ea10") {

@@ -1,0 +1,7 @@
+# 仅供结构参考，文档地址不可连接；不要直接启用。
+proxies:
+  - name: public-example
+    type: socks5
+    server: 2001:db8::1
+    port: 1080
+    udp: true

@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/yourname/freev6/internal/notice"
+	"github.com/yourname/freev6/internal/publisher"
 )
 
-const noticeFile = "maintainer-notice.json"
+const noticeFile = "maintainer-notice-" + publisher.CacheNamespace + ".json"
 const maxNoticeCache = 768 << 10
 
 type NoticeSnapshot struct {

@@ -48,7 +48,7 @@ func CloudAllowed(flag *bool) bool {
 	return flag != nil && *flag
 }
 
-// Cache 落 state/notice-cache.json，只在拉取全线失败时回退使用。
+// Cache 按发行仓库隔离保存，只在拉取全线失败时回退使用。
 type Cache struct {
 	FetchedAt    time.Time `json:"fetchedAt"`
 	Updated      string    `json:"updated"`

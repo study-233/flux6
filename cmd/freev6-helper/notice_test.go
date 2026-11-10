@@ -29,7 +29,7 @@ func TestParseNoticePayload(t *testing.T) {
 	    {"id":"e","title":"时间坏了","published":"昨天"},
 	    {"id":"f","title":"级别未知","level":"WHATEVER","published":"2026-10-29T19:00:00+08:00"},
 	    {"id":"g","title":"危险链接","published":"2026-10-29T19:00:00+08:00","link":"javascript:alert(1)","linkText":"点我"},
-	    {"id":"h","title":"正常链接","published":"2026-10-29T19:00:00+08:00","link":"https://freev6.cc.cd/guide/introduction"},
+	    {"id":"h","title":"正常链接","published":"2026-10-29T19:00:00+08:00","link":"https://github.com/study-233/free-v6#readme"},
 	    {"id":"a","title":"重复 id","published":"2026-10-29T19:00:00+08:00"}
 	  ]
 	}`
@@ -58,7 +58,7 @@ func TestParseNoticePayload(t *testing.T) {
 	if payload.Items[2].Link != "" || payload.Items[2].LinkText != "" {
 		t.Fatalf("non-https link must be dropped: %+v", payload.Items[2])
 	}
-	if payload.Items[3].Link != "https://freev6.cc.cd/guide/introduction" {
+	if payload.Items[3].Link != "https://github.com/study-233/free-v6#readme" {
 		t.Fatalf("https link must survive: %+v", payload.Items[3])
 	}
 	if payload.Items[3].LinkText != "查看详情" {
@@ -143,7 +143,7 @@ func TestNoticeHandlerFallsBackToCache(t *testing.T) {
 	if first.Stale || len(first.Notices) != 1 || first.Notices[0].ID != "live" {
 		t.Fatalf("unexpected first response: %+v", first)
 	}
-	if _, err := os.Stat(filepath.Join(h.root, "state", "notice-cache.json")); err != nil {
+	if _, err := os.Stat(h.noticeCachePath()); err != nil {
 		t.Fatalf("cache must be written on success: %v", err)
 	}
 
@@ -177,6 +177,21 @@ func TestNoticeHandlerRejectsNonGET(t *testing.T) {
 	h.notice(rec, httptest.NewRequest(http.MethodPost, "/api/v1/notice", nil))
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+}
+
+func TestPublisherMigrationIgnoresLegacyNoticeCache(t *testing.T) {
+	h := &helper{root: t.TempDir()}
+	legacy := filepath.Join(h.root, "state", "notice-cache.json")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := json.Marshal(notice.Cache{FetchedAt: time.Now(), CloudProfile: boolPtr(true)})
+	if err := os.WriteFile(legacy, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := h.loadNoticeCache(time.Now()); ok || h.cloudProfileUnlocked(time.Now()) {
+		t.Fatal("previous publisher cache must not authorize this distribution")
 	}
 }
 

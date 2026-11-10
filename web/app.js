@@ -884,7 +884,7 @@ function guideForced() {
 
 /* ── Update (GitHub release check + in-app install) ──────────── */
 
-const UPDATE_OWNER_REPO = 'evansrrr/free-v6';
+const UPDATE_OWNER_REPO = 'study-233/free-v6';
 const SKIP_VERSION_KEY = 'freev6-skip-version';
 const GITHUB_PROXY = 'https://gh-proxy.com/';
 
@@ -2090,11 +2090,11 @@ function wireEvents() {
   // 向导内的协议链接：阻止默认跳转（会把 webview 导走），改用系统浏览器打开
   $('#guideAgreementLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openExternal('https://github.com/evansrrr/free-v6/blob/main/docs/agreement.md');
+    openExternal('https://github.com/study-233/free-v6/blob/main/docs/agreement.md');
   });
   $('#guidePrivacyLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openExternal('https://github.com/evansrrr/free-v6/blob/main/docs/privacy.md');
+    openExternal('https://github.com/study-233/free-v6/blob/main/docs/privacy.md');
   });
 
   // Update dialog: actions + backdrop/Escape (busy phases are blocked
@@ -2642,8 +2642,7 @@ async function clearChain() {
 }
 
 /* ── 备用配置（设置 → 核心） ─────────────────────────────────────
- * 授权判据在服务端（请求源 IP 段），客户端只负责"问"：拿不到就明确说
- * "请连校园网"，绝不降级成裸 WARP 出口。详见 docs/cloud-profile.md。 */
+ * 从当前发行仓库获取公开节点；公告决定是否开放。详见 docs/cloud-profile.md。 */
 
 // 备用配置可用 = 已启用且本地有节点：此时 WARP 凭据不再必需。
 function cloudReady() {
@@ -2655,8 +2654,7 @@ function cloudReady() {
 // 弹窗会被截图外带，入口不该出现在那种地方。
 function redactEntry(text) {
   return String(text ?? '')
-    .replace(/https?:\/\/[^\s"'）)]+/gi, '入口')
-    .replace(/[0-9a-z]{8,}\.freev6\.cc\.cd/gi, '入口');
+    .replace(/https?:\/\/[^\s"'）)]+/gi, '入口');
 }
 
 async function refreshCloudStatus() {
@@ -2778,14 +2776,14 @@ function wireSettingsEvents() {
 
   // GitHub project — opens in the system browser
   $('#githubItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/evansrrr/free-v6');
+    openExternal('https://github.com/study-233/free-v6');
   });
   $('#feedbackItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/evansrrr/free-v6/issues');
+    openExternal('https://github.com/study-233/free-v6/issues');
   });
   // 使用说明: 直接在系统浏览器打开使用说明页面
   $('#readmeItem')?.addEventListener('click', () => {
-    openExternal('https://freev6.cc.cd');
+    openExternal('https://github.com/study-233/free-v6#readme');
   });
 
   // 重置设置：弹确认弹窗，不直接执行

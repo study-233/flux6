@@ -1,6 +1,6 @@
 # 公告发布指南
 
-仪表盘的「公告」卡片读取仓库根目录的 [`notice.json`](../notice.json)。发公告不需要发版、不需要 token、不需要动代码：
+仪表盘的「公告」卡片读取 `study-233/free-v6` 的 `main` 分支根目录的 [`notice.json`](../notice.json)。发公告不需要发版、不需要 token、不需要动代码：
 
 1. 打开 GitHub 网页（手机上也可以）→ `notice.json` → 铅笔图标编辑
 2. 往 `items` 数组**开头**加一条公告
@@ -19,7 +19,7 @@
   "level": "warning",
   "published": "2026-10-29T20:00:00+08:00",
   "expires": "2026-10-30T06:00:00+08:00",
-  "link": "https://freev6.cc.cd/guide/introduction",
+  "link": "https://github.com/study-233/free-v6#readme",
   "linkText": "查看使用说明"
 }
 ```
@@ -34,6 +34,8 @@
 | `expires` | 否 | 过期时间；到点后客户端不再显示这一条（不必回来删） |
 | `link` | 否 | 详情链接，**只接受 https**；非 https 会被丢弃 |
 | `linkText` | 否 | 链接按钮文案，默认「查看详情」 |
+
+当前仓库暂不提供备用节点，`cloudProfile` 保持 `false`。只编辑你的仓库，不再读取原项目公告。Windows 与 macOS 使用新的缓存命名，不继承旧发行方的公告或启用许可。
 
 ## 备用配置总开关
 
@@ -56,8 +58,8 @@
 
 客户端行为：
 
-- 启动时照常拉取本文件，开关结果写入 `state/notice-cache.json`；
-- 断网时回退该缓存（≤7 天），所以**离线不会误锁**；
+- 启动时照常拉取本文件，开关结果写入 `state/notice-cache-study-233-free-v6.json`；
+- 断网时仅回退当前发行仓库的有效缓存（≤7 天）；无缓存或缓存过期时锁定备用配置；
 - 关闭后，已经下发的节点也**不能用来启动免流**，设置页会显示「维护者已关闭备用配置」；
 - 重新打开无需发版，等镜像与缓存过期（约 5 分钟）或让学生点公告刷新即可生效。
 
@@ -79,4 +81,4 @@ FREEV6_API_TOKEN=dev ./freev6-helper.exe
 curl -H "Authorization: Bearer dev" http://127.0.0.1:13335/api/v1/notice
 ```
 
-`stale: true` 表示这次用的是本机缓存；`error` 字段会写明所有镜像的失败原因。公告没更新先确认 `raw` 路径可访问：`https://github.com/evansrrr/free-v6/raw/main/notice.json`。
+`stale: true` 表示这次用的是本机缓存；`error` 字段会写明所有镜像的失败原因。公告没更新先确认 `raw` 路径可访问：`https://github.com/study-233/free-v6/raw/main/notice.json`。
