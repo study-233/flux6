@@ -514,7 +514,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "基于 FlClash 的 FreeV6 Android 测试版，接入 IPv6 WARP 和校园分流。",
+      "基于 FlClash 的 FreeV6 Android 客户端，接入 IPv6 WARP 和校园分流。",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("目标地址"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage("目标地理定位"),
@@ -728,9 +728,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "freev6HideDetails": MessageLookupByLibrary.simpleMessage("收起详情"),
     "freev6Intro": MessageLookupByLibrary.simpleMessage(
-      "校园 IPv6 连接。此测试版仅使用 Wi-Fi；准备 WARP 后，点击下方连接按钮。",
+      "通过 Wi-Fi 使用校园 IPv6 连接。准备 WARP 后，点击下方连接按钮。",
     ),
     "freev6Ipv6Addresses": m30,
+    "freev6ManualUpdates": MessageLookupByLibrary.simpleMessage("手动安装更新"),
     "freev6NetworkCheckFailed": MessageLookupByLibrary.simpleMessage(
       "网络检测失败，请重连 Wi-Fi 后重试。",
     ),
@@ -763,9 +764,6 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "freev6Prepared": MessageLookupByLibrary.simpleMessage("配置已就绪，请点击下方连接按钮。"),
     "freev6Preparing": MessageLookupByLibrary.simpleMessage("正在准备 WARP…"),
-    "freev6Preview": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 测试版 · 请手动安装更新",
-    ),
     "freev6Previous": MessageLookupByLibrary.simpleMessage("上一步"),
     "freev6ProbeFailed": MessageLookupByLibrary.simpleMessage(
       "两个 IPv6 TCP 探测均未成功，可能是目标站点受限；不会阻止准备 WARP。请检查 IPv6 转发，并在连接后测试 WARP。",

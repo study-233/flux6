@@ -552,7 +552,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "FlClash をベースにした FreeV6 Android テスト版。IPv6 WARP と学内ルーティングに対応。",
+      "FlClash をベースにした FreeV6 Android クライアント。IPv6 WARP と学内ルーティングに対応。",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("宛先"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage("宛先GeoIP"),
@@ -796,9 +796,10 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "freev6HideDetails": MessageLookupByLibrary.simpleMessage("詳細を閉じる"),
     "freev6Intro": MessageLookupByLibrary.simpleMessage(
-      "キャンパス IPv6 接続。この試用版は Wi-Fi のみを使用します。WARP を準備してから接続ボタンを押してください。",
+      "Wi-Fi 経由でキャンパス IPv6 に接続します。WARP を準備してから接続ボタンを押してください。",
     ),
     "freev6Ipv6Addresses": m30,
+    "freev6ManualUpdates": MessageLookupByLibrary.simpleMessage("更新は手動でインストール"),
     "freev6NetworkCheckFailed": MessageLookupByLibrary.simpleMessage(
       "ネットワーク確認に失敗しました。Wi-Fi に再接続してください。",
     ),
@@ -833,9 +834,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "設定が完了しました。下の接続ボタンを押してください。",
     ),
     "freev6Preparing": MessageLookupByLibrary.simpleMessage("WARP を準備中…"),
-    "freev6Preview": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 試用版 · 更新は手動でインストール",
-    ),
     "freev6Previous": MessageLookupByLibrary.simpleMessage("前へ"),
     "freev6ProbeFailed": MessageLookupByLibrary.simpleMessage(
       "両方の IPv6 TCP 接続に失敗しました。接続先が制限されている可能性がありますが、WARP の準備は可能です。IPv6 転送と接続後の WARP を確認してください。",

@@ -36,7 +36,7 @@ public enum DNSConfiguration {
     /// Read-only diagnostic. No lock, commit, apply, resolver address or service
     /// name is exposed by the probe.
     public static func previewTargets() throws -> (count: Int, endpointInUse: Bool) {
-        guard let prefs = SCPreferencesCreate(nil, "FreeV6 DNS preview" as CFString, nil) else { throw SessionDNSError.unavailable }
+        guard let prefs = SCPreferencesCreate(nil, "FreeV6 DNS" as CFString, nil) else { throw SessionDNSError.unavailable }
         let access = SystemDNSPreferences()
         let count = try SessionDNSTransaction.targets(in: prefs, primary: access.primaryServices()).1.count
         return (count, try !access.resolverReleased())

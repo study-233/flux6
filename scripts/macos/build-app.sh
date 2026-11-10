@@ -24,7 +24,8 @@ go_bin="${GO_BIN:-go}"
 go_arch=arm64
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-network-service
 binary_dir="$(bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --show-bin-path)"
-app="$project_root/dist/macos/FreeV6.app"
+app="${FREEV6_APP_OUTPUT:-$project_root/dist/macos/FreeV6.app}"
+mkdir -p "$(dirname "$app")"
 source "$project_root/scripts/macos/app-stage.sh"
 begin_app_stage "$app" "$project_root/build/macos-bundle.XXXXXX"
 bash "$project_root/scripts/macos/build-flutter-runner.sh" "$bundle"

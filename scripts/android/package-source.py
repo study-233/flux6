@@ -39,7 +39,9 @@ def main():
     parser.add_argument('--output-dir', type=Path, default=destination)
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output = args.output_dir / f"FreeV6-{version['version']}-b{version['build']}-preview-source.tar.gz"
+    output = args.output_dir / f"FreeV6-{version['version']}-b{version['build']}-source.tar.gz"
+    if output.exists() or (args.output_dir / 'SOURCE-SHA256SUMS').exists():
+        raise SystemExit(f'Release source output already exists: {args.output_dir}')
     temporary = output.with_suffix('.tmp')
     count = 0
     try:

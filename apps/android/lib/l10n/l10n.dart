@@ -981,10 +981,10 @@ class AppLocalizations {
     );
   }
 
-  /// `FreeV6 Android preview, based on FlClash, with WARP over IPv6 and campus routing.`
+  /// `FreeV6 for Android, based on FlClash, with WARP over IPv6 and campus routing.`
   String get desc {
     return Intl.message(
-      'FreeV6 Android preview, based on FlClash, with WARP over IPv6 and campus routing.',
+      'FreeV6 for Android, based on FlClash, with WARP over IPv6 and campus routing.',
       name: 'desc',
       desc: '',
       args: [],
@@ -9072,10 +9072,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Campus IPv6 connection. This preview uses Wi-Fi only. Prepare WARP, then tap the connection button.`
+  /// `Campus IPv6 connection over Wi-Fi. Prepare WARP, then tap the connection button.`
   String get freev6Intro {
     return Intl.message(
-      'Campus IPv6 connection. This preview uses Wi-Fi only. Prepare WARP, then tap the connection button.',
+      'Campus IPv6 connection over Wi-Fi. Prepare WARP, then tap the connection button.',
       name: 'freev6Intro',
       desc: '',
       args: [],
@@ -9142,11 +9142,11 @@ class AppLocalizations {
     );
   }
 
-  /// `FreeV6 preview · install updates manually`
-  String get freev6Preview {
+  /// `Install updates manually`
+  String get freev6ManualUpdates {
     return Intl.message(
-      'FreeV6 preview · install updates manually',
-      name: 'freev6Preview',
+      'Install updates manually',
+      name: 'freev6ManualUpdates',
       desc: '',
       args: [],
     );

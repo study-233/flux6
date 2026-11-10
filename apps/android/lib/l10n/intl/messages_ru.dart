@@ -675,7 +675,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "Тестовая версия FreeV6 для Android на базе FlClash с WARP через IPv6 и маршрутизацией сети кампуса.",
+      "Клиент FreeV6 для Android на базе FlClash с WARP через IPv6 и маршрутизацией сети кампуса.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("Назначение"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage(
@@ -981,9 +981,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Скрыть подробности",
     ),
     "freev6Intro": MessageLookupByLibrary.simpleMessage(
-      "Подключение через IPv6 кампуса. Эта тестовая версия использует только Wi-Fi. Подготовьте WARP, затем нажмите кнопку подключения.",
+      "Подключение к IPv6 кампуса через Wi-Fi. Подготовьте WARP, затем нажмите кнопку подключения.",
     ),
     "freev6Ipv6Addresses": m30,
+    "freev6ManualUpdates": MessageLookupByLibrary.simpleMessage(
+      "Обновление вручную",
+    ),
     "freev6NetworkCheckFailed": MessageLookupByLibrary.simpleMessage(
       "Не удалось проверить сеть. Переподключите Wi-Fi и повторите попытку.",
     ),
@@ -1018,9 +1021,6 @@ class MessageLookup extends MessageLookupByLibrary {
       "Конфигурация готова. Нажмите кнопку подключения ниже.",
     ),
     "freev6Preparing": MessageLookupByLibrary.simpleMessage("Подготовка WARP…"),
-    "freev6Preview": MessageLookupByLibrary.simpleMessage(
-      "Тестовая версия FreeV6 · обновление вручную",
-    ),
     "freev6Previous": MessageLookupByLibrary.simpleMessage("Назад"),
     "freev6ProbeFailed": MessageLookupByLibrary.simpleMessage(
       "Обе проверки TCP IPv6 завершились неудачно. Сайты могут быть заблокированы; подготовка WARP доступна. Проверьте пересылку IPv6 и WARP после подключения.",

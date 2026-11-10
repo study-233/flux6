@@ -3,7 +3,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 destination="${1:?supply an empty destination FreeV6.app}"
-work="$root/build/macos-release-runner"
+work="${FREEV6_RUNNER_WORK:-$root/build/macos-release-runner}"
 project="$work/macos/flutter_ui"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PUB_CACHE="${PUB_CACHE:-$root/build/flutter-toolchain/pub-cache}"
