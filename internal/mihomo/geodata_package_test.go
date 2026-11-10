@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -89,8 +90,12 @@ func TestGeodataPackageExplicitSeedAndCache(t *testing.T) {
 	}
 	for _, a := range result.Files {
 		info, err := os.Stat(filepath.Join(result.Directory, a.Name))
-		if err != nil || info.Mode().Perm() != 0o600 {
+		if err != nil {
 			t.Fatal(info, err)
+		}
+		// Windows exposes the read-only attribute, not POSIX permission bits.
+		if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+			t.Fatalf("cache file permissions: got %o, want 600", info.Mode().Perm())
 		}
 		seed, _ := os.ReadFile(filepath.Join(resource, "Geodata", p.catalog.Revision, a.Name))
 		if string(seed) != string(data[a.Name]) {
