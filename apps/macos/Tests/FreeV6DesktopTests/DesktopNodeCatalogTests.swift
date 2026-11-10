@@ -14,7 +14,7 @@ import XCTest
     }
 
     func testOfflineChoiceSurvivesRestartAndRevalidatesAgainstCurrentSession() async throws {
-        let suite = "FreeV6-OfflineNodes-" + UUID().uuidString
+        let suite = "Flux6-OfflineNodes-" + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let target = SessionControlTarget(sessionID: UUID(), revision: 2)
@@ -57,7 +57,7 @@ import XCTest
     }
 
     func testExplicitAutomaticUnpinsOnlyAnExistingConfirmedAccessGroup() async throws {
-        let suite = "FreeV6-AutoNodes-" + UUID().uuidString
+        let suite = "Flux6-AutoNodes-" + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set("西区", forKey: "preferredNode.access")

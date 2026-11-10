@@ -675,7 +675,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "Клиент FreeV6 для Android на базе FlClash с WARP через IPv6 и маршрутизацией сети кампуса.",
+      "Клиент Flux6 для Android на базе FlClash с WARP через IPv6 и маршрутизацией сети кампуса.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("Назначение"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage(
@@ -740,7 +740,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Изменения заявления",
     ),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "Перед использованием FreeV6 («Программа») внимательно прочитайте это заявление и убедитесь, что понимаете его. Нажимая «Согласен», вы подтверждаете, что прочитали и поняли изложенное ниже. Если не хотите продолжать, нажмите «Выход».",
+      "Перед использованием Flux6 («Программа») внимательно прочитайте это заявление и убедитесь, что понимаете его. Нажимая «Согласен», вы подтверждаете, что прочитали и поняли изложенное ниже. Если не хотите продолжать, нажмите «Выход».",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "В максимальной степени, допустимой применимым законодательством, ни разработчики, ни участники проекта не несут ответственности за любой прямой, косвенный, случайный, особый, штрафной или последующий ущерб, возникший в результате использования или невозможности использования Программы, включая, помимо прочего, потерю данных, повреждение устройства, сбои сети, прерывание деятельности, упущенную выгоду или связанные с этим правовые споры, даже если они были предупреждены о возможности такого ущерба.",
@@ -1010,7 +1010,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "У Wi-Fi есть адрес IPv6, но нет маршрута IPv6 по умолчанию. Проверьте объявления шлюза IPv6 роутера.",
     ),
     "freev6OpenHome": MessageLookupByLibrary.simpleMessage("На главный экран"),
-    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Подготовить FreeV6"),
+    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Подготовить Flux6"),
     "freev6PrepareFailed": MessageLookupByLibrary.simpleMessage(
       "Ошибка подготовки. Проверьте адреса и сеть. Сохранённые учётные данные остаются.",
     ),
@@ -1028,9 +1028,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6ProbePassed": MessageLookupByLibrary.simpleMessage(
       "Проверка TCP IPv6 прошла успешно. Подключите WARP, чтобы отдельно проверить его UDP-туннель.",
     ),
-    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage(
-      "Настройка FreeV6",
-    ),
+    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("Настройка Flux6"),
     "freev6ShowDetails": MessageLookupByLibrary.simpleMessage("Подробнее"),
     "freev6SkipSetup": MessageLookupByLibrary.simpleMessage("Настроить позже"),
     "freev6StartSetup": MessageLookupByLibrary.simpleMessage(
@@ -1045,13 +1043,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Подготовьте подключение",
     ),
     "freev6ToolsHint": MessageLookupByLibrary.simpleMessage(
-      "Позже можно изменить исключения или проверить сеть в разделе Инструменты → FreeV6.",
+      "Позже можно изменить исключения или проверить сеть в разделе Инструменты → Flux6.",
     ),
     "freev6WelcomeBody": MessageLookupByLibrary.simpleMessage(
       "Настройте один раз и подключайтесь одним нажатием. Используйте IPv6-сеть кампуса или роутера.",
     ),
     "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage(
-      "Добро пожаловать в FreeV6",
+      "Добро пожаловать в Flux6",
     ),
     "freev6WifiReady": MessageLookupByLibrary.simpleMessage("Wi-Fi готов"),
     "freev6WifiUnverified": MessageLookupByLibrary.simpleMessage(
@@ -1202,7 +1200,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("Инициализация"),
     "initFailed": MessageLookupByLibrary.simpleMessage("Не удалось запустить"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "При запуске FreeV6 произошла ошибка, и работа не может быть продолжена. Скопируйте подробности, чтобы сообщить о проблеме. Если ошибка повторяется, очистка данных обычно позволяет снова запустить приложение.",
+      "При запуске Flux6 произошла ошибка, и работа не может быть продолжена. Скопируйте подробности, чтобы сообщить о проблеме. Если ошибка повторяется, очистка данных обычно позволяет снова запустить приложение.",
     ),
     "initiator": MessageLookupByLibrary.simpleMessage("Инициатор"),
     "initiatorShort": MessageLookupByLibrary.simpleMessage("Источник"),
@@ -2112,10 +2110,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Отправлено. Подтвердите импорт на другом устройстве.",
     ),
     "sendFromPhonePageTitle": MessageLookupByLibrary.simpleMessage(
-      "Отправить ссылку в FreeV6",
+      "Отправить ссылку в Flux6",
     ),
     "sendFromPhonePermissionDenied": MessageLookupByLibrary.simpleMessage(
-      "Чтобы получить ссылку с телефона, FreeV6 нужно разрешение «Устройства поблизости» для доступа к локальной сети. Включите его в настройках приложения.",
+      "Чтобы получить ссылку с телефона, Flux6 нужно разрешение «Устройства поблизости» для доступа к локальной сети. Включите его в настройках приложения.",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
       "Отсканируйте код камерой телефона и вставьте ссылку на открывшейся странице. Оба устройства должны быть в одной сети.",

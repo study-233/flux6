@@ -1,4 +1,4 @@
-# FreeV6 开发与仓库管理
+# Flux6 开发与仓库管理
 
 ## 平台与目录
 
@@ -14,6 +14,7 @@
 | `cmd/`、`internal/`、`mobileapi/` | Go 程序、共享业务、移动端接口 | 共享维护 |
 | `shared/` | 协议与跨语言测试夹具 | 共享维护 |
 | `assets/branding/`、`third_party/` | 品牌资源、第三方许可与来源索引 | 共享维护 |
+| `site/`、`scripts/site/` | Flux6 官网源码及无依赖静态构建/预览工具 | [本地预览说明](../../site/README.md) |
 | `scripts/` | 各端构建、验证与维护脚本 | 从仓库根目录调用 |
 | `build/`、`dist/` | 工具缓存和临时构建、分发产物 | 不进 Git |
 
@@ -43,7 +44,7 @@ macOS 与 Android 的首个公开正式版为 [0.1.0](../releases/first-public-r
 
 各平台均在本地构建和验收，推送标签不会自动打包或上传发行版。历史平台标签保留用于追溯，不再为同一版本创建多个平台 Release。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
 
-Android 构建读取版本源，输出到 `dist/android/<版本>-b<build>/`，包名包含版本及 build。源码包和 APK 分别生成校验文件。Mac 本地应用保持 `dist/macos/FreeV6.app`；DMG/更新包由对应打包脚本生成。已发布版本的产物不可覆盖，新发行应先提升版本或 build。旧本地产物确认不再用于回归或回滚后删除，不再默认长期堆放在 `dist/archive/`；保留的安装包必须配对保存对应源码和校验文件。Git 只保存源码、锁文件和必要的验收结论。
+Android 构建读取版本源，输出到 `dist/android/<版本>-b<build>/`，包名包含版本及 build。源码包和 APK 分别生成校验文件。Mac 本地应用保持 `dist/macos/Flux6.app`；DMG/更新包由对应打包脚本生成。已发布版本的产物不可覆盖，新发行应先提升版本或 build。旧本地产物确认不再用于回归或回滚后删除，不再默认长期堆放在 `dist/archive/`；保留的安装包必须配对保存对应源码和校验文件。Git 只保存源码、锁文件和必要的验收结论。
 
 ## 签名和缓存
 

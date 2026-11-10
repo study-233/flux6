@@ -132,7 +132,7 @@ class _FreeV6ViewState extends ConsumerState<FreeV6View> {
           .read(profilesProvider)
           .where((p) => p.id == savedId)
           .firstOrNull;
-      final profile = existing ?? Profile.normal(label: 'FreeV6 WARP');
+      final profile = existing ?? Profile.normal(label: 'Flux6 WARP');
       final prepared = await profile.saveFile(
         Uint8List.fromList(utf8.encode(yaml)),
         validate: (path, key) => core.validateProfile(path, key),

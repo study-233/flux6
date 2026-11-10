@@ -1,11 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
-        android:label="FreeV6 Debug"
+        android:label="Flux6 Debug"
         tools:replace="android:label">
         <service
             android:name=".TileService"
-            android:label="FreeV6 Debug"
+            android:label="Flux6 Debug"
             tools:replace="android:label" />
     </application>
 </manifest>

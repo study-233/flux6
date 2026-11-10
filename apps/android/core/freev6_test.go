@@ -31,7 +31,7 @@ func TestFreeV6ProfileMatchesEmbeddedMasqueCore(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !raw.IPv6 || !raw.DNS.IPv6 || len(raw.Proxy) != 28 {
-		t.Fatal("FreeV6 must retain IPv6 DNS and all 28 WARP endpoints")
+		t.Fatal("Flux6 must retain IPv6 DNS and all 28 WARP endpoints")
 	}
 	for _, definition := range raw.Proxy {
 		proxy, err := adapter.ParseProxy(definition)

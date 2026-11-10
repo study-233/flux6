@@ -6,7 +6,7 @@ final class MainFlutterWindow: NSWindow {
 
     override func awakeFromNib() {
         if HostApplication.needsInstallation {
-            let message = NSTextField(wrappingLabelWithString: "将 FreeV6 拖到“应用程序”，推出磁盘映像，然后从“应用程序”打开。")
+            let message = NSTextField(wrappingLabelWithString: "将 Flux6 拖到“应用程序”，推出磁盘映像，然后从“应用程序”打开。")
             let open = NSButton(title: "打开“应用程序”", target: self, action: #selector(openApplications))
             let quit = NSButton(title: "退出", target: NSApp, action: #selector(NSApplication.terminate(_:)))
             quit.keyEquivalent = "\r"
@@ -16,7 +16,7 @@ final class MainFlutterWindow: NSWindow {
             panel.alignment = .leading
             panel.spacing = 18
             panel.edgeInsets = NSEdgeInsets(top: 28, left: 28, bottom: 28, right: 28)
-            title = "安装 FreeV6"
+            title = "安装 Flux6"
             contentView = panel
             styleMask.remove(.resizable)
             setContentSize(NSSize(width: 450, height: 150))
@@ -33,7 +33,7 @@ final class MainFlutterWindow: NSWindow {
         titlebarAppearsTransparent = true
         titlebarSeparatorStyle = .none
         isMovable = true
-        title = "FreeV6 Flutter Preview"
+        title = "Flux6 Flutter Preview"
         contentMinSize = NSSize(width: 720, height: 480)
 
         let visible = screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? frame

@@ -198,7 +198,7 @@ func downloadUpdateFileOnce(client *http.Client, rawURL, sha256Hex, dest string,
 	if err != nil {
 		return 0, err
 	}
-	request.Header.Set("User-Agent", "freev6")
+	request.Header.Set("User-Agent", "Flux6")
 	resp, err := client.Do(request)
 	if err != nil {
 		return 0, fmt.Errorf("request failed: %w", err)

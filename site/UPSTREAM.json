@@ -1,0 +1,39 @@
+{
+  "project": "FlClash website",
+  "repository": "https://github.com/chen08209/FlClash",
+  "revision": "be84736605527034689c95bf27828ff27d912c5e",
+  "license": "GPL-3.0",
+  "licenseFile": "LICENSE",
+  "retrievedAt": "2026-11-10",
+  "files": {
+    "index.html": {
+      "source": "site/index.html",
+      "upstreamGitBlob": "8babd10c5134d8491e70eb0f2759bf936c273e43"
+    },
+    "assets/style.css": {
+      "source": "site/assets/style.css",
+      "upstreamGitBlob": "ce33526ebcbc86799d7ae0855b069e2d7383d0d2"
+    },
+    "assets/app.js": {
+      "source": "site/assets/app.js",
+      "upstreamGitBlob": "29dab67f54a859ac54e42f53c24621c51452e140"
+    },
+    "assets/shared.js": {
+      "source": "site/assets/shared.js",
+      "upstreamGitBlob": "08aa1589d7d88e0fb5ecb58cb734b5d548b05318"
+    },
+    "assets/field.js": {
+      "source": "site/assets/field.js",
+      "upstreamGitBlob": "9d33fb61d6177d252f909980288f6337cecbe16d"
+    }
+  },
+  "localChanges": [
+    "Replace website brand, product copy and installer links with Flux6.",
+    "Use repository-owned cat icon and macOS/Android screenshots; omit upstream product imagery.",
+    "Limit downloads to released macOS Apple Silicon and Android ARM64 packages; include exact sizes and SHA-256 digests.",
+    "Embed verified release data and bilingual changelogs at build time; remove runtime remote metadata requests.",
+    "Replace upstream app-specific links, installation instructions and features.",
+    "Retain upstream responsive styles, color tokens, UI icons, background animation, theme/language controls, search and keyboard interactions.",
+    "Fix mobile reel line metrics, add clipboard status announcements and retain install links without JavaScript."
+  ]
+}

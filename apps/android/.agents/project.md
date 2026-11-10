@@ -1,6 +1,6 @@
-# FreeV6 Android context
+# Flux6 Android context
 
-This is the Android-only FlClash source export used by FreeV6. Use `FREEV6.md` for current build commands, versions and source revisions; run commands from the monorepo root unless the guide changes directory. The former desktop runners and upstream release/site scripts were removed. Shared Dart code, plugins and host-test infrastructure remain where referenced.
+This is the Android-only FlClash source export used by Flux6. Use `FREEV6.md` for current build commands, versions and source revisions; run commands from the monorepo root unless the guide changes directory. The former desktop runners and upstream release/site scripts were removed. Shared Dart code, plugins and host-test infrastructure remain where referenced.
 
 ## Forked Dependencies
 

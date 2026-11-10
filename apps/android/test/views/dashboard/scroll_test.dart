@@ -58,7 +58,7 @@ void main() {
     );
     final end = position.maxScrollExtent;
     expect(end, greaterThan(0));
-    expect(find.text('Prepare FreeV6'), findsNothing);
+    expect(find.text('Prepare Flux6'), findsNothing);
     expect(find.text('Check Wi-Fi IPv6'), findsNothing);
 
     final gesture = await tester.startGesture(const Offset(200, 500));

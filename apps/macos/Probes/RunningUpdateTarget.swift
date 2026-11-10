@@ -2,7 +2,7 @@ import AppKit
 import Darwin
 
 // Inspect and close only the freshly launched disposable Sparkle target.
-// Never look up, activate, or terminate the user's ordinary FreeV6 app.
+// Never look up, activate, or terminate the user's ordinary Flux6 app.
 let args = CommandLine.arguments
 let prefix = "dev.freev6.flutter-host.qa."
 guard args.count == 5, args[1].hasPrefix(prefix),

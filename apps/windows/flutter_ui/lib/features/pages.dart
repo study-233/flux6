@@ -554,7 +554,7 @@ class SettingsPage extends StatelessWidget {
                 Panel(
                   title: '通用',
                   children: [
-                    toggle('autoStart', '开机自启动', '登录 Windows 时打开 FreeV6'),
+                    toggle('autoStart', '开机自启动', '登录 Windows 时打开 Flux6'),
                     toggle('silentStart', '静默启动', '启动后驻留托盘'),
                     toggle('autoRunProxy', '自动运行免流', '打开后自动尝试连接'),
                     toggle('hotkeyEnabled', 'F6 快捷键', '按 F6 显示主窗口'),
@@ -663,7 +663,7 @@ class SettingsPage extends StatelessWidget {
                   ],
                 ),
                 Panel(
-                  title: '关于 FreeV6',
+                  title: '关于 Flux6',
                   children: [
                     Text(
                       m.preview
@@ -702,21 +702,21 @@ class SettingsPage extends StatelessWidget {
                           ),
                         TextButton(
                           onPressed: () => m.act('external.open', {
-                            'url': 'https://github.com/study-233/free-v6',
+                            'url': 'https://github.com/study-233/flux6',
                           }),
                           child: const Text('GitHub'),
                         ),
                         TextButton(
                           onPressed: () => m.act('external.open', {
                             'url':
-                                'https://github.com/study-233/free-v6/issues',
+                                'https://github.com/study-233/flux6/issues',
                           }),
                           child: const Text('反馈'),
                         ),
                         TextButton(
                           onPressed: () => showLicensePage(
                             context: context,
-                            applicationName: 'FreeV6',
+                            applicationName: 'Flux6',
                           ),
                           child: const Text('开源许可证'),
                         ),

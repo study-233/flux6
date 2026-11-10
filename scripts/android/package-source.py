@@ -39,7 +39,7 @@ def main():
     parser.add_argument('--output-dir', type=Path, default=destination)
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    output = args.output_dir / f"FreeV6-{version['version']}-b{version['build']}-source.tar.gz"
+    output = args.output_dir / f"Flux6-{version['version']}-b{version['build']}-source.tar.gz"
     if output.exists() or (args.output_dir / 'SOURCE-SHA256SUMS').exists():
         raise SystemExit(f'Release source output already exists: {args.output_dir}')
     temporary = output.with_suffix('.tmp')
@@ -47,7 +47,7 @@ def main():
     try:
         with tarfile.open(temporary, 'w:gz') as archive:
             for path in sources():
-                archive.add(path, arcname=Path('freev6-android-source') / path.relative_to(ROOT), recursive=False)
+                archive.add(path, arcname=Path('flux6-android-source') / path.relative_to(ROOT), recursive=False)
                 count += 1
         temporary.replace(output)
     finally:

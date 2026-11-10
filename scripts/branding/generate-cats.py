@@ -111,7 +111,7 @@ def svg(theme, prefix=""):
     eye_shapes = "".join(f'<circle cx="{x}" cy="180" r="18.5" fill="{c}"/>'
                          for x, c in zip([147, 261], eyes))
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="{p}title {p}desc">
-  <title id="{p}title">FreeV6 · {theme["name"]}</title>
+  <title id="{p}title">Flux6 · {theme["name"]}</title>
   <desc id="{p}desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
   <defs>{defs}</defs>
   <g transform="translate(15.36 15.36) scale(.94)">
@@ -128,7 +128,7 @@ def svg(theme, prefix=""):
 def preview():
     parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="690" viewBox="0 0 1500 690">',
              '<rect width="1500" height="690" rx="28" fill="#F6F7FA"/>',
-             '<text x="44" y="55" font-family="Arial,sans-serif" font-size="26" font-weight="600" fill="#1C2534">FreeV6 · Cat icons</text>',
+             '<text x="44" y="55" font-family="Arial,sans-serif" font-size="26" font-weight="600" fill="#1C2534">Flux6 · Cat icons</text>',
              '<text x="1456" y="53" text-anchor="end" font-family="Arial,sans-serif" font-size="15" fill="#657184">SVG / shared silhouette / gradient</text>']
     for i, theme in enumerate(THEMES):
         x = 28 + i * 294

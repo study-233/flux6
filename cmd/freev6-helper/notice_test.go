@@ -29,7 +29,7 @@ func TestParseNoticePayload(t *testing.T) {
 	    {"id":"e","title":"时间坏了","published":"昨天"},
 	    {"id":"f","title":"级别未知","level":"WHATEVER","published":"2026-10-29T19:00:00+08:00"},
 	    {"id":"g","title":"危险链接","published":"2026-10-29T19:00:00+08:00","link":"javascript:alert(1)","linkText":"点我"},
-	    {"id":"h","title":"正常链接","published":"2026-10-29T19:00:00+08:00","link":"https://github.com/study-233/free-v6#readme"},
+	    {"id":"h","title":"正常链接","published":"2026-10-29T19:00:00+08:00","link":"https://github.com/study-233/flux6#readme"},
 	    {"id":"a","title":"重复 id","published":"2026-10-29T19:00:00+08:00"}
 	  ]
 	}`
@@ -58,7 +58,7 @@ func TestParseNoticePayload(t *testing.T) {
 	if payload.Items[2].Link != "" || payload.Items[2].LinkText != "" {
 		t.Fatalf("non-https link must be dropped: %+v", payload.Items[2])
 	}
-	if payload.Items[3].Link != "https://github.com/study-233/free-v6#readme" {
+	if payload.Items[3].Link != "https://github.com/study-233/flux6#readme" {
 		t.Fatalf("https link must survive: %+v", payload.Items[3])
 	}
 	if payload.Items[3].LinkText != "查看详情" {

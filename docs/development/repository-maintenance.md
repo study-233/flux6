@@ -331,3 +331,25 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 按用户要求移除 Release 正文及活动发行清单中的旧 Android 测试版迁移提示。公开安装包统一采用 `FreeV6-0.1.0-macOS.dmg`、`FreeV6-0.1.0-Android.apk`；Mac 应用 ZIP 与两端对应源码也去掉 build 和架构后缀，源码保留 `-source` 标识。Release 不再提供三个 SHA256 校验附件，剩余五个正式附件。同步文档下载链接与 Homebrew Cask 的 DMG 地址。
 
 仅调整现有 GitHub 附件名称和发布展示，不重新构建、重签或修改安装包及源码内容；本地构建目录、校验文件和签名记录保留，Homebrew 使用实际 DMG 摘要。仓库结构、发行来源与 Cask 语法检查用于核验本次文档和链接变更，不重复应用构建、安装或真实网络测试。
+
+## 2026-11-10 Flux6 官网与品牌首页
+
+用户要求借鉴 FlClash 官网并更换项目名，最终选定英文名称 `Flux6`。在 `feat/project-website` 分支新增 `site/` 与 `scripts/site/`，仓库 README 同步使用 Flux6。网页从 FlClash 固定提交 `be84736605527034689c95bf27828ff27d912c5e` 改编，保留上游 GPL-3.0 许可证、各原始文件 Git blob 和本地改动记录；来源入口见 [网站说明](../../site/README.md)及 [来源清单](../../site/UPSTREAM.json)。
+
+沿用参考站的排版、暖灰配色、背景动效、双语与主题切换、下载标签页、更新日志搜索及键盘交互。改用仓库现有猫咪图标、macOS 隔离截图、Android 实机截图和实际功能介绍。公开下载只列 macOS Apple Silicon 与 Android ARM64，五个发行附件的名称、大小、SHA-256 按 GitHub v0.1.0 元数据核对。构建时嵌入发行数据与双语日志，无需浏览器访问 GitHub API；无 JavaScript 时仍保留安装链接及日志。网站构建无外部依赖，产物为 `dist/site/`，预览服务仅绑定 loopback。
+
+官网明确注明当前 0.1.0 安装包仍使用 FreeV6 名称；本轮未改变应用显示名、包 ID、安装路径、签名、配置目录、Homebrew Cask、仓库 URL 或已发布资产，也未重打包客户端。iOS/OpenWrt 继续仅占位，Windows 未列为已发行下载。
+
+验证：静态构建、JavaScript 语法、网站本地资源/链接、仓库结构、9 项维护测试、图标、发行来源、128 个既有 Web 模块和差异空白检查通过。内置及备用 CUA 浏览器连接超时后，用户明确授权 Playwright；在隔离 Chrome 中完成 320/390/768/1024/1440px 检查，无横向溢出、损坏图片或浏览器错误。验证下载 URL、命令/摘要复制、平台标签和键盘切换、搜索匹配/空态/Escape、双语与主题持久化、普通动画模式和禁用 JavaScript 的回退。视觉复查修复平台名在窗口改变后被旧像素宽度裁切的问题，改为字体相对宽度；最终桌面/手机截图与参考站联合对比通过。详见 [设计 QA](../../site/design-qa.md)，本地截图及检查结果位于 `build/site-qa/`。
+
+验证边界：仅网页与文档改动，未重复 Go、Swift、Flutter、Android 或 Windows 构建；未启动实际客户端、代理/VPN，未停止用户进程或修改系统服务。没有提交/推送、创建 PR、注册站点、调整 GitHub Pages 或进行线上发布。
+
+## 2026-11-10 Flux6 全平台品牌与 0.1.0 重打包
+
+用户明确授权统一项目名、重新打包替换 0.1.0、部署 GitHub Pages 并更新 About。界面、菜单、七种语言、安装包、构建脚本、当前文档和发行来源统一为 Flux6；仓库目标名称为 `study-233/flux6`。保留应用 ID、原签名、钥匙串标识、服务名称、加密缓存命名空间及 Windows 数据/注册表路径。历史记录、上游署名与技术内部标识不做破坏性重命名。macOS 登录项补充旧名称识别与迁移，使用安全临时目录完成回归。
+
+新正式包为 macOS 0.1.0 build 10、Android 0.1.0 build 2026111006。两端签名与已发布正式版一致；macOS DMG、应用 ZIP、源码 ZIP 与 Android APK、源码 tar.gz 均构建完成。668 个 macOS 源文件与包内清单及归档一致；2721 个 Android 输入构建前后及归档一致。原发布资产和元数据留存，不覆盖本地旧构建。
+
+共享 Go 与 Android 嵌套模块测试/vet 通过；Swift 199 项中 177 通过、22 按夹具条件跳过、0 失败；Android analyze 及 19 项相关测试、macOS Flutter analyze/31 项测试、Windows Flutter analyze/30 项测试通过。仓库结构、9 项维护测试、45 项图标、发行来源、128 个 Web 模块、2 项 Windows 打包工具测试通过。官网改名后的五档宽度、交互及无 JS 回退复验通过。日志与摘要保存在 `build/flux6-release/`，浏览器记录在 `build/site-qa/`。
+
+本轮仅构建、单元测试、隔离夹具及只读包验证，没有启动产品网络/VPN、执行管理员安装、停止用户进程或更换签名身份。Windows 源码品牌同步，但本机未进行 Windows 原生构建，也不发布 Windows 资产。Pages、Release 和 Tap 的线上结果在后续完成记录中补充。

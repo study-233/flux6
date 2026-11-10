@@ -1,4 +1,4 @@
-# FreeV6 repository guidance
+# Flux6 repository guidance
 
 This repository contains macOS, Android and Windows clients plus shared Go business code. iOS and OpenWrt are reserved platforms; do not implement them until requested.
 

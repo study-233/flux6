@@ -124,7 +124,7 @@ def main():
         shutil.copy2(host_executable if args.isolated_agent else executable, contents / "MacOS/UpdateProbe")
         info = {
             "CFBundleIdentifier": identifier, "CFBundleExecutable": "UpdateProbe", "CFBundlePackageType": "APPL",
-            "CFBundleName": "FreeV6 Update Probe", "CFBundleVersion": version, "CFBundleShortVersionString": version,
+            "CFBundleName": "Flux6 Update Probe", "CFBundleVersion": version, "CFBundleShortVersionString": version,
             "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
             "SUFeedURL": feed_url + "/appcast.xml", "SUPublicEDKey": public_key,
             "SUEnableAutomaticChecks": False, "SUAutomaticallyUpdate": False,
@@ -135,7 +135,7 @@ def main():
         framework_contents = contents
         agent = None
         if args.isolated_agent:
-            agent = contents / "Helpers/FreeV6UpdateAgent.app"
+            agent = contents / "Helpers/Flux6UpdateAgent.app"
             framework_contents = agent / "Contents"
             (framework_contents / "MacOS").mkdir(parents=True)
             shutil.copy2(executable, framework_contents / "MacOS/UpdateProbe")
@@ -167,7 +167,7 @@ def main():
                          f'length="{package.stat().st_size}" type="application/octet-stream"/>')
             (feed / "appcast.xml").write_text(
                 '<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">'
-                '<channel><title>Isolated FreeV6 update test</title><item><title>Version 2</title>'
+                '<channel><title>Isolated Flux6 update test</title><item><title>Version 2</title>'
                 '<sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>' + enclosure + '</item></channel></rss>')
         print(f"Running {args.profile}: {'load' if args.load_only else 'signature rejection' if args.invalid_signature else 'N -> N+1'}", flush=True)
         with (work / "process.log").open("w") as log:
@@ -204,7 +204,7 @@ def main():
             passed = bool(old_pids and new_pids and old_pids.isdisjoint(new_pids))
         signing = {"host": signing_profile(app)}
         if args.isolated_agent:
-            signing["agent"] = signing_profile(app / "Contents/Helpers/FreeV6UpdateAgent.app")
+            signing["agent"] = signing_profile(app / "Contents/Helpers/Flux6UpdateAgent.app")
             host_dependencies = run(["/usr/bin/otool", "-L", app / "Contents/MacOS/UpdateProbe"])
             passed = passed and signing["host"]["hardenedRuntime"] and not signing["host"]["entitlements"]
             passed = passed and "Sparkle.framework" not in host_dependencies

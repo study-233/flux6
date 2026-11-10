@@ -10,7 +10,7 @@ try {
             $path = [IO.Path]::GetFullPath($process.ExecutablePath)
             if ($path.StartsWith($target, [StringComparison]::OrdinalIgnoreCase) -and
                 ([IO.Path]::GetFileName($path) -match '^(freev6-desktop|freev6-helper|mihomo.*)\.exe$')) {
-                Write-Output 'FreeV6 or its network core is still running. Exit from the tray first.'
+                Write-Output 'Flux6 or its network core is still running. Exit from the tray first.'
                 exit 10
             }
         }

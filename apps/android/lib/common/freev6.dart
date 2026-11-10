@@ -54,7 +54,7 @@ class FreeV6Preparation {
   bool _preparing = false;
 
   Future<String> prepare(List<String> campusTargets) async {
-    if (_preparing) throw StateError('FreeV6 preparation is already running');
+    if (_preparing) throw StateError('Flux6 preparation is already running');
     _preparing = true;
     try {
       var credentials = _pendingCredentials ?? await storage.read();
@@ -82,7 +82,7 @@ class FreeV6Preparation {
               as String;
       final data = jsonDecode(profile);
       if (data is! Map || data['proxies'] is! List) {
-        throw const FormatException('Invalid FreeV6 profile');
+        throw const FormatException('Invalid Flux6 profile');
       }
       return profile;
     } finally {

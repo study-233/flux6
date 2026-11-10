@@ -208,8 +208,8 @@ final class HostWindowChannel: NSObject, @preconcurrency FlutterStreamHandler {
         guard let text = args["text"] as? String else { throw CocoaError(.coderInvalidValue) }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
-        panel.nameFieldStringValue = (args["name"] as? String).map { ($0 as NSString).lastPathComponent } ?? "FreeV6-日志.txt"
-        panel.title = args["title"] as? String ?? "导出 FreeV6 记录"
+        panel.nameFieldStringValue = (args["name"] as? String).map { ($0 as NSString).lastPathComponent } ?? "Flux6-日志.txt"
+        panel.title = args["title"] as? String ?? "导出 Flux6 记录"
         let response = await panel.beginSheetModal(for: window)
         guard response == .OK, let url = panel.url else { return false }
         let scoped = url.startAccessingSecurityScopedResource()

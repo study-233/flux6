@@ -1,10 +1,10 @@
-FreeV6 0.1.0（build 9）· macOS
+Flux6 0.1.0（build 10）· macOS
 
 适用于 Apple Silicon（M 系列）和 macOS 14 或更高版本。
 
 安装
-1. 核对 DMG 来源和 SHA256，打开镜像，将 FreeV6 拖到 Applications（应用程序），然后推出镜像。
-2. 从「应用程序」打开 FreeV6。首次使用按引导完成网络服务授权、核心与规则数据准备、WARP 账户和配置检查。
+1. 核对 DMG 来源和 SHA256，打开镜像，将 Flux6 拖到 Applications（应用程序），然后推出镜像。
+2. 从「应用程序」打开 Flux6。首次使用按引导完成网络服务授权、核心与规则数据准备、WARP 账户和配置检查。
 3. 连接支持 IPv6 的校园网络，点击首页连接按钮。
 
 本版使用持久的本机代码签名，不进行 Apple 公证。首次打开如被 macOS 拦截，核对来源和摘要后，参照 Apple 的说明在「系统设置 → 隐私与安全性」中操作：https://support.apple.com/zh-cn/102445
@@ -16,9 +16,10 @@ FreeV6 0.1.0（build 9）· macOS
 - 退出前先断开连接。若提示「待恢复」，在应用内重试并查看日志。
 
 更新与卸载
+- 从旧 FreeV6 升级时，先退出旧应用，再安装 Flux6；已有设置和凭据继续沿用。如曾开启登录启动，请在 Flux6 设置中重新登记。确认新应用正常后可移除旧 FreeV6.app。
 - 后续通过 Homebrew 或新版 DMG 更新。本次未配置应用内自动更新通道。
 - 升级后若提示网络服务需要更新，在「设置 → 网络服务」中修复服务。
 - 卸载前关闭登录启动、断开连接并确认恢复，在「网络服务」中卸载服务，退出后移除应用。
 
-发行仓库：https://github.com/study-233/free-v6
-组件许可和源码摘要：FreeV6.app/Contents/Resources/Notices
+发行仓库：https://github.com/study-233/flux6
+组件许可和源码摘要：Flux6.app/Contents/Resources/Notices

@@ -5,7 +5,7 @@ import (
 	"syscall"
 )
 
-var errNetworkProtection = errors.New("FreeV6 cannot bind the socket to Wi-Fi")
+var errNetworkProtection = errors.New("Flux6 cannot bind the socket to Wi-Fi")
 
 func protectSocket(conn syscall.RawConn, protect func(int) bool) error {
 	protected := false

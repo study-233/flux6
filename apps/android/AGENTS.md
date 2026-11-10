@@ -1,4 +1,4 @@
-# FreeV6 Android agent guidance
+# Flux6 Android agent guidance
 
 Read the root `AGENTS.md` first. Current Android build and source information is in `FREEV6.md`; architecture, setting ownership and coding rules are in `.agents/architecture.md`, `.agents/setting-changes.md` and `.agents/rules.md`. `.agents/commands.md` contains current commands.
 

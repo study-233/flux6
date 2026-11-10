@@ -19,7 +19,7 @@ def bundle(app, executable, sdk, *, probe=False):
     signing = ["/usr/bin/codesign", "--force", "--sign", identity, "--options", "runtime"]
     if not probe and (keychain := os.environ.get("FREEV6_CODESIGN_KEYCHAIN")):
         signing += ["--keychain", keychain]
-    agent = app / "Contents/Helpers/FreeV6UpdateAgent.app"
+    agent = app / "Contents/Helpers/Flux6UpdateAgent.app"
     contents = agent / "Contents"
     (contents / "MacOS").mkdir(parents=True)
     (contents / "Frameworks").mkdir()
@@ -29,7 +29,7 @@ def bundle(app, executable, sdk, *, probe=False):
     release_rpaths.verify(binary, updater=True)
     host = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     info = {"CFBundleIdentifier": host["CFBundleIdentifier"] + ".update-agent",
-            "CFBundleName": "FreeV6 更新", "CFBundleExecutable": "freev6-update-agent",
+            "CFBundleName": "Flux6 更新", "CFBundleExecutable": "freev6-update-agent",
             "CFBundlePackageType": "APPL", "CFBundleVersion": host["CFBundleVersion"],
             "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
             "FreeV6UpdateProbeBuild": probe,

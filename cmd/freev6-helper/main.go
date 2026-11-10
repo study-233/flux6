@@ -76,7 +76,7 @@ func defaultSettings() settings {
 
 func main() {
 	// Task Manager's Startup tab runs the HKCU Run marker (helper --autostart)
-	// at logon; the real launch is the "FreeV6 Autostart" logon task. Exit
+	// at logon; the real launch is the "Flux6 Autostart" logon task. Exit
 	// before binding the API port so the marker never collides with the helper
 	// the desktop app spawns.
 	if len(os.Args) > 1 && os.Args[1] == "--autostart" {

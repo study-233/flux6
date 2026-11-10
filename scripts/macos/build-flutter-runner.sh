@@ -2,7 +2,7 @@
 # Build the official Runner in its own project tree, using the same locked SDK and dependencies as P1.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-destination="${1:?supply an empty destination FreeV6.app}"
+destination="${1:?supply an empty destination Flux6.app}"
 work="${FREEV6_RUNNER_WORK:-$root/build/macos-release-runner}"
 project="$work/macos/flutter_ui"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
@@ -26,13 +26,13 @@ for member in Sources Tests; do
 done
 /usr/bin/rsync -a --delete --exclude '.dart_tool' --exclude 'build' --exclude '.DS_Store' \
     --exclude '/macos/Flutter/ephemeral' --exclude 'xcuserdata' "$root/apps/macos/flutter_ui/" "$project/"
-# Use FreeV6's existing app icon for the shipping bundle rather than the Flutter template.
+# Use Flux6's existing app icon for the shipping bundle rather than the Flutter template.
 for size in 16 32 64 128 256 512 1024; do
     /usr/bin/sips -z "$size" "$size" "$root/assets/branding/icon.png" --out \
         "$project/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_${size}.png" >/dev/null
 done
 cat >> "$project/macos/Runner/Configs/AppInfo.xcconfig" <<'CONFIG'
-PRODUCT_NAME = FreeV6
+PRODUCT_NAME = Flux6
 PRODUCT_BUNDLE_IDENTIFIER = dev.freev6.desktop
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) FREEV6_RELEASE_HOST
 CONFIG
@@ -41,7 +41,7 @@ build="$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$root/apps/macos/Res
 cd "$project"
 "$sdk/bin/flutter" pub get --enforce-lockfile
 "$sdk/bin/flutter" build macos --release --no-pub --target lib/live_main.dart --build-name "$version" --build-number "$build"
-built="$project/build/macos/Build/Products/Release/FreeV6.app"
+built="$project/build/macos/Build/Products/Release/Flux6.app"
 /usr/bin/ditto "$built" "$destination"
 python3 - "$destination/Contents/Info.plist" "$root/apps/macos/Resources/Info.plist" <<'PY'
 import plistlib, sys

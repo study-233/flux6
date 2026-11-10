@@ -1,4 +1,4 @@
-// Test and isolated acceptance builds only. Never shipped in FreeV6.app.
+// Test and isolated acceptance builds only. Never shipped in Flux6.app.
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>

@@ -10,15 +10,15 @@ fi
 # Every QA run receives a unique sandbox and NSUserDefaults domain. Only the QA
 # bundle contains the consent fixture; the delivered integration app never does.
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-source="$root/build/macos-ui/FreeV6 Flutter Integration.app"
+source="$root/build/macos-ui/Flux6 Flutter Integration.app"
 codesign --verify --deep --strict "$source"
 stage="$(mktemp -d "$root/build/macos-ui/host-qa.XXXXXX")"
-bundle="$stage/FreeV6 Flutter QA.app"
+bundle="$stage/Flux6 Flutter QA.app"
 ditto "$source" "$bundle"
 identifier="dev.freev6.flutter-host.qa.$(uuidgen | tr '[:upper:]' '[:lower:]')"
 plist="$bundle/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string "$identifier" "$plist"
-plutil -replace CFBundleName -string "FreeV6 Flutter QA" "$plist"
+plutil -replace CFBundleName -string "Flux6 Flutter QA" "$plist"
 seed="$(python3 - "$bundle/Contents/Resources/Notices" <<'PY'
 from pathlib import Path
 import base64, hashlib, sys

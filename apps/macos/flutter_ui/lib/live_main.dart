@@ -71,7 +71,7 @@ class _HostApplicationState extends State<HostApplication> {
 
   @override
   Widget build(BuildContext context) => FreeV6Theme(
-    title: 'FreeV6',
+    title: 'Flux6',
     appearance: appearance,
     reduceMotion: reduced,
     home: _HostWindow(key: ObjectKey(widget.model), model: widget.model),

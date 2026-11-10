@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only, bounded subscription to FreeV6's root-owned core log socket.
+"""Read-only, bounded subscription to Flux6's root-owned core log socket.
 
 Run by the offline collector after local sudo authorization. Never reads a
 session config, credential, or Keychain item; only fixed GET API routes.

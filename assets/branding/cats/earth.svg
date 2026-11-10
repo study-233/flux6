@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="cat-earth-title cat-earth-desc">
-  <title id="cat-earth-title">FreeV6 · 地球猫</title>
+  <title id="cat-earth-title">Flux6 · 地球猫</title>
   <desc id="cat-earth-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
   <defs><linearGradient id="cat-earth-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#04B8F1"/><stop offset="0.500" stop-color="#0878F4"/><stop offset="1.000" stop-color="#073ACB"/></linearGradient><linearGradient id="cat-earth-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="cat-earth-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="cat-earth-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#cat-earth-coat)"/><path d="M-20 311 H55 C83 302 107 302 122 326 C139 350 176 352 191 364
 C215 383 196 396 174 404 C150 416 142 431 139 460

@@ -1,8 +1,8 @@
-# FreeV6 macOS 客户端源码与第三方告知
+# Flux6 macOS 客户端源码与第三方告知
 
-macOS Flutter 客户端组合使用 FlClash v0.9.3 和 Prism UI 的 GPLv3 代码。该组合客户端按随附的 GPLv3 条款提供；FreeV6 自有 MIT 源文件及第三方文件保留各自版权声明。独立服务和其他平台构建使用其各自随附的许可。
+macOS Flutter 客户端组合使用 FlClash v0.9.3 和 Prism UI 的 GPLv3 代码。该组合客户端按随附的 GPLv3 条款提供；Flux6 自有 MIT 源文件及第三方文件保留各自版权声明。独立服务和其他平台构建使用其各自随附的许可。
 
-同一批候选产物包含可解压的 macOS 对应源码 ZIP。解压后进入 FreeV6-source，运行 `bash scripts/macos/build-app.sh`。需要 Xcode、Go 与网络访问以按锁文件取得依赖。首次运行会按 SHA-256 校验固定的 Flutter SDK；如需指定已安装的 Go，设置 `GO_BIN`。Sparkle SDK 的版本和压缩包摘要在 macos/Dependencies/sparkle.json 中。若需自行配置更新通道，使用自己的公钥和签名流程。
+同一批候选产物包含可解压的 macOS 对应源码 ZIP。解压后进入 Flux6-source，运行 `bash scripts/macos/build-app.sh`。需要 Xcode、Go 与网络访问以按锁文件取得依赖。首次运行会按 SHA-256 校验固定的 Flutter SDK；如需指定已安装的 Go，设置 `GO_BIN`。Sparkle SDK 的版本和压缩包摘要在 macos/Dependencies/sparkle.json 中。若需自行配置更新通道，使用自己的公钥和签名流程。
 
 应用内 Resources/Notices/macOS-source-sha256.json 与源码包里的同名文件逐字节一致，列有 macOS 源文件、资源、锁文件和构建脚本的 SHA-256。Flutter-component-sources.json 记录复用组件的原提交、原始 Git blob 及修改理由。
 

@@ -24,7 +24,7 @@ go_bin="${GO_BIN:-go}"
 go_arch=arm64
 bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-network-service
 binary_dir="$(bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --show-bin-path)"
-app="${FREEV6_APP_OUTPUT:-$project_root/dist/macos/FreeV6.app}"
+app="${FREEV6_APP_OUTPUT:-$project_root/dist/macos/Flux6.app}"
 mkdir -p "$(dirname "$app")"
 source "$project_root/scripts/macos/app-stage.sh"
 begin_app_stage "$app" "$project_root/build/macos-bundle.XXXXXX"
@@ -51,14 +51,14 @@ client_seal=""
 if [ "$identity" = "-" ] || [ "${FREEV6_LOCAL_SIGNING:-0}" = 1 ]; then
     python3 "$project_root/scripts/macos/sign_flutter_host.py" "$bundle"
     bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-probe
-    client_seal="$("$binary_dir/freev6-probe" flutter-client-seal "$bundle/Contents/MacOS/FreeV6")"
+    client_seal="$("$binary_dir/freev6-probe" flutter-client-seal "$bundle/Contents/MacOS/Flux6")"
 fi
 manifest="$(python3 - "$service" "$project_root/build" "$client_seal" <<'PY'
 import hashlib, plistlib, sys
 from pathlib import Path
 digest = hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest()
 spec = {'CFBundleIdentifier': 'dev.freev6.service-installer',
-    'CFBundleName': 'FreeV6 Service Installer', 'CFBundleVersion': '1', 'FreeV6ServiceSHA256': digest}
+    'CFBundleName': 'Flux6 Service Installer', 'CFBundleVersion': '1', 'FreeV6ServiceSHA256': digest}
 if sys.argv[3]: spec['FreeV6FlutterClientSeal'] = sys.argv[3]
 contents = plistlib.dumps(spec)
 path = Path(sys.argv[2]) / ('bootstrap-manifest-' + hashlib.sha256(contents).hexdigest() + '.plist')
@@ -80,7 +80,7 @@ notices="$bundle/Contents/Resources/Notices"
 mkdir -p "$notices"
 go_root="$("$go_bin" env GOROOT)"
 cp "$go_root/LICENSE" "$notices/Go-LICENSE.txt"
-cp "$project_root/LICENSE" "$notices/FreeV6-LICENSE.txt"
+cp "$project_root/LICENSE" "$notices/Flux6-LICENSE.txt"
 cp "$project_root/THIRD-PARTY.txt" "$notices/THIRD-PARTY.txt"
 cp "$project_root/third_party/licenses/yaml.v3-LICENSE.txt" "$project_root/third_party/licenses/Apache-2.0.txt" "$notices/"
 cp "$project_root/docs/agreement.md" "$notices/"
@@ -88,7 +88,7 @@ cp "$project_root/docs/agreement.md" "$notices/"
 python3 "$project_root/scripts/macos/flutter-source-release.py" notices --contents "$bundle/Contents"
 python3 "$project_root/scripts/macos/sign_flutter_host.py" "$bundle"
 if [ "$identity" = "-" ] || [ "${FREEV6_LOCAL_SIGNING:-0}" = 1 ]; then
-    actual_seal="$("$binary_dir/freev6-probe" flutter-client-seal "$bundle/Contents/MacOS/FreeV6")"
+    actual_seal="$("$binary_dir/freev6-probe" flutter-client-seal "$bundle/Contents/MacOS/Flux6")"
     if [ "$client_seal" != "$actual_seal" ]; then
         echo "The final host does not match the installer-pinned executable and library constraint." >&2; exit 1
     fi

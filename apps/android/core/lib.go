@@ -82,7 +82,7 @@ func (th *TunHandler) clear() {
 	th.listener = nil
 }
 
-// FreeV6 refuses the dial if Wi-Fi binding fails. Falling back to Android's
+// Flux6 refuses the dial if Wi-Fi binding fails. Falling back to Android's
 // default network here could move a running tunnel onto cellular data.
 func (th *TunHandler) handleProtect(fd int) bool {
 	th.mu.RLock()

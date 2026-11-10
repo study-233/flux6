@@ -816,7 +816,7 @@ window.handleTrayQuit = handleTrayQuit;
 const GUIDE_DONE_KEY = 'freev6-guide-done';
 const GUIDE_PAGE_COUNT = 2;
 // 标题显示在 hero 里，随页切换
-const GUIDE_TITLES = ['欢迎使用 FreeV6', '使用说明与反馈'];
+const GUIDE_TITLES = ['欢迎使用 Flux6', '使用说明与反馈'];
 let guidePage = 0;
 
 // 老版本（引导功能上线前）每次启动都会写 freev6-theme / freev6-skip-version 等键。
@@ -882,7 +882,7 @@ function guideForced() {
 
 /* ── Update (GitHub release check + in-app install) ──────────── */
 
-const UPDATE_OWNER_REPO = 'study-233/free-v6';
+const UPDATE_OWNER_REPO = 'study-233/flux6';
 const SKIP_VERSION_KEY = 'freev6-skip-version';
 const GITHUB_PROXY = 'https://gh-proxy.com/';
 
@@ -2047,11 +2047,11 @@ function wireEvents() {
   // 向导内的协议链接：阻止默认跳转（会把 webview 导走），改用系统浏览器打开
   $('#guideAgreementLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openExternal('https://github.com/study-233/free-v6/blob/main/docs/agreement.md');
+    openExternal('https://github.com/study-233/flux6/blob/main/docs/agreement.md');
   });
   $('#guidePrivacyLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openExternal('https://github.com/study-233/free-v6/blob/main/docs/privacy.md');
+    openExternal('https://github.com/study-233/flux6/blob/main/docs/privacy.md');
   });
 
   // Update dialog: actions + backdrop/Escape (busy phases are blocked
@@ -2733,14 +2733,14 @@ function wireSettingsEvents() {
 
   // GitHub project — opens in the system browser
   $('#githubItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/study-233/free-v6');
+    openExternal('https://github.com/study-233/flux6');
   });
   $('#feedbackItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/study-233/free-v6/issues');
+    openExternal('https://github.com/study-233/flux6/issues');
   });
   // 使用说明: 直接在系统浏览器打开使用说明页面
   $('#readmeItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/study-233/free-v6#readme');
+    openExternal('https://github.com/study-233/flux6#readme');
   });
 
   // 重置设置：弹确认弹窗，不直接执行
