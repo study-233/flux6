@@ -23,9 +23,11 @@
 
 从最新 `main` 创建短期分支，例如 `feat/android-onboarding`、`fix/macos-reconnect`、`refactor/windows-ui`、`chore/repository-cleanup`。不使用 `codex/` 前缀，不维护长期 `mac`、`android` 等平台开发分支，不额外建立 `develop`。一个分支处理一个可审查目标；完成检查后合入主线并删除已合并的任务分支。
 
+远端 `main` 禁止删除和强推，合并要求 `web`、Linux/Windows Go、Windows `rust`、`android`、`macos` 六项检查通过并与主线同步。仓库规则禁止新建 `codex/` 分支，合并后自动删除任务分支。
+
 使用 Conventional Commits；目录迁移、删除旧内容和功能修改分开提交。多人或多个工作目录同时开发时，每个 worktree 使用独立任务分支，构建产物也留在对应工作目录。删除分支前确认没有未合并提交和活动 worktree。
 
-`origin` 指向自己的发行仓库；`upstream` 保留原作者来源。上游同步使用 `chore/sync-upstream-日期` 临时分支，检查协议、业务、安全修复及许可证，按需合并或摘取。不要用上游版本覆盖本项目 UI。`macos-updates` 如果用于签名更新清单，是部署数据分支，不作为开发分支；本次不创建或修改远端分支。
+`origin` 指向自己的发行仓库；`upstream` 保留原作者来源。上游同步使用 `chore/sync-upstream-日期` 临时分支，检查协议、业务、安全修复及许可证，按需合并或摘取。不要用上游版本覆盖本项目 UI。`macos-updates` 如果用于签名更新清单，是部署数据分支，不作为开发分支；仅在启用对应部署功能时创建。
 
 ## 版本与发布
 
@@ -37,7 +39,7 @@
 | Android | `apps/android/pubspec.yaml` 的 `version: 版本+build` | `android-v<版本>-b<build>` |
 | Windows | `apps/windows/src-tauri/tauri.conf.json`；Cargo 版本须一致 | `windows-v<版本>` |
 
-Windows Release 工作流兼容历史 `v*` 标签。Mac 和 Android CI 只做验证，不因标签自动上传发行版。本次目录整理不更改产品版本、不推送、不发布。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
+Windows Release 工作流兼容历史 `v*` 标签。Mac 和 Android CI 只做验证，不因标签自动上传发行版。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
 
 Android 构建读取版本源，输出到 `dist/android/<版本>-b<build>/`，包名包含版本及 build。源码包和 APK 分别生成校验文件。Mac 本地应用保持 `dist/macos/FreeV6.app`；DMG/更新包由对应打包脚本生成。已发布版本的产物不可覆盖，新发行应先提升版本或 build。旧本地产物放 `dist/archive/<平台>/`，Git 只保存源码、锁文件和必要的验收结论。
 
@@ -96,4 +98,4 @@ Mac job 默认选择 GitHub 的 `xcode-27` Apple Silicon 镜像，并显式检�
 
 未接入自有文档站前不保留继承的 Vercel 发布 Hook 工作流；将来启用时单独配置自己的站点与凭据。
 
-本地整理完成不表示远端 Actions 已运行。Windows NSIS 实机安装、Mac 服务安装与升级、macOS 14、Android 真机 VPN、校园网络出口等仍需对应环境验收。当前检查不启动实际网络代理、不替换正在运行的应用。阶段结果见 [整理记录](repository-maintenance.md)。
+远端整合已通过 6 项 Actions 检查，执行记录见 [远端整理记录](remote-maintenance.md)。Windows NSIS 实机安装、Mac 服务安装与升级、macOS 14、Android 真机 VPN、校园网络出口等仍需对应环境验收。当前检查不启动实际网络代理、不替换正在运行的应用。阶段结果见 [整理记录](repository-maintenance.md)。
