@@ -19,7 +19,7 @@ OMIT_FILES = {'local.properties', '.DS_Store', '.flutter-plugins-dependencies', 
 def sources():
     for name in ('go.mod', 'go.sum', 'LICENSE', 'THIRD-PARTY.txt', 'README.md', 'AGENTS.md', 'scripts/version.py'):
         yield ROOT / name
-    for name in ('apps/android', 'mobileapi', 'internal', 'shared', 'scripts/android'):
+    for name in ('apps/android', 'mobileapi', 'internal', 'shared', 'scripts/android', 'assets/branding', 'scripts/branding'):
         for directory, dirs, files in os.walk(ROOT / name):
             dirs[:] = sorted(d for d in dirs if d not in OMIT_DIRS)
             for filename in sorted(files):

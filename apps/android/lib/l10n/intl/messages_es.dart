@@ -378,8 +378,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "appAccessControl": MessageLookupByLibrary.simpleMessage(
       "Control de acceso de apps",
     ),
+    "appIcon": MessageLookupByLibrary.simpleMessage("Icono de la aplicación"),
+    "appIconChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "No se pudo cambiar el icono. Inténtalo de nuevo.",
+    ),
     "appIconDesign": MessageLookupByLibrary.simpleMessage(
-      "Diseño del icono de la app",
+      "Diseño del icono original",
+    ),
+    "appIconHint": MessageLookupByLibrary.simpleMessage(
+      "Cambia el icono de inicio y guarda tu elección. La actualización puede tardar un momento.",
     ),
     "appProxiesEmpty": MessageLookupByLibrary.simpleMessage(
       "No hay proxies locales",
@@ -486,6 +493,15 @@ class MessageLookup extends MessageLookupByLibrary {
       "Deseleccionar todo",
     ),
     "cannotSave": MessageLookupByLibrary.simpleMessage("No se puede guardar"),
+    "catIconCow": MessageLookupByLibrary.simpleMessage(
+      "Gato blanco y negro (predeterminado)",
+    ),
+    "catIconEarth": MessageLookupByLibrary.simpleMessage("Gato planeta"),
+    "catIconFourColor": MessageLookupByLibrary.simpleMessage(
+      "Gato de cuatro colores",
+    ),
+    "catIconOrange": MessageLookupByLibrary.simpleMessage("Gato naranja"),
+    "catIconPrism": MessageLookupByLibrary.simpleMessage("Gato arcoíris"),
     "certificate": MessageLookupByLibrary.simpleMessage("Certificado"),
     "changeProxyFailedTip": MessageLookupByLibrary.simpleMessage(
       "No se pudo cambiar de proxy; se ha restaurado la selección anterior",

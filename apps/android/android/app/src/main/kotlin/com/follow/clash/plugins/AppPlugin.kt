@@ -35,6 +35,7 @@ import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.follow.clash.R
+import com.follow.clash.LauncherIcons
 import com.follow.clash.SystemCaStore
 import com.follow.clash.common.Components
 import com.follow.clash.common.GlobalState
@@ -184,6 +185,15 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
+            "getLauncherIcon" -> result.success(LauncherIcons(GlobalState.application).selected())
+            "setLauncherIcon" -> {
+                try {
+                    result.success(LauncherIcons(GlobalState.application).select(call.argument<String>("id") ?: ""))
+                } catch (error: Exception) {
+                    result.error("APP_ICON", "Unable to change app icon", null)
+                }
+            }
+
             "moveTaskToBack" -> {
                 activity?.moveTaskToBack(true)
                 result.success(true)

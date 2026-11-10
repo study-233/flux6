@@ -197,7 +197,7 @@
   "go": "Aller",
   "externalLink": "Lien externe",
   "otherContributors": "Autres contributeurs",
-  "appIconDesign": "Conception de l’icône de l’app",
+  "appIconDesign": "Icône de l’application d’origine",
   "autoCloseConnections": "Fermer les connexions automatiquement",
   "onlyStatisticsProxy": "Ne compter que le trafic proxy",
   "showNotificationStopAction": "Bouton Arrêter dans la notification",
@@ -1132,5 +1132,13 @@
       }
     }
   },
-  "freev6WifiUnverified": "IPv6 configuré ; accès Internet non confirmé"
+  "freev6WifiUnverified": "IPv6 configuré ; accès Internet non confirmé",
+  "appIcon": "Icône de l’application",
+  "catIconCow": "Chat noir et blanc (par défaut)",
+  "catIconOrange": "Chat roux",
+  "catIconPrism": "Chat arc-en-ciel",
+  "catIconFourColor": "Chat quadrichrome",
+  "catIconEarth": "Chat planète",
+  "appIconHint": "Modifie l’icône du lanceur et mémorise votre choix. L’actualisation peut prendre un instant.",
+  "appIconChangeFailed": "Impossible de modifier l’icône. Réessayez."
 }

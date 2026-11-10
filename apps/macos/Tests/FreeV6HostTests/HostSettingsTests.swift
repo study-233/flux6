@@ -43,6 +43,22 @@ private actor TestProfileStorage: VersionedSecretStorage {
         return (settings,root,defaults,suite)
     }
 
+    func testAppIconDefaultPersistenceAndRejectedValue() async throws {
+        let (page, root, defaults, suite) = try environment()
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        XCTAssertEqual(page.preferencesMap["appIcon"] as? String, "cow")
+        try await page.changePreference(["field": "appIcon", "value": "earth"])
+        XCTAssertEqual(defaults.string(forKey: "appIcon"), "earth")
+        XCTAssertEqual(page.preferencesMap["appIcon"] as? String, "earth")
+        do {
+            try await page.changePreference(["field": "appIcon", "value": "../unknown"])
+            XCTFail("Unknown icon must be rejected")
+        } catch {}
+        XCTAssertEqual(page.appIcon, "earth")
+        defaults.set("unknown", forKey: "appIcon")
+        XCTAssertEqual(page.appIcon, "cow")
+    }
+
     func testLegacyLayoutAndDeliberateEmptyLayoutResetToFlClashDefault() async throws {
         let (page, root, defaults, suite) = try environment()
         defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }

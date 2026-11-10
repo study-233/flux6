@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#121318" />
   <title>FreeV6</title>
+  <link id="appIconFavicon" rel="icon" type="image/svg+xml" href="branding/cow.svg" />
+  <script type="module" src="branding.mjs"></script>
   <!-- 字体全部本地内置（web/fonts/）：图标 45 字形子集 + 三套英文字体
        latin 可变子集，离线/免流未开/开机冷启动排版与图标全部正常。
        维护说明见 web/fonts/README.md -->
@@ -51,7 +53,7 @@
   <!-- Navigation Rail -->
     <aside class="rail" aria-label="主导航">
       <img class="bg-copy" id="railBg" alt="" aria-hidden="true">
-      <div class="brand-mark" aria-label="freev6">F 6</div>
+      <div class="brand-mark"><img id="appBrandIcon" src="branding/cow.svg" alt="FreeV6" width="48" height="48" /></div>
       <!-- 非玻璃容器（对应官网 .hero-tabs）：只承载图标，玻璃滑块在其上方滑动 -->
       <div class="nav-group">
         <button class="nav-item active" data-view="dashboard" aria-label="仪表盘">
@@ -240,6 +242,13 @@
 
           <div class="settings-group">
             <div class="settings-group-title">外观</div>
+            <div class="app-icon-settings">
+              <div class="setting-label">应用图标</div>
+              <div id="appIconChoices" class="app-icon-choices" role="group" aria-label="应用图标"></div>
+              <div class="setting-desc">切换窗口与托盘图标，下次启动继续使用。安装程序与快捷方式使用默认奶牛猫。</div>
+              <div id="appIconError" role="status" aria-live="polite"></div>
+            </div>
+            <md-divider></md-divider>
             <div class="setting-item">
               <div class="setting-icon">
                 <md-icon>light_mode</md-icon>

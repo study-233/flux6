@@ -1575,3 +1575,14 @@ md-filled-button.danger {
     box-shadow: none !important;
   }
 }
+
+/* Branded app icon choices follow the existing settings surface. */
+.brand-mark:has(#appBrandIcon) { background: transparent; box-shadow: none; }
+.app-icon-settings { padding: 16px 20px; }
+.app-icon-choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.app-icon-choice { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.app-icon-choice[aria-pressed="true"] { border-color: currentColor; background: rgb(128 128 128 / 12%); }
+.app-icon-choice:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.app-icon-choice:disabled { cursor: wait; opacity: .65; }
+.app-icon-choice img { width: 36px; height: 36px; }
+#appIconError { color: var(--md-sys-color-error, #b3261e); }

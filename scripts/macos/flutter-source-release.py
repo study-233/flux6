@@ -11,7 +11,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 UI = ROOT / "apps/macos/flutter_ui"
-TREES = ("cmd", "internal", "apps/macos", "scripts/macos", "shared", "third_party/licenses")
+TREES = ("cmd", "internal", "apps/macos", "scripts/macos", "shared", "third_party/licenses", "assets/branding", "scripts/branding")
 FILES = ("LICENSE", "README.md", "THIRD-PARTY.txt", "go.mod", "go.sum", "notice.json",
          "docs/agreement.md", "docs/privacy.md", "assets/branding/icon.png", "scripts/version.py")
 SKIP = {".git", ".dart_tool", ".DS_Store", ".build", ".swiftpm", "build", "__pycache__", "ephemeral",

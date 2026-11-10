@@ -133,3 +133,17 @@ Android 本地产物为 `dist/android/0.1.2-b2026111003/`；Mac 应用为 `dist/
 核验 `main-protection` 要求分支与主线同步、GitHub Actions 的 `checks` 成功，禁止删除主线及非快进强推，没有绕过权限。使用普通 merge commit 保留上游和本仓库历史，合并后清理任务分支并同步本地 `main`。PR 检查与合并后主线 CI 均需确认成功，最终合并 SHA、运行链接及检查结果保存在该 PR 与 [CI 运行记录](https://github.com/study-233/free-v6/actions/workflows/ci.yml)。
 
 远端 `checks` 执行仓库/Web 静态检查和本次共享 Go test/vet；其成功不扩大上文平台实机验收范围，不触发安装包或正式发行。GitHub 连接器缺少 PR 写权限，写入操作通过本机已登录的 GitHub CLI 完成，未更改仓库保护或 CI 配置。
+
+## 2026-11-10 小猫图标统一接入
+
+按用户确认的造型绘制并细修五款 SVG，最终默认改为奶牛猫；其余为橘猫、炫彩猫、四色猫、地球猫。共用身体、前爪、五官和单弧尾巴，保留渐变，修正花纹接缝、耳朵切角、前爪色块台阶和尾根凸起。资源与清单位于 `assets/branding/cats/`；SVG 生成和平台导出脚本位于 `scripts/branding/`，共享 `icon.svg`、PNG 与 ICO 均采用奶牛猫。
+
+Mac 设置增加五款选择，通过现有宿主偏好保存，更新 Dock 图标；Android 主题页增加选择器，通过系统 launcher alias 保存和切换桌面入口，关于页同步显示；Windows Tauri 设置更新窗口、托盘、侧栏及本地选择。Android 仅切换入口别名，不禁用真实 MainActivity，不调用 VPN 生命周期，切换失败保留原有选择。Windows 安装包与快捷方式、Mac Finder 图标保持默认奶牛猫。当前 Windows Flutter 重构在另一个活动分支进行，本分支不修改其尚未提交的界面和后端。
+
+平台资源从 SVG 导出，包括 Mac AppIcon、Android 手机/TV、自适应与单色资源、Windows helper 嵌入图标。Android 自适应图标保留圆形遮罩安全区；Mac/Android 对应源码包包含 SVG 和生成脚本。构建、测试日志位于本地 `build/branding-review/`。本任务临时 worktree 被外部清理后，从已保存 SVG 和本任务操作记录恢复到仓库内 `.worktrees/cat-icon-themes`；任务改动与当前 Windows 重构工作目录隔离。
+
+验证完成：五款 SVG 与用户确认版本逐字节一致；16/32/64/256/512/1024 像素共 30 次渲染的 alpha 轮廓一致且外圈透明；ICO 的 7 档尺寸有效。Mac 与 Android Flutter analyze 无问题；Mac 设置/无障碍 8 项、Swift 默认值/保存/非法值 1 项、Android 图标/本地化/规范/遮罩 34 项、Windows 选择及失败回退 3 项通过。Mac Flutter 原生 Debug 宿主构建通过；Android `compileDebugKotlin` 和 `processDebugResources` 通过，合并 Manifest 的 5 个 alias 均指向保持启用的 `com.follow.clash.MainActivity`。固定 `go-winres v0.3.3` 已重绘 Windows helper 的 `.syso`，Windows/amd64 helper 交叉编译通过。Web 127 个模块、45 个界面图标与发行来源检查通过。
+
+扩大 Android `test/widgets/` 回归时，1035 项通过，旧更新功能 3 项失败；在未修改 Android 的原工作区复现同样的更新包校验和缺失更新按钮失败。两组测试随后均等待未完成的更新夹具，本任务仅中断记录过 PID 的测试进程；关闭测试通道的额外报错不计为产品回归通过或新失败。完整广泛回归未通过，不以本次相关检查替代。
+
+验证边界：未运行 Windows Rust/Tauri 原生编译或 NSIS 打包，未进行 Android 真机桌面图标缓存验收或真实 Mac Dock 点击验收。未创建正式发行版、覆盖已安装应用、启动真实代理或停止用户进程；iOS/OpenWrt 保持占位。当前源码和可构建资源位于独立任务分支 `feat/cat-icon-themes`。

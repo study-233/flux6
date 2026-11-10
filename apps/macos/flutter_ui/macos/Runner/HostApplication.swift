@@ -38,6 +38,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
     private var settingsController: FlutterViewController?
     private var wakeObserver: NSObjectProtocol?
     private var stateObserver: UUID?
+    private var appliedIcon: String?
     private var appStarted = false
     private var userRevealed = false
     private var terminating = false
@@ -77,10 +78,12 @@ final class HostApplication: NSObject, NSWindowDelegate {
             stateObserver = service.observe { [weak self] event in
                 guard event["kind"] as? String != "traffic", let snapshot = event["snapshot"] as? [String: Any] else { return }
                 self?.menus.apply(snapshot)
+                self?.applyIcon(snapshot)
             }
             Task {
                 let snapshot = await service.snapshot()
                 menus.apply(snapshot)
+                applyIcon(snapshot)
                 let settings = snapshot["settings"] as? [String: Any]
                 let prefs = settings?["preferences"] as? [String: Any]
                 let accepted = settings?["accepted"] as? Bool ?? false
@@ -96,6 +99,16 @@ final class HostApplication: NSObject, NSWindowDelegate {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.runCommand("refresh", reportErrors: false) }
         }
+    }
+
+    private func applyIcon(_ snapshot: [String: Any]) {
+        let settings = snapshot["settings"] as? [String: Any]
+        let preferences = settings?["preferences"] as? [String: Any]
+        let requested = preferences?["appIcon"] as? String ?? "cow"
+        let icon = ["cow", "orange", "prism", "four-color", "earth"].contains(requested) ? requested : "cow"
+        guard icon != appliedIcon, let image = NSImage(named: "cat-" + icon) else { return }
+        NSApp.applicationIconImage = image
+        appliedIcon = icon
     }
 
     func stopObserving() {

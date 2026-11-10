@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:prism_ui/color.dart';
 
 import 'app_localizations.dart';
+import 'cat_icon.dart';
 
 extension PageLabelL10n on PageLabel {
   String get label {
@@ -163,6 +164,19 @@ extension RecordGroupingL10n on RecordGrouping {
       RecordGrouping.host => appLocalizations.host,
       RecordGrouping.rule => appLocalizations.rule,
       RecordGrouping.exit => appLocalizations.outboundExit,
+    };
+  }
+}
+
+extension CatIconLabelL10n on CatIcon {
+  String get label {
+    final l10n = currentAppLocalizations;
+    return switch (this) {
+      CatIcon.cow => l10n.catIconCow,
+      CatIcon.orange => l10n.catIconOrange,
+      CatIcon.prism => l10n.catIconPrism,
+      CatIcon.fourColor => l10n.catIconFourColor,
+      CatIcon.earth => l10n.catIconEarth,
     };
   }
 }

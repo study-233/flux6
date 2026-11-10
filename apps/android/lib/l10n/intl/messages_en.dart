@@ -361,7 +361,16 @@ class MessageLookup extends MessageLookupByLibrary {
     "appAccessControl": MessageLookupByLibrary.simpleMessage(
       "App access control",
     ),
-    "appIconDesign": MessageLookupByLibrary.simpleMessage("App icon design"),
+    "appIcon": MessageLookupByLibrary.simpleMessage("App icon"),
+    "appIconChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "Could not change the icon. Please try again.",
+    ),
+    "appIconDesign": MessageLookupByLibrary.simpleMessage(
+      "Original app icon design",
+    ),
+    "appIconHint": MessageLookupByLibrary.simpleMessage(
+      "Changes the launcher icon and remembers your choice. Your launcher may take a moment to refresh.",
+    ),
     "appProxiesEmpty": MessageLookupByLibrary.simpleMessage("No local proxies"),
     "appendSystemDns": MessageLookupByLibrary.simpleMessage(
       "Append system DNS",
@@ -449,6 +458,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
     "cancelSelectAll": MessageLookupByLibrary.simpleMessage("Deselect all"),
     "cannotSave": MessageLookupByLibrary.simpleMessage("Can\'t save"),
+    "catIconCow": MessageLookupByLibrary.simpleMessage("Cow cat (default)"),
+    "catIconEarth": MessageLookupByLibrary.simpleMessage("Earth cat"),
+    "catIconFourColor": MessageLookupByLibrary.simpleMessage("Four-color cat"),
+    "catIconOrange": MessageLookupByLibrary.simpleMessage("Orange cat"),
+    "catIconPrism": MessageLookupByLibrary.simpleMessage("Prism cat"),
     "certificate": MessageLookupByLibrary.simpleMessage("Certificate"),
     "changeProxyFailedTip": MessageLookupByLibrary.simpleMessage(
       "Failed to switch proxy; the previous selection has been restored",
