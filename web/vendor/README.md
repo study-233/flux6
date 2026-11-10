@@ -1,27 +1,17 @@
-# Vendored frontend dependencies
+# Windows 前端依赖
 
-Static ES-module copies used by the freev6 shell (no bundler; loaded via the
-import map in `index.html`).
+Tauri 将整个 `web/` 打入应用。这里保留浏览器实际加载的 ES 模块；入口为 [material.js](../material.js)，模块名由 [index.html](../index.html) 的 import map 解析。液态玻璃效果由 [app.js](../app.js) 按需导入。
 
-## Contents
+| 组件 | 版本或来源 | 用途 |
+| --- | --- | --- |
+| Material Web | 2.5.0 | 按钮、图标、分隔线、进度环、筛选标签、下拉框和文本框 |
+| Lit、lit-html、lit-element、@lit/reactive-element | 2.8.0、2.8.0、3.3.2、1.6.2 | Material 组件运行时（BSD-3-Clause） |
+| tslib | 2.5.3 | 编译生成的辅助函数（0BSD） |
+| LiquidGlass | [本地模块与许可证](liquidglass/) | 可选的玻璃背景效果 |
 
-| Path            | Source                                              | License       |
-| --------------- | --------------------------------------------------- | ------------- |
-| `material-web/` | [material-components/material-web](https://github.com/material-components/material-web) **v2.5.0** – only the components freev6 uses (dependency closure of the entries below) | Apache-2.0 |
-| `lit/`, `lit-html/`, `lit-element/`, `@lit/` | [lit](https://github.com/lit/lit) (version pinned by `@material/web` 2.5.0) – runtime required by the components | BSD-3-Clause |
-| `tslib/`        | [tslib](https://github.com/tslibio/tslib) – TS helper runtime imported by the compiled components | 0BSD |
+更新依赖时，从相应版本的上游浏览器发行文件复制新增模块及其依赖，保留版权声明和各包的版本信息。无需复制 Node、SSR 或开发版目录。在仓库根目录运行以下检查；缺失导入、无效的静态导出或多余的 vendor 模块都会报错：
 
-Components copied for freev6: `button`, `divider`, `fab`, `iconbutton`,
-`progress` (circular), `chips` (filter), `select`, `textfield`, plus their
-transitive internal dependencies (`internal/`, `field/`, `menu/`, `list/`,
-`ripple/`, `focus/`, `elevation/`, `labs/behaviors`, `typography/`).
-
-Entry module: `../material.js` registers all `md-*` elements used by the UI.
-
-## Regenerating
-
-1. Build the `@material/web` 2.5.0 checkout (tsc + sass; on Windows run the
-   `find | xargs` wireit steps manually with PowerShell equivalents).
-2. Re-run the closure-copy script (`vendor-to-freev6.mjs` in that checkout),
-   then copy `lit`, `lit-html`, `lit-element`, `@lit/reactive-element` and
-   `tslib` from its `node_modules`.
+```sh
+node --experimental-vm-modules scripts/check-web-modules.mjs
+python3 scripts/check-icons.py
+```

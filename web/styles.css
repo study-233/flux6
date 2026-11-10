@@ -197,10 +197,9 @@
    they own their box model (e.g. md-outlined-button pads on the host).
    Add newly used md-* tags to this list. */
 :where(*, *::before, *::after):not(:is(
-  md-fab, md-icon, md-icon-button, md-outlined-button, md-text-button,
-  md-filled-button, md-filled-tonal-button, md-elevated-button,
+  md-icon, md-icon-button, md-outlined-button, md-text-button, md-filled-button,
   md-outlined-select, md-select-option, md-filter-chip,
-  md-outlined-text-field, md-circular-progress, md-divider, md-switch
+  md-outlined-text-field, md-circular-progress, md-divider
 )) { margin: 0; padding: 0; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body {
@@ -1065,7 +1064,7 @@ md-filled-button.danger {
   vertical-align: -3px;
 }
 
-/* ── FABs (md-fab, window-anchored) ── */
+/* ── Floating action buttons ── */
 
 [hidden] { display: none !important; }
 

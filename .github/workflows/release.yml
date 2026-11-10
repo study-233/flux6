@@ -7,7 +7,7 @@ name: Release
 #   * the release body links to this exact workflow run and carries the asset's SHA256;
 #   * a build-provenance attestation is generated for every asset, so the
 #     asset can be cryptographically verified against this workflow
-#     (`gh attestation verify <file> -o evansrrr`). Requires a PUBLIC repository.
+#     (`gh attestation verify <file> -o study-233`). Requires a PUBLIC repository.
 #   * tags containing `-beta` or `-alpha` are marked pre-release; everything
 #     else is a normal release. Either way it starts as a **draft** for manual
 #     review before publishing.

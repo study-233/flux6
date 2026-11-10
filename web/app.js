@@ -175,22 +175,6 @@ async function stopProxyApi() {
   return payload;
 }
 
-// Invoke a Tauri host command through __TAURI_INTERNALS__ (the same channel
-// the custom window controls use). Returns false outside the Tauri webview
-// so callers can fall back to plain browser navigation.
-async function invokeHost(cmd) {
-  try {
-    const tauri = window.__TAURI_INTERNALS__;
-    if (tauri && typeof tauri.invoke === 'function') {
-      await tauri.invoke(cmd);
-      return true;
-    }
-  } catch (e) {
-    addLog(`调用 ${cmd} 失败: ${e}`, true);
-  }
-  return false;
-}
-
 /* Open a URL in the system browser (Tauri opener plugin), or a new tab when
    the UI runs standalone in a normal browser (dev server). */
 async function openExternal(url) {
@@ -884,7 +868,7 @@ function guideForced() {
 
 /* ── Update (GitHub release check + in-app install) ──────────── */
 
-const UPDATE_OWNER_REPO = 'evansrrr/free-v6';
+const UPDATE_OWNER_REPO = 'study-233/free-v6';
 const SKIP_VERSION_KEY = 'freev6-skip-version';
 const GITHUB_PROXY = 'https://gh-proxy.com/';
 
@@ -1205,33 +1189,6 @@ function drawChart() {
   const stepX = chartW / (TRAFFIC_POINTS - 1);
   const getStyle = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-  // Draw filled area + line for each series
-  function drawLine(values, color, alpha) {
-    const len = values.length;
-    if (len < 2) return;
-
-    ctx.beginPath();
-    for (let i = 0; i < len; i++) {
-      const x = (TRAFFIC_POINTS - len + i) * stepX;
-      const y = chartH - (values[i] / maxVal) * (chartH - 8);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    // Fill area
-    const lastX = (TRAFFIC_POINTS - 1) * stepX;
-    const firstX = (TRAFFIC_POINTS - len) * stepX;
-    ctx.lineTo(lastX, chartH);
-    ctx.lineTo(firstX, chartH);
-    ctx.closePath();
-    ctx.fillStyle = color.replace('1)', alpha + ')').replace('rgb', 'rgba');
-    ctx.fill();
-  }
-
   const primary = getStyle('--md-primary') || '#a0c4ff';
   const secondary = getStyle('--md-secondary') || '#bac8db';
 
@@ -1243,44 +1200,27 @@ function drawChart() {
     return `rgba(${r},${g},${b},${a})`;
   }
 
-  const upVals = data.map(d => d.up);
-  const downVals = data.map(d => d.down);
-
-  // Draw upload line
-  ctx.beginPath();
-  for (let i = 0; i < upVals.length; i++) {
-    const x = (TRAFFIC_POINTS - upVals.length + i) * stepX;
-    const y = chartH - (upVals[i] / maxVal) * (chartH - 8) - 2;
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  function drawSeries(field, color, alpha) {
+    const firstX = (TRAFFIC_POINTS - len) * stepX;
+    ctx.beginPath();
+    for (let i = 0; i < len; i++) {
+      const x = (TRAFFIC_POINTS - len + i) * stepX;
+      const y = chartH - (data[i][field] / maxVal) * (chartH - 8) - 2;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.lineTo((TRAFFIC_POINTS - 1) * stepX, chartH);
+    ctx.lineTo(firstX, chartH);
+    ctx.closePath();
+    ctx.fillStyle = toRGBA(color, alpha);
+    ctx.fill();
   }
-  ctx.strokeStyle = secondary;
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
-  // Fill
-  ctx.lineTo((TRAFFIC_POINTS - 1) * stepX, chartH);
-  ctx.lineTo((TRAFFIC_POINTS - upVals.length) * stepX, chartH);
-  ctx.closePath();
-  ctx.fillStyle = toRGBA(secondary, 0.08);
-  ctx.fill();
 
-  // Draw download line
-  ctx.beginPath();
-  for (let i = 0; i < downVals.length; i++) {
-    const x = (TRAFFIC_POINTS - downVals.length + i) * stepX;
-    const y = chartH - (downVals[i] / maxVal) * (chartH - 8) - 2;
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  }
-  ctx.strokeStyle = primary;
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
-  // Fill
-  ctx.lineTo((TRAFFIC_POINTS - 1) * stepX, chartH);
-  ctx.lineTo((TRAFFIC_POINTS - downVals.length) * stepX, chartH);
-  ctx.closePath();
-  ctx.fillStyle = toRGBA(primary, 0.06);
-  ctx.fill();
+  drawSeries('up', secondary, 0.08);
+  drawSeries('down', primary, 0.06);
 }
 
 /* ── Stats Ring Chart ─────────────────────────────────────────── */
@@ -2090,11 +2030,11 @@ function wireEvents() {
   // 向导内的协议链接：阻止默认跳转（会把 webview 导走），改用系统浏览器打开
   $('#guideAgreementLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openExternal('https://github.com/evansrrr/free-v6/blob/main/docs/agreement.md');
+    openExternal('https://github.com/study-233/free-v6/blob/main/docs/agreement.md');
   });
   $('#guidePrivacyLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openExternal('https://github.com/evansrrr/free-v6/blob/main/docs/privacy.md');
+    openExternal('https://github.com/study-233/free-v6/blob/main/docs/privacy.md');
   });
 
   // Update dialog: actions + backdrop/Escape (busy phases are blocked
@@ -2642,8 +2582,7 @@ async function clearChain() {
 }
 
 /* ── 备用配置（设置 → 核心） ─────────────────────────────────────
- * 授权判据在服务端（请求源 IP 段），客户端只负责"问"：拿不到就明确说
- * "请连校园网"，绝不降级成裸 WARP 出口。详见 docs/cloud-profile.md。 */
+ * 从当前发行仓库获取公开节点；公告决定是否开放。详见 docs/cloud-profile.md。 */
 
 // 备用配置可用 = 已启用且本地有节点：此时 WARP 凭据不再必需。
 function cloudReady() {
@@ -2655,8 +2594,7 @@ function cloudReady() {
 // 弹窗会被截图外带，入口不该出现在那种地方。
 function redactEntry(text) {
   return String(text ?? '')
-    .replace(/https?:\/\/[^\s"'）)]+/gi, '入口')
-    .replace(/[0-9a-z]{8,}\.freev6\.cc\.cd/gi, '入口');
+    .replace(/https?:\/\/[^\s"'）)]+/gi, '入口');
 }
 
 async function refreshCloudStatus() {
@@ -2778,14 +2716,14 @@ function wireSettingsEvents() {
 
   // GitHub project — opens in the system browser
   $('#githubItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/evansrrr/free-v6');
+    openExternal('https://github.com/study-233/free-v6');
   });
   $('#feedbackItem')?.addEventListener('click', () => {
-    openExternal('https://github.com/evansrrr/free-v6/issues');
+    openExternal('https://github.com/study-233/free-v6/issues');
   });
   // 使用说明: 直接在系统浏览器打开使用说明页面
   $('#readmeItem')?.addEventListener('click', () => {
-    openExternal('https://freev6.cc.cd');
+    openExternal('https://github.com/study-233/free-v6#readme');
   });
 
   // 重置设置：弹确认弹窗，不直接执行
