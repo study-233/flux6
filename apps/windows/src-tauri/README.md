@@ -2,8 +2,12 @@
 
 The initial Tauri 2 shell loads the Material You interface from `../web`, provides a Windows tray menu, and packages with the NSIS target. On Windows it requests administrator permission at launch; `freev6-helper` runs as a sidecar in the same elevated context and receives the installation root through `FREEV6_ROOT`. Test the latest NSIS package after installation so the embedded `requireAdministrator` manifest is present.
 
+Run from the repository root in Windows PowerShell (Rust, Go and the Tauri CLI are required):
+
 ```powershell
-cargo check --manifest-path src-tauri/Cargo.toml
+./scripts/windows/build-helper.ps1
+cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
+cd apps/windows
 cargo tauri dev
 cargo tauri build
 ```

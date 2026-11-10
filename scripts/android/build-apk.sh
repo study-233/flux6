@@ -28,11 +28,26 @@ PY
   fi
 fi
 
+for setting in FREEV6_STORE_PASSWORD FREEV6_KEY_ALIAS FREEV6_KEY_PASSWORD; do
+  if [[ -z "${!setting:-}" ]]; then
+    printf 'Missing signing setting: %s\n' "$setting" >&2
+    exit 1
+  fi
+done
+if [[ ! -f "$FREEV6_KEYSTORE" ]]; then
+  printf 'Configured Android keystore does not exist\n' >&2
+  exit 1
+fi
+
 cd apps/android
-flutter pub get
+flutter pub get --enforce-lockfile
 flutter build apk --release --target-platform android-arm64 "$@"
 cd "$FREEV6_ROOT"
-mkdir -p dist/android
-cp apps/android/build/app/outputs/flutter-apk/app-release.apk dist/android/FreeV6-0.1.2-preview-arm64.apk
-shasum -a 256 dist/android/FreeV6-0.1.2-preview-arm64.apk > dist/android/SHA256SUMS
-printf 'APK: %s\n' "$FREEV6_ROOT/dist/android/FreeV6-0.1.2-preview-arm64.apk"
+version="$(python3 scripts/version.py --platform android --field version)"
+build="$(python3 scripts/version.py --platform android --field build)"
+output="${FREEV6_OUTPUT_DIR:-$FREEV6_ROOT/dist/android/$version-b$build}"
+mkdir -p "$output"
+artifact="FreeV6-$version-b$build-preview-arm64.apk"
+cp apps/android/build/app/outputs/flutter-apk/app-release.apk "$output/$artifact"
+(cd "$output" && shasum -a 256 "$artifact" > APK-SHA256SUMS)
+printf 'APK: %s\n' "$output/$artifact"

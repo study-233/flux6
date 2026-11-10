@@ -1,6 +1,6 @@
 # FreeV6 原生 Mac 客户端
 
-当前 Mac 版面向 Apple Silicon（M 系列），最低支持目标为 macOS 14。0.5.5（build 4）的首页、节点、配置、日志与独立设置窗口运行 Flutter + FlClash / Prism UI。AppKit 管理窗口、原生菜单与菜单栏入口，Swift 业务层和 Go worker 处理连接准备、WARP 凭据、规则与核心数据。正式宿主通过 XPC v6 接入启停、运行模式、节点和流量读取。[P5/P6 候选版与验收记录](../../docs/compose/audits/2026-11-07-p5-p6/README.md)。断开及正常退出会等待网络恢复。已验证普通用户域的隔离网络，系统服务安装、真实校园网络和 macOS 14 仍待实机验收。[服务协议](../../shared/protocol/service-v6.md)
+当前 Mac 版面向 Apple Silicon（M 系列），最低支持目标为 macOS 14。首页、节点、配置、日志与独立设置窗口运行 Flutter + FlClash / Prism UI。AppKit 管理窗口、原生菜单与菜单栏入口，Swift 业务层和 Go worker 处理连接准备、WARP 凭据、规则与核心数据。正式宿主通过 XPC v6 接入启停、运行模式、节点和流量读取。当前版本以 [Info.plist](Resources/Info.plist) 为准，可从仓库根目录运行 `python3 scripts/version.py --platform macos` 查看。[验收索引](../../docs/releases/macos-validation.md)。断开及正常退出会等待网络恢复。已验证普通用户域的隔离网络，系统服务安装、真实校园网络和 macOS 14 仍待实机验收。[服务协议](../../shared/protocol/service-v6.md)
 
 本版在 WARP 连接和配置检查时自动注册缺失凭据，已有凭据直接复用；后台自动连接不弹钥匙串窗口。注册成功但保存失败时，设置页可重试保存同一结果。测试包使用持久的本机签名证书，跨版本保持钥匙串识别身份。旧版临时签名迁移到本版时可能仍需一次授权。
 

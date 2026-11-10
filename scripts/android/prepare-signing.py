@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -52,6 +53,7 @@ def prepare(destination):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    default = Path.home() / 'Library/Application Support/FreeV6/Development/android-signing'
+    data = Path.home() / 'Library/Application Support' if sys.platform == 'darwin' else Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
+    default = data / 'FreeV6/Development/android-signing'
     parser.add_argument('--directory', type=Path, default=Path(os.environ.get('FREEV6_SIGNING_DIR', default)))
     print(prepare(parser.parse_args().directory))

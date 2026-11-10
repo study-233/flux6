@@ -6,14 +6,17 @@ on:
 
 jobs:
   go:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - run: go test ./...
-      - run: go vet ./...
+      - run: go test -timeout=180s ./cmd/... ./internal/... ./mobileapi/...
+      - run: go vet ./cmd/... ./internal/... ./mobileapi/...
 
   rust:
     runs-on: windows-latest
@@ -48,6 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Repository contracts
+        run: python3 scripts/maintenance/check-repository.py
+      - name: Maintenance protection tests
+        run: python3 scripts/maintenance/test_maintenance.py
       - name: Icon subset guard
         run: python3 scripts/check-icons.py
       - name: Verify publisher endpoints

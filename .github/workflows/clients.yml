@@ -1,0 +1,108 @@
+name: Mac and Android
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clients-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.6'
+  FLUTTER_SUPPRESS_ANALYTICS: 'true'
+  DART_SUPPRESS_ANALYTICS: 'true'
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/android/core/go.mod
+          cache-dependency-path: |
+            go.sum
+            apps/android/core/go.sum
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.0'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: android-actions/setup-android@v3
+      - name: Core tests and Android bridge checks
+        working-directory: apps/android/core
+        run: |
+          go test -timeout=180s ./...
+          go vet ./...
+          GOOS=android GOARCH=arm64 CGO_ENABLED=0 go vet -tags=with_gvisor . ./mobile ./tun ./platform
+      - name: Flutter analysis and regression tests
+        working-directory: apps/android
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-fatal-infos
+          flutter test test/common/freev6_test.dart test/core/ test/l10n/localization_contract_test.dart test/widgets/freev6_setup_test.dart
+      - name: Build test APK
+        working-directory: apps/android
+        run: flutter build apk --release --target-platform android-arm64
+      - name: Kotlin unit tests
+        working-directory: apps/android/android
+        run: ./gradlew :app:testDebugUnitTest :service:testDebugUnitTest -Ptarget-platform=android-arm64
+      - name: Corresponding source package
+        run: python3 scripts/android/package-source.py --output-dir build/ci-source
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-ci-build
+          path: |
+            apps/android/build/app/outputs/flutter-apk/app-release.apk
+            build/ci-source/
+
+  macos:
+    runs-on: ${{ vars.FREEV6_MACOS_RUNNER || 'macos-latest' }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Verify Mac toolchain
+        run: |
+          test "$(uname -m)" = arm64 || { echo 'An Apple Silicon runner is required'; exit 1; }
+          echo "DEVELOPER_DIR=$(xcode-select -p)" >> "$GITHUB_ENV"
+          echo "FREEV6_FLUTTER_SDK=$(dirname "$(dirname "$(command -v flutter)")")" >> "$GITHUB_ENV"
+          xcodebuild -version
+          major=$(xcodebuild -version | awk '/^Xcode / {split($2, v, "."); print v[1]}')
+          test "$major" -ge 27 || { echo 'Xcode 27 or later is required'; exit 1; }
+      - name: Swift and worker tests
+        run: |
+          mkdir -p build/macos-worker
+          go build -o build/macos-worker/freev6-worker ./cmd/freev6-worker
+          bash scripts/macos/build-process-fixture.sh
+          FREEV6_WORKER_TEST_BINARY="$PWD/build/macos-worker/freev6-worker" FREEV6_PROCESS_TEST_BINARY="$PWD/build/macos-process/owned-child" bash scripts/macos/swift.sh test
+      - name: Flutter analysis and tests
+        working-directory: apps/macos/flutter_ui
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-fatal-infos
+          flutter test
+      - name: Build and verify application
+        env:
+          FREEV6_CODESIGN_IDENTITY: '-'
+        run: bash scripts/macos/build-app.sh

@@ -246,10 +246,12 @@ func TestStartProxyBlockedWhenCloudLocked(t *testing.T) {
 		t.Fatalf("locked start = %d %s, want 400 cloud-locked", locked.Code, locked.Body.String())
 	}
 
-	// 解锁后应越过这道闸门（后面可能因端口/权限失败，但不再是 cloud-locked）
 	seedNoticeGate(t, h, boolPtr(true))
+	if err := os.Remove(h.cloudProfilePath()); err != nil {
+		t.Fatal(err)
+	}
 	unlocked := runStart()
-	if strings.Contains(unlocked.Body.String(), "cloud-locked") {
-		t.Fatalf("unlocked start still locked: %s", unlocked.Body.String())
+	if unlocked.Code != http.StatusBadRequest || !strings.Contains(unlocked.Body.String(), "本地内容缺失") {
+		t.Fatalf("unlocked start = %d %s, want missing local profile before network preparation", unlocked.Code, unlocked.Body.String())
 	}
 }

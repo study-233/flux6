@@ -20,7 +20,8 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
+      - 'windows-v*'
 
 permissions:
   contents: write        # create the draft release + upload assets
@@ -63,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'
-          $version = $tag.TrimStart('v')
+          $version = ($tag -replace '^(windows-)?v', '')
           $base = ($version -split '-')[0]
           $conf = (Get-Content apps/windows/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
           $cargoLine = Select-String -Path apps/windows/src-tauri/Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
@@ -89,7 +90,7 @@ jobs:
         shell: pwsh
         run: |
           go install github.com/tc-hib/go-winres@v0.3.3
-          $v = (('${{ github.ref_name }}' -replace '^v', '') -split '-')[0]
+          $v = (('${{ github.ref_name }}' -replace '^(windows-)?v', '') -split '-')[0]
           $ver4 = "$v.0"
           Set-Location cmd/freev6-helper
           go-winres make --in winres/winres.json --arch amd64 --product-version $ver4 --file-version $ver4
@@ -102,7 +103,7 @@ jobs:
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'
-          $version = $tag.TrimStart('v')
+          $version = ($tag -replace '^(windows-)?v', '')
           $base = ($version -split '-')[0]
           $changelog = Get-Content CHANGELOG.md -Raw
           $section = ''

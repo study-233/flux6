@@ -70,4 +70,3 @@ what has to change upstream before the pin can move, so the next
 `_initDynamicColor` in `lib/bootstrap.dart` takes the system's seeds and accent color from `DynamicColorPlugin`,
 in the plugin at `plugins/dynamic_color`, which keeps the native side out of the UI library's
 own tree. Everything downstream sees `DynamicColorSeeds`.
-

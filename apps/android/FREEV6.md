@@ -1,6 +1,6 @@
 # FreeV6 Android 测试版
 
-基于 FlClash 的 Android 客户端，复用其 Flutter 页面、Android VPN 服务、节点测速和 mihomo 核心。此目录为固定版本的完整源码导出，FreeV6 接口放在根目录 `mobileapi/`，直接复用 `internal/app` 和 `internal/warp` 的配置与注册逻辑。
+基于 FlClash 的 Android 客户端，复用其 Flutter 页面、Android VPN 服务、节点测速和 mihomo 核心。此目录基于固定版本源码导出，已移除不用的桌面 Runner、上游网站和发布工具，保留公共 Dart 代码所需的插件和核心。FreeV6 接口放在根目录 `mobileapi/`，直接复用 `internal/app` 和 `internal/warp` 的配置与注册逻辑。
 
 ## 0.1.2 范围
 
@@ -15,7 +15,7 @@
 
 ## 安装测试
 
-将 `dist/android/FreeV6-0.1.2-preview-arm64.apk` 传到 ARM64 Android 手机，允许文件管理器安装应用。连接具有 IPv6 出口的 Wi-Fi 后，打开 FreeV6，按首次引导检查网络并准备配置，然后回到首页点击连接并同意 Android VPN 授权。已有配置的升级用户直接进入首页；校园直连域名／CIDR 可在「工具 → FreeV6 设置」中展开编辑。
+将构建脚本打印的 `dist/android/<版本>-b<build>/FreeV6-<版本>-b<build>-preview-arm64.apk` 传到 ARM64 Android 手机，版本与 build 以 [pubspec.yaml](pubspec.yaml) 为准，允许文件管理器安装应用。连接具有 IPv6 出口的 Wi-Fi 后，打开 FreeV6，按首次引导检查网络并准备配置，然后回到首页点击连接并同意 Android VPN 授权。已有配置的升级用户直接进入首页；校园直连域名／CIDR 可在「工具 → FreeV6 设置」中展开编辑。
 
 检查：首次启动与授权、准备配置、节点测速、IPv4 网站访问、IPv6 网站访问、校园站点直连、切换节点、锁屏后连接、断开 Wi-Fi 后停止、再次启动是否复用账户。请区分「配置已准备」与真实网络出口可用；后者需要校园网络实测。
 
@@ -35,19 +35,19 @@ TCP 探测只是诊断，不是 WARP UDP/QUIC 的连通性结论；全部探测�
 
 已固定 Flutter 3.47.6、Go 1.27.0、Rust 1.99.0、Android NDK 28.2.13676358，其他依赖见各 lock 文件。Android SDK 平台和构建工具由 Gradle 配置声明。
 
-在仓库根目录运行 `bash scripts/android/build-apk.sh`。`scripts/android/env.sh` 使用此工作区已有的工具缓存；其他机器可把 Flutter、Go、Rust 放在 PATH，并用 `FREEV6_ANDROID_SDK`、`FREEV6_JAVA_HOME` 指定本机路径。首次构建会下载依赖。Go 模块的 `replace ../..` 要求保留此目录与根目录 `go.mod`、`go.sum`、`internal/`、`mobileapi/` 的相对位置。
+在仓库根目录运行 `bash scripts/android/build-apk.sh`。`scripts/android/env.sh` 使用已有的工具缓存；其他机器可把 Flutter、Go、Rust 放在 PATH，并用 `FREEV6_FLUTTER_SDK`、`FREEV6_ANDROID_SDK`、`FREEV6_JAVA_HOME` 指定本机路径。首次构建会下载依赖。`apps/android/core/go.mod` 的 `replace ../../..` 要求保留平台目录与根模块、`internal/`、`mobileapi/` 的相对位置。`python3 scripts/android/package-source.py` 将必要源文件打入对应版本源码包。
 
-脚本首次生成本地测试签名到 `build/mobile-signing/`，以后沿用。请保存该目录以便覆盖安装后续测试版；不要提交或随源码分发私钥。也可设置 `FREEV6_KEYSTORE`、`FREEV6_STORE_PASSWORD`、`FREEV6_KEY_ALIAS`、`FREEV6_KEY_PASSWORD` 使用自己的签名。
+脚本在仓库外私有目录创建或复用本地测试签名，旧 `build/mobile-signing/` 身份会先校验再迁移。macOS 默认目录为 `~/Library/Application Support/FreeV6/Development/android-signing/`，Linux 使用 XDG 数据目录。请备份该身份以便覆盖安装后续测试版；不要提交或随源码分发私钥。也可设置 `FREEV6_KEYSTORE`、`FREEV6_STORE_PASSWORD`、`FREEV6_KEY_ALIAS`、`FREEV6_KEY_PASSWORD` 使用自己的签名。[签名和缓存规则](../../docs/development/README.md#签名和缓存)
 
-验证命令：
+验证命令（在仓库根目录使用 Bash）：
 
 ```bash
 source scripts/android/env.sh
-go test ./mobileapi ./internal/warp
-cd mobile/core && go test ./... && go vet ./...
-cd ..
-flutter analyze --no-fatal-infos
-flutter test test/common/freev6_test.dart test/core/protocol_contract_test.dart test/l10n/localization_contract_test.dart
+go test -timeout=180s ./cmd/... ./internal/... ./mobileapi/...
+(cd apps/android/core && go test -timeout=180s ./... && go vet ./...)
+(cd apps/android && flutter analyze --no-fatal-infos)
+(cd apps/android && flutter test test/common/freev6_test.dart test/core/ test/l10n/localization_contract_test.dart test/widgets/freev6_setup_test.dart)
+(cd apps/android/android && ./gradlew :app:testDebugUnitTest :service:testDebugUnitTest -Ptarget-platform=android-arm64)
 ```
 
 ## 来源与许可证

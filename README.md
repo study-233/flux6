@@ -27,8 +27,11 @@
 
 | 平台 | 状态 | 开发入口 |
 | --- | --- | --- |
-| Windows 11 x64 | 桌面客户端 | [Tauri 构建说明](apps/windows/src-tauri/README.md) |
+| Windows 11 x64 | 保留现有客户端；自定义 UI 重构待后续启动 | [Windows 开发入口](apps/windows/README.md) |
 | macOS 14+，Apple Silicon | 本地预览版；最低系统和真实校园网络仍待实机验收 | [Mac 构建与安装](apps/macos/README.md) |
+| Android，ARM64 | 基于 FlClash 的测试版，继续开发 | [Android 构建与安装](apps/android/FREEV6.md) |
+| iOS | 仅规划占位，未实现 | [平台说明](apps/ios/README.md) |
+| OpenWrt | 仅规划占位，未实现 | [平台说明](apps/openwrt/README.md) |
 
 以下使用说明针对 Windows。macOS 预览版的安装步骤和已验证范围见上表。
 
@@ -44,9 +47,11 @@ bug、问题和建议欢迎提 [issue](https://github.com/study-233/free-v6/issu
 
 ## 项目结构
 
-- [web](apps/windows/web/) 是 Windows 界面，[src-tauri](apps/windows/src-tauri/) 负责窗口、托盘和安装包。
-- [macos](apps/macos/) 包含 Flutter 界面、Swift 宿主、网络服务及测试；[scripts/macos](scripts/macos/) 提供构建和验收命令。
-- [cmd](cmd/) 是 Go 程序入口，[internal](internal/) 是业务与网络实现，[shared](shared/) 保存跨语言协议及测试样本。
+- [apps](apps/) 按平台管理 Mac、Android、Windows，iOS 和 OpenWrt 仅有占位说明。
+- [cmd](cmd/)、[internal](internal/)、[mobileapi](mobileapi/) 维护 Go 入口与共享业务；[shared](shared/) 保存跨语言协议及测试样本。
+- [scripts](scripts/) 按平台提供构建入口；[assets/branding](assets/branding/) 和 [third_party](third_party/) 维护品牌资源与第三方材料。
+
+分支、版本、签名、缓存和 CI 统一见 [开发与仓库管理](docs/development/README.md)。`main` 为长期开发主线，各端使用短期任务分支；不使用 `codex/` 前缀。
 
 ## 免责声明
 
@@ -61,13 +66,13 @@ bug、问题和建议欢迎提 [issue](https://github.com/study-233/free-v6/issu
 
 ## 许可证
 
-本项目采用 [MIT](LICENSE) 许可，第三方组件见 [THIRD-PARTY.txt](THIRD-PARTY.txt)。[Windows 随包许可](third_party/licenses/) 安装在程序的 `LICENSES/` 目录。
+根目录原有代码采用 [MIT](LICENSE) 许可，第三方组件见 [THIRD-PARTY.txt](THIRD-PARTY.txt)。Android 派生应用及 Mac 引入的 FlClash/Prism UI 保留各自许可证和对应源码要求，详见各平台说明。[Windows 随包许可](third_party/licenses/) 安装在程序的 `LICENSES/` 目录。
 
 ## 发布维护
 
 - 公告：修改 `main` 分支的 [notice.json](notice.json)，参见 [公告发布指南](docs/notice.md)。
 - 备用节点：当前关闭，未来按 [公开配置说明](docs/cloud-profile.md) 发布；仓库不包含原作者的节点。
-- Windows 更新：在本仓库推送 `v*` 标签，由 Release 工作流生成草稿、安装包和 `version.json`；核验后发布。
+- Windows 更新：使用 `windows-v<版本>` 标签，兼容历史 `v*` 标签；Release 工作流生成草稿、安装包和 `version.json`，核验后发布。
 - macOS 更新：使用本仓库 `macos-updates` 分支的签名清单，发布工具与签名步骤见 [Mac 开发说明](apps/macos/DEVELOPMENT.md)。未配置签名通道的构建不会自动获得更新能力。
 
 基于原项目作者 `evansrrr` 的 FreeV6；完整版权声明见 [LICENSE](LICENSE)。
