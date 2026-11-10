@@ -47,10 +47,14 @@ const (
 	ModeGlobal = "global"
 	// ModeDirect = mihomo "Global direct connection": every connection goes
 	// DIRECT, no rules matched. Developer-mode-only option in the GUI.
-	ModeDirect = "direct"
+	ModeDirect      = "direct"
+	PlatformWindows = "windows"
+	PlatformDarwin  = "darwin"
 )
 
 type RenderOptions struct {
+	// Empty preserves the established Windows configuration on every build host.
+	Platform    string
 	Mode        string
 	CampusCIDRs []string
 	Blacklist   []string
@@ -159,6 +163,9 @@ func Render(w warp.Device) (string, error) {
 }
 
 func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
+	if options.Platform != "" && options.Platform != PlatformWindows && options.Platform != PlatformDarwin {
+		return "", fmt.Errorf("unsupported configuration platform %q", options.Platform)
+	}
 	cloud := len(options.CloudNodes) > 0
 	// 校园模式下设备凭据完全用不上：网关由云端节点自己带，本地不需要
 	// WARP 注册结果。空 Device 在校验阶段必须放行，否则学生永远启不了。
@@ -185,7 +192,22 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 	}
 
 	var b strings.Builder
-	b.WriteString(configHeader)
+	header := configHeader
+	if options.Platform == PlatformDarwin {
+		header = strings.Replace(header, "listen: 0.0.0.0:1053", "listen: 127.0.0.1:1053", 1)
+		catalog, err := PinnedGeodata()
+		if err != nil {
+			return "", err
+		}
+		for _, asset := range catalog.Assets {
+			legacy := "https://v6.gh-proxy.org/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/" + asset.SourceName
+			header = strings.Replace(header, legacy, catalog.SourceURLs(asset)[0], 1)
+		}
+		// Mac prepares a complete pinned set before launch. The service must
+		// verify its private copy; core-side automatic updates bypass that check.
+		header = "geo-auto-update: false\n" + header
+	}
+	b.WriteString(header)
 	if options.ControllerSecret != "" {
 		// Top-level YAML key: placement is irrelevant to mihomo, keeping it
 		// next to external-controller in the header would require splitting
@@ -194,7 +216,13 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 	}
 	// device: 固定 TUN 适配器显示名，供 ICS 热点共享（internal/network/ics）
 	// 按名识别 FreeV6 的虚拟网卡，不依赖 mihomo 默认名。
-	fmt.Fprintf(&b, "mode: %s\n\ntun:\n  enable: true\n  device: FreeV6TUN\n  stack: mixed\n  auto-route: true\n  auto-detect-interface: true\n  strict-route: true\n  dns-hijack:\n    - any:53\n    - tcp://any:53\n\nproxies:\n", options.Mode)
+	deviceLine, strictRouteLine := "  device: FreeV6TUN\n", "  strict-route: true\n"
+	if options.Platform == PlatformDarwin {
+		// Let mihomo allocate an available utun. Windows strict-route behavior
+		// is not a substitute for the native service's DNS transaction.
+		deviceLine, strictRouteLine = "", ""
+	}
+	fmt.Fprintf(&b, "mode: %s\n\ntun:\n  enable: true\n%s  stack: mixed\n  auto-route: true\n  auto-detect-interface: true\n%s  dns-hijack:\n    - any:53\n    - tcp://any:53\n\nproxies:\n", options.Mode, deviceLine, strictRouteLine)
 	var names []string
 	if cloud {
 		// 校园模式：云端节点即出口，不渲染内置接入点，也不叠链式代理
@@ -218,7 +246,11 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 
 	b.WriteString("\nproxy-groups:\n")
 	b.WriteString("  - name: 🚀 节点选择\n    type: select\n    proxies:\n      - ♻️ 自动选择\n      - 🔄 故障转移\n      - ☑️ 手动切换\n\n")
-	b.WriteString("  - name: GLOBAL\n    type: select\n    proxies:\n      - ♻️ 自动选择\n      - 🔄 故障转移\n      - ☑️ 手动切换\n\n")
+	if options.Platform == PlatformDarwin && len(options.ChainProxies) > 0 {
+		fmt.Fprintf(&b, "  - name: GLOBAL\n    type: select\n    proxies:\n      - %s\n\n", ChainGroup)
+	} else {
+		b.WriteString("  - name: GLOBAL\n    type: select\n    proxies:\n      - ♻️ 自动选择\n      - 🔄 故障转移\n      - ☑️ 手动切换\n\n")
+	}
 	writeProxyGroup(&b, "☑️ 手动切换", "select", "", names)
 	writeProxyGroup(&b, "♻️ 自动选择", "url-test", "    url: http://www.gstatic.com/generate_204\n    interval: 300\n    tolerance: 50\n    lazy: false\n", names)
 	writeProxyGroup(&b, "🔄 故障转移", "fallback", "    url: http://www.gstatic.com/generate_204\n    interval: 180\n", names)
@@ -270,7 +302,7 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 		matchTarget = ChainGroup
 	}
 	fmt.Fprintf(&b, "  - MATCH,%s\n", matchTarget)
-	if len(options.ChainProxies) > 0 {
+	if len(options.ChainProxies) > 0 || (options.Platform == PlatformDarwin && cloud) {
 		// UDP 泄露兜底（能力自适应，依赖 mihomo match() 的 skip-continue 语义）：
 		// 命中 MATCH→链式 后，若所选链式节点不支持 UDP（如 VLESS+WS），
 		// mihomo 会跳过该规则继续向后找，最终落到 DIRECT —— 这正是真实

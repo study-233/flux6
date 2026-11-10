@@ -39,13 +39,19 @@ REDISTRIBUTED IN THIS REPOSITORY / THE INSTALLER
    Source:    https://nsis.sourceforge.io/
    Note: the NSIS toolchain is downloaded by the Tauri bundler at build time.
 
-6. GeoSite.dat (geosite domain data, bundled at <install dir>\GeoSite.dat)
-   License:   Apache-2.0
-   Copyright: The v2fly and MetaCubeX authors
-   Source:    https://github.com/MetaCubeX/meta-rules-dat (compiled from
-              v2fly/domain-list-community source lists)
-   Note: refreshed from the source repository on each release build
-   (cmd/ensure-geodata) and only redistributed as the compiled .dat file.
+6. GeoSite.dat / GeoIP data (MetaCubeX/meta-rules-dat)
+   Upstream repository license: GNU GPL version 3 (see upstream LICENSE).
+   Source:    https://github.com/MetaCubeX/meta-rules-dat
+   Inputs:    upstream README and workflows identify multiple domain/IP list
+              sources; their own notices and licenses must also be retained.
+   Windows:   cmd/ensure-geodata prepares GeoSite.dat for redistribution at
+              <install dir>\GeoSite.dat. The previous Apache-2.0-only label
+              did not describe the current upstream repository license.
+   macOS:     the app downloads a pinned set at first preparation; the current
+              Mac bundle does not redistribute the data binaries. The source
+              revision, exact sizes and SHA256 values are recorded in
+              internal/mihomo/geodata-assets.json. Bundled data/source material
+              and corresponding notices remain a release verification item.
 
 7. nsis_tauri_utils (NSIS plugin embedded in the produced setup.exe)
    License:   MIT OR Apache-2.0
@@ -89,3 +95,29 @@ BUILD TOOLCHAINS (build/test time only, not redistributed)
 
 Go standard toolchain (BSD-3-Clause) - https://go.dev/
 Rust / Cargo (MIT OR Apache-2.0)      - https://github.com/rust-lang/rust
+
+--------------------------------------------------------------------------
+MACOS UPDATE HELPER (redistributed in the macOS app)
+--------------------------------------------------------------------------
+
+12. Sparkle 2.9.6
+    License:   MIT, with bundled component notices in the distribution LICENSE
+    Copyright: Andy Matuschak and the Sparkle contributors
+    Source:    https://github.com/sparkle-project/Sparkle
+    Full text: FreeV6.app/Contents/Resources/Notices/Sparkle-LICENSE.txt
+    The official release archive is pinned by SHA256 in macos/Dependencies.
+    Sparkle runs inside the ordinary-user FreeV6UpdateAgent app.
+
+
+MACOS FLUTTER CLIENT
+
+13. FlClash v0.9.3 and Prism UI
+    The combined macOS Flutter client uses their GPLv3 components.
+    See Resources/Notices/FlClash-LICENSE.txt, PrismUI-LICENSE.txt,
+    PrismUI-NOTICE.txt, Flutter-component-sources.json and Flutter-Sources.md.
+    FreeV6's own MIT files retain their original notices.
+
+14. Flutter SDK and packages, including Material icon assets
+    Flutter 3.47.6. The release's generated package and asset licenses
+    are included in Resources/Notices/Flutter-Package-Notices.txt.
+    The Flutter framework license is in Resources/Notices/Flutter-LICENSE.txt.

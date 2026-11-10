@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -213,15 +214,22 @@ func TestHealLeftoverSnapshotNeverBlocksStart(t *testing.T) {
 		}
 	})
 
-	t.Run("valid is restored and removed", func(t *testing.T) {
+	t.Run("valid snapshot is removed only after successful restoration", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "state", "network-snapshot.json")
-		// 空接口列表：RestoreSnapshot 无命令可执行、无 ICS 元数据，各平台
-		// 上都是快速 no-op，测试仍然走真实的还原→删除路径。
+		// Windows 的空接口列表是 no-op；其他平台必须保留未恢复的
+		// Windows 快照，不能将 ErrWindowsOnly 当作恢复成功。
 		want := network.Snapshot{CapturedAt: time.Date(2026, 10, 15, 8, 0, 0, 0, time.UTC)}
 		if err := network.SaveSnapshot(path, want); err != nil {
 			t.Fatal(err)
 		}
 		healLeftoverSnapshot(path)
+		if runtime.GOOS != "windows" {
+			got, err := network.LoadSnapshot(path)
+			if err != nil || !got.CapturedAt.Equal(want.CapturedAt) {
+				t.Fatalf("unsupported platform must retain the original snapshot: %v", err)
+			}
+			return
+		}
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("healed snapshot must be removed, stat err = %v", err)
 		}

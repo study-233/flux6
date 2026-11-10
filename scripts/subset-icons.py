@@ -11,9 +11,9 @@ Usage:
     1. Obtain a full Material Symbols Outlined woff2 (e.g. Google css2 with a
        modern browser User-Agent and &text=<ligatures>, or the official
        variablefont from google/material-design-icons).
-    2. python scripts/subset-icons.py <input.woff2> web/fonts/material-symbols-outlined.woff2
+    2. python scripts/subset-icons.py <input.woff2> apps/windows/web/fonts/material-symbols-outlined.woff2
     3. Update ICON_LIGATURES below to match every icon name used in
-       web/index.html (`<md-icon>NAME</md-icon>`) and web/app.js (icon
+       apps/windows/web/index.html (`<md-icon>NAME</md-icon>`) and apps/windows/web/app.js (icon
        textContent strings), then rerun after UI changes.
 
 Requires: fonttools[brotli] (pip install fonttools brotli).

@@ -1,0 +1,24 @@
+{
+  "bundleId": "dev.freev6.desktop",
+  "version": "0.5.3",
+  "build": "2",
+  "minimumOS": "14.0",
+  "configuredSparkleChannel": false,
+  "architecture": "arm64",
+  "signature": "local ad hoc, hardened runtime",
+  "installer": {
+    "flutterClientSeal": "29fe6dd8d5047826a606b5450aa00c6adc670b333cd18b3230b1265da6a16f04",
+    "installer": {
+      "cdHash": "233de8be08c9ad8bdc638b9b5dc3e0b3801a4351",
+      "identifier": "dev.freev6.service-installer"
+    },
+    "protocolVersion": 6,
+    "serviceSHA256": "418e6c0d98c9d5399d187c66e4d1ce3c7cf273c45ec170633d62047b5b62ca32"
+  },
+  "sourceInventorySHA256": "5d716567c791b5fb24b597953b30083fd7c1db1ed50d13199fcc3326e770cf3d",
+  "cdHash": {
+    "app": "7dcabc5541e7ecda1a929fa599775ff9b8600056",
+    "engine": "5644e568c3e01b76b9bbe9eec5124b8467d59355",
+    "aot": "d6c683775edab1e1f78482bf16ffa73c812b7446"
+  }
+}

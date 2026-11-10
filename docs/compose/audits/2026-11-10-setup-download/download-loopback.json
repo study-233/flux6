@@ -1,0 +1,52 @@
+{
+  "scope": "loopback only, pinned core, ordinary user, no TUN/DNS changes",
+  "unauthenticatedRejected": true,
+  "nodeARequests": 0,
+  "nodeBRequests": 5,
+  "cases": [
+    {
+      "bytes": 2097152,
+      "bytesPerSecond": 10724322.555241343,
+      "channelReset": true,
+      "elapsed": 0.43447737500537187,
+      "scenario": "normal",
+      "selectionUnchanged": true
+    },
+    {
+      "channelReset": true,
+      "elapsed": 0.5578192916582339,
+      "failedAsExpected": true,
+      "scenario": "cancel",
+      "selectionUnchanged": true
+    },
+    {
+      "channelReset": true,
+      "elapsed": 0.2501849583350122,
+      "failedAsExpected": true,
+      "scenario": "oversized",
+      "selectionUnchanged": true
+    },
+    {
+      "channelReset": true,
+      "elapsed": 0.24380862500402145,
+      "failedAsExpected": true,
+      "scenario": "httpError",
+      "selectionUnchanged": true
+    },
+    {
+      "bytes": 2932736,
+      "bytesPerSecond": 293140.42630432994,
+      "channelReset": true,
+      "elapsed": 10.227788166666869,
+      "scenario": "partial",
+      "selectionUnchanged": true
+    },
+    {
+      "channelReset": true,
+      "elapsed": 0.0012220833450555801,
+      "failedAsExpected": true,
+      "scenario": "badNode",
+      "selectionUnchanged": true
+    }
+  ]
+}

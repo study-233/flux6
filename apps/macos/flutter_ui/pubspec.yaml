@@ -1,0 +1,24 @@
+name: freev6_flutter_preview
+description: FreeV6 macOS interface preview using FlClash and Prism UI.
+publish_to: none
+version: 0.1.0+1
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+  flutter: '>=3.47.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  prism_ui:
+    path: vendor/prism_ui
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+flutter:
+  uses-material-design: true
+  assets:
+    - vendor/flclash/LICENSE
+    - vendor/prism_ui/LICENSE
+    - vendor/prism_ui/NOTICE
+    - vendor/UPSTREAM.json

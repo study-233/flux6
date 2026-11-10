@@ -1,0 +1,23 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FreeV6 · macOS 窗口对照</title>
+<style>
+:root{color-scheme:light dark;font:16px/1.55 -apple-system,BlinkMacSystemFont,sans-serif;background:light-dark(#f5f5f7,#161619);color:light-dark(#202126,#ededf2)}
+body{max-width:1232px;margin:0 auto;padding:24px}h1{font-size:clamp(25px,4vw,40px);letter-spacing:-.05em;margin:8px 0}p{max-width:64ch}a{color:light-dark(#0059af,#8abaff)}figure{margin:0}img{width:100%;display:block;border-radius:8px}.viewer{position:relative}.upper{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--split)) 0 0)}.rule{position:absolute;left:var(--split);top:0;bottom:0;width:2px;background:#ff9933;pointer-events:none}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}label{display:flex;gap:14px;align-items:center;margin:12px 0}input{width:min(350px,45vw);accent-color:#006df0}figcaption{margin:8px 0}summary{cursor:pointer;font-weight:650}details{margin:24px 0}@media(max-width:720px){.grid{grid-template-columns:1fr}}
+</style>
+<h1>Mac 窗口对照</h1>
+<p>在同一窗口尺寸下观察侧栏、主卡、两张速率卡和模式条。拖动分隔线，左侧显示 FlClash 官方窗口，右侧显示 FreeV6 的 Release 渲染。</p>
+<label for="split">对照位置 <input id="split" type="range" min="0" max="100" value="50"><output id="value">50%</output></label>
+<figure class="viewer" id="viewer" style="--split:50%"><img src="light-1232.png" alt="FreeV6 浅色仪表盘，1232 × 780">
+<img class="upper" src="../../2026-11-06-macos-ui/flutter-p1/upstream-macos.jpg" alt="FlClash 官方 Mac 窗口裁切"><div class="rule"></div></figure>
+<p>FreeV6 的连接卡显示实际接入节点和工作模式。第二行提供节点与配置入口。设置位于左侧栏底部。两张曲线取自这次隔离服务进程的实际样本。</p>
+<details open><summary>宽窗与窄窗</summary><div class="grid">
+<figure><figcaption>920 × 620</figcaption><a href="light-920.png"><img src="light-920.png" alt="中等窗宽"></a></figure>
+<figure><figcaption>720 × 480 · 深色</figcaption><a href="dark-720.png"><img src="dark-720.png" alt="窄窗深色仪表盘"></a></figure>
+<figure><figcaption>长中文节点名 · 28 个节点</figcaption><a href="long-nodes-720.png"><img src="long-nodes-720.png" alt="长中文节点列表"></a></figure>
+<figure><figcaption>640 × 440 · 独立设置窗</figcaption><a href="settings-640.png"><img src="settings-640.png" alt="独立设置窗"></a></figure>
+</div></details>
+<p><a href="disconnect.mp4">连接按钮断开录屏</a> · <a href="custom-no-connection.png">隐藏连接卡后的顶栏</a> · <a href="node-picker.png">键盘选择器</a> · <a href="dark-1232.png">宽窗深色</a></p>
+<script>
+const range=document.getElementById('split'),viewer=document.getElementById('viewer'),value=document.getElementById('value');
+range.addEventListener('input',()=>{viewer.style.setProperty('--split',range.value+'%');value.value=range.value+'%';});
+</script></html>

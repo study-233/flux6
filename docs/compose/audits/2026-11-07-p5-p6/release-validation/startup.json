@@ -1,0 +1,52 @@
+{
+  "writable": {
+    "identity": "dev.freev6.desktop",
+    "build": "2",
+    "bundleCDHash": "7dcabc5541e7ecda1a929fa599775ff9b8600056",
+    "readOnlyVolume": false,
+    "window": {
+      "title": "FreeV6",
+      "width": 1232,
+      "height": 780,
+      "finished": true,
+      "captureAvailable": true
+    },
+    "dartAOTMapped": true,
+    "recognizedLabels": [
+      "欢迎使用",
+      "用户协议",
+      "隐私政策",
+      "同意",
+      "退出"
+    ],
+    "createdTestStores": [
+      "Logs/dev.freev6.desktop"
+    ],
+    "productionStoreMetadataUnchanged": true,
+    "acceptedAgreement": false,
+    "screenshot": "build/p6-release-validation/f36f9175-898d-4762-8b66-418bd7b90726/writable/window.png"
+  },
+  "mounted": {
+    "identity": "dev.freev6.desktop",
+    "build": "2",
+    "bundleCDHash": "7dcabc5541e7ecda1a929fa599775ff9b8600056",
+    "readOnlyVolume": true,
+    "window": {
+      "title": "FreeV6",
+      "width": 450,
+      "height": 182,
+      "finished": true,
+      "captureAvailable": true
+    },
+    "dartAOTMapped": false,
+    "recognizedLabels": [
+      "应用程序",
+      "退出"
+    ],
+    "createdTestStores": [],
+    "productionStoreMetadataUnchanged": true,
+    "acceptedAgreement": false,
+    "screenshot": "build/p6-release-validation/f36f9175-898d-4762-8b66-418bd7b90726/mounted/window.png"
+  },
+  "imageSHA256": "6fa5f9e51bf0044df510db5ec3bbc344be5f6ff5af9858a115ff7e0f2b3ed56d"
+}

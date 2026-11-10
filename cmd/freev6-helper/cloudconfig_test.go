@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/yourname/freev6/internal/app"
+	"github.com/yourname/freev6/internal/notice"
 )
 
 const cloudTestYAML = `port: 7890
@@ -47,7 +51,7 @@ func seedNoticeGate(t *testing.T, h *helper, allowed *bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(stateDir, "notice-cache.json"), data, 0o644); err != nil {
+	if err := os.WriteFile(h.noticeCachePath(), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -75,7 +79,7 @@ func TestCloudImportFromContent(t *testing.T) {
 	if strings.Join(result.Ignored, ",") != "port,rules" {
 		t.Fatalf("ignored = %v, want [port rules]", result.Ignored)
 	}
-	raw, err := os.ReadFile(filepath.Join(h.root, "config", "cloud-profile.yaml"))
+	raw, err := os.ReadFile(h.cloudProfilePath())
 	if err != nil {
 		t.Fatalf("snapshot must be persisted: %v", err)
 	}
@@ -129,12 +133,12 @@ func TestFetchCloudProfileMapsGateToCampusOnly(t *testing.T) {
 		writer.WriteHeader(http.StatusForbidden)
 	}))
 	defer server.Close()
-	_, err := fetchCloudProfile(server.URL)
+	_, err := app.FetchCloudProfile(context.Background(), server.URL)
 	if err == nil {
 		t.Fatal("expected gate error")
 	}
-	if cloudErrorCode(err) != "campus-only" {
-		t.Fatalf("code = %q, err = %v", cloudErrorCode(err), err)
+	if app.CloudErrorCode(err) != "campus-only" {
+		t.Fatalf("code = %q, err = %v", app.CloudErrorCode(err), err)
 	}
 	if !strings.Contains(err.Error(), "校园网") {
 		t.Fatalf("err = %v", err)
@@ -146,7 +150,7 @@ func TestFetchCloudProfileReadsBody(t *testing.T) {
 		_, _ = writer.Write([]byte(cloudTestYAML))
 	}))
 	defer server.Close()
-	data, err := fetchCloudProfile(server.URL)
+	data, err := app.FetchCloudProfile(context.Background(), server.URL)
 	if err != nil {
 		t.Fatalf("fetchCloudProfile: %v", err)
 	}
@@ -156,8 +160,8 @@ func TestFetchCloudProfileReadsBody(t *testing.T) {
 }
 
 func TestMaskCloudEntry(t *testing.T) {
-	masked := maskCloudEntry("https://0f6d31cf1f09ea10.freev6.cc.cd/p")
-	if masked != "0f6d…freev6.cc.cd/p" {
+	masked := maskCloudEntry("https://raw.githubusercontent.com/study-233/free-v6/main/profiles/0f6d31cf1f09ea10.yaml")
+	if masked != "study-233/free-v6/profiles/…" {
 		t.Fatalf("masked = %q", masked)
 	}
 	if strings.Contains(masked, "31cf1f09ea10") {
@@ -180,12 +184,12 @@ func TestCloudProfileAllowedParsing(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			payload, err := parseNoticePayload([]byte(testCase.payload), now)
+			payload, err := notice.Parse([]byte(testCase.payload), now)
 			if err != nil {
-				t.Fatalf("parseNoticePayload: %v", err)
+				t.Fatalf("notice.Parse: %v", err)
 			}
-			if got := cloudProfileAllowed(payload.CloudProfile); got != testCase.want {
-				t.Fatalf("cloudProfileAllowed = %v, want %v", got, testCase.want)
+			if got := notice.CloudAllowed(payload.CloudProfile); got != testCase.want {
+				t.Fatalf("notice.CloudAllowed = %v, want %v", got, testCase.want)
 			}
 		})
 	}
@@ -242,10 +246,12 @@ func TestStartProxyBlockedWhenCloudLocked(t *testing.T) {
 		t.Fatalf("locked start = %d %s, want 400 cloud-locked", locked.Code, locked.Body.String())
 	}
 
-	// 解锁后应越过这道闸门（后面可能因端口/权限失败，但不再是 cloud-locked）
 	seedNoticeGate(t, h, boolPtr(true))
+	if err := os.Remove(h.cloudProfilePath()); err != nil {
+		t.Fatal(err)
+	}
 	unlocked := runStart()
-	if strings.Contains(unlocked.Body.String(), "cloud-locked") {
-		t.Fatalf("unlocked start still locked: %s", unlocked.Body.String())
+	if unlocked.Code != http.StatusBadRequest || !strings.Contains(unlocked.Body.String(), "本地内容缺失") {
+		t.Fatalf("unlocked start = %d %s, want missing local profile before network preparation", unlocked.Code, unlocked.Body.String())
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/yourname/freev6/internal/app"
 	"github.com/yourname/freev6/internal/mihomo"
 	"github.com/yourname/freev6/internal/network"
 	"github.com/yourname/freev6/internal/warp"
@@ -34,39 +35,7 @@ type helper struct {
 	mu   sync.Mutex
 }
 
-type settings struct {
-	Mode        string   `json:"mode"`
-	CampusCIDRs []string `json:"campusCidrs"`
-	Blacklist   []string `json:"blacklist"`
-	DevMode     bool     `json:"devMode"`
-	AutoStart   bool     `json:"autoStart"`
-	SilentStart bool     `json:"silentStart"`
-	// 自动运行免流（设置 → 通用）：打开软件后由前端自动尝试启动免流，
-	// 开机自启动时等到网络恢复等合适时机再试；默认关闭。
-	AutoRunProxy bool `json:"autoRunProxy"`
-	// 快捷键（设置 → 通用）：启用后按 F6 由桌面壳弹出主窗口，即使窗口
-	// 处于托盘驻留/静默启动状态；默认关闭。
-	HotkeyEnabled bool `json:"hotkeyEnabled"`
-	// 共享移动热点（设置 → 通用）：启动免流时把 Windows 移动热点的上游
-	// 切到 FreeV6 TUN（ICS 拓扑切换），热点设备走电脑的代理出口，
-	// 停止免流自动还原；默认关闭。
-	HotspotShare bool `json:"hotspotShare"`
-	// 链式代理（设置 → 核心）：来源与开关由 /api/v1/chain-proxy 端点维护。
-	// GUI 的 settings PUT 不携带这些键 —— 必须「省略即保留」，否则每次
-	// 保存设置都会悄悄关掉链式、把出口切回裸 WARP。
-	ChainEnabled    bool   `json:"chainEnabled"`
-	ChainSourceType string `json:"chainSourceType"`
-	ChainSourceURL  string `json:"chainSourceUrl"`
-	// 备用配置（设置 → 核心）：来源与更新时间由 /api/v1/cloud-config 端点
-	// 维护，开关由 GUI 主 PUT 携带。与链式代理同理「省略即保留」，否则
-	// 一次普通保存就会把学生刚取到的配置悄悄关掉、退回裸 WARP 出口。
-	CloudEnabled   bool   `json:"cloudEnabled"`
-	CloudSourceURL string `json:"cloudSourceUrl"`
-	CloudUpdatedAt string `json:"cloudUpdatedAt"`
-	// PortalHost 是校园网登录页地址（学生只输一次，之后用来派生入口）。
-	// 存的是归一化后的裸 host，不是派生的完整入口。
-	PortalHost string `json:"portalHost"`
-}
+type settings = app.Settings
 
 type proxyRequest struct {
 	Mode        string   `json:"mode"`
@@ -79,11 +48,11 @@ type registerRequest struct {
 }
 
 func defaultCampusCIDRs() []string {
-	return []string{"edu.cn"}
+	return app.DefaultCampusCIDRs()
 }
 
 func defaultSettings() settings {
-	return settings{Mode: mihomo.ModeRule, CampusCIDRs: defaultCampusCIDRs(), Blacklist: []string{}}
+	return app.DefaultSettings()
 }
 
 func main() {
@@ -355,87 +324,15 @@ func (h *helper) settings(writer http.ResponseWriter, request *http.Request) {
 			writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 			return
 		}
-		var current settings
-		if err := json.Unmarshal(body, &current); err != nil {
-			writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
-			return
-		}
-		if current.Mode == "" {
-			current.Mode = mihomo.ModeRule
-		}
-		if current.Mode != mihomo.ModeRule && current.Mode != mihomo.ModeGlobal && current.Mode != mihomo.ModeDirect {
-			writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "mode must be rule, global or direct"})
-			return
-		}
-		if current.CampusCIDRs == nil {
-			current.CampusCIDRs = defaultCampusCIDRs()
-		}
-		entries := make([]string, 0, len(current.CampusCIDRs))
-		for _, entry := range current.CampusCIDRs {
-			if err := mihomo.ValidateCampusTarget(entry); err != nil {
-				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
-				return
-			}
-			entries = append(entries, strings.ToLower(strings.TrimSpace(entry)))
-		}
-		current.CampusCIDRs = entries
 		persisted, loadErr := h.loadSettings()
 		if loadErr != nil {
 			persisted = defaultSettings()
 		}
-		// The GUI never sends the blacklist — when the client omits the field,
-		// keep the value from settings.json (edit it there manually).
-		if current.Blacklist == nil {
-			current.Blacklist = persisted.Blacklist
+		current, err := app.DecodeLegacySettingsPUT(body, persisted)
+		if err != nil {
+			writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
 		}
-		// Same contract for autoRunProxy: a client that predates the switch
-		// (or a partial PUT) must not silently turn 自动运行免流 off.
-		if !jsonKeyPresent(body, "autoRunProxy") {
-			current.AutoRunProxy = persisted.AutoRunProxy
-		}
-		// 同上：省略 hotkeyEnabled 时保留存储值，否则 bool 零值会悄悄解绑 F6
-		if !jsonKeyPresent(body, "hotkeyEnabled") {
-			current.HotkeyEnabled = persisted.HotkeyEnabled
-		}
-		// 同上：省略 hotspotShare 时保留存储值，否则 bool 零值会悄悄关掉热点共享
-		if !jsonKeyPresent(body, "hotspotShare") {
-			current.HotspotShare = persisted.HotspotShare
-		}
-		// 同上：sourceType/sourceUrl 只由 chain-proxy 端点维护、主 PUT 永远
-		// 省略；chainEnabled 由主 PUT 携带当前值。三者「省略即保留」，防
-		// 外部部分 PUT 把导入状态清掉、悄悄把出口切回裸 WARP。
-		if !jsonKeyPresent(body, "chainEnabled") {
-			current.ChainEnabled = persisted.ChainEnabled
-		}
-		if !jsonKeyPresent(body, "chainSourceType") {
-			current.ChainSourceType = persisted.ChainSourceType
-		}
-		if !jsonKeyPresent(body, "chainSourceUrl") {
-			current.ChainSourceURL = persisted.ChainSourceURL
-		}
-		// 备用配置同理：sourceUrl/updatedAt 只由 cloud-config 端点维护，
-		// cloudEnabled 由主 PUT 携带；三者省略即保留。
-		if !jsonKeyPresent(body, "cloudEnabled") {
-			current.CloudEnabled = persisted.CloudEnabled
-		}
-		if !jsonKeyPresent(body, "cloudSourceUrl") {
-			current.CloudSourceURL = persisted.CloudSourceURL
-		}
-		if !jsonKeyPresent(body, "cloudUpdatedAt") {
-			current.CloudUpdatedAt = persisted.CloudUpdatedAt
-		}
-		if !jsonKeyPresent(body, "portalHost") {
-			current.PortalHost = persisted.PortalHost
-		}
-		blacklistEntries := make([]string, 0, len(current.Blacklist))
-		for _, entry := range current.Blacklist {
-			if err := mihomo.ValidateDomain(entry); err != nil {
-				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
-				return
-			}
-			blacklistEntries = append(blacklistEntries, strings.ToLower(strings.TrimSpace(entry)))
-		}
-		current.Blacklist = blacklistEntries
 		// Autostart toggles the Task Scheduler task plus its Task Manager marker
 		// entry as a side effect, BEFORE the file is written: a failure returns
 		// 500 so the GUI reverts the switch instead of claiming a state that
@@ -880,18 +777,6 @@ func (h *helper) loadSettings() (settings, error) {
 		current.Blacklist = []string{}
 	}
 	return current, nil
-}
-
-// jsonKeyPresent reports whether the top level of a JSON object body carries
-// the given key. Used by the settings PUT so an omitted field means "leave the
-// stored value alone" rather than "reset to false" (bool zero value).
-func jsonKeyPresent(body []byte, key string) bool {
-	var probe map[string]json.RawMessage
-	if err := json.Unmarshal(body, &probe); err != nil {
-		return false
-	}
-	_, ok := probe[key]
-	return ok
 }
 
 // mergeStartSettings overlays a proxy-start request onto the stored settings:

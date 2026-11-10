@@ -13,16 +13,33 @@ var ErrBinaryNotFound = errors.New("mihomo runtime binary not found")
 // RuntimeCandidates returns paths in preference order for the current platform.
 // The runtime directory is the installed layout; state is retained for local development.
 func RuntimeCandidates(root string) []string {
-	name := "mihomo-" + runtime.GOOS + "-" + runtime.GOARCH + ".exe"
-	v3Name := "mihomo-" + runtime.GOOS + "-" + runtime.GOARCH + "-v3.exe"
-	return []string{
-		filepath.Join(root, "runtime", v3Name),
-		filepath.Join(root, "runtime", name),
-		filepath.Join(root, "runtime", "mihomo.exe"),
-		filepath.Join(root, "state", v3Name),
-		filepath.Join(root, "state", name),
-		filepath.Join(root, "state", "mihomo.exe"),
+	return RuntimeCandidatesFor(root, runtime.GOOS, runtime.GOARCH)
+}
+
+// RuntimeCandidatesFor makes target selection independent of the build host.
+// Windows keeps its established v3 preference; Intel Mac prefers the v1 CPU
+// baseline. Unix executables never acquire a Windows extension.
+func RuntimeCandidatesFor(root, goos, goarch string) []string {
+	extension := ""
+	if goos == "windows" {
+		extension = ".exe"
 	}
+	name := "mihomo-" + goos + "-" + goarch
+	names := []string{name + extension, "mihomo" + extension}
+	if goarch == "amd64" {
+		if goos == "windows" {
+			names = append([]string{name + "-v3.exe"}, names...)
+		} else if goos == "darwin" {
+			names = append([]string{name + "-v1"}, names...)
+		}
+	}
+	var paths []string
+	for _, directory := range []string{"runtime", "state"} {
+		for _, candidate := range names {
+			paths = append(paths, filepath.Join(root, directory, candidate))
+		}
+	}
+	return paths
 }
 
 func DiscoverBinary(root string) (string, error) {

@@ -1,0 +1,3697 @@
+/* ── State ── */
+
+const state = {
+  activeView: 'dashboard',
+  helperOnline: false,
+  proxyRunning: false,
+  mode: 'rule',
+  cidrs: [],
+  devMode: false,
+  autoStart: false,
+  silentStart: false,
+  autoRunProxy: false,
+  hotkeyEnabled: false,
+  hotspotShare: false,
+  // /status 下报的热点共享运行态（下降沿弹“下次生效”提示用）
+  hotspotActive: false,
+  // FAB 忙碌指示：'starting'|'stopping' 期间 setRunning 不覆盖按钮文字
+  transition: null,
+  // Update
+  updateInfo: null,
+  updatePhase: null,
+  updateError: '',
+  // Appearance
+  dynamicColor: false,
+  pureBlack: false,
+  dynamicSeed: null,
+
+  // Traffic
+  trafficHistory: [],
+  totalUpload: 0,
+  totalDownload: 0,
+  lastUpload: 0,
+  lastDownload: 0,
+
+  // Notice（公告板）：启动时由 helper /api/v1/notice 拉取一次
+  notices: [],
+  noticeStale: false,
+  noticeChecked: false, // 本会话是否已成功拉到公告（连上 helper 后只查一次）
+  noticeChecking: false, // 请求在途防抖，避免连上瞬间重入
+  noticeActive: 0, // 详情面板当前展示第几条（历史列表可切换）
+
+  // Proxy
+  proxyGroup: null,       // { now, all: [] }
+  proxyDelays: {},
+  testingDelay: false,
+  delaysReady: false,
+  // mihomo external-controller secret（helper /status 下发）：9090 直连
+  // 携带的 Bearer；为空（尚无 secret 文件）时不加头。
+  controllerSecret: '',
+  // 链式代理（设置 → 核心）：/chain-proxy 权威状态 + 接入点页当前分组页签
+  chain: { enabled: false, count: 0, sourceType: '', sourceUrl: '', names: [], error: '' },
+  // 导入进行中（订阅拉取最长 30s）——独立字段，refreshChainStatus 整体
+  // 重建 state.chain 时不能把它冲掉
+  chainImporting: false,
+  activeProxyTab: 'access',
+  // 备用配置（设置 → 核心）：/cloud-config 权威状态。enabled+count>0 时出口
+  // 由备用节点直接负责，不再需要 WARP 接入凭据。
+  // locked = 公告里的总开关；默认 true（fail-closed），公告检查完才可能放行。
+  cloud: { enabled: false, count: 0, names: [], portalHost: '', entryMasked: '', updatedAt: '', error: '', locked: true },
+  // 拉取进行中（校园网内一次往返，通常 <2s；校外会等超时）
+  cloudBusy: false,
+
+  // Runtime
+  runtimePresent: false,
+  runtimeChecked: false,
+  warpRegistered: false,
+  warpRegistering: false,
+  warpAutoTried: false,
+
+  // Logs
+  logs: [],
+};
+
+const API_BASE = 'http://127.0.0.1:13335/api/v1';
+const MAX_LOG = 100;
+const TRAFFIC_POINTS = 60;
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+
+/* ── Utility ── */
+
+// 所有不可信字符串进入 innerHTML 前必须过这里：链式代理节点名来自第三方
+// 订阅（可携带 `<img onerror=…>` 之类载荷），日志又会回显解析错误里的
+// 节点名——不转义的话 webview 里执行任意脚本 = 窃取 helper token 打穿
+// 鉴权。属性上下文（title/data-*）同样覆盖（引号转义）。dataset 读回时
+// 浏览器会解码实体，switchProxy 拿到的仍是原始名字。
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / 1073741824).toFixed(2) + ' GB';
+}
+
+function formatSpeed(bytesPerSec) {
+  if (bytesPerSec < 1024) return bytesPerSec + ' B/s';
+  if (bytesPerSec < 1048576) return (bytesPerSec / 1024).toFixed(1) + ' KB/s';
+  if (bytesPerSec < 1073741824) return (bytesPerSec / 1048576).toFixed(1) + ' MB/s';
+  return (bytesPerSec / 1073741824).toFixed(2) + ' GB/s';
+}
+
+/* ── API ── */
+
+// Headers for direct mihomo controller (:9090) calls. Empty secret → no
+// header, which pre-secret mihomo instances accept as-is.
+function controllerHeaders(extra = {}) {
+  return state.controllerSecret
+    ? { Authorization: `Bearer ${state.controllerSecret}`, ...extra }
+    : extra;
+}
+
+// Per-launch bearer token for the helper API, obtained from the Tauri shell
+// (get_api_token). Outside the webview there is no way to obtain it — the UI
+// then 401s and falls back to the existing "helper offline" handling.
+let apiToken = null;
+
+async function loadApiToken() {
+  const tauri = window.__TAURI_INTERNALS__;
+  if (!tauri || typeof tauri.invoke !== 'function') return null;
+  try {
+    const token = await tauri.invoke('get_api_token');
+    return typeof token === 'string' && token ? token : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function api(path, options = {}) {
+  if (apiToken === null) apiToken = await loadApiToken();
+  const doFetch = (token) =>
+    fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  let response = await doFetch(apiToken);
+  // 401 → the token may be stale (shell reloaded) or was never fetched
+  // (invoke raced startup): re-load once and retry once, never loop.
+  if (response.status === 401) {
+    const fresh = await loadApiToken();
+    if (fresh && fresh !== apiToken) {
+      apiToken = fresh;
+      response = await doFetch(apiToken);
+    }
+  }
+  const payload = await response.json();
+  if (!response.ok) {
+    const error = new Error(payload.error || `HTTP ${response.status}`);
+    // 机器可读错误码（如 port-conflict）随错误对象上抛，上层据此给精准提示
+    error.code = payload.code;
+    throw error;
+  }
+  return payload;
+}
+
+// 停止免流。快照损坏/读不出来时 helper 仍会成功停止、只跳过网络状态还原
+// （restoreSkipped）——记进日志提示用户，不能静默吞掉。
+async function stopProxyApi() {
+  const payload = await api('/proxy/stop', { method: 'POST' });
+  if (payload.restoreSkipped) {
+    addLog(`网络状态还原已跳过（快照不可用）: ${payload.restoreSkipped}`, true);
+  }
+  return payload;
+}
+
+/* Open a URL in the system browser (Tauri opener plugin), or a new tab when
+   the UI runs standalone in a normal browser (dev server). */
+async function openExternal(url) {
+  try {
+    if (window.__TAURI_INTERNALS__?.invoke) {
+      await window.__TAURI_INTERNALS__.invoke('plugin:opener|open_url', { url });
+      return;
+    }
+  } catch (_) { /* fall through to the browser fallback */ }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/* ── Logging ── */
+
+function addLog(message, isError = false) {
+  const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  state.logs.unshift({ time: now, msg: message, error: isError });
+  if (state.logs.length > MAX_LOG) state.logs.length = MAX_LOG;
+  renderLogs();
+}
+
+function renderLogs() {
+  const el = $('#logList');
+  if (!el) return;
+  el.innerHTML = state.logs.map(l =>
+    `<div class="log-entry${l.error ? ' error' : ''}"><span class="log-time">${escapeHTML(l.time)}</span><span class="log-msg">${escapeHTML(l.msg)}</span></div>`
+  ).join('');
+}
+
+/* ── Navigation ── */
+
+const VIEW_TITLES = { dashboard: '仪表盘', proxies: '接入点', settings: '设置' };
+const MODE_LABELS = { rule: '规则', global: '全局', direct: '直连' };
+
+function showView(view) {
+  if (view === state.activeView) return;
+  const oldView = $(`#${state.activeView}View`);
+  const newView = $(`#${view}View`);
+  if (!newView) return;
+
+  // Exit animation on old view
+  if (oldView) {
+    oldView.classList.add('exiting');
+    oldView.addEventListener('animationend', () => {
+      oldView.classList.remove('active', 'exiting');
+    }, { once: true });
+  }
+
+  // Enter new view after short delay
+  setTimeout(() => {
+    newView.classList.add('active');
+    state.activeView = view;
+    $('#pageTitle').textContent = VIEW_TITLES[view] || view;
+    // FABs are window-anchored: proxy toggle on dashboard, delay test on proxies
+    $('#proxyToggle')?.classList.toggle('visible', view === 'dashboard');
+    $('#delayTestFab')?.classList.toggle('visible', view === 'proxies');
+    // 刚显示出来的 FAB 尺寸从 0 变成实际值，库只会重设 canvas 尺寸、不会重绘，
+    // 必须主动标脏，否则要等鼠标悬停（button 模式）才会出现玻璃
+    if (bgState.liquidGlass) kickGlassRefresh();
+  }, oldView ? 80 : 0);
+
+  // Update nav highlighting immediately
+  $$('.nav-item[data-view]').forEach(item => {
+    item.classList.toggle('active', item.dataset.view === view);
+  });
+  // 玻璃滑块跟到新的选中项（与官网 tab 指示器同样的滑动动画）
+  syncRailIndicator(true);
+}
+
+/* ── Proxy Toggle ── */
+
+// FAB icons (hand-drawn, single-color currentColor so they follow the theme
+// and dynamic color): rounded play triangle / rounded square.
+const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="9.1,5.6 17.9,12 9.1,18.4" fill="currentColor" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round"/></svg>';
+const ICON_STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3.5"/></svg>';
+// 窗口「还原」态图标。字体子集里没有 filter_none（会渲染成字母碎片），
+// 这里手绘成两个错位方框，形状与 Material 的 filter_none 一致。
+const ICON_RESTORE = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<rect x="4.6" y="8.6" width="10.8" height="10.8" rx="1.9" fill="none" stroke="currentColor" stroke-width="2.4"/>'
+  + '<path d="M8.6 8.6V6.5A1.9 1.9 0 0 1 10.5 4.6h7A1.9 1.9 0 0 1 19.4 6.5v7a1.9 1.9 0 0 1-1.9 1.9h-2.1" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>'
+  + '</svg>';
+
+// FAB 文案改为普通 <span class="fab-label">（md-fab 已替换为普通 button）。
+// 注意：给普通 button 赋 fab.label 属性是无效的——文案必须写进 span，
+// 否则「启动中…」结束后没有任何代码能把按钮文字恢复回来（卡死根因）。
+function setFabLabel(text) {
+  fabLabel($('#proxyToggle'), text);
+}
+
+// 通用 FAB 文案写入：任何带 .fab-label span 的按钮都走这里。
+function fabLabel(fab, text) {
+  const label = fab?.querySelector('.fab-label');
+  if (label) label.textContent = text;
+}
+
+function setRunning(running) {
+  state.proxyRunning = running;
+  const fab = $('#proxyToggle');
+  const icon = $('#toggleIcon');
+
+  if (icon) icon.innerHTML = running ? ICON_STOP : ICON_PLAY;
+  // 启停进行中（启动中…/停止中…）不让 3s 轮询抢回按钮文字
+  if (fab && !state.transition) setFabLabel(running ? '停止免流' : '启动免流');
+  fab?.classList.toggle('running', running);
+  // 停止后 mihomo 已退出，接入点列表再无数据来源 → 立即清空回空态
+  //（覆盖 FAB 停止、停止并退出、轮询检测到已停止、helper 断开四条路径）
+  if (!running) clearProxyList();
+}
+
+// FAB 过渡态文案（检测中…/启动中…）。手动路径由点击处理器驱动，自动启动
+// 此前全程不动按钮——整个过程停在「启动免流」，看起来像没反应。transition
+// 同时挡住 3s 轮询 setRunning 把文字抢回「启动免流/停止免流」。
+function fabPhase(text) {
+  const fab = $('#proxyToggle');
+  if (!fab) return;
+  state.transition = 'starting';
+  setFabLabel(text);
+}
+
+// 交还过渡态：按最终运行状态定形按钮（自动启动成功/失败/放弃、自动运行
+// 开关被关掉时调用）。手动路径由点击处理器的 finally 自行恢复，不走这里。
+function fabDone() {
+  state.transition = null;
+  const fab = $('#proxyToggle');
+  if (fab) setFabLabel(state.proxyRunning ? '停止免流' : '启动免流');
+}
+
+function updateConnectionChip(online) {
+  const chip = $('#connectionChip');
+  const dot = $('#headerDot');
+  const headerStatus = $('#headerStatus');
+  if (!chip) return;
+  const ready = online && state.runtimePresent;
+  chip.classList.toggle('connected', ready);
+  dot.classList.toggle('live', ready);
+  if (!online) {
+    headerStatus.textContent = '核心未连接';
+  } else if (!state.runtimePresent) {
+    headerStatus.textContent = '需要下载核心';
+  } else {
+    headerStatus.textContent = '核心已就绪';
+  }
+}
+
+/* ── start ── */
+
+// core detect → IPv6 gatekeeper → /proxy/start。
+// output { ok: true } or { ok: false, reason, message, detail }：
+//   core    no runtime core detected
+//   offline no internet
+//   net     not cernet2 IPv6
+//   busy    last start still in progress
+//   api     /proxy/start failed
+// auto=true
+let startFlowBusy = false;
+let startFlowSettled = Promise.resolve(); // 上一次启动流程结束的信号（手动接管等待用）
+async function startProxyFlow(auto = false) {
+  if (startFlowBusy) return { ok: false, reason: 'busy', message: '启动流程正在进行' };
+  if (!state.helperOnline) return { ok: false, reason: 'helper', message: 'helper 未连接' };
+  startFlowBusy = true;
+  let release;
+  startFlowSettled = new Promise((resolve) => { release = resolve; });
+  try {
+    // core detect: fehlen → hint download
+    // 核心与 IPv6 检测阶段按钮显示「检测中…」（auto 同样走这套反馈）
+    fabPhase('检测中…');
+    try {
+      const runtime = await api('/runtime');
+      state.runtimePresent = Boolean(runtime.present);
+      state.runtimeChecked = true;
+    } catch (_) { /* 保持上次已知状态 */ }
+    updateConnectionChip(state.helperOnline);
+    if (!state.runtimePresent) return { ok: false, reason: 'core', message: '未检测到运行核心' };
+
+    // IPv6 gate: only works on campus IPv6. Developer mode skips it.
+    if (!state.devMode) {
+      if (!auto) addLog('检测本机 IPv6…');
+      let ip = '';
+      let detail = '';
+      try {
+        ip = await detectPublicIPv6();
+      } catch (e) {
+        detail = `（检测失败: ${e.message}）`;
+      }
+      if (!ip) {
+        return { ok: false, reason: 'offline', message: `IPv6 检测失败${detail}`, detail };
+      }
+      if (!isInCampusIPv6(ip)) {
+        return { ok: false, reason: 'net', message: `当前网络不支持免流${detail}`, detail };
+      }
+      if (!auto) addLog(`IPv6 检测通过: ${ip}`);
+    } else if (!auto) {
+      addLog('开发者模式：跳过 IPv6 检测');
+    }
+
+    let started;
+    try {
+      // 热点共享开启时，WinRT 切换会重启移动热点（热点短暂断开是预期行为），
+      // 在请求发出前先说明，用户看到热点掉线时不会误以为是故障。
+      if (state.hotspotShare) addLog('热点共享：正在切换，移动热点将短暂重启');
+      fabPhase('启动中…');
+      started = await api('/proxy/start', { method: 'POST', body: JSON.stringify({ mode: state.mode, campusCidrs: state.cidrs, devMode: state.devMode }) });
+    } catch (e) {
+      return { ok: false, reason: 'api', message: e.message, code: e.code };
+    }
+    setRunning(true);
+    // 启动响应携带本轮渲染所用的 controller secret，先于下一次 /status
+    // 轮询就位，紧随其后的流量/节点请求即可带上 Bearer
+    if (typeof started.controllerSecret === 'string') state.controllerSecret = started.controllerSecret;
+    reportHotspotResult(started?.hotspot, auto);
+    addLog(auto ? '自动启动免流成功' : '免流模式已启动');
+    autoDelayTestAfterStart();
+    return { ok: true };
+  } finally {
+    startFlowBusy = false;
+    release();
+  }
+}
+
+// /proxy/start 响应里的热点共享结果（非阻断）：成功/未开热点记普通日志，
+// 失败记错误日志并展开日志界面（自动启动时先把主窗口叫出来）。
+function reportHotspotResult(hs, auto = false) {
+  if (!hs) return;
+  if (hs.applied) {
+    state.hotspotActive = true;
+    // restarted（WinRT 路径）会重启热点，明确记入日志；经典路径只切共享角色。
+    addLog(hs.restarted ? '已重启移动热点，共享已生效' : '已将移动热点切换到代理出口');
+    return;
+  }
+  if (hs.reason === 'not-running') {
+    addLog('未检测到移动热点，共享跳过');
+    return;
+  }
+  if (hs.reason === 'failed') {
+    addLog(`热点共享失败: ${hs.error || '未知错误'}`, true);
+    if (auto) tauriInvoke('window_show');
+    $('#logDrawer')?.classList.add('open');
+    $('#scrim')?.classList.add('open');
+  }
+  // disabled → 静默
+}
+
+// 手动启动失败：按原因给出引导弹窗与日志（自动运行的失败见 autoRunFail）
+function reportStartFailure(res) {
+  if (res.reason === 'core') {
+    showCoreDialog();
+    addLog('启动已取消：未检测到运行核心，请先下载', true);
+  } else if (res.reason === 'net' || res.reason === 'offline') {
+    showNetGateDialog();
+    addLog(`启动已取消：当前网络不支持免流${res.detail || ''}`, true);
+  } else {
+    addLog(`操作失败: ${res.message}`, true);
+    // 端口被占（其他/残留的代理软件或上次的 mihomo）：toast 给可执行的指引
+    if (res.code === 'port-conflict') showToast('请关闭并退出其他代理软件', 'error');
+    // 凭据缺失（warp.json 不存在/损坏）：与注册失败同款 引导弹窗
+    if (res.code === 'warp-missing') {
+      showToast('接入凭据注册失败', 'error');
+      openWarpFailDialog(res.message);
+    }
+    // 公告把备用配置关了（或没拿到公告）：出口不可用，引导去关掉备用配置
+    if (res.code === 'cloud-locked') {
+      showToast('备用配置当前未开放，请在设置中改用其他出口', 'error');
+    }
+  }
+}
+
+/* ── 自动运行免流 (设置 → 通用) ──────────────────────────────── */
+
+// 开关打开后：软件被打开（helper 首次连上）即自动尝试启动免流。开机自启动
+// 常落在网络就绪之前，因此离线 / IPv6 探测失败 / 接入凭据未注册都视为
+// “时机未到”，监听 online 事件并按间隔重试；核心缺失、非校园网、启动接口
+// 报错等确定性失败才弹出主窗口交给用户处理。
+// 每个会话只走一轮：启动成功、失败或用户手动接管（FAB 启动/停止）后不再自动尝试。
+const autoRun = { armed: false, done: false, startupHandled: false, tries: 0, offlineTries: 0, regTries: 0, timer: null, lastWhy: '' };
+const AUTO_RUN_RETRY_MS = 5000;
+const AUTO_RUN_MAX_TRIES = 60;       // 短预算：已联网但接口/凭据类瞬态未就绪（≈5 分钟）
+const AUTO_RUN_MAX_OFFLINE = 120;    // 长预算：开机冷启动「时机未到」类（≈10 分钟）
+const AUTO_RUN_MAX_REG_TRIES = 3;    // WARP 凭据自动补注册次数
+
+function disarmAutoRun() {
+  autoRun.armed = false;
+  if (autoRun.timer) {
+    clearTimeout(autoRun.timer);
+    autoRun.timer = null;
+  }
+}
+
+function scheduleAutoRun(delay) {
+  if (!autoRun.armed) return;
+  if (autoRun.timer) clearTimeout(autoRun.timer);
+  autoRun.timer = setTimeout(() => {
+    autoRun.timer = null;
+    runAutoStart().catch((e) => autoRunFail({ reason: 'api', message: e.message, code: e.code }));
+  }, delay);
+}
+
+// helper 首次连上（即“软件被打开”）时判断一次：开关已开且免流未运行则排队自动启动。
+// 本次会话只认这一次（startupHandled）——中途打开开关不立即启动，按需求要等到
+// 下次打开软件才生效；helper 晚些才连上也没问题，首次连上时仍会排队。
+function maybeArmAutoRun() {
+  if (autoRun.startupHandled) return;
+  if (!state.helperOnline) return; // helper 未就绪，等下一次连上再判断
+  autoRun.startupHandled = true;
+  if (!state.autoRunProxy) return;
+  if (state.proxyRunning) { autoRun.done = true; return; }
+  if (autoRun.armed || autoRun.done) return;
+  autoRun.armed = true;
+  autoRun.tries = 0;
+  autoRun.offlineTries = 0;
+  autoRun.regTries = 0;
+  autoRun.lastWhy = '';
+  addLog('自动运行免流已就绪');
+  // 自动启动期间按钮给过渡态反馈（排队/重试等待显示「启动中…」）
+  fabPhase('启动中…');
+  scheduleAutoRun(1200);
+}
+
+function autoRunRetry(why, long = false) {
+  // long = 开机冷启动「时机未到」类（完全离线 / 无校园 IPv6）：走 10 分钟
+  // 长预算。不能只看 navigator.onLine——L2 一连上它就是 true，而校园 v6
+  // 前缀往往还要再等几分钟，5 分钟短预算会在网络真正就绪前把自动启动判死。
+  if (navigator.onLine && !long) {
+    autoRun.tries += 1;
+    if (autoRun.tries > AUTO_RUN_MAX_TRIES) {
+      autoRunFail({ reason: 'timeout', message: `自动启动免流超时：${why}` });
+      return;
+    }
+  } else {
+    // 长预算计数，online 事件仍会立即触发重试
+    autoRun.tries = 0;
+    autoRun.offlineTries += 1;
+    if (autoRun.offlineTries > AUTO_RUN_MAX_OFFLINE) {
+      autoRunFail({ reason: 'timeout', message: `自动启动免流超时：${why}` });
+      return;
+    }
+  }
+  // 只在原因变化或每 6 次（≈30 秒）记一条，避免刷屏
+  if (why !== autoRun.lastWhy ||
+      (autoRun.tries > 0 && autoRun.tries % 6 === 0) ||
+      (autoRun.offlineTries > 0 && autoRun.offlineTries % 6 === 0)) {
+    autoRun.lastWhy = why;
+    addLog(`自动运行免流：${why}，稍后重试`);
+  }
+  // 重试等待期间按钮保持「启动中…」（不落回「启动免流」闪来闪去）
+  fabPhase('启动中…');
+  scheduleAutoRun(AUTO_RUN_RETRY_MS);
+}
+
+// 确定性失败：记日志、弹出主窗口，并给出能解释原因的界面
+async function autoRunFail(res) {
+  disarmAutoRun();
+  autoRun.done = true;
+  fabDone(); // 自动启动结束：按钮定形回「启动免流」
+  if (!state.autoRunProxy) return; // 期间被用户关掉 → 不再打扰
+  addLog(`自动启动免流失败：${res.message}`, true);
+  if (res.code === 'port-conflict') showToast('请关闭并退出其他代理软件', 'error');
+  try { await tauriInvoke('window_show'); } catch (_) { /* 浏览器预览无宿主 */ }
+  if (res.reason === 'core') {
+    showCoreDialog();
+  } else if (res.reason === 'net') {
+    showNetGateDialog();
+  } else {
+    // 没有专用弹窗：直接展开日志，让用户看到失败原因
+    $('#logDrawer')?.classList.add('open');
+    $('#scrim')?.classList.add('open');
+  }
+}
+
+async function runAutoStart() {
+  if (!autoRun.armed || !state.autoRunProxy) { disarmAutoRun(); return; }
+  if (state.proxyRunning) { disarmAutoRun(); autoRun.done = true; fabDone(); return; }
+  if (!state.helperOnline) { autoRunRetry('helper 未连接'); return; }
+  if (!navigator.onLine) { autoRunRetry('等待网络恢复', true); return; }
+  // /proxy/start 依赖 state/warp.json：凭据注册失败（多因网络未就绪）时按重试兜底，
+  // 但只自动补注册有限次，避免反复打 Cloudflare。备用配置可用时不吃这条依赖。
+  if (!state.warpRegistered && !cloudReady()) {
+    if (!state.warpRegistering && autoRun.regTries < AUTO_RUN_MAX_REG_TRIES) {
+      autoRun.regTries += 1;
+      registerWarp(true); // 不阻塞等待，成败交给下一轮
+    }
+    // 注册在途也计入重试，保证整轮自动启动有上限（不会无限等下去）
+    autoRunRetry(state.warpRegistering ? '接入凭据注册中' : '接入凭据未就绪');
+    return;
+  }
+  const res = await startProxyFlow(true);
+  // 期间被手动接管（FAB 点击已 disarm）→ 不再重试、也不再定形按钮/弹窗，
+  // 交由手动流程接管。
+  if (!autoRun.armed) return;
+  if (res.ok) {
+    disarmAutoRun();
+    autoRun.done = true;
+    fabDone(); // 成功：按钮定形「停止免流」（setRunning 的文案被过渡态挡住）
+    return;
+  }
+  // 开机冷启动的「时机未到」用长预算重试：v6 探测失败、此刻 v6 尚非校园
+  // 前缀（网卡半就绪的瞬态假象）都不该一击致命地弹窗放弃。
+  if (res.reason === 'offline' || res.reason === 'net') {
+    autoRunRetry(res.message, true);
+    return;
+  }
+  if (res.reason === 'busy' || res.reason === 'helper') {
+    autoRunRetry(res.message);
+    return;
+  }
+  if (res.reason === 'api') {
+    // 端口被占是确定性失败，直接弹提示；其余接口错误（快照抖动、
+    // WaitReady 超时、开机 IO 风暴下的偶发 500）都视为瞬态重试。
+    if (res.code === 'port-conflict') {
+      await autoRunFail(res);
+      return;
+    }
+    autoRunRetry(`启动接口异常：${res.message}`);
+    return;
+  }
+  await autoRunFail(res);
+}
+
+/* ── IPv6 gate (启动免流前检测) ─────────────────────────────── */
+
+// Campus prefixes allowed to run 免流, as /32 first-two-hextet fingerprints:
+// 2001:da8::/32 (CERNET2) and 2001:250::/32.
+const MIULIU_IPV6_PREFIX32 = [[0x2001, 0x0da8], [0x2001, 0x0250]];
+
+// Expand an IPv6 literal to its 8 hextets, or null when unparsable.
+function expandIPv6(ip) {
+  const cleaned = String(ip).trim().split('%')[0].toLowerCase();
+  if (!/^[0-9a-f:]+$/.test(cleaned) || !cleaned.includes(':')) return null;
+  const halves = cleaned.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  let groups;
+  if (halves.length === 2) {
+    const fill = 8 - head.length - tail.length;
+    if (fill < 1) return null; // '::' must stand for at least one group
+    groups = [...head, ...Array(fill).fill('0'), ...tail];
+  } else {
+    groups = head;
+    if (groups.length !== 8) return null;
+  }
+  if (groups.length !== 8) return null;
+  const nums = groups.map((g) => (/^[0-9a-f]{1,4}$/.test(g) ? parseInt(g, 16) : NaN));
+  return nums.some(Number.isNaN) ? null : nums;
+}
+
+function isInCampusIPv6(ip) {
+  const groups = expandIPv6(ip);
+  if (!groups) return false;
+  return MIULIU_IPV6_PREFIX32.some(([a, b]) => groups[0] === a && groups[1] === b);
+}
+
+// Ask a public echo service for this machine's IPv6 (CORS: * verified).
+async function detectPublicIPv6(timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch('https://api-ipv6.ip.sb/ip', { signal: controller.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return (await resp.text()).trim();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function showNetGateDialog() {
+  $('#netDialogScrim')?.classList.add('open');
+}
+
+function closeNetGateDialog() {
+  $('#netDialogScrim')?.classList.remove('open');
+}
+
+/* ── Missing core (启动免流前的下载引导) ────────────────────── */
+
+function showCoreDialog() {
+  const dl = $('#coreDialogDownload');
+  if (dl) { dl.disabled = false; dl.textContent = '下载'; }
+  renderCoreDownloadProgress(0, false); // 复位上次残留的进度态
+  $('#coreDialogScrim')?.classList.add('open');
+}
+
+function closeCoreDialog() {
+  $('#coreDialogScrim')?.classList.remove('open');
+}
+
+/* ── Quit confirm (tray 退出) ──────────────────────────────── */
+
+function openQuitDialog() {
+  $('#quitDialogScrim')?.classList.add('open');
+}
+
+function closeQuitDialog() {
+  $('#quitDialogScrim')?.classList.remove('open');
+}
+
+function openDevModeDialog() {
+  $('#devModeDialogScrim')?.classList.add('open');
+}
+
+function closeDevModeDialog() {
+  $('#devModeDialogScrim')?.classList.remove('open');
+}
+
+// 清除链式代理的确认弹窗（复用 net-dialog 提示样式，替代原生 confirm）
+function openChainClearDialog() {
+  $('#chainClearDialogScrim')?.classList.add('open');
+}
+
+function closeChainClearDialog() {
+  $('#chainClearDialogScrim')?.classList.remove('open');
+}
+
+/* ── 重置设置（设置 → 关于） ─────────────────────────────────────
+   恢复 settings.json 到默认值并清除已导入的链式代理，是恢复操作。
+   运行中的 mihomo 不受影响——弹窗会提示先停止免流。 */
+
+function openResetDialog() {
+  const hint = $('#resetStopHint');
+  if (hint) hint.hidden = !state.proxyRunning;
+  $('#resetDialogScrim')?.classList.add('open');
+}
+
+function closeResetDialog() {
+  $('#resetDialogScrim')?.classList.remove('open');
+}
+
+async function resetSettings() {
+  try {
+    await api('/settings/reset', { method: 'POST' });
+    addLog('设置已重置为默认值');
+    showToast('设置已重置');
+    // settings.json 已变 + chain-proxy.yaml 已删：两端都要重新同步
+    await refreshBackendState();
+    await refreshChainStatus();
+  } catch (e) {
+    addLog(`重置设置失败: ${e.message}`, true);
+    showToast('重置失败，请重试', 'error');
+  }
+}
+
+/* ── WARP 注册失败弹窗（重试 = 纯重新注册） ─────────────────── */
+
+function isWarpFailDialogOpen() {
+  return Boolean($('#warpFailDialogScrim')?.classList.contains('open'));
+}
+
+// body 显示实际错误（自动注册的 DNS 失败、启动时凭据缺失等都汇到这里）；
+// 重复打开只刷新内容（自动运行循环失败时不叠弹窗、不重复 toast）。
+function openWarpFailDialog(message) {
+  const body = $('#warpFailDialogBody');
+  if (body) {
+    const text = message || '注册接入凭据时出错，请检查网络后重试';
+    body.textContent = text.length > 90 ? `${text.slice(0, 89)}…` : text;
+  }
+  $('#warpFailDialogScrim')?.classList.add('open');
+}
+
+function closeWarpFailDialog() {
+  $('#warpFailDialogScrim')?.classList.remove('open');
+}
+
+// 重试 = 仅重新注册（用户已确认；不自动继续启动）。失败会再次进入
+// toast+弹窗循环，直到成功或用户取消。
+async function retryWarpRegistration() {
+  closeWarpFailDialog();
+  addLog('正在重试注册接入凭据…');
+  await registerWarp(false);
+}
+
+async function applyDevMode(next) {
+  const sw = $('#devModeSwitch');
+  const previous = state.devMode;
+  state.devMode = next;
+  if (sw) sw.selected = next;
+  const saved = await persistSettings();
+  if (!saved) {
+    state.devMode = previous;
+    if (sw) sw.selected = previous;
+    return;
+  }
+  updateSettingsUI();
+  addLog(next ? '开发者模式已开启' : '开发者模式已关闭');
+  notifyEffectiveNextStart(saved); // 运行中改动要重启免流才生效
+}
+
+// Stop 免流 first, then quit — a failed stop keeps the app open so the
+// error stays visible instead of quitting over a broken state.
+async function stopAndQuit() {
+  closeQuitDialog();
+  try {
+    await stopProxyApi();
+    setRunning(false);
+    addLog('免流模式已停止');
+  } catch (e) {
+    addLog(`停止免流失败: ${e.message}`, true);
+    return;
+  }
+  await tauriInvoke('app_quit');
+}
+
+function quitDirectly() {
+  closeQuitDialog();
+  tauriInvoke('app_quit').then(() => {
+    if (!(window.__TAURI__?.core || window.__TAURI_INTERNALS__)) {
+      addLog('浏览器预览环境无法退出应用', true);
+    }
+  });
+}
+
+// Called by main.rs (webview.eval) when tray 退出 is clicked — works with
+// the window hidden. 免流 running → un-hide and ask: mihomo is an
+// independent TUN process that keeps接管流量 after the app exits.
+async function handleTrayQuit() {
+  if (state.proxyRunning) {
+    await tauriInvoke('window_show');
+    openQuitDialog();
+    return;
+  }
+  quitDirectly();
+}
+window.handleTrayQuit = handleTrayQuit;
+
+/* ── First-run guide (欢迎引导) ─────────────────────────────── */
+
+const GUIDE_DONE_KEY = 'freev6-guide-done';
+const GUIDE_PAGE_COUNT = 2;
+// 标题显示在 hero 里，随页切换
+const GUIDE_TITLES = ['欢迎使用 FreeV6', '使用说明与反馈'];
+let guidePage = 0;
+
+// 老版本（引导功能上线前）每次启动都会写 freev6-theme / freev6-skip-version 等键。
+// 本常量在 app.js 解析时求值，早于 init() → loadSavedTheme() 的写入，因此：
+//   有旧痕迹 ⇒ 覆盖安装的老用户 ⇒ 不再显示引导（并补写 GUIDE_DONE_KEY）；
+//   无痕迹  ⇒ 全新安装 ⇒ 显示引导。升级安装不会重弹。
+const HAD_PRIOR_STORAGE = (() => {
+  try {
+    return ['freev6-theme', 'freev6-skip-version', 'freev6-dynamic-color', 'freev6-pure-black']
+      .some((key) => localStorage.getItem(key) !== null);
+  } catch (_) { return false; }
+})();
+
+function renderGuide() {
+  // 横向轨道：每页占轨道 50%，位移 -50% 即前进一页
+  const track = $('#guideTrack');
+  if (track) track.style.transform = `translateX(-${guidePage * 50}%)`;
+  const title = $('#guideHeroTitle');
+  if (title) title.textContent = GUIDE_TITLES[guidePage] || GUIDE_TITLES[0];
+  $$('#guideDots .guide-dot').forEach((d, i) => d.classList.toggle('active', i === guidePage));
+  // 最后一页：翻页按钮变成「开始使用」
+  const next = $('#guideNext');
+  if (next) next.textContent = guidePage >= GUIDE_PAGE_COUNT - 1 ? '开始使用' : '继续';
+}
+
+function openGuide() {
+  guidePage = 0;
+  renderGuide();
+  $('#guideScrim')?.classList.add('open');
+}
+
+function closeGuide() {
+  $('#guideScrim')?.classList.remove('open');
+}
+
+// 翻页；到最后一页再点 → 记录已读并关闭（条款只能通过按钮同意）
+function advanceGuide() {
+  if (guidePage < GUIDE_PAGE_COUNT - 1) {
+    guidePage += 1;
+    renderGuide();
+    return;
+  }
+  try { localStorage.setItem(GUIDE_DONE_KEY, '1'); } catch (_) { /* ignore */ }
+  closeGuide();
+}
+
+function guideSeen() {
+  try {
+    if (localStorage.getItem(GUIDE_DONE_KEY) === '1') return true;
+    // 升级安装（老用户）：直接补写标记，之后统一走 GUIDE_DONE_KEY
+    if (HAD_PRIOR_STORAGE) {
+      localStorage.setItem(GUIDE_DONE_KEY, '1');
+      return true;
+    }
+  } catch (_) { /* ignore */ }
+  return false;
+}
+
+// URL 带 ?guide 或 #guide 时强制重看，便于预览/演示
+function guideForced() {
+  return new URLSearchParams(location.search).has('guide') || location.hash === '#guide';
+}
+
+/* ── Update (GitHub release check + in-app install) ──────────── */
+
+const UPDATE_OWNER_REPO = 'study-233/free-v6';
+const SKIP_VERSION_KEY = 'freev6-skip-version';
+const GITHUB_PROXY = 'https://gh-proxy.com/';
+
+// 大陆访问加速：请求前部拼接代理前缀；已是代理地址则不重复拼接。
+function proxiedGitHub(url) {
+  return url.startsWith(GITHUB_PROXY) ? url : GITHUB_PROXY + url;
+}
+
+// Version source: the 关于 row (kept in sync with tauri.conf.json / Cargo.toml
+// by the release workflow's tag-version guard).
+function currentAppVersion() {
+  const m = /v(\d+\.\d+\.\d+)/.exec($('#versionValue')?.textContent || '');
+  return m ? m[1] : '';
+}
+
+function cmpVersion(a, b) {
+  const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  }
+  return 0;
+}
+
+function renderUpdateBadge() {
+  const badge = $('#updateBadge');
+  if (!badge) return;
+  if (state.updateInfo) {
+    badge.textContent = `有新版本 v${state.updateInfo.version}`;
+    badge.hidden = false;
+    $('#versionItem')?.classList.add('clickable');
+  } else {
+    badge.hidden = true;
+    $('#versionItem')?.classList.remove('clickable');
+  }
+}
+
+// 版本信息来自 release 里的 version.json（稳定地址 releases/latest/download，
+// 只命中正式版），由 helper 代理获取——完全绕开 api.github.com（共享配额会
+// 间歇403），且 helper 侧无 CORS 问题。所有失败静默：离线、私有仓库(404)、
+// 代理/直连都不可用都不阻塞启动。
+async function checkForUpdate(autoOpen = true) {
+  try {
+    const res = await api('/update/latest');
+    if (!res?.update) {
+      state.updateInfo = null;
+      renderUpdateBadge();
+      return null;
+    }
+    const remote = String(res.version || '').trim();
+    const current = currentAppVersion();
+    if (!/^\d+\.\d+\.\d+/.test(remote) || !current || cmpVersion(remote, current) <= 0) {
+      state.updateInfo = null;
+      renderUpdateBadge();
+      return null;
+    }
+    state.updateInfo = {
+      version: remote,
+      url: res.download,
+      sha: /^[0-9a-f]{64}$/i.test(res.sha256 || '') ? res.sha256 : '',
+      notes: res.notes || '',
+      htmlUrl: `https://github.com/${UPDATE_OWNER_REPO}/releases/tag/${encodeURIComponent(res.tag || `v${remote}`)}`,
+    };
+    renderUpdateBadge();
+    if (autoOpen && localStorage.getItem(SKIP_VERSION_KEY) !== remote) openUpdateDialog();
+    return state.updateInfo;
+  } catch (_) {
+    return null;
+  }
+}
+
+function updateBusy() {
+  return ['downloading', 'stopping', 'applying'].includes(state.updatePhase);
+}
+
+function openUpdateDialog() {
+  const info = state.updateInfo;
+  if (!info || updateBusy()) return;
+  $('#updateTitle').textContent = `发现新版本 v${info.version}`;
+  $('#updateCurrent').textContent = `当前版本 v${currentAppVersion() || '-'} → v${info.version}`;
+  const section = (info.notes.split(/\n---\n/)[0] || '')
+    .replace(/^##\s*\[[^\]]+\][^\n]*\n?/, '')
+    .trim();
+  $('#updateNotes').textContent = section || '打开 Release 页面查看更新内容。';
+  $('#updateStopHint').hidden = !state.proxyRunning;
+  setUpdatePhase('ready');
+  $('#updateDialogScrim').classList.add('open');
+}
+
+function closeUpdateDialog() {
+  if (updateBusy()) return; // 下载/安装进行中不允许关闭
+  state.updatePhase = null;
+  $('#updateDialogScrim').classList.remove('open');
+}
+
+function setUpdatePhase(phase) {
+  state.updatePhase = phase === 'ready' ? null : phase;
+  $('#updateActions').hidden = phase !== 'ready';
+  $('#updateErrorActions').hidden = phase !== 'error';
+  $('#updateProgress').hidden = phase !== 'downloading';
+  $('#updateStatus').hidden = phase === 'ready';
+}
+
+function setUpdateStatus(text) {
+  const el = $('#updateStatus');
+  if (el) el.textContent = text;
+}
+
+function updateFailed(msg) {
+  setUpdatePhase('error');
+  setUpdateStatus(msg);
+  addLog(`更新失败: ${msg}`, true);
+}
+
+// Poll the helper's download progress while the request runs in background.
+async function pollUpdateProgress() {
+  for (let i = 0; i < 2000; i++) { // up to ~10 min
+    await new Promise((r) => setTimeout(r, 300));
+    let p;
+    try {
+      p = await api('/update/progress');
+    } catch (_) {
+      continue;
+    }
+    if (p.state === 'downloading') {
+      const done = p.done || 0;
+      const total = p.total > 0 ? p.total : 0;
+      if (total > 0) {
+        const pct = Math.min(100, Math.floor((done * 100) / total));
+        const spin = $('#updateSpinner');
+        if (spin) spin.value = pct;
+        $('#updatePercentText').textContent = `${pct}%`;
+      } else {
+        $('#updatePercentText').textContent = `${(done / 1048576).toFixed(1)} MB`;
+      }
+      continue;
+    }
+    if (p.state === 'done' && p.path) return p;
+    state.updateError = p.state === 'error' ? (p.error || '下载失败') : '下载状态异常';
+    return null;
+  }
+  state.updateError = '下载超时';
+  return null;
+}
+
+// 立即更新：下载 → (自动)停止兔流 → 干净退出并交给静默安装器。
+async function startUpdate() {
+  const info = state.updateInfo;
+  if (!info || updateBusy()) return;
+  if (!state.helperOnline) {
+    updateFailed('helper 未连接，无法更新');
+    return;
+  }
+  setUpdatePhase('downloading');
+  setUpdateStatus(info.sha ? '正在下载安装包…' : '正在下载安装包…（未附 SHA256，跳过校验）');
+  let prog;
+  try {
+    const ack = await api('/update/download', {
+      method: 'PUT',
+      body: JSON.stringify({ url: proxiedGitHub(info.url), sha256: info.sha }),
+    });
+    if (!ack?.ok) throw new Error(ack?.error || '下载任务创建失败');
+    prog = await pollUpdateProgress();
+  } catch (e) {
+    updateFailed(`下载失败: ${e.message}`);
+    return;
+  }
+  if (!prog) {
+    updateFailed(state.updateError || '下载失败');
+    return;
+  }
+  if (state.proxyRunning) {
+    setUpdatePhase('stopping');
+    setUpdateStatus('正在停止免流…');
+    try {
+      await stopProxyApi();
+      setRunning(false);
+    } catch (e) {
+      updateFailed(`停止免流失败: ${e.message}，更新已中止`);
+      return;
+    }
+  }
+  setUpdatePhase('applying');
+  setUpdateStatus('正在安装新版本并重启…');
+  let applied;
+  try {
+    applied = await tauriInvoke('update_apply', { installer: prog.path });
+  } catch (e) {
+    updateFailed(`启动安装器失败: ${e.message}`);
+    return;
+  }
+  if (applied !== 'ok') {
+    updateFailed('浏览器预览环境无法安装更新');
+    return;
+  }
+  addLog(`更新到 v${info.version}：安装器已启动，应用即将退出并重启`);
+}
+
+/* ── Mode Selector ────────────────────────────────────────────── */
+
+function setMode(mode, persist = true, silent = false) {
+  if (mode === state.mode && silent) return;
+  const changed = mode !== state.mode;
+  state.mode = mode;
+  // Sync settings page segmented chips (md-filter-chip)
+  $$('#settingsModeGroup .setting-seg').forEach(seg => {
+    seg.selected = seg.dataset.mode === mode;
+  });
+  if (!silent) addLog(`切换为${MODE_LABELS[mode] || mode}模式`);
+  // 运行中切换模式要重启免流才生效 → 保存成功后轻提醒
+  if (persist) persistSettings().then(saved => { if (changed) notifyEffectiveNextStart(saved); });
+}
+
+// 设置写入代数。PUT /settings 发出时 +1、落定（成功/失败）时再 +1；任何
+// 在写入开始前发出、写入落定前返回的 /status 响应都会对不上代数，其
+// settings 字段整块丢弃。helper 的 /status 每次要拉起 PowerShell 查管理员
+// 权限（数百 ms），这种慢响应携带的还是写入前的旧值——若照单全收，刚拨好
+// 的开关会被旧值拨回去，表现就是「自动运行免流按钮不显示状态切换」。
+let settingsWriteGen = 0;
+
+function persistSettings() {
+  // 失败统一走这里：日志 + 红叉 toast + 隔一个宏任务才返回 false。
+  // helper 离线时的失败发生在微任务里，若同步返回调用方会立刻拨回开关，
+  // 浏览器一帧都没画过——用户看不到任何「状态切换」，像按钮没反应。
+  // 让出一个宏任务，乐观状态至少成像一帧再落回，配合 toast 说清原因。
+  const fail = (message) => {
+    addLog(message, true);
+    showToast(message, 'error');
+    return new Promise((resolve) => setTimeout(() => resolve(false), 0));
+  };
+  if (!state.helperOnline) return fail('helper 未连接，设置未保存');
+  settingsWriteGen += 1;
+  return api('/settings', { method: 'PUT', body: JSON.stringify({ mode: state.mode, campusCidrs: state.cidrs, devMode: state.devMode, autoStart: state.autoStart, silentStart: state.silentStart, autoRunProxy: state.autoRunProxy, hotkeyEnabled: state.hotkeyEnabled, hotspotShare: state.hotspotShare, chainEnabled: state.chain.enabled, cloudEnabled: state.cloud.enabled }) })
+    .then(() => { settingsWriteGen += 1; addLog('设置已保存'); return true; })
+    .catch((e) => { settingsWriteGen += 1; return fail(`保存设置失败: ${e.message}`); });
+}
+
+/* ── Settings save feedback (toast) ─────────────────────────── */
+
+let toastTimer = null;
+
+function showToast(message, type = 'success') {
+  const el = $('#toast');
+  const text = $('#toastText');
+  const icon = el?.querySelector('.toast-icon');
+  if (!el || !text) return;
+  text.textContent = message;
+  // 失败提示用红叉（Material Symbols 的 close 字形），成功保持绿勾；
+  // md-icon 的字形来自 light DOM 文本，textContent 直接换字形即可。
+  if (icon) icon.textContent = type === 'error' ? 'close' : 'check_circle';
+  el.classList.toggle('toast-error', type === 'error');
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// 免流运行中，模式 / 绕过白名单 / 开发者模式的改动要重启免流才生效；
+// 保存成功后弹轻提醒。未在运行时这些设置本就即时生效，不打扰。
+function notifyEffectiveNextStart(saved) {
+  if (saved && state.proxyRunning) showToast('已保存，将在下次启动免流时生效');
+}
+
+/* ── Traffic Chart (Canvas) ───────────────────────────────────── */
+
+let chartCtx = null;
+let chartW = 0, chartH = 0;
+
+function initChart() {
+  const canvas = $('#trafficCanvas');
+  if (!canvas) return;
+  chartCtx = canvas.getContext('2d');
+  resizeChart();
+  window.addEventListener('resize', resizeChart);
+}
+
+function resizeChart() {
+  const canvas = $('#trafficCanvas');
+  if (!canvas) return;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  chartW = rect.width;
+  chartH = rect.height;
+  canvas.width = chartW * dpr;
+  canvas.height = chartH * dpr;
+  canvas.style.width = chartW + 'px';
+  canvas.style.height = chartH + 'px';
+  chartCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawChart();
+}
+
+function drawChart() {
+  if (!chartCtx) return;
+  const ctx = chartCtx;
+  const data = state.trafficHistory;
+  const len = data.length;
+
+  ctx.clearRect(0, 0, chartW, chartH);
+
+  if (len < 2) {
+    // Empty state
+    ctx.fillStyle = 'rgba(160,196,255,.08)';
+    ctx.fillRect(0, 0, chartW, chartH);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--md-outline').trim() || '#8e9099';
+    ctx.font = '12px "DM Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('等待流量数据', chartW / 2, chartH / 2 + 4);
+    return;
+  }
+
+  // Find max for scaling
+  let maxVal = 1024; // minimum 1KB/s scale
+  for (const d of data) {
+    if (d.up > maxVal) maxVal = d.up;
+    if (d.down > maxVal) maxVal = d.down;
+  }
+  maxVal *= 1.2; // headroom
+
+  const stepX = chartW / (TRAFFIC_POINTS - 1);
+  const getStyle = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  const primary = getStyle('--md-primary') || '#a0c4ff';
+  const secondary = getStyle('--md-secondary') || '#bac8db';
+
+  // Convert to RGB for alpha
+  function toRGBA(hex, a) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function drawSeries(field, color, alpha) {
+    const firstX = (TRAFFIC_POINTS - len) * stepX;
+    ctx.beginPath();
+    for (let i = 0; i < len; i++) {
+      const x = (TRAFFIC_POINTS - len + i) * stepX;
+      const y = chartH - (data[i][field] / maxVal) * (chartH - 8) - 2;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.lineTo((TRAFFIC_POINTS - 1) * stepX, chartH);
+    ctx.lineTo(firstX, chartH);
+    ctx.closePath();
+    ctx.fillStyle = toRGBA(color, alpha);
+    ctx.fill();
+  }
+
+  drawSeries('up', secondary, 0.08);
+  drawSeries('down', primary, 0.06);
+}
+
+/* ── Stats Ring Chart ─────────────────────────────────────────── */
+
+function updateStatsRing() {
+  const total = state.totalUpload + state.totalDownload;
+  const circumference = 2 * Math.PI * 13.5; // ≈ 84.8
+  const uploadLen = total > 0 ? (state.totalUpload / total) * circumference : 0;
+  const downloadLen = total > 0 ? (state.totalDownload / total) * circumference : 0;
+
+  const uploadRing = $('#ringUpload');
+  const downloadRing = $('#ringDownload');
+
+  if (uploadRing) {
+    uploadRing.setAttribute('stroke-dasharray', `${uploadLen} ${circumference - uploadLen}`);
+    uploadRing.setAttribute('transform', `rotate(-90 18 18)`);
+  }
+  if (downloadRing) {
+    // Download starts where upload ends
+    const offset = -uploadLen;
+    downloadRing.setAttribute('stroke-dasharray', `${downloadLen} ${circumference - downloadLen}`);
+    downloadRing.setAttribute('transform', `rotate(${-90 + (uploadLen / circumference) * 360} 18 18)`);
+  }
+
+  $('#totalUp').textContent = formatBytes(state.totalUpload);
+  $('#totalDown').textContent = formatBytes(state.totalDownload);
+}
+
+/* ── Persistent Traffic Stats + detail hint card ─────────────── */
+// 本月/累计流量与上面的会话累计同源（pollTraffic 的 delta），存 localStorage
+// 跨会话保留；只在本地计算与展示，不上传（见 docs/privacy.md）。
+
+const TRAFFIC_STATS_KEY = 'freev6-traffic-stats';
+const TRAFFIC_FLUSH_MS = 3000; // 每秒都有增量：合并写入，避免高频落盘
+
+const trafficStats = { total: { up: 0, down: 0 }, months: {}, dirty: false, lastFlush: 0 };
+
+function monthKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function loadTrafficStats() {
+  try {
+    const raw = localStorage.getItem(TRAFFIC_STATS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const num = v => (typeof v === 'number' && isFinite(v) && v > 0 ? v : 0);
+    if (data?.total) trafficStats.total = { up: num(data.total.up), down: num(data.total.down) };
+    if (data?.months && typeof data.months === 'object') {
+      const months = {};
+      for (const [key, val] of Object.entries(data.months)) {
+        if (/^\d{4}-(0[1-9]|1[0-2])$/.test(key) && val) months[key] = { up: num(val.up), down: num(val.down) };
+      }
+      trafficStats.months = months;
+    }
+  } catch (_) { /* 数据损坏 → 从零重新累计 */ }
+}
+
+function addTrafficStats(up, down) {
+  if (up <= 0 && down <= 0) return;
+  trafficStats.total.up += up;
+  trafficStats.total.down += down;
+  const key = monthKey();
+  const month = trafficStats.months[key] || (trafficStats.months[key] = { up: 0, down: 0 });
+  month.up += up;
+  month.down += down;
+  trafficStats.dirty = true;
+}
+
+function flushTrafficStats(force = false) {
+  if (!trafficStats.dirty) return;
+  const now = Date.now();
+  if (!force && now - trafficStats.lastFlush < TRAFFIC_FLUSH_MS) return;
+  try {
+    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months }));
+    trafficStats.dirty = false;
+    trafficStats.lastFlush = now;
+  } catch (_) { /* 存储不可用：内存继续累计，下次再试 */ }
+}
+
+function renderTrafficHint() {
+  const hint = $('#trafficHint');
+  if (!hint || hint.hidden) return;
+  const key = monthKey();
+  const month = trafficStats.months[key] || { up: 0, down: 0 };
+  $('#hintMonthKey').textContent = `${key.slice(0, 4)}年${parseInt(key.slice(5), 10)}月`;
+  $('#hintMonthUp').textContent = formatBytes(month.up);
+  $('#hintMonthDown').textContent = formatBytes(month.down);
+  $('#hintMonthSum').textContent = formatBytes(month.up + month.down);
+  $('#hintTotalUp').textContent = formatBytes(trafficStats.total.up);
+  $('#hintTotalDown').textContent = formatBytes(trafficStats.total.down);
+  $('#hintTotalSum').textContent = formatBytes(trafficStats.total.up + trafficStats.total.down);
+}
+
+// 卡片下方空间不足（窗口较矮）时翻转到卡片上方；打开时与窗口 resize 时都会跑。
+// 流量统计与公告两张卡共用这一套翻转逻辑。
+function positionPopover(panel, card) {
+  if (!panel || panel.hidden || !card) return;
+  panel.classList.remove('above');
+  if (card.getBoundingClientRect().bottom + panel.offsetHeight + 10 > window.innerHeight) {
+    panel.classList.add('above');
+  }
+}
+
+function positionTrafficHint() {
+  positionPopover($('#trafficHint'), $('#statsCard'));
+}
+
+function openTrafficHint() {
+  const hint = $('#trafficHint');
+  const card = $('#statsCard');
+  if (!hint || !card) return;
+  hint.hidden = false;
+  positionTrafficHint();
+  card.classList.add('open');
+  card.setAttribute('aria-expanded', 'true');
+  renderTrafficHint();
+}
+
+function closeTrafficHint() {
+  const hint = $('#trafficHint');
+  if (!hint || hint.hidden) return;
+  hint.hidden = true;
+  const card = $('#statsCard');
+  card?.classList.remove('open');
+  card?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleTrafficHint() {
+  const hint = $('#trafficHint');
+  if (!hint) return;
+  if (hint.hidden) openTrafficHint(); else closeTrafficHint();
+}
+
+/* ── Notice（公告板） ─────────────────────────────────────────────
+   内容来自仓库根 notice.json，由 helper 代取（GET /api/v1/notice），
+   每次启动查一次（顶栏刷新也会重查）。任何失败都退化成「暂无公告」或
+   上次的本机缓存，绝不弹窗、不阻塞启动。 */
+
+const NOTICE_READ_KEY = 'freev6-notice-read';
+const NOTICE_READ_MAX = 50; // 只留最近 50 个 id，localStorage 不无限长
+
+function noticeReadIDs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(NOTICE_READ_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((id) => typeof id === 'string') : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function markNoticesRead(items) {
+  try {
+    const seen = new Set(noticeReadIDs());
+    for (const item of items) seen.add(item.id);
+    localStorage.setItem(NOTICE_READ_KEY, JSON.stringify([...seen].slice(-NOTICE_READ_MAX)));
+  } catch (_) { /* 存储不可用：本次不记已读，下次启动仍会提示 */ }
+}
+
+function noticeUnreadCount() {
+  const seen = new Set(noticeReadIDs());
+  return state.notices.filter((item) => !seen.has(item.id)).length;
+}
+
+// 公告时间统一显示为「MM-DD HH:mm」（本地时区）
+function noticeTimeText(iso) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+async function checkNotice() {
+  if (state.noticeChecking) return;
+  // helper 还没连上就不查，也不记失败：等 ensureNoticeChecked 在连上后补跑。
+  // 否则启动瞬间 helper 尚未就绪，会把「暂无公告」误报成「连接不上 helper」。
+  if (!state.helperOnline) {
+    state.noticeChecked = false;
+    return;
+  }
+  state.noticeChecking = true;
+  try {
+    const res = await api('/notice');
+    const list = Array.isArray(res?.notices) ? res.notices : [];
+    state.notices = list.filter((item) => item && typeof item.id === 'string' && typeof item.title === 'string');
+    state.noticeStale = !!res?.stale;
+    state.noticeChecked = true; // 拿到 200 就算检查完成；空公告（含 404）≠失败
+    // 公告同时承担备用配置的总开关（notice.json 的 cloudProfile）。helper 在
+    // 这次拉取后已把开关写进本机缓存，这里重读一次，UI 才能立刻反映锁定状态。
+    refreshCloudStatus();
+  } catch (_) {
+    // 请求失败（helper 中途重启等偶发）：保留已显示内容，留待下次补查
+    state.noticeChecked = false;
+  } finally {
+    state.noticeChecking = false;
+  }
+  state.noticeActive = 0;
+  renderNoticeCard();
+  if ($('#noticeHint') && !$('#noticeHint').hidden) {
+    renderNoticeHint();
+    positionNoticeHint();
+  }
+}
+
+// helper 首次连上后补查一次；本会话成功过就不再重复。
+function ensureNoticeChecked() {
+  if (!state.noticeChecked) checkNotice();
+}
+
+function renderNoticeCard() {
+  const card = $('#noticeCard');
+  if (!card) return;
+  const latest = state.notices[0];
+  const titleEl = $('#noticePreviewTitle');
+  const timeEl = $('#noticePreviewTime');
+
+  if (latest) {
+    titleEl.textContent = latest.title;
+    titleEl.classList.remove('empty');
+    const when = noticeTimeText(latest.published);
+    timeEl.textContent = state.noticeStale ? `${when} · 离线缓存` : when;
+    card.dataset.level = latest.level || 'info';
+    card.setAttribute('aria-label', `公告：${latest.title}，点击查看详情`);
+  } else {
+    titleEl.textContent = '暂无公告';
+    titleEl.classList.add('empty');
+    timeEl.textContent = '';
+    card.dataset.level = 'info';
+    card.setAttribute('aria-label', '公告，暂无内容');
+  }
+
+  const dot = $('#noticeDot');
+  if (dot) dot.hidden = noticeUnreadCount() === 0;
+}
+
+function renderNoticeHint() {
+  const hint = $('#noticeHint');
+  if (!hint) return;
+  const titleEl = $('#noticeHintTitle');
+  const timeEl = $('#noticeHintTime');
+  const bodyEl = $('#noticeHintBody');
+  const linkEl = $('#noticeHintLink');
+  const historyEl = $('#noticeHintHistory');
+  const items = state.notices;
+
+  if (!items.length) {
+    titleEl.textContent = '暂无公告';
+    timeEl.textContent = '';
+    bodyEl.textContent = '维护通知、节点变更和版本提醒都会出现在这里。';
+    linkEl.hidden = true;
+    historyEl.hidden = true;
+    return;
+  }
+
+  const index = Math.min(Math.max(state.noticeActive, 0), items.length - 1);
+  state.noticeActive = index;
+  const item = items[index];
+
+  titleEl.textContent = item.title;
+  timeEl.textContent = '';
+  const when = document.createElement('span');
+  when.textContent = noticeTimeText(item.published);
+  timeEl.append(when);
+  if (state.noticeStale) {
+    const chip = document.createElement('span');
+    chip.className = 'notice-stale-chip';
+    chip.textContent = '离线缓存';
+    timeEl.append(chip);
+  }
+
+  bodyEl.textContent = item.body || '（这条公告没有正文）';
+
+  if (item.link) {
+    linkEl.hidden = false;
+    linkEl.textContent = item.linkText || '查看详情';
+    linkEl.dataset.url = item.link;
+  } else {
+    linkEl.hidden = true;
+    delete linkEl.dataset.url;
+  }
+
+  // 其余公告在面板底部列出，点一条即可切换（新的在前）
+  const others = items.map((entry, i) => ({ entry, i })).filter(({ i }) => i !== index);
+  historyEl.hidden = others.length === 0;
+  historyEl.innerHTML = others.map(({ entry, i }) => `
+    <button class="notice-history-item" data-notice-index="${i}" title="${escapeHTML(entry.title)}">
+      <span class="notice-history-title">${escapeHTML(entry.title)}</span>
+      <span class="notice-history-date">${escapeHTML(noticeTimeText(entry.published))}</span>
+    </button>`).join('');
+}
+
+// 事件路径里是否包含某个元素。切换历史公告会在冒泡途中重建面板 DOM，
+// 此时事件 target 已被摘除，closest() 会一路返回 null —— 必须用
+// composedPath（派发时就缓存好的完整路径）判断「点的是卡内还是卡外」。
+function eventPathHas(event, element) {
+  if (!element) return false;
+  const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+  return path.includes(element);
+}
+
+function positionNoticeHint() {
+  positionPopover($('#noticeHint'), $('#noticeCard'));
+}
+
+function openNoticeHint() {
+  const hint = $('#noticeHint');
+  const card = $('#noticeCard');
+  if (!hint || !card) return;
+  hint.hidden = false;
+  renderNoticeHint();
+  positionNoticeHint();
+  card.classList.add('open');
+  card.setAttribute('aria-expanded', 'true');
+  // 展开即视为已读：先落盘再重渲染卡片，未读圆点随之消失
+  markNoticesRead(state.notices);
+  renderNoticeCard();
+}
+
+function closeNoticeHint() {
+  const hint = $('#noticeHint');
+  if (!hint || hint.hidden) return;
+  hint.hidden = true;
+  const card = $('#noticeCard');
+  card?.classList.remove('open');
+  card?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleNoticeHint() {
+  const hint = $('#noticeHint');
+  if (!hint) return;
+  if (hint.hidden) openNoticeHint(); else closeNoticeHint();
+}
+
+/* ── mihomo core download (设置页核心行 + 启动拦截弹窗共用) ─── */
+
+// 渲染核心下载进度。active=false 时隐藏进度、恢复按钮文案。进度同时落到
+// 弹窗进度条与两个入口按钮（设置页「下载」、弹窗「下载」），保证两个入口
+// 都有可见反馈。total>0 时显示百分比，否则（Content-Length 未知）只显示
+// 「下载中…」+ 已下载字节在轮询里另算。
+function renderCoreDownloadProgress(pct, active) {
+  const spinner = $('#coreDialogSpinner');
+  const text = $('#coreDialogPercentText');
+  const prog = $('#coreDialogProgress');
+  if (prog) prog.hidden = !active;
+  if (spinner) spinner.value = pct;
+  if (text) text.textContent = `${pct}%`;
+  const label = active ? (pct > 0 ? `下载中 ${pct}%` : '下载中…') : '下载';
+  for (const sel of ['#downloadCore', '#coreDialogDownload']) {
+    const b = $(sel);
+    if (!b) continue;
+    b.disabled = active;
+    b.textContent = label;
+  }
+}
+
+// 轮询 /runtime/download/progress 直到 done/error。返回下载结果（含 version）
+// 或 null（失败）。
+async function pollCoreDownloadProgress() {
+  for (let i = 0; i < 600; i++) { // 上限 ~3 分钟，对齐 helper 侧总预算
+    await new Promise((r) => setTimeout(r, 300));
+    let p;
+    try {
+      p = await api('/runtime/download/progress');
+    } catch (_) {
+      continue;
+    }
+    if (p.state === 'downloading') {
+      const done = p.done || 0;
+      const total = p.total > 0 ? p.total : 0;
+      const pct = total > 0 ? Math.min(100, Math.floor((done * 100) / total)) : 0;
+      renderCoreDownloadProgress(pct, true);
+      continue;
+    }
+    if (p.state === 'done') return p;
+    if (p.state === 'error') addLog(`下载失败: ${p.error || '未知错误'}`, true);
+    else addLog('下载状态异常', true);
+    showToast('核心下载失败', 'error');
+    return null;
+  }
+  addLog('下载超时', true);
+  showToast('核心下载超时', 'error');
+  return null;
+}
+
+// 下载核心；btn 为触发入口按钮（弹窗「下载」或设置页「下载」）。成功返回
+// true（弹窗侧据此自动关闭）。
+async function downloadCore(btn) {
+  if (!state.helperOnline) { addLog('helper 未连接', true); return false; }
+  if (btn) btn.disabled = true;
+  renderCoreDownloadProgress(0, true);
+  try {
+    await api('/runtime/download', { method: 'POST' }); // 立即返回，下载在后台
+    const result = await pollCoreDownloadProgress();
+    if (!result) return false;
+    state.runtimePresent = true;
+    state.runtimeChecked = true;
+    addLog(`核心下载完成${result.version ? `: ${result.version}` : ''}`);
+    return true;
+  } catch (e) {
+    addLog(`下载失败: ${e.message}`, true);
+    showToast('核心下载失败', 'error');
+    return false;
+  } finally {
+    renderCoreDownloadProgress(0, false);
+    if (btn) { btn.disabled = false; btn.textContent = '下载'; }
+    updateSettingsUI();
+    updateConnectionChip(state.helperOnline);
+  }
+}
+
+/* ── WARP registration (手动按钮 + 首次使用自动注册) ────────── */
+
+async function registerWarp(isAuto) {
+  if (!state.helperOnline) { addLog('helper 未连接', true); return false; }
+  if (state.warpRegistering) return false;   // 自动/手动撞车时不重复请求
+  state.warpRegistering = true;
+  try {
+    await api('/warp/register', { method: 'POST', body: JSON.stringify({ name: 'freev6-windows' }) });
+    state.warpRegistered = true;
+    updateSettingsUI();
+    addLog(isAuto ? '已自动注册接入凭据' : '接入凭据注册成功');
+    showToast('接入凭据注册成功');
+    return true;
+  } catch (e) {
+    addLog(`${isAuto ? '自动注册接入凭据失败' : '接入凭据注册失败'}: ${e.message}`, true);
+    // 弹窗已开（如自动运行重试循环再次失败）时不重复弹 toast，只刷新弹窗内容
+    if (!isWarpFailDialogOpen()) showToast('接入凭据注册失败', 'error');
+    openWarpFailDialog(e.message);
+    return false;
+  } finally {
+    state.warpRegistering = false;
+  }
+}
+
+// 第一次使用且 helper 报告未注册 WARP → 自动注册一次。每次启动最多尝试一次，
+// 失败交给「注册」按钮或下次启动，避免轮询反复请求 Cloudflare。
+function maybeAutoRegisterWarp() {
+  // 备用配置可用时不需要 WARP 凭据：别多打一次 Cloudflare，也别让学生
+  // 看到"正在自动注册接入凭据"这种与当前出口无关的日志。
+  if (state.warpRegistered || state.warpAutoTried || cloudReady()) return;
+  state.warpAutoTried = true;
+  addLog('未注册接入凭据，正在自动注册…');
+  registerWarp(true);
+}
+
+/* ── Backend State Refresh ────────────────────────────────────── */
+
+async function refreshBackendState() {
+  const genAtStart = settingsWriteGen;
+  try {
+    const status = await api('/status');
+    state.helperOnline = true;
+    // helper 刚就绪：公告还没查过的话补查一次（不阻塞后续状态同步）
+    ensureNoticeChecked();
+    if (genAtStart === settingsWriteGen) {
+      state.mode = status.settings?.mode || state.mode;
+      state.cidrs = status.settings?.campusCidrs || state.cidrs;
+      if (typeof status.settings?.devMode === 'boolean') state.devMode = status.settings.devMode;
+      if (typeof status.settings?.autoStart === 'boolean') state.autoStart = status.settings.autoStart;
+      if (typeof status.settings?.silentStart === 'boolean') state.silentStart = status.settings.silentStart;
+      if (typeof status.settings?.autoRunProxy === 'boolean') state.autoRunProxy = status.settings.autoRunProxy;
+      if (typeof status.settings?.hotkeyEnabled === 'boolean') state.hotkeyEnabled = status.settings.hotkeyEnabled;
+    }
+
+    setMode(state.mode, false, true);
+    setRunning(Boolean(status.proxy?.running));
+    // 9090 直连凭据：以 helper 的权威值为准（含文件被删后的空串降级）
+    state.controllerSecret = typeof status.controllerSecret === 'string' ? status.controllerSecret : '';
+
+    // Runtime info — must complete before updating chip/settings UI
+    try {
+      const runtime = await api('/runtime');
+      state.runtimePresent = Boolean(runtime.present);
+      state.runtimeChecked = true;
+    } catch (_) { /* ignore */ }
+    // 链式代理状态：拿不到不影响主流程（helper 刚回过 /status，这里基本必成）
+    await refreshChainStatus();
+    await refreshCloudStatus();
+    if (state.dynamicColor && !state.dynamicSeed) refreshDynamicColor(true);
+
+    updateConnectionChip(true);
+
+    state.warpRegistered = status.warp?.registered || false;
+    updateSettingsUI();
+    // 首次拉到状态：未注册则自动注册（每会话仅一次）
+    maybeAutoRegisterWarp();
+    // 设置开启时：软件被打开后自动尝试启动免流
+    maybeArmAutoRun();
+
+    addLog('已连接 freev6 helper');
+  } catch (error) {
+    state.helperOnline = false;
+    state.runtimePresent = false;
+    state.runtimeChecked = false;
+    updateConnectionChip(false);
+    updateSettingsUI();
+    addLog(`helper 不可用: ${error.message}`, true);
+  }
+}
+
+/* ── Traffic Polling ──────────────────────────────────────────── */
+
+async function pollTraffic() {
+  if (!state.proxyRunning) {
+    // Stopped: zero the chart history, the totals baseline and the speed readout
+    resetTrafficDisplay(true);
+    return;
+  }
+
+  try {
+    // mihomo controller connections API
+    const resp = await fetch('http://127.0.0.1:9090/connections', { headers: controllerHeaders() });
+    if (!resp.ok) return;
+    const data = await resp.json();
+
+    let upTotal = 0, downTotal = 0;
+    for (const conn of (data.connections || [])) {
+      upTotal += conn.upload || 0;
+      downTotal += conn.download || 0;
+    }
+
+    const deltaUp = Math.max(0, upTotal - state.lastUpload);
+    const deltaDown = Math.max(0, downTotal - state.lastDownload);
+
+    if (state.lastUpload > 0) {
+      state.trafficHistory.push({ t: Date.now(), up: deltaUp, down: deltaDown });
+      if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
+      state.totalUpload += deltaUp;
+      state.totalDownload += deltaDown;
+      // 同一份增量同时计入本月 / 累计（跨会话持久化）
+      addTrafficStats(deltaUp, deltaDown);
+    }
+
+    state.lastUpload = upTotal;
+    state.lastDownload = downTotal;
+
+    // Update speed display
+    $('#speedUp').textContent = formatSpeed(deltaUp);
+    $('#speedDown').textContent = formatSpeed(deltaDown);
+
+    // Update stats
+    updateStatsRing();
+    flushTrafficStats();
+    renderTrafficHint();
+
+    // Redraw chart
+    drawChart();
+  } catch (_) {
+    // mihomo not reachable: show zeros but keep the totals baseline
+    resetTrafficDisplay(false);
+  }
+}
+
+function resetTrafficDisplay(clearCounters) {
+  state.trafficHistory.push({ t: Date.now(), up: 0, down: 0 });
+  if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
+  if (clearCounters) {
+    state.lastUpload = 0;
+    state.lastDownload = 0;
+  }
+  $('#speedUp').textContent = formatSpeed(0);
+  $('#speedDown').textContent = formatSpeed(0);
+  drawChart();
+}
+
+/* ── Status Polling ───────────────────────────────────────────── */
+
+async function pollStatus() {
+  const genAtStart = settingsWriteGen;
+  try {
+    const status = await api('/status');
+    const firstConnect = !state.helperOnline;
+    state.helperOnline = true;
+    // Core detection is a cheap local stat — keep polling it so the settings
+    // row flips between “已安装” and the download button with no manual refresh
+    try {
+      const runtime = await api('/runtime');
+      const present = Boolean(runtime.present);
+      if (firstConnect || !state.runtimeChecked || state.runtimePresent !== present) {
+        state.runtimePresent = present;
+        state.runtimeChecked = true;
+        updateConnectionChip(true);
+        updateSettingsUI();
+      }
+    } catch (_) {
+      if (firstConnect) updateConnectionChip(true);
+    }
+    if (firstConnect) {
+      addLog('已连接 freev6 helper');
+      // Helper is up: retry a dynamic-color seed fetch that failed at load
+      if (state.dynamicColor && !state.dynamicSeed) refreshDynamicColor(true);
+      // 首次连上：同步 WARP 注册状态，未注册则自动注册一次
+      state.warpRegistered = Boolean(status.warp?.registered);
+      updateSettingsUI();
+      maybeAutoRegisterWarp();
+      // 首次连上：公告还没查过的话补查一次（启动瞬间的检查可能早于 helper 就绪）
+      ensureNoticeChecked();
+    }
+    const wasRunning = state.proxyRunning;
+    const isRunning = Boolean(status.proxy?.running);
+    if (wasRunning !== isRunning) {
+      setRunning(isRunning);
+      addLog(isRunning ? '免流模式已启动' : '免流模式已停止');
+      if (isRunning) autoDelayTestAfterStart();
+    }
+    // 设置写入期间（或写入落定前发出的慢响应）不回灌设置字段——旧值会把
+    // 用户刚拨好的开关拨回去（见 settingsWriteGen）
+    if (genAtStart === settingsWriteGen) {
+      state.mode = status.settings?.mode || state.mode;
+      setMode(state.mode, false, true);
+      // Sync developer mode / auto-start when they changed on the backend
+      const nextDevMode = typeof status.settings?.devMode === 'boolean' ? status.settings.devMode : state.devMode;
+      const nextAutoStart = typeof status.settings?.autoStart === 'boolean' ? status.settings.autoStart : state.autoStart;
+      const nextSilentStart = typeof status.settings?.silentStart === 'boolean' ? status.settings.silentStart : state.silentStart;
+      const nextAutoRunProxy = typeof status.settings?.autoRunProxy === 'boolean' ? status.settings.autoRunProxy : state.autoRunProxy;
+      const nextHotkeyEnabled = typeof status.settings?.hotkeyEnabled === 'boolean' ? status.settings.hotkeyEnabled : state.hotkeyEnabled;
+      const nextHotspotShare = typeof status.settings?.hotspotShare === 'boolean' ? status.settings.hotspotShare : state.hotspotShare;
+      if (nextDevMode !== state.devMode || nextAutoStart !== state.autoStart || nextSilentStart !== state.silentStart || nextAutoRunProxy !== state.autoRunProxy || nextHotkeyEnabled !== state.hotkeyEnabled || nextHotspotShare !== state.hotspotShare) {
+        state.devMode = nextDevMode;
+        state.autoStart = nextAutoStart;
+        state.silentStart = nextSilentStart;
+        state.autoRunProxy = nextAutoRunProxy;
+        state.hotkeyEnabled = nextHotkeyEnabled;
+        state.hotspotShare = nextHotspotShare;
+        updateSettingsUI();
+      }
+    }
+    // 热点共享下降沿：仍在共享但 active 掉线 → 弹“下次启动生效”提示，
+    // 每次断开只弹一次（hotspotActive 记上次值；停止免流后不弹）。
+    const hsStatus = status.hotspot;
+    const hsSharedRunning = Boolean(hsStatus?.shared && hsStatus.active !== false && isRunning);
+    if (hsStatus?.shared && hsStatus.active === false && state.hotspotActive && isRunning) {
+      showToast('热点已断开，将在下次启动免流时重新共享');
+      addLog('移动热点已断开，热点共享将在下次启动免流时恢复');
+    }
+    state.hotspotActive = hsSharedRunning;
+    // 状态已同步：helper 连上且设置开启时排队一次自动启动（幂等）
+    maybeArmAutoRun();
+  } catch (_) {
+    if (state.helperOnline) {
+      state.helperOnline = false;
+      state.runtimePresent = false;
+      state.runtimeChecked = false;
+      updateConnectionChip(false);
+      updateSettingsUI();
+      setRunning(false);
+      addLog('helper 连接断开', true);
+    }
+  }
+}
+
+/* ── Event Wiring ─────────────────────────────────────────────── */
+
+function wireEvents() {
+  // Navigation
+  $$('.nav-item[data-view]').forEach(item => {
+    item.addEventListener('click', () => showView(item.dataset.view));
+  });
+
+  // Proxy toggle FAB
+  $('#proxyToggle')?.addEventListener('click', async () => {
+    if (!state.helperOnline) {
+      addLog('helper 未连接，无法操作', true);
+      return;
+    }
+    const fab = $('#proxyToggle');
+    fab.style.pointerEvents = 'none';
+    fab.style.opacity = '0.6';
+    // 忙碌指示：进行中展示 启动中…/停止中…，结束（成功/失败）后按最终状态恢复
+    state.transition = state.proxyRunning ? 'stopping' : 'starting';
+    setFabLabel(state.transition === 'stopping' ? '停止中…' : '启动中…');
+    try {
+      if (state.proxyRunning) {
+        await stopProxyApi();
+        setRunning(false);
+        addLog('免流模式已停止');
+        // 手动接管：本会话不再自动启动
+        autoRun.done = true;
+        disarmAutoRun();
+      } else {
+        // 手动接管：取消排队中的自动启动，改由本次点击决定结果
+        autoRun.done = true;
+        disarmAutoRun();
+        // 自动启动仍在途（快照 PowerShell 等可能数秒）：等它落定再手动重试，
+        // 避免「启动流程正在进行」。在途流程每一步都有界（IPv6 探测 8s、
+        // 快照 10s、就绪 15s），必会落定。等待期间若已启动成功则直接收尾，
+        // 不重复启动；否则立刻手动再启动一次，而不是再等下一次自动重试。
+        if (startFlowBusy) await startFlowSettled;
+        if (state.proxyRunning) {
+          addLog('免流模式已启动');
+          return;
+        }
+        const res = await startProxyFlow(false);
+        if (!res.ok) reportStartFailure(res);
+      }
+    } catch (e) {
+      addLog(`操作失败: ${e.message}`, true);
+    } finally {
+      state.transition = null;
+      fab.style.pointerEvents = '';
+      fab.style.opacity = '';
+      // 启动失败→启动免流；停止失败→停止免流
+      setFabLabel(state.proxyRunning ? '停止免流' : '启动免流');
+    }
+  });
+
+  // Log drawer
+  $('#logsButton')?.addEventListener('click', () => {
+    $('#logDrawer')?.classList.add('open');
+    $('#scrim')?.classList.add('open');
+  });
+  const closeLogs = () => {
+    $('#logDrawer')?.classList.remove('open');
+    $('#scrim')?.classList.remove('open');
+  };
+
+  // Unsupported-network dialog: dismiss via button, backdrop or Escape
+  $('#netDialogOk')?.addEventListener('click', closeNetGateDialog);
+  $('#netDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'netDialogScrim') closeNetGateDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeNetGateDialog();
+  });
+
+  // Missing-core dialog: 下载 / 取消 / 遮罩 / Escape（下载成功后自动关闭）
+  $('#coreDialogDownload')?.addEventListener('click', async () => {
+    const ok = await downloadCore($('#coreDialogDownload'));
+    if (ok) closeCoreDialog();
+  });
+  $('#coreDialogCancel')?.addEventListener('click', closeCoreDialog);
+  $('#coreDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'coreDialogScrim') closeCoreDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeCoreDialog();
+  });
+
+  // Quit confirm dialog: act via buttons, dismiss via backdrop or Escape
+  $('#quitDialogCancel')?.addEventListener('click', closeQuitDialog);
+  $('#quitDialogStopQuit')?.addEventListener('click', stopAndQuit);
+  $('#quitDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'quitDialogScrim') closeQuitDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeQuitDialog();
+  });
+
+  // Developer mode confirm
+  $('#devModeDialogCancel')?.addEventListener('click', closeDevModeDialog);
+  $('#devModeDialogConfirm')?.addEventListener('click', () => {
+    closeDevModeDialog();
+    applyDevMode(true);
+  });
+  $('#devModeDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'devModeDialogScrim') closeDevModeDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDevModeDialog();
+  });
+
+  // Chain-clear confirm dialog: act via buttons, dismiss via backdrop or Escape
+  $('#chainClearDialogCancel')?.addEventListener('click', closeChainClearDialog);
+  $('#chainClearDialogConfirm')?.addEventListener('click', () => {
+    closeChainClearDialog();
+    clearChain();
+  });
+  $('#chainClearDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'chainClearDialogScrim') closeChainClearDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeChainClearDialog();
+  });
+
+  // 重置设置确认弹窗：确认 = 重置，取消/遮罩/Escape 关闭
+  $('#resetDialogCancel')?.addEventListener('click', closeResetDialog);
+  $('#resetDialogConfirm')?.addEventListener('click', () => {
+    closeResetDialog();
+    resetSettings();
+  });
+  $('#resetDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'resetDialogScrim') closeResetDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeResetDialog();
+  });
+
+  // WARP 注册失败弹窗：重试 = 纯重新注册；取消/遮罩/Escape 关闭
+  $('#warpFailDialogCancel')?.addEventListener('click', closeWarpFailDialog);
+  $('#warpFailDialogRetry')?.addEventListener('click', retryWarpRegistration);
+  $('#warpFailDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'warpFailDialogScrim') closeWarpFailDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeWarpFailDialog();
+  });
+
+  // First-run guide: 翻页按钮 / 页码点；只能点「开始使用」关闭
+  // （不响应 Escape 与遮罩点击 —— 继续使用即代表同意条款）
+  $('#guideNext')?.addEventListener('click', advanceGuide);
+  $$('#guideDots .guide-dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      guidePage = parseInt(dot.dataset.guideDot, 10) || 0;
+      renderGuide();
+    });
+  });
+  // 向导内的协议链接：阻止默认跳转（会把 webview 导走），改用系统浏览器打开
+  $('#guideAgreementLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openExternal('https://github.com/study-233/free-v6/blob/main/docs/agreement.md');
+  });
+  $('#guidePrivacyLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openExternal('https://github.com/study-233/free-v6/blob/main/docs/privacy.md');
+  });
+
+  // Update dialog: actions + backdrop/Escape (busy phases are blocked
+  // inside closeUpdateDialog)
+  $('#updateLater')?.addEventListener('click', closeUpdateDialog);
+  $('#updateSkip')?.addEventListener('click', () => {
+    const v = state.updateInfo?.version;
+    if (v) {
+      try { localStorage.setItem(SKIP_VERSION_KEY, v); } catch (_) { /* ignore */ }
+      addLog(`跳过版本 v${v}（设置页仍可查看更新）`);
+    }
+    closeUpdateDialog();
+  });
+  $('#updateNow')?.addEventListener('click', startUpdate);
+  $('#updateClose')?.addEventListener('click', closeUpdateDialog);
+  $('#updateOpenPage')?.addEventListener('click', () => {
+    if (state.updateInfo) openExternal(state.updateInfo.htmlUrl);
+  });
+  $('#updateDialogScrim')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'updateDialogScrim') closeUpdateDialog();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeUpdateDialog();
+  });
+  $('#closeLogs')?.addEventListener('click', closeLogs);
+  $('#scrim')?.addEventListener('click', closeLogs);
+
+  // Refresh
+  $('#refreshButton')?.addEventListener('click', () => {
+    addLog('手动刷新');
+    refreshBackendState();
+    fetchProxies();
+    checkNotice();
+  });
+
+  // 流量统计卡：点击 / 回车弹出「本月 + 累计」详情提示卡
+  // 点到提示卡内部不算切换（否则点内容会把它关掉），交给外部点击/Esc 关闭
+  $('#statsCard')?.addEventListener('click', (e) => {
+    if (e.target?.closest?.('#trafficHint')) return;
+    toggleTrafficHint();
+  });
+  $('#statsCard')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleTrafficHint();
+    }
+  });
+  // 点击提示卡以外区域 / Esc 关闭
+  document.addEventListener('click', (e) => {
+    if (!e.target?.closest?.('#statsCard')) closeTrafficHint();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTrafficHint();
+  });
+  // 提示卡打开期间调整窗口 → 重新判断上/下翻转
+  window.addEventListener('resize', positionTrafficHint);
+
+  // 公告卡：交互与流量统计卡一致（点击 / Enter 展开，外部点击 / Esc 收起）。
+  // 点到面板内部不算切换，交给面板内的按钮自己处理。
+  $('#noticeCard')?.addEventListener('click', (e) => {
+    if (eventPathHas(e, $('#noticeHint'))) return;
+    toggleNoticeHint();
+  });
+  $('#noticeCard')?.addEventListener('keydown', (e) => {
+    if (eventPathHas(e, $('#noticeHint'))) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleNoticeHint();
+    }
+  });
+  // 公告里的详情链接：只走系统浏览器（link 已在 helper 侧限定 https）
+  $('#noticeHintLink')?.addEventListener('click', () => {
+    const url = $('#noticeHintLink')?.dataset.url;
+    if (url) openExternal(url);
+  });
+  // 历史公告：点一条切到该条详情
+  $('#noticeHintHistory')?.addEventListener('click', (e) => {
+    const button = e.target?.closest?.('[data-notice-index]');
+    if (!button) return;
+    state.noticeActive = parseInt(button.dataset.noticeIndex, 10) || 0;
+    renderNoticeHint();
+    positionNoticeHint();
+  });
+  // 点面板内部（含历史列表）不算收起
+  document.addEventListener('click', (e) => {
+    if (!eventPathHas(e, $('#noticeCard'))) closeNoticeHint();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeNoticeHint();
+  });
+  window.addEventListener('resize', positionNoticeHint);
+  // 离开页面或切到后台时，把未落盘的统计强制写入 localStorage
+  window.addEventListener('pagehide', () => flushTrafficStats(true));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushTrafficStats(true);
+  });
+}
+
+/* ── Proxy Page (接入点 / 链式代理两个分组) ─────────────────────── */
+
+const AUTO_SELECT_GROUP = '♻️ 自动选择';
+// 必须与 internal/mihomo 的 ChainGroup 逐字符一致（分组名进 mihomo API 路径）
+const CHAIN_GROUP = '🔗 链式代理';
+
+// 当前页签对应读/写的 mihomo 分组：接入点沿用自动选择组，链式用导入分组。
+function activeProxyGroupKey() {
+  return state.activeProxyTab === 'chain' ? CHAIN_GROUP : AUTO_SELECT_GROUP;
+}
+
+// 页签切换：清掉上一分组的列表/延迟数据再拉当前分组，避免串数据。
+function setProxyTab(tab) {
+  state.activeProxyTab = tab === 'chain' ? 'chain' : 'access';
+  $$('#proxiesTabs .setting-seg').forEach(chip => {
+    chip.selected = chip.dataset.proxyTab === state.activeProxyTab;
+  });
+  clearProxyList();
+  fetchProxies();
+}
+
+// 免流停止后清空接入点列表与延迟测试结果，接入点页回到空态。
+// setRunning(false) 统一触发：FAB 停止 / 停止并退出 / 轮询检测到已停止 /
+// helper 断开。函数声明提升，setRunning 早于本节定义也可安全调用。
+function clearProxyList() {
+  state.proxyGroup = null;
+  state.proxyDelays = {};
+  state.delaysReady = false;
+  state.testingDelay = false;
+  resetFab(); // 测试 FAB 若正停在「测试中…」一并复位
+  renderNodeGrid();
+}
+
+async function fetchProxies() {
+  // 只在免流运行中拉取：停止后 :9090 已死，僵尸实例/时序竞态不得回填列表
+  if (!state.helperOnline || !state.proxyRunning) return;
+  try {
+    const resp = await fetch('http://127.0.0.1:9090/proxies', { headers: controllerHeaders() });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const info = data.proxies?.[activeProxyGroupKey()];
+    if (!info) return;
+    state.proxyGroup = {
+      now: info.now || '',
+      all: info.all || [],
+    };
+    renderNodeGrid();
+  } catch (_) { /* mihomo not reachable */ }
+}
+
+function renderNodeGrid() {
+  const el = $('#nodeGrid');
+  if (!el) return;
+
+  const group = state.proxyGroup;
+  if (!group || !group.all.length) {
+    // 链式分组在「运行中却无链」（导入发生在启动之后）时给出重启提示，
+    // 而不是笼统的“请先启动”。
+    let message = '请先启动免流模式以加载节点列表';
+    if (state.activeProxyTab === 'chain') {
+      message = state.proxyRunning
+        ? '启用链式代理，并重启免流后生效'
+        : '启动免流模式以加载链式代理节点';
+    }
+    el.innerHTML = `<div class="empty-state"><md-icon class="empty-state-icon">cloud_off</md-icon><span>${message}</span></div>`;
+    return;
+  }
+
+  let nodes = [...group.all];
+
+  // Auto-sort by delay after test
+  if (state.delaysReady) {
+    nodes.sort((a, b) => {
+      const da = state.proxyDelays[a] ?? Infinity;
+      const db = state.proxyDelays[b] ?? Infinity;
+      return da - db;
+    });
+  }
+
+  el.innerHTML = nodes.map(name => {
+    const selected = name === group.now;
+    const delay = state.proxyDelays[name];
+    const testing = state.testingDelay && delay === undefined;
+    let latencyClass = 'unknown';
+    let latencyText = '未测试';
+    if (testing) {
+      latencyClass = 'testing';
+      latencyText = '<md-circular-progress class="node-spinner" indeterminate></md-circular-progress>测试中';
+    } else if (delay !== undefined) {
+      if (delay < 100) { latencyClass = 'good'; latencyText = delay + ' ms'; }
+      else if (delay < 500) { latencyClass = 'medium'; latencyText = delay + ' ms'; }
+      else { latencyClass = 'bad'; latencyText = delay >= 5000 ? 'Timeout' : delay + ' ms'; }
+    }
+
+    return `<div class="node-card${selected ? ' selected' : ''}${testing ? ' testing' : ''}" data-name="${escapeHTML(name)}">
+      <div class="node-name" title="${escapeHTML(name)}">${escapeHTML(name)}</div>
+      <div class="node-latency ${latencyClass}">${latencyText}</div>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.node-card').forEach(card => {
+    card.addEventListener('click', () => switchProxy(card.dataset.name));
+  });
+}
+
+async function switchProxy(name) {
+  if (!state.proxyRunning || !AUTO_SELECT_GROUP) return;
+  try {
+    await fetch(`http://127.0.0.1:9090/proxies/${encodeURIComponent(activeProxyGroupKey())}`, {
+      method: 'PUT',
+      headers: controllerHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ name }),
+    });
+    if (state.proxyGroup) state.proxyGroup.now = name;
+    renderNodeGrid();
+    addLog(`切换接入点: ${name}`);
+  } catch (e) {
+    addLog(`切换接入点失败: ${e.message}`, true);
+  }
+}
+
+async function runDelayTest() {
+  if (state.testingDelay) return;
+  state.testingDelay = true;
+  state.proxyDelays = {};
+  state.delaysReady = false;
+
+  const fab = $('#delayTestFab');
+  const fabIcon = $('#fabIcon');
+  const fabProgress = $('#fabProgress');
+  if (fab) fab.classList.add('loading');
+  if (fabIcon) fabIcon.hidden = true;
+  if (fabProgress) fabProgress.hidden = false;
+  fabLabel(fab, '测试中…');
+  renderNodeGrid();
+
+  const group = state.proxyGroup;
+  if (!group) {
+    // 停止后列表已清空：无节点可测，直接复位——testingDelay 必须拨回，
+    // 否则卡在 true 会让下次启动的自动延迟测试被 if (state.testingDelay) 跳过
+    state.testingDelay = false;
+    resetFab();
+    return;
+  }
+
+  const nodes = group.all;
+  let completed = 0;
+  const CONCURRENCY = 6;
+  const queue = [...nodes];
+
+  async function testNext() {
+    // 停止免流会置 testingDelay=false 清空列表：在飞测试立即退出，
+    // 不再往已清空的状态里写过期延迟值、也不再改 FAB 文案
+    while (queue.length && state.testingDelay) {
+      const name = queue.shift();
+      let delay = 5000;
+      try {
+        const resp = await fetch(`http://127.0.0.1:9090/proxies/${encodeURIComponent(name)}/delay?timeout=5000&url=http://www.gstatic.com/generate_204`, { headers: controllerHeaders() });
+        if (resp.ok) {
+          const data = await resp.json();
+          delay = data.delay || 5000;
+        }
+      } catch (_) { /* 保持 5000 */ }
+      // await 期间免流可能已停止 → 迟到结果整条丢弃，不写已清空的状态
+      if (!state.testingDelay) return;
+      state.proxyDelays[name] = delay;
+      completed++;
+      fabLabel(fab, `测试中 ${completed}/${nodes.length}`);
+      renderNodeGrid();
+    }
+  }
+
+  const workers = [];
+  for (let i = 0; i < Math.min(CONCURRENCY, nodes.length); i++) {
+    workers.push(testNext());
+  }
+  await Promise.all(workers);
+  // 免流已停止（clearProxyList 把 testingDelay 置 false）→ 收尾不再写入
+  if (!state.testingDelay) return;
+
+  state.testingDelay = false;
+  state.delaysReady = true;
+  resetFab();
+  renderNodeGrid(); // re-render with auto-sort
+  addLog(`延迟测试完成: ${nodes.length} 个接入点`);
+}
+
+function resetFab() {
+  const fab = $('#delayTestFab');
+  const fabIcon = $('#fabIcon');
+  const fabProgress = $('#fabProgress');
+  if (fab) {
+    fab.classList.remove('loading');
+    fabLabel(fab, '测试延迟');
+  }
+  if (fabIcon) fabIcon.hidden = false;
+  if (fabProgress) fabProgress.hidden = true;
+}
+
+function wireProxyEvents() {
+  $('#delayTestFab')?.addEventListener('click', runDelayTest);
+  // 接入点/链式代理分组页签（md-filter-chip 自身切换 selected，这里只换数据）
+  $$('#proxiesTabs .setting-seg').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (chip.dataset.proxyTab) setProxyTab(chip.dataset.proxyTab);
+    });
+  });
+}
+
+/* Auto-run one delay test after 免流模式 starts */
+async function autoDelayTestAfterStart() {
+  addLog('启动完成，自动进行延迟测试');
+  // mihomo may need a moment before the proxy list is exposed
+  for (let i = 0; i < 10 && (!state.proxyGroup || !state.proxyGroup.all.length); i++) {
+    await new Promise(r => setTimeout(r, 1000));
+    if (!state.proxyRunning) return;
+    await fetchProxies();
+  }
+  if (state.testingDelay) return;
+  if (state.proxyGroup && state.proxyGroup.all.length) {
+    runDelayTest();
+  } else {
+    addLog('跳过自动延迟测试: 接入点列表未就绪', true);
+  }
+}
+
+/* ── Settings Page ────────────────────────────────────────────── */
+
+function renderCidrs() {
+  const desc = $('#cidrDesc');
+  if (desc) desc.textContent = state.cidrs.length
+    ? `${state.cidrs.length} 个网段/域名`
+    : '管理绕过免流的网段与域名';
+
+  const list = $('#cidrList');
+  if (!list) return;
+  if (!state.cidrs.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:16px"><span>还没有网段或域名</span></div>';
+    return;
+  }
+  list.innerHTML = state.cidrs.map((cidr, i) =>
+    `<div class="cidr-item"><span>${escapeHTML(cidr)}</span><md-icon-button class="cidr-remove" data-idx="${i}" aria-label="删除"><md-icon>close</md-icon></md-icon-button></div>`
+  ).join('');
+
+  list.querySelectorAll('.cidr-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.idx);
+      const removed = state.cidrs.splice(idx, 1)[0];
+      renderCidrs();
+      persistSettings().then(notifyEffectiveNextStart);
+      addLog(`移除条目: ${removed}`);
+    });
+  });
+}
+
+function updateSettingsUI() {
+  // Mode segmented chips (md-filter-chip)
+  $$('#settingsModeGroup .setting-seg').forEach(seg => {
+    seg.selected = seg.dataset.mode === state.mode;
+  });
+  // 直连 option only exists in developer mode
+  $('#settingsModeGroup')?.classList.toggle('dev-mode', state.devMode);
+
+  // CIDR list, developer-mode + auto-start switches
+  renderCidrs();
+  const devSwitch = $('#devModeSwitch');
+  if (devSwitch) devSwitch.selected = state.devMode;
+  const autoSwitch = $('#autoStartSwitch');
+  if (autoSwitch) autoSwitch.selected = state.autoStart;
+  const silentSwitch = $('#silentStartSwitch');
+  if (silentSwitch) silentSwitch.selected = state.silentStart;
+  const autoRunSwitch = $('#autoRunSwitch');
+  if (autoRunSwitch) autoRunSwitch.selected = state.autoRunProxy;
+  const hotkeySwitch = $('#hotkeySwitch');
+  if (hotkeySwitch) hotkeySwitch.selected = state.hotkeyEnabled;
+  const hotspotSwitch = $('#hotspotShareSwitch');
+  if (hotspotSwitch) hotspotSwitch.selected = state.hotspotShare;
+  const dynSwitch = $('#dynamicColorSwitch');
+  if (dynSwitch) dynSwitch.selected = state.dynamicColor;
+  const oledSwitch = $('#pureBlackSwitch');
+  if (oledSwitch) oledSwitch.selected = state.pureBlack;
+
+  // mihomo core row (status + download merged): pill when installed,
+  // download button when the core was not detected, '--' while unknown
+  const pill = $('#runtimePill');
+  const dlBtn = $('#downloadCore');
+  const checked = state.helperOnline && state.runtimeChecked;
+  if (pill) {
+    if (checked && !state.runtimePresent) {
+      pill.hidden = true;
+    } else {
+      pill.hidden = false;
+      pill.textContent = checked ? '已安装' : '--';
+      pill.className = checked ? 'setting-pill ready' : 'setting-pill';
+    }
+  }
+  if (dlBtn) {
+    dlBtn.hidden = !(checked && !state.runtimePresent);
+    if (!dlBtn.hidden) {
+      dlBtn.disabled = false;
+      dlBtn.textContent = '下载';
+    }
+  }
+
+  // WARP: the register button doubles as 重新注册 once registered
+  const warpBtn = $('#registerWarp');
+  if (warpBtn) warpBtn.textContent = state.warpRegistered ? '重新注册' : '注册';
+}
+
+/* ── Chain proxy (设置 → 核心 → 链式代理) ─────────────────────── */
+
+// 以 helper 的 GET /chain-proxy 为准刷新本地状态；helper 离线时保留上次
+// 已知状态（设置页不至于把 pill 闪回未导入）。
+async function refreshChainStatus() {
+  try {
+    const chain = await api('/chain-proxy');
+    state.chain = {
+      enabled: Boolean(chain.enabled),
+      count: chain.count || 0,
+      sourceType: chain.sourceType || '',
+      sourceUrl: chain.sourceUrl || '',
+      names: chain.names || [],
+      error: chain.error || '',
+    };
+  } catch (_) { /* helper offline: keep previous */ }
+  updateChainUI();
+}
+
+// 同步链式状态到设置页开关/来源行/按钮文案与接入点页分组页签。
+function updateChainUI() {
+  const sw = $('#chainEnabledSwitch');
+  if (sw) sw.selected = state.chain.enabled;
+  // 单按钮复用：已有订阅快照时“导入”变“刷新”（点击刷新已存来源；
+  // 输入框里填了新地址则按新地址导入）。导入进行中统一显示「导入中…」
+  // 并禁用相关控件，覆盖订阅拉取的最长 30s 等待。
+  // 注意：md-filled-button 没有 label 属性（那是 md-fab 的 API），可见
+  // 文本来自 light DOM —— 必须走 textContent，与下载/注册按钮一致。
+  const importBtn = $('#chainImportUrl');
+  if (importBtn) {
+    if (state.chainImporting) {
+      importBtn.textContent = '导入中…';
+      importBtn.disabled = true;
+    } else {
+      importBtn.textContent = state.chain.count > 0 && state.chain.sourceType === 'url' ? '刷新' : '导入';
+      importBtn.disabled = false;
+    }
+  }
+  const pickBtn = $('#chainPickFile');
+  if (pickBtn) pickBtn.disabled = state.chainImporting;
+  const urlField = $('#chainUrlInput');
+  if (urlField) urlField.disabled = state.chainImporting;
+  const clearBtn = $('#chainClear');
+  if (clearBtn) {
+    clearBtn.hidden = state.chain.count === 0 && !state.chain.sourceType;
+    clearBtn.disabled = state.chainImporting;
+  }
+  const statusLine = $('#chainStatusLine');
+  if (statusLine) {
+    if (state.chain.error) {
+      statusLine.textContent = `内容异常: ${state.chain.error}`;
+    } else if (state.chain.count === 0) {
+      statusLine.textContent = '尚未导入';
+    } else if (state.chain.sourceType === 'url') {
+      statusLine.textContent = `订阅：${state.chain.sourceUrl}（${state.chain.count} 个节点）`;
+    } else {
+      statusLine.textContent = `本地文件（${state.chain.count} 个节点）`;
+    }
+  }
+  // 页签仅在「已导入且开关开启」时可见；停用/清除/损坏时归位接入点分组
+  const chainActive = state.chain.enabled && state.chain.count > 0;
+  const tabs = $('#proxiesTabs');
+  if (tabs) tabs.hidden = !chainActive;
+  if (!chainActive && state.activeProxyTab !== 'access') setProxyTab('access');
+}
+
+async function importChain(body, label) {
+  if (state.chainImporting) return false; // 双击/回车撞车时不发第二个请求
+  state.chainImporting = true;
+  updateChainUI(); // 按钮切「导入中…」并禁用，覆盖订阅拉取的最长 30s
+  try {
+    const result = await api('/chain-proxy', { method: 'PUT', body: JSON.stringify(body) });
+    addLog(`链式代理${label}成功：${result.count} 个节点`);
+    showToast(`已导入 ${result.count} 个链式节点`);
+    await refreshChainStatus();
+    // 运行中的 mihomo 是启动时的配置——此刻只让页签/状态就位，节点本身
+    // 要重启免流才进链（分组空态文案会提示）。
+    fetchProxies();
+    return true;
+  } catch (e) {
+    chainImportFailed(`${label}失败: ${e.message}`, `${label}失败`, e.message);
+    return false;
+  } finally {
+    state.chainImporting = false;
+    updateChainUI();
+  }
+}
+
+// 导入类失败统一提示：日志留完整错误（yaml 定位信息可能很长），
+// toast 只给一眼能读完的短句，图标用红叉。
+function chainImportFailed(logMessage, toastPrefix, detail = '') {
+  addLog(logMessage, true);
+  const text = detail ? `${toastPrefix}：${detail}` : toastPrefix;
+  showToast(text.length > 48 ? `${text.slice(0, 47)}…` : text, 'error');
+}
+
+function submitChainUrl() {
+  const typed = $('#chainUrlInput')?.value?.trim() || '';
+  // 输入框有地址 → 按新地址导入；空 → 复用已存订阅来源（按钮此时文案是“刷新”）
+  const url = typed || (state.chain.sourceType === 'url' ? state.chain.sourceUrl : '');
+  if (!url) {
+    chainImportFailed('请填写订阅链接', '导入失败', '请先填写订阅链接');
+    return;
+  }
+  importChain({ url }, typed ? '订阅导入' : '订阅刷新');
+}
+
+async function importChainFromFile(event) {
+  const input = event.target;
+  const file = input.files?.[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    chainImportFailed('链式代理文件超过 2MB 上限', '导入失败', '文件超过 2MB 上限');
+    input.value = '';
+    return;
+  }
+  try {
+    const content = await file.text();
+    await importChain({ content }, '文件导入');
+  } catch (e) {
+    chainImportFailed(`读取文件失败: ${e.message}`, '导入失败', '读取文件失败');
+  }
+  input.value = ''; // 同一文件允许再次选择
+}
+
+async function clearChain() {
+  // 确认已由 chain-clear 弹窗完成（net-dialog 样式），这里只执行。
+  try {
+    await api('/chain-proxy', { method: 'DELETE' });
+    addLog('链式代理已清除');
+    showToast('链式代理已清除');
+    await refreshChainStatus();
+    clearProxyList();
+    fetchProxies();
+  } catch (e) {
+    addLog(`清除链式代理失败: ${e.message}`, true);
+  }
+}
+
+/* ── 备用配置（设置 → 核心） ─────────────────────────────────────
+ * 从当前发行仓库获取公开节点；公告决定是否开放。详见 docs/cloud-profile.md。 */
+
+// 备用配置可用 = 已启用且本地有节点：此时 WARP 凭据不再必需。
+function cloudReady() {
+  return state.cloud.enabled && state.cloud.count > 0;
+}
+
+// 兜底脱敏：进入 toast / 日志的文本一律不带入口地址。
+// helper 侧的文案已经不带地址，这里防的是以后新增错误路径又漏回来——
+// 弹窗会被截图外带，入口不该出现在那种地方。
+function redactEntry(text) {
+  return String(text ?? '')
+    .replace(/https?:\/\/[^\s"'）)]+/gi, '入口');
+}
+
+async function refreshCloudStatus() {
+  try {
+    const cloud = await api('/cloud-config');
+    state.cloud = {
+      enabled: Boolean(cloud.enabled),
+      count: cloud.count || 0,
+      names: cloud.names || [],
+      portalHost: cloud.portalHost || '',
+      entryMasked: cloud.entryMasked || '',
+      updatedAt: cloud.updatedAt || '',
+      error: cloud.error || '',
+      // helper 没给这个字段（旧版本）也按锁定处理
+      locked: cloud.locked !== false,
+    };
+  } catch (_) { /* helper offline: keep previous */ }
+  updateCloudUI();
+}
+
+function updateCloudUI() {
+  const locked = state.cloud.locked;
+  const sw = $('#cloudEnabledSwitch');
+  if (sw) {
+    sw.selected = state.cloud.enabled;
+    sw.disabled = locked;
+  }
+  const input = $('#cloudPortalInput');
+  if (input) {
+    // 有了门户地址就回填，刷新不用重输；用户正在输入时不抢。
+    if (!input.value && state.cloud.portalHost) input.value = state.cloud.portalHost;
+    input.disabled = state.cloudBusy;
+  }
+  const fetchBtn = $('#cloudFetch');
+  if (fetchBtn) {
+    fetchBtn.disabled = state.cloudBusy || locked;
+    fetchBtn.textContent = state.cloudBusy ? '获取中…' : (state.cloud.count > 0 ? '刷新' : '获取');
+  }
+  const clearBtn = $('#cloudClear');
+  if (clearBtn) {
+    clearBtn.hidden = state.cloud.count === 0;
+    clearBtn.disabled = state.cloudBusy;
+  }
+  const line = $('#cloudStatusLine');
+  if (line) {
+    if (state.cloud.error) {
+      line.textContent = `内容异常: ${redactEntry(state.cloud.error)}`;
+    } else if (locked) {
+      // 总开关在公告里，客户端无法自行解除；说清楚是"维护者关闭"而不是"你操作错了"
+      line.textContent = state.cloud.count > 0
+        ? `开发者已关闭备用配置（${state.cloud.count} 个节点已缓存，暂不可用）`
+        : '开发者已关闭备用配置，或未能获取到公告';
+    } else if (state.cloud.count === 0) {
+      line.textContent = '尚未获取';
+    } else {
+      const parts = [`${state.cloud.count} 个节点`, state.cloud.entryMasked || '入口已保存'];
+      if (state.cloud.updatedAt) parts.push(new Date(state.cloud.updatedAt).toLocaleString());
+      // 云端 tun/rules 等骨架字段按设计不生效，属于实现细节，不向用户回报。
+      line.textContent = parts.join(' · ');
+    }
+  }
+}
+
+async function submitCloudProfile() {
+  if (state.cloudBusy) return;
+  const portalHost = $('#cloudPortalInput')?.value?.trim() || state.cloud.portalHost;
+  if (!portalHost) {
+    showToast('请先填写校园网登录页 IP', 'error');
+    return;
+  }
+  state.cloudBusy = true;
+  updateCloudUI();
+  try {
+    const result = await api('/cloud-config', { method: 'PUT', body: JSON.stringify({ portalHost }) });
+    addLog(`备用配置获取成功：${result.count} 个节点`);
+    showToast(`已获取 ${result.count} 个备用节点`);
+    await refreshCloudStatus();
+    fetchProxies();
+  } catch (e) {
+    // campus-only / cloud-locked 是学生最常撞到的两个分支，必须直白，
+    // 否则只会看到"获取失败"
+    let message;
+    if (e.code === 'campus-only') {
+      message = '仅限部分高校校园网内获取，请重试';
+    } else if (e.code === 'cloud-locked') {
+      message = '备用配置当前未开放';
+    } else {
+      // helper 的文案已经自带「获取备用配置失败：」前缀，这里不再叠加
+      message = redactEntry(e.message || '获取备用配置失败');
+    }
+    addLog(message, true);
+    showToast(message, 'error');
+  } finally {
+    state.cloudBusy = false;
+    updateCloudUI();
+  }
+}
+
+async function clearCloud() {
+  try {
+    await api('/cloud-config', { method: 'DELETE' });
+    addLog('备用配置已清除');
+    showToast('备用配置已清除');
+    await refreshCloudStatus();
+    clearProxyList();
+    fetchProxies();
+  } catch (e) {
+    addLog(`清除备用配置失败: ${redactEntry(e.message)}`, true);
+  }
+}
+
+function wireSettingsEvents() {
+  // Theme select（切换走色彩渐变过渡）
+  $('#themeSelect')?.addEventListener('change', (e) => {
+    const theme = e.target.value;
+    withColorTransition(() => applyTheme(theme));
+    addLog(`切换主题: ${theme}`);
+  });
+
+  // GitHub project — opens in the system browser
+  $('#githubItem')?.addEventListener('click', () => {
+    openExternal('https://github.com/study-233/free-v6');
+  });
+  $('#feedbackItem')?.addEventListener('click', () => {
+    openExternal('https://github.com/study-233/free-v6/issues');
+  });
+  // 使用说明: 直接在系统浏览器打开使用说明页面
+  $('#readmeItem')?.addEventListener('click', () => {
+    openExternal('https://github.com/study-233/free-v6#readme');
+  });
+
+  // 重置设置：弹确认弹窗，不直接执行
+  $('#resetSettingsItem')?.addEventListener('click', openResetDialog);
+
+  // 软件版本行：发现新版时显示“有新版本”角标，点击重新打开更新弹窗
+  // （即使用户点过“跳过此版本”，这里始终可进入）
+  $('#versionItem')?.addEventListener('click', () => {
+    if (state.updateInfo) openUpdateDialog();
+  });
+
+  // Mode segmented chips in settings
+  $$('#settingsModeGroup .setting-seg').forEach(seg => {
+    seg.addEventListener('click', () => {
+      if (!seg.dataset.mode) return;
+      if (seg.dataset.mode !== state.mode) setMode(seg.dataset.mode);
+      // Filter chips toggle themselves on click — re-sync selection from state
+      updateSettingsUI();
+    });
+  });
+
+  // Settings sub-page: whitelist (the blacklist lives in settings.json only)
+  const wireSubPage = (itemSelector, pageSelector, backSelector) => {
+    $(itemSelector)?.addEventListener('click', () => {
+      const page = $(pageSelector);
+      const groups = $('.settings-groups');
+      if (page && groups) {
+        groups.style.display = 'none';
+        page.style.display = 'block';
+      }
+    });
+    $(backSelector)?.addEventListener('click', () => {
+      const page = $(pageSelector);
+      const groups = $('.settings-groups');
+      if (page && groups) {
+        page.style.display = 'none';
+        groups.style.display = '';
+      }
+    });
+  };
+  wireSubPage('#cidrSettingItem', '#cidrPage', '#cidrBack');
+  wireSubPage('#chainSettingItem', '#chainPage', '#chainBack');
+  wireSubPage('#cloudSettingItem', '#cloudPage', '#cloudBack');
+
+  // 备用配置子页：获取/刷新、清除、开关
+  $('#cloudFetch')?.addEventListener('click', submitCloudProfile);
+  $('#cloudPortalInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitCloudProfile(); });
+  $('#cloudClear')?.addEventListener('click', clearCloud);
+  $('#cloudEnabledSwitch')?.addEventListener('change', (e) => {
+    const next = Boolean(e.target.selected);
+    if (state.cloud.locked) {
+      e.target.selected = false;
+      addLog('备用配置当前未开放', true);
+      showToast('备用配置当前未开放', 'error');
+      return;
+    }
+    if (next && state.cloud.count === 0) {
+      e.target.selected = false; // 程序化复位会再次触发 change，下面的 guard 拦住
+      addLog('尚未获取备用配置，无法开启', true);
+      return;
+    }
+    if (next === state.cloud.enabled) return;
+    if (next && state.chain.enabled) {
+      e.target.selected = false; // 复位开关，否则界面显示"已开"但状态没变
+      addLog('链式代理已启用，请先关闭链式代理再启用备用配置', true);
+      showToast('请先关闭链式代理', 'error');
+      return;
+    }
+    state.cloud.enabled = next;
+    persistSettings(); // 主 PUT 携带 cloudEnabled 当前值
+  });
+
+  // Add whitelist entries
+  $('#addCidr')?.addEventListener('click', addCidr);
+  $('#cidrInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCidr(); });
+
+  // 链式代理子页：订阅导入/刷新（单按钮复用）、文件导入、清除、开关
+  $('#chainImportUrl')?.addEventListener('click', submitChainUrl);
+  $('#chainUrlInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitChainUrl(); });
+  $('#chainPickFile')?.addEventListener('click', () => $('#chainFileInput')?.click());
+  $('#chainFileInput')?.addEventListener('change', importChainFromFile);
+  $('#chainClear')?.addEventListener('click', openChainClearDialog);
+  $('#chainEnabledSwitch')?.addEventListener('change', (e) => {
+    const next = Boolean(e.target.selected);
+    if (next && state.chain.count === 0) {
+      e.target.selected = false; // 程序化复位会再次触发 change，下面的 guard 拦住
+      addLog('尚未导入链式代理内容，无法开启', true);
+      return;
+    }
+    // 两者改的是同一个出口，同时开会变成"到底走的哪条"不可解释
+    if (next && cloudReady()) {
+      e.target.selected = false;
+      addLog('备用配置已启用，请先关闭备用配置再启用链式代理', true);
+      showToast('请先关闭备用配置', 'error');
+      return;
+    }
+    if (next === state.chain.enabled) return;
+    state.chain.enabled = next;
+    persistSettings(); // 主 PUT 携带 chainEnabled 当前值；成功日志由它统一打
+  });
+
+  // Developer mode — 打开前必须弹窗确认（取消/遮罩/Esc → 保持关闭）；
+  // 关闭直接生效。落库与失败拨回统一走 applyDevMode。
+  $('#devModeSwitch')?.addEventListener('change', (e) => {
+    const next = e.target.selected;
+    if (next === state.devMode) return; // 程序化复位会再次触发 change，忽略
+    if (next) {
+      e.target.selected = false; // 先拨回，确认通过后才真正开启
+      openDevModeDialog();
+      return;
+    }
+    applyDevMode(false);
+  });
+
+  // Auto-start with Windows — helper registers the ONLOGON task plus the
+  // Task Manager marker entry (tray-only launch). Same contract as developer
+  // mode: announce only after the helper confirmed, revert on failure.
+  $('#autoStartSwitch')?.addEventListener('change', async (e) => {
+    const next = e.target.selected;
+    const previous = state.autoStart;
+    state.autoStart = next;
+    const saved = await persistSettings();
+    if (!saved) {
+      state.autoStart = previous;
+      e.target.selected = previous;
+      return;
+    }
+    addLog(next ? '已开启开机自启动' : '已关闭开机自启动');
+  });
+
+  // Silent start — with it on, every launch (autostart or manual) skips the
+  // window and only shows the tray icon. Same revert-on-failure contract.
+  $('#silentStartSwitch')?.addEventListener('change', async (e) => {
+    const next = e.target.selected;
+    const previous = state.silentStart;
+    state.silentStart = next;
+    const saved = await persistSettings();
+    if (!saved) {
+      state.silentStart = previous;
+      e.target.selected = previous;
+      return;
+    }
+    addLog(next ? '已开启静默启动' : '已关闭静默启动');
+  });
+
+  // 自动运行免流 —— 打开软件后自动尝试启动；网络未就绪时等待合适时机，
+  // 确定性失败则自动弹出主窗口。与静默启动同样的回滚约定。
+  $('#autoRunSwitch')?.addEventListener('change', async (e) => {
+    const next = e.target.selected;
+    const previous = state.autoRunProxy;
+    state.autoRunProxy = next;
+    const saved = await persistSettings();
+    if (!saved) {
+      state.autoRunProxy = previous;
+      e.target.selected = previous;
+      return;
+    }
+    if (next) {
+      // 只保存设置，不立即启动：自动启动按需求发生在“软件被打开”时
+      addLog('已开启自动运行免流（下次打开软件生效）');
+      autoRun.done = false;
+    } else {
+      addLog('已关闭自动运行免流');
+      disarmAutoRun();
+      fabDone(); // 排队中的自动启动取消：按钮不留在「启动中…」
+    }
+  });
+
+  // 快捷键 —— 启用后按 F6 打开主窗口，即使窗口正驻留托盘/静默启动。
+  // 先让桌面壳注册/注销系统级热键（F6 被占用会失败），成功后再落盘；
+  // 注册失败则回滚开关，UI 不声称一个没生效的状态。
+  $('#hotkeySwitch')?.addEventListener('change', async (e) => {
+    const next = e.target.selected;
+    const previous = state.hotkeyEnabled;
+    state.hotkeyEnabled = next;
+    try {
+      await tauriInvoke('hotkey_set', { enabled: next });
+    } catch (err) {
+      state.hotkeyEnabled = previous;
+      e.target.selected = previous;
+      addLog(`快捷键设置失败: ${err}`, true);
+      return;
+    }
+    const saved = await persistSettings();
+    if (!saved) {
+      // 落盘失败 → 回滚热键注册与开关状态
+      state.hotkeyEnabled = previous;
+      e.target.selected = previous;
+      tauriInvoke('hotkey_set', { enabled: previous });
+      return;
+    }
+    addLog(next ? '已开启快捷键' : '已关闭快捷键');
+  });
+
+  // 共享移动热点 —— 运行中改动下次启动生效（notifyEffectiveNextStart 弹
+  // 轻提醒）；保存失败拨回开关（回滚约定同静默启动）。
+  $('#hotspotShareSwitch')?.addEventListener('change', async (e) => {
+    const next = e.target.selected;
+    const previous = state.hotspotShare;
+    if (next === previous) return;
+    state.hotspotShare = next;
+    const saved = await persistSettings();
+    if (!saved) {
+      state.hotspotShare = previous;
+      e.target.selected = previous;
+      return;
+    }
+    addLog(next ? '已开启共享移动热点' : '已关闭共享移动热点');
+    notifyEffectiveNextStart(saved);
+  });
+
+  // Dynamic color — seed from the wallpaper (system accent as fallback) via
+  // the helper; persists in localStorage and applies immediately.
+  $('#dynamicColorSwitch')?.addEventListener('change', async (e) => {
+    state.dynamicColor = e.target.selected;
+    try { localStorage.setItem('freev6-dynamic-color', state.dynamicColor ? '1' : '0'); } catch (_) {}
+    if (state.dynamicColor) {
+      await refreshDynamicColor(false);
+    } else {
+      state.dynamicSeed = null;
+      withColorTransition(() => applyDynamicPalette());
+      addLog('动态取色已关闭');
+    }
+  });
+
+  // Pure black background (OLED) — surfaces go #000, dark themes only（渐变过渡）
+  $('#pureBlackSwitch')?.addEventListener('change', (e) => {
+    state.pureBlack = e.target.selected;
+    try { localStorage.setItem('freev6-pure-black', state.pureBlack ? '1' : '0'); } catch (_) {}
+    withColorTransition(() => applyPureBlack(state.pureBlack));
+    addLog(state.pureBlack ? '已开启纯黑背景（深色主题下生效）' : '纯黑背景已关闭');
+  });
+
+  // Download core（设置页「核心」行，与启动拦截弹窗共用 downloadCore）
+  $('#downloadCore')?.addEventListener('click', () => { downloadCore($('#downloadCore')); });
+
+  // Register WARP（手动；首次使用的自动注册见 maybeAutoRegisterWarp）
+  $('#registerWarp')?.addEventListener('click', () => { registerWarp(false); });
+}
+
+// CIDR (10.0.0.0/8) or bare domain (pku.edu.cn); the helper validates precisely
+const CIDR_ENTRY_RE = /^[0-9A-Fa-f:.]+\/\d{1,3}$/;
+const DOMAIN_ENTRY_RE = /^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+function addCidr() {
+  const input = $('#cidrInput');
+  if (!input) return;
+  const value = input.value.trim().toLowerCase();
+  if (!value) return;
+  const valid = value.includes('/')
+    ? CIDR_ENTRY_RE.test(value)
+    : DOMAIN_ENTRY_RE.test(value);
+  if (!valid) {
+    addLog(`无效网段或域名: ${value}`, true);
+    return;
+  }
+  if (!state.cidrs.includes(value)) {
+    state.cidrs.push(value);
+    renderCidrs();
+    persistSettings().then(notifyEffectiveNextStart);
+    addLog(`添加条目: ${value}`);
+  }
+  input.value = '';
+}
+
+/* ── 色彩切换过渡（主题 / 动态取色 / 纯黑背景） ────────────── */
+
+// View Transitions：旧画面保持不动、新画面淡入，两套颜色在屏上混合渐变，
+// 而不是属性一改整屏硬切。连续切换时先 skip 上一个过渡避免排队；
+// 不支持 startViewTransition 的环境（老 WebView）退化为直接切换。
+let _colorVT = null;
+function withColorTransition(fn) {
+  if (typeof document.startViewTransition !== 'function') { fn(); return null; }
+  if (_colorVT) { try { _colorVT.skipTransition(); } catch (_) {} _colorVT = null; }
+  try {
+    const t = document.startViewTransition(fn);
+    _colorVT = t;
+    // ready/finished 都可能因被 skip 而 reject（快速连续切换）——
+    // 必须各自接住，否则会冒成 unhandledrejection
+    t.ready?.catch(() => {});
+    t.finished.then(() => { if (_colorVT === t) _colorVT = null; }, () => {});
+    return t;
+  } catch (_) { fn(); return null; }
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('freev6-theme', theme); } catch (_) {}
+  // The derived palette's lightness depends on dark vs light — re-derive
+  if (state.dynamicColor && state.dynamicSeed) applyDynamicPalette();
+  // 原生云母/亚克力材质的深浅必须跟着走：applyTheme 可能被
+  // document.startViewTransition 推迟到快照之后执行，用独立 change 监听
+  // 会在 data-theme 还没改时就读到旧的深浅值，导致窗口材质与 UI 相反。
+  syncNativeVibrancy();
+  // Listen for system changes when in system mode
+  if (theme === 'system') {
+    if (!state._systemThemeListener) {
+      state._systemThemeListener = window.matchMedia('(prefers-color-scheme: light)');
+      state._systemThemeListener.addEventListener('change', () => {
+        // CSS variables auto-switch via [data-theme="system"] + media query;
+        // the derived palette needs a manual re-derive for the new scheme
+        // （跟随时也走渐变，避免系统切换时硬跳）
+        withColorTransition(() => applyDynamicPalette());
+      });
+    }
+  }
+}
+
+function loadSavedTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('freev6-theme'); } catch (_) {}
+  // Default to following the system color scheme when the user never picked one
+  const theme = saved || 'system';
+  applyTheme(theme);
+  const select = $('#themeSelect');
+  if (select) select.value = theme;
+}
+
+/* ── Appearance: dynamic color + OLED black ────────────────────── */
+
+const DYNAMIC_PALETTE_VARS = [
+  '--md-primary', '--md-on-primary', '--md-primary-container', '--md-on-primary-container',
+  '--md-secondary', '--md-on-secondary', '--md-secondary-container', '--md-on-secondary-container',
+  '--md-tertiary', '--md-on-tertiary', '--md-tertiary-container', '--md-on-tertiary-container',
+];
+
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+function hexToHsl(hex) {
+  const value = parseInt(hex.replace('#', ''), 16);
+  const r = (value >> 16 & 255) / 255;
+  const g = (value >> 8 & 255) / 255;
+  const b = (value & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h;
+  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return { h: h * 60, s, l };
+}
+
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+    : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  const to = (v) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+function isDarkTheme() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  if (theme === 'light') return false;
+  if (theme === 'dark') return true;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+// Material-You-ish three-family palette derived from one seed color.
+// Returns hex values (canvas/utils parse hex only).
+function derivePalette(seedHex, dark) {
+  const { h, s } = hexToHsl(seedHex);
+  // Gray seeds (wallpaper without a dominant hue) get a sensible chroma
+  const S = clamp(s < 0.12 ? 0.45 : s, 0.30, 0.90);
+  const hex = (hh, ss, ll) => hslToHex(hh, clamp(ss, 0, 1), clamp(ll, 0, 1));
+  const T = h + 60; // tertiary hue rotation (M3-ish)
+  if (dark) {
+    return {
+      '--md-primary': hex(h, S, 0.68),
+      '--md-on-primary': hex(h, Math.min(S, 0.45), 0.12),
+      '--md-primary-container': hex(h, S * 0.45, 0.30),
+      '--md-on-primary-container': hex(h, S, 0.86),
+      '--md-secondary': hex(h, S * 0.35, 0.74),
+      '--md-on-secondary': hex(h, 0.20, 0.12),
+      '--md-secondary-container': hex(h, S * 0.25, 0.30),
+      '--md-on-secondary-container': hex(h, S * 0.50, 0.86),
+      '--md-tertiary': hex(T, S * 0.50, 0.72),
+      '--md-on-tertiary': hex(T, 0.30, 0.12),
+      '--md-tertiary-container': hex(T, S * 0.35, 0.30),
+      '--md-on-tertiary-container': hex(T, S * 0.60, 0.86),
+    };
+  }
+  return {
+    '--md-primary': hex(h, S, 0.42),
+    '--md-on-primary': hex(h, Math.min(S, 0.6), 0.99),
+    '--md-primary-container': hex(h, S * 0.40, 0.90),
+    '--md-on-primary-container': hex(h, S, 0.18),
+    '--md-secondary': hex(h, S * 0.30, 0.45),
+    '--md-on-secondary': hex(h, 0.30, 0.99),
+    '--md-secondary-container': hex(h, S * 0.25, 0.90),
+    '--md-on-secondary-container': hex(h, S * 0.50, 0.18),
+    '--md-tertiary': hex(T, S * 0.45, 0.45),
+    '--md-on-tertiary': hex(T, 0.35, 0.99),
+    '--md-tertiary-container': hex(T, S * 0.30, 0.90),
+    '--md-on-tertiary-container': hex(T, S * 0.50, 0.18),
+  };
+}
+
+function applyDynamicPalette() {
+  const root = document.documentElement;
+  DYNAMIC_PALETTE_VARS.forEach(name => root.style.removeProperty(name));
+  if (!state.dynamicColor || !state.dynamicSeed) return;
+  const palette = derivePalette(state.dynamicSeed, isDarkTheme());
+  Object.keys(palette).forEach(name => root.style.setProperty(name, palette[name]));
+}
+
+async function refreshDynamicColor(silent = false) {
+  if (!state.dynamicColor) return;
+  try {
+    const res = await api('/appearance');
+    if (!res.color) {
+      if (!silent) addLog('动态取色：壁纸与系统强调色均不可用', true);
+      return;
+    }
+    state.dynamicSeed = res.color;
+    // 后台静默刷新（初始化/断线重连）不动画；用户打开开关时走渐变过渡
+    if (silent) applyDynamicPalette();
+    else withColorTransition(() => applyDynamicPalette());
+    if (!silent) {
+      addLog(res.source === 'wallpaper'
+        ? `动态取色已应用（壁纸主色 ${res.color}）`
+        : `动态取色已应用（系统强调色 ${res.color}）`);
+    }
+  } catch (e) {
+    if (!silent) addLog(`动态取色失败: ${e.message}`, true);
+    // silent = background retry; the seed is fetched again on helper (re)connect
+  }
+}
+
+function applyPureBlack(on) {
+  if (on) document.documentElement.setAttribute('data-oled', '1');
+  else document.documentElement.removeAttribute('data-oled');
+}
+
+function loadAppearancePrefs() {
+  try {
+    state.dynamicColor = localStorage.getItem('freev6-dynamic-color') === '1';
+    state.pureBlack = localStorage.getItem('freev6-pure-black') === '1';
+  } catch (_) {}
+  applyPureBlack(state.pureBlack);
+  if (state.dynamicColor) refreshDynamicColor(true); // helper may still be connecting
+}
+
+/* ── Appearance: liquid-glass background (液态玻璃主题) ─────────── */
+
+const bgState = {
+  mode: 'default',          // default | wallpaper | acrylic | mica
+  webglGlass: true,         // WebGL 折射增强（仅壁纸模式生效）
+  wallpaper: null,          // data URL；null = 未设置
+  liquidGlass: null,        // @ybouane/liquidglass 实例
+};
+
+const BG_MODE_KEY = 'freev6-bg-mode';
+const BG_GLASS_KEY = 'freev6-webgl-glass';
+const BG_WALLPAPER_KEY = 'freev6-wallpaper';
+
+// 当前深浅色（亚克力/云母 dark 参数）
+function bgIsDark() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  if (theme === 'light') return false;
+  if (theme === 'dark') return true;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+// 让原生窗口材质（mica/acrylic 的 dark 参数）与当前主题一致
+function syncNativeVibrancy() {
+  if (bgState.mode !== 'acrylic' && bgState.mode !== 'mica') return;
+  tauriInvoke('set_background', { mode: bgState.mode, dark: bgIsDark() });
+}
+
+// 设置 <html data-bg-mode> 并调用 Rust 应用/清除窗口级效果
+async function applyBackgroundMode(mode, { persist = true } = {}) {
+  if (mode === 'wallpaper' && !bgState.wallpaper) mode = 'default';
+  bgState.mode = mode;
+  document.documentElement.setAttribute('data-bg-mode', mode);
+  if (persist) { try { localStorage.setItem(BG_MODE_KEY, mode); } catch (_) {} }
+  const select = $('#bgModeSelect');
+  if (select) select.value = mode;
+
+  syncLiquidGlass(); // 仅壁纸 + 开关开启时启用 WebGL 折射
+
+  const dark = bgIsDark();
+  try {
+    const applied = await tauriInvoke('set_background', { mode, dark });
+    if (mode === 'mica' && applied === 'acrylic') {
+      // 云母不可用（Win10 或新版 Win11）→ 自动落到亚克力
+      bgState.mode = 'acrylic';
+      document.documentElement.setAttribute('data-bg-mode', 'acrylic');
+      if (select) select.value = 'acrylic';
+      if (persist) { try { localStorage.setItem(BG_MODE_KEY, 'acrylic'); } catch (_) {} }
+      addLog('云母不可用，已自动降级为亚克力');
+      syncLiquidGlass();
+    } else if ((mode === 'acrylic' || mode === 'mica') && applied === 'default') {
+      // 系统完全不支持 → 回退默认
+      bgState.mode = 'default';
+      document.documentElement.setAttribute('data-bg-mode', 'default');
+      if (select) select.value = 'default';
+      if (persist) { try { localStorage.setItem(BG_MODE_KEY, 'default'); } catch (_) {} }
+      addLog('该背景效果在当前系统不可用', true);
+      syncLiquidGlass();
+    }
+  } catch (e) {
+    addLog(`背景模式切换失败: ${e}`, true);
+    if (mode === 'acrylic' || mode === 'mica') {
+      bgState.mode = 'default';
+      document.documentElement.setAttribute('data-bg-mode', 'default');
+      if (select) select.value = 'default';
+      if (persist) { try { localStorage.setItem(BG_MODE_KEY, 'default'); } catch (_) {} }
+      syncLiquidGlass();
+    }
+  }
+}
+
+// 压缩图片为 ≤2560px 的 JPEG data URL（控制 localStorage 体积）
+function compressWallpaper(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 2560;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        const scale = Math.min(MAX / width, MAX / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+    img.src = url;
+  });
+}
+
+// 同步各 liquidglass 根的壁纸副本（导轨 / FAB 层），供折射捕获
+function setWallpaperCopies(src) {
+  [
+    ['#railBg', () => bgState.railGlass],
+    ['#fabBg', () => bgState.liquidGlass],
+  ].forEach(([sel, getInst]) => {
+    const el = $(sel);
+    if (!el) return;
+    if (!src) { el.removeAttribute('src'); return; }
+    // 壁纸副本换图后库感知不到 → 手动失效重渲
+    el.onload = () => {
+      const inst = getInst();
+      if (inst) { try { inst.markChanged(); } catch (_) {} }
+    };
+    el.src = src;
+  });
+}
+
+function applyWallpaper(dataUrl) {
+  bgState.wallpaper = dataUrl;
+  const imgEl = $('#bgImage');
+  if (imgEl) imgEl.src = dataUrl;
+  setWallpaperCopies(dataUrl);
+  try {
+    localStorage.setItem(BG_WALLPAPER_KEY, dataUrl);
+  } catch (_) {
+    addLog('壁纸过大，仅本次生效（无法持久化）', true);
+  }
+  const clearBtn = $('#clearWallpaperBtn');
+  if (clearBtn) clearBtn.hidden = false;
+  const desc = $('#wallpaperDesc');
+  if (desc) desc.textContent = '已设置壁纸，点击更换';
+  applyBackgroundMode('wallpaper');
+}
+
+function clearWallpaper() {
+  bgState.wallpaper = null;
+  const imgEl = $('#bgImage');
+  if (imgEl) imgEl.removeAttribute('src');
+  setWallpaperCopies(null);
+  try { localStorage.removeItem(BG_WALLPAPER_KEY); } catch (_) {}
+  const clearBtn = $('#clearWallpaperBtn');
+  if (clearBtn) clearBtn.hidden = true;
+  const desc = $('#wallpaperDesc');
+  if (desc) desc.textContent = '选择一张图片作为背景';
+  if (bgState.mode === 'wallpaper') applyBackgroundMode('default');
+}
+
+// WebGL 液态玻璃：仅壁纸模式 + 开关开启时，对浮动面板应用
+async function syncLiquidGlass() {
+  const enable = bgState.mode === 'wallpaper' && bgState.webglGlass && !!bgState.wallpaper;
+  clearTimeout(bgState._initTimer);
+  if (!enable) {
+    document.documentElement.setAttribute('data-webgl-glass', 'off');
+    destroyLiquidGlass();
+    return;
+  }
+  // 延迟到首屏渲染后初始化，避免 html-to-image 预捕获阻塞 UI；
+  // 仅 init 成功才接管（否则保持 CSS 磨砂，避免透明无底的闪帧）
+  bgState._initTimer = setTimeout(async () => {
+    const ok = await initLiquidGlass();
+    document.documentElement.setAttribute('data-webgl-glass', ok ? 'on' : 'off');
+  }, 300);
+}
+
+/* ── 导航玻璃指示器（对应官网 .hero-tabs + #glass-tab-indicator） ──
+   单个玻璃滑块在导航项之间滑动；导航项本身无色，图标留在玻璃内被折射，
+   文字压在玻璃之上保持清晰。 */
+function railIndicatorRect() {
+  const rail = $('.rail');
+  const indicator = $('#railIndicator');
+  const active = $('.nav-group .nav-item.active') || $('.nav-group .nav-item');
+  if (!rail || !indicator || !active) return null;
+  const railRect = rail.getBoundingClientRect();
+  const itemRect = active.getBoundingClientRect();
+  if (!itemRect.width) return null;
+  return {
+    indicator,
+    w: itemRect.width,
+    h: itemRect.height,
+    x: itemRect.left - railRect.left,
+    y: itemRect.top - railRect.top,
+  };
+}
+
+// 预置尺寸：库在 init 时按元素尺寸分配 canvas，必须先把滑块放到正确的一格
+function primeRailIndicator() {
+  const r = railIndicatorRect();
+  if (!r) return;
+  r.indicator.style.transition = 'none';
+  r.indicator.style.width = `${r.w}px`;
+  r.indicator.style.height = `${r.h}px`;
+  r.indicator.style.transform = `translate(${r.x}px, ${r.y}px)`;
+  r.indicator.offsetHeight; // 强制 reflow，避免从屏幕外哨兵值动画过来
+  r.indicator.style.transition = '';
+}
+
+function syncRailIndicator(animate) {
+  if (!bgState.railGlass) return;
+  const r = railIndicatorRect();
+  if (!r) return;
+  if (!animate) r.indicator.style.transition = 'none';
+  r.indicator.style.width = `${r.w}px`;
+  r.indicator.style.height = `${r.h}px`;
+  r.indicator.style.transform = `translate(${r.x}px, ${r.y}px)`;
+  if (!animate) {
+    r.indicator.offsetHeight;
+    r.indicator.style.transition = '';
+  } else {
+    pulseRailIndicator();
+  }
+}
+
+/* 库的渲染帧有 `_glassDirty` 门槛：没有元素标脏就整帧跳过。
+   CSS transform 平移滑块不会自动标脏，canvas 会带着旧贴图整体搬走 —— 
+   所以滑动期间逐帧 markChanged，让折射按新位置重算。
+   约 30fps 节流：每帧都要重新栅格化滑块背后的内容，不必满帧跑。 */
+function pulseRailIndicator() {
+  if (!bgState.railGlass) return;
+  cancelAnimationFrame(bgState._railPulse);
+  const started = performance.now();
+  let last = 0;
+  const tick = (now) => {
+    const ind = $('#railIndicator');
+    if (!ind || !bgState.railGlass) return;
+    if (now - last > 32) {
+      last = now;
+      try { bgState.railGlass.markChanged(ind); } catch (_) {}
+    }
+    if (now - started < 520) {
+      bgState._railPulse = requestAnimationFrame(tick);
+    } else {
+      // 落位后再补一帧，保证最终位置是准的
+      try { bgState.railGlass.markChanged(ind); } catch (_) {}
+    }
+  };
+  bgState._railPulse = requestAnimationFrame(tick);
+}
+
+function wireRailIndicator() {
+  if (bgState._railResize) return;
+  bgState._railResize = () => {
+    if (bgState.railGlass) syncRailIndicator(false);
+  };
+  window.addEventListener('resize', bgState._railResize);
+  // 图标字体 / 自定义元素升级会改变导航项尺寸，库和 window.resize 都不会察觉
+  const group = $('.nav-group');
+  if (group && window.ResizeObserver) {
+    bgState._railRO = new ResizeObserver(() => {
+      if (bgState.railGlass) syncRailIndicator(false);
+    });
+    bgState._railRO.observe(group);
+  }
+}
+
+async function initLiquidGlass() {
+  if (bgState.liquidGlass && bgState.railGlass) return true;
+  const fabLayer = $('#fabLayer');
+  const fabs = $$('.fab-item');
+  const indicator = $('#railIndicator');
+  const logsBtn = $('#logsButton');
+  try {
+    const { LiquidGlass } = await import('@ybouane/liquidglass');
+
+    // 基准取自官网 site/index.html，只按深色壁纸做两处微调：
+    // - 按钮（#glass-btn）：button 模式 + 适度模糊；去掉 demo 的 brightness -.1，
+    //   那档是为浅色竹林照片压亮度用的，深色壁纸上会把按钮压成灰块
+    // - 滑块（#glass-tab-indicator）：blur 0 保持图标锐利，圆角对齐导航项
+    const FAB_CFG = { button: true, cornerRadius: 16, blurAmount: 0.28 };
+    // 官网默认 edgeHighlight .2 是为浅色照片调的；深色壁纸上滑块会「沉」进底槽，
+    // 这里略微提亮度 + 加强边缘高光，保证选中态一眼可辨（其余仍是库默认）
+    const INDICATOR_CFG = {
+      cornerRadius: 20, zRadius: 16, blurAmount: 0,
+      edgeHighlight: 0.32, shadowOpacity: 0.18, brightness: 0.1, tintStrength: 0,
+    };
+    const LOGS_CFG = { button: true, cornerRadius: 20, blurAmount: 0.28 };
+
+    // FAB 实例（root=#fabLayer：只含壁纸副本 + FAB，小 root 初始化快）
+    if (!bgState.liquidGlass && fabLayer && fabs.length) {
+      fabs.forEach((f) => { f.dataset.config = JSON.stringify(FAB_CFG); });
+      bgState.liquidGlass = await LiquidGlass.init({
+        root: fabLayer,
+        glassElements: fabs,
+      });
+      kickGlassRefresh();
+    }
+
+    // 导轨实例（root=.rail）：玻璃滑块 + 日志按钮
+    if (!bgState.railGlass && indicator) {
+      indicator.dataset.config = JSON.stringify(INDICATOR_CFG);
+      if (logsBtn) logsBtn.dataset.config = JSON.stringify(LOGS_CFG);
+      primeRailIndicator(); // 必须先定尺寸再 init
+      const targets = [indicator, logsBtn].filter(Boolean);
+      bgState.railGlass = await LiquidGlass.init({
+        root: $('.rail'),
+        glassElements: targets,
+      });
+      syncRailIndicator(false);
+      wireRailIndicator();
+      kickGlassRefresh();
+      // 图标字体/自定义元素升级后导航项尺寸可能变化，库不会察觉 → 再对齐一次
+      const settle = () => requestAnimationFrame(() => requestAnimationFrame(() => syncRailIndicator(false)));
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+      settle();
+    }
+    return true;
+  } catch (e) {
+    // WebGL 不可用（老机器/驱动）→ 回退 CSS 磨砂
+    bgState.liquidGlass = null;
+    bgState.railGlass = null;
+    addLog(`WebGL 液态玻璃不可用，已回退磨砂效果（${e}）`, true);
+    return false;
+  }
+}
+
+/* 全量重绘一次。两个用途：
+   1) init 完成时壁纸副本可能还没解码完，首帧会拿到空白场景；
+   2) FAB 一开始是 display:none（canvas 被定成 0 尺寸），显示后尺寸变了
+      但没有任何东西标脏，库不会重绘 —— 只在 hover 时靠 button 模式才亮起来。 */
+function kickGlassRefresh() {
+  const kick = () => {
+    try { bgState.liquidGlass?.markChanged(); } catch (_) {}
+    try { bgState.railGlass?.markChanged(); } catch (_) {}
+  };
+  requestAnimationFrame(kick);
+  setTimeout(kick, 120);
+  setTimeout(kick, 480);
+}
+
+function destroyLiquidGlass() {
+  if (bgState.liquidGlass) {
+    try { bgState.liquidGlass.destroy(); } catch (_) {}
+    bgState.liquidGlass = null;
+  }
+  if (bgState.railGlass) {
+    try { bgState.railGlass.destroy(); } catch (_) {}
+    bgState.railGlass = null;
+  }
+  // 清理滑块残留的 canvas 与尺寸，避免关掉玻璃后留一块陈旧贴图
+  const ind = $('#railIndicator');
+  if (ind) {
+    ind.querySelectorAll('canvas').forEach((c) => c.remove());
+    ind.style.transition = 'none';
+    ind.style.width = '0';
+    ind.style.height = '0';
+    ind.style.transform = 'translate(-9999px, -9999px)';
+    ind.offsetHeight;
+    ind.style.transition = '';
+  }
+}
+
+// 玻璃开关兼容 md-switch API：.selected 属性 + click 派发 change，
+// 现有 app.js 的开关接线（读 .selected / 写 .selected / 监听 change）零改动。
+function setupGlassSwitches() {
+  $$('.glass-switch').forEach((btn) => {
+    if (btn._gsInit) return;
+    btn._gsInit = true;
+    Object.defineProperty(btn, 'selected', {
+      configurable: true,
+      get() { return btn.getAttribute('aria-checked') === 'true'; },
+      set(v) { btn.setAttribute('aria-checked', v ? 'true' : 'false'); },
+    });
+    btn.addEventListener('click', () => {
+      btn.selected = !btn.selected;
+      btn.dispatchEvent(new Event('change'));
+    });
+  });
+}
+
+function loadBackgroundPrefs() {
+  try {
+    bgState.mode = localStorage.getItem(BG_MODE_KEY) || 'default';
+    bgState.webglGlass = localStorage.getItem(BG_GLASS_KEY) !== '0';
+    bgState.wallpaper = localStorage.getItem(BG_WALLPAPER_KEY);
+  } catch (_) {}
+  if (!['default', 'wallpaper', 'acrylic', 'mica'].includes(bgState.mode)) {
+    bgState.mode = 'default';
+  }
+  if (bgState.mode === 'wallpaper' && !bgState.wallpaper) bgState.mode = 'default';
+
+  if (bgState.wallpaper) {
+    const imgEl = $('#bgImage');
+    if (imgEl) imgEl.src = bgState.wallpaper;
+    setWallpaperCopies(bgState.wallpaper);
+    const clearBtn = $('#clearWallpaperBtn');
+    if (clearBtn) clearBtn.hidden = false;
+    const desc = $('#wallpaperDesc');
+    if (desc) desc.textContent = '已设置壁纸，点击更换';
+  }
+  const select = $('#bgModeSelect');
+  if (select) select.value = bgState.mode;
+  const glassSwitch = $('#liquidGlassSwitch');
+  if (glassSwitch) glassSwitch.selected = bgState.webglGlass;
+
+  document.documentElement.setAttribute('data-bg-mode', bgState.mode);
+  applyBackgroundMode(bgState.mode, { persist: false });
+}
+
+function wireBackgroundEvents() {
+  $('#bgModeSelect')?.addEventListener('change', (e) => {
+    const mode = e.target.value;
+    if (mode === 'wallpaper' && !bgState.wallpaper) {
+      const select = $('#bgModeSelect');
+      if (select) select.value = bgState.mode;
+      $('#wallpaperFileInput')?.click();
+      addLog('请选择一张图片作为壁纸');
+      return;
+    }
+    applyBackgroundMode(mode);
+    addLog(`切换背景模式: ${mode}`);
+  });
+
+  $('#wallpaperItem')?.addEventListener('click', () => $('#wallpaperFileInput')?.click());
+  $('#clearWallpaperBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    clearWallpaper();
+    addLog('已清除壁纸');
+  });
+  $('#wallpaperFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // 允许重复选同一张图
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { addLog('请选择图片文件', true); return; }
+    try {
+      const dataUrl = await compressWallpaper(file);
+      applyWallpaper(dataUrl);
+      addLog('壁纸已应用');
+    } catch (err) {
+      addLog(`壁纸设置失败: ${err.message}`, true);
+    }
+  });
+
+  $('#liquidGlassSwitch')?.addEventListener('change', (e) => {
+    bgState.webglGlass = e.target.selected;
+    try { localStorage.setItem(BG_GLASS_KEY, bgState.webglGlass ? '1' : '0'); } catch (_) {}
+    syncLiquidGlass();
+    addLog(bgState.webglGlass ? '已开启液态玻璃' : '已关闭液态玻璃');
+  });
+
+  // 显式切换主题由 applyTheme -> syncNativeVibrancy 负责（顺序可控）；
+  // 这里只兜「跟随系统」时系统深浅变化（data-theme 不变，只有 CSS 媒体查询生效）
+  window.matchMedia('(prefers-color-scheme: dark)')?.addEventListener?.('change', syncNativeVibrancy);
+}
+
+/* ── Window Controls (immersive titlebar) ─────────────────────── */
+
+const tauriInvoke = (cmd, args) => {
+  const bridge = window.__TAURI__?.core || window.__TAURI_INTERNALS__;
+  return bridge ? bridge.invoke(cmd, args) : Promise.resolve(undefined);
+};
+
+function wireTitlebar() {
+  const bar = $('#titlebar');
+  if (!bar) return;
+  const maxIcon = $('#winMaximizeIcon');
+  const setMaxIcon = (maximized) => {
+    // 还原态用内联 SVG，最大化态仍是字体里的 crop_square
+    if (maxIcon) maxIcon.innerHTML = maximized ? ICON_RESTORE : 'crop_square';
+  };
+  const refreshMax = () => tauriInvoke('window_maximized').then(setMaxIcon);
+  refreshMax();
+
+  $('#winMinimize')?.addEventListener('click', () => tauriInvoke('window_minimize'));
+  $('#winMaximize')?.addEventListener('click', () =>
+    tauriInvoke('window_toggle_maximize').then(setMaxIcon));
+  $('#winClose')?.addEventListener('click', () => tauriInvoke('window_close'));
+  // Re-sync when the state may have changed elsewhere (e.g. Win+Arrow snap)
+  $('#winMaximize')?.addEventListener('mouseenter', refreshMax);
+
+  // Drag anywhere on the bar (except buttons) to move; double-click toggles maximize
+  bar.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.window-controls')) return;
+    tauriInvoke('window_start_dragging');
+  });
+  bar.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.window-controls')) return;
+    tauriInvoke('window_toggle_maximize').then(setMaxIcon);
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────── */
+
+function init() {
+  setupGlassSwitches(); // 先给玻璃开关挂 .selected 兼容，再让各 wiring 读写
+  loadSavedTheme();
+  loadAppearancePrefs();
+  loadBackgroundPrefs();
+  loadTrafficStats();
+  wireTitlebar();
+  wireEvents();
+  wireProxyEvents();
+  wireSettingsEvents();
+  wireBackgroundEvents();
+  renderLogs();
+  initChart();
+  refreshBackendState();
+
+  // 后台检查 GitHub 正式版更新（离线/私有仓库 404 → 静默跳过，不阻塞启动）
+  setTimeout(() => { checkForUpdate(); }, 1500);
+
+  // 每次启动检查一次公告（helper 就绪前静默等待，见 ensureNoticeChecked）
+  setTimeout(() => { ensureNoticeChecked(); }, 1200);
+
+  // Show proxy FAB on initial dashboard view
+  $('#proxyToggle')?.classList.add('visible');
+
+  // 首次启动显示欢迎引导（已同意过，或未带强制参数时不显示）
+  if (guideForced() || !guideSeen()) setTimeout(openGuide, 400);
+
+  setInterval(pollStatus, 3000);
+  setInterval(pollTraffic, 1000);
+  setInterval(fetchProxies, 5000);
+
+  // 自动运行免流：网络恢复后立即重试（离线期间按间隔静默等待）
+  window.addEventListener('online', () => {
+    if (!autoRun.armed) return;
+    autoRun.tries = 0;
+    autoRun.offlineTries = 0;
+    autoRun.lastWhy = '';
+    addLog('网络已恢复，重新尝试自动启动免流');
+    scheduleAutoRun(600);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);

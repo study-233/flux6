@@ -2,18 +2,30 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   go:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - run: go test ./...
-      - run: go vet ./...
+      - run: go test -timeout=180s ./cmd/... ./internal/... ./mobileapi/...
+      - run: go vet ./cmd/... ./internal/... ./mobileapi/...
 
   rust:
     runs-on: windows-latest
@@ -32,24 +44,29 @@ jobs:
         with:
           go-version: '1.25.x'
       - name: Build helper sidecar
-        run: go build -o src-tauri/binaries/freev6-helper-x86_64-pc-windows-msvc.exe ./cmd/freev6-helper
+        run: go build -o apps/windows/src-tauri/binaries/freev6-helper-x86_64-pc-windows-msvc.exe ./cmd/freev6-helper
       - name: Ensure GeoSite.dat resource
         run: go run ./cmd/ensure-geodata
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: apps/windows/src-tauri
       # --locked: Cargo.lock is tracked; never re-resolve upstream crates in CI.
       # cargo test stays out on purpose: the test binary carries a
       # requireAdministrator manifest (os error 740 when not elevated).
-      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - run: cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
 
-  # 前端没有打包/测试步骤，但有一类 bug 在运行时是完全静默的：
-  # <md-icon> 用了字体子集里没有的名字时，浏览器回退成普通文字，
-  # 再被 16px 的图标框一裁 —— 只剩首字母碎片（blur_on 曾显示成 "R"）。
-  # check-icons.py 扫 index.html + app.js 里所有字体图标名，对不上就让 CI 失败。
+  # Windows 直接打包 apps/windows/web/；检查本地图标和模块引用。
   web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Repository contracts
+        run: python3 scripts/maintenance/check-repository.py
+      - name: Maintenance protection tests
+        run: python3 scripts/maintenance/test_maintenance.py
       - name: Icon subset guard
         run: python3 scripts/check-icons.py
+      - name: Verify publisher endpoints
+        run: python3 scripts/check-publisher.py
+      - name: Verify frontend module imports
+        run: node --experimental-vm-modules scripts/check-web-modules.mjs

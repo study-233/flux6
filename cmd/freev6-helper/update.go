@@ -18,6 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/yourname/freev6/internal/notice"
+	"github.com/yourname/freev6/internal/publisher"
 	"github.com/yourname/freev6/internal/stallhttp"
 )
 
@@ -47,13 +49,7 @@ var updateAllowedHosts = []string{
 
 // updateMirrorPrefixes 把 github.com 资产 URL 改写成各加速镜像的直通
 // 地址；顺序按 2026-10 校园网实测延迟。变量便于测试注入。
-var updateMirrorPrefixes = []string{
-	"https://v6.gh-proxy.org/",
-	"https://v4.gh-proxy.org/",
-	"https://gh-proxy.com/",
-	"https://axisnow.gh-proxy.org/",
-	"https://cdn.gh-proxy.org/",
-}
+var updateMirrorPrefixes = notice.MirrorPrefixes()
 
 // 单线路预算：停滞 10s 零进展即换线（进度条冻结最坏 10s 就切），硬上限
 // 兜住持续蠕动；变量便于测试压缩时长。
@@ -322,7 +318,7 @@ func (h *helper) updateProgress(writer http.ResponseWriter, request *http.Reques
 // with a direct fallback and a cache-buster, so the frontend never talks to
 // GitHub directly: no CORS exposure, no shared-pool403s.
 
-const updateRepoSlug = "evansrrr/free-v6"
+const updateRepoSlug = publisher.Repository
 
 // updateLatestURLs is a var so tests can point it at a local server.
 // 缓存穿透参数拼在每条 URL 上；镜像顺序与安装包下载一致。
@@ -362,6 +358,11 @@ func parseVersionJSON(data []byte) (*latestVersionInfo, error) {
 	}
 	if strings.TrimSpace(info.Download) == "" {
 		return nil, fmt.Errorf("version.json missing download url")
+	}
+	u, err := url.Parse(info.Download)
+	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil ||
+		!strings.HasPrefix(u.Path, "/"+publisher.Repository+"/releases/download/") {
+		return nil, fmt.Errorf("version.json download must belong to %s", publisher.Repository)
 	}
 	return &info, nil
 }

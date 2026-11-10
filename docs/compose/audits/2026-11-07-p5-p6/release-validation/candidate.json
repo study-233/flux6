@@ -1,0 +1,157 @@
+{
+  "passed": true,
+  "candidate": {
+    "version": "0.5.3",
+    "build": "2",
+    "id": "dev.freev6.desktop",
+    "minimumOS": "14.0",
+    "runnerInstructions": "be89e607d963b598677fc11547d77980832d60940cb6bceaaa93321a91a59230",
+    "dartAOTInstructions": "155eb3fd8a1131cfc07b149f50dfaa1299ad91d65aa5e260384e9759b1f4c734",
+    "engineInstructions": "130d1bc80d6d0caee71f36fd56f463ed452e3cb1ceb34a14135c609786af1307",
+    "worker": "6ea141a28b4415fdd086cba1887dc340151179cca2e1e6e6c77b73aadbc8ad76",
+    "service": "418e6c0d98c9d5399d187c66e4d1ce3c7cf273c45ec170633d62047b5b62ca32",
+    "cdHash": "7dcabc5541e7ecda1a929fa599775ff9b8600056"
+  },
+  "baseline": {
+    "version": "0.5.2",
+    "build": "1",
+    "cdHash": "2f2a17b97f54256428493f8f2fc53e8bc4159f1f"
+  },
+  "distribution": {
+    "gatekeeperStatus": "assessments enabled",
+    "assessmentExit": 3,
+    "assessment": "FreeV6.app: rejected",
+    "distributionExit": 70,
+    "issues": [
+      "Adhoc Signed App",
+      "Notary Ticket Missing"
+    ],
+    "downloadQuarantineTested": false
+  },
+  "update": {
+    "archive": "FreeV6_0.5.3_2_arm64.zip",
+    "appcast": "appcast-arm64.xml",
+    "verifiedChecksums": {
+      "FreeV6_0.5.3_2_arm64.zip": "c208b72535e4b203f6e61b6efc80acbed61f023e79327a0531922277f4ebb119",
+      "appcast-arm64.xml": "bda9e6a24c5653b27164cb7d932cf371069628f449bf1f8c2f7c5f3dddb1523b"
+    },
+    "testChannelBundleCDHash": "e10e84a96132934d6d9fa59cece23e439f401270",
+    "matchingSignedMetadata": {
+      "architecture": "arm64",
+      "build": 2,
+      "format": 1,
+      "maximumSourceBuild": 1,
+      "minimumSourceBuild": 1,
+      "runtimeCatalogSHA256": "4c0fa60b00d6014c7e299fc6874cf0c8b4a129736ac4255ef9c764407d518a89",
+      "serviceProtocol": 6,
+      "serviceSHA256": "418e6c0d98c9d5399d187c66e4d1ce3c7cf273c45ec170633d62047b5b62ca32",
+      "settingsSchema": 1,
+      "workerProtocol": 1
+    },
+    "wrongKeyRefused": true,
+    "scope": "Disposable Ed25519 key, no published assets or feeds."
+  },
+  "sparkle": {
+    "passed": true,
+    "scenario": "upgrade",
+    "installedVersion": "2",
+    "events": [
+      {
+        "event": "launched",
+        "pid": 97779,
+        "version": "1"
+      },
+      {
+        "version": "1",
+        "reason": "",
+        "event": "checking",
+        "pid": 97779
+      },
+      {
+        "version": "1",
+        "reason": "",
+        "event": "found",
+        "pid": 97779
+      },
+      {
+        "version": "1",
+        "reason": "",
+        "event": "downloading",
+        "pid": 97779
+      },
+      {
+        "version": "1",
+        "reason": "",
+        "event": "ready",
+        "pid": 97779
+      },
+      {
+        "event": "network-confirmed",
+        "version": "1",
+        "pid": 97779
+      },
+      {
+        "version": "1",
+        "reason": "",
+        "event": "installing",
+        "pid": 97779
+      },
+      {
+        "event": "terminating",
+        "version": "1",
+        "pid": 97779
+      }
+    ],
+    "scope": "Shipping update-helper code with automated test consent, signed loopback feed, and privately identified copy of the actual Flutter runner/AOT target. Production app defaults, service, and DNS are untouched.",
+    "flutter": {
+      "freshProcess": true,
+      "sourcePID": 97779,
+      "targetPID": 97809,
+      "mappedFrameworks": {
+        "FlutterMacOS": true,
+        "App": true
+      },
+      "probeBundleIdentifier": "dev.freev6.flutter-host.qa.b4339d21-7927-436f-9a71-a65c0b7ba11f"
+    }
+  },
+  "dataMigrationAndRollback": {
+    "workerProtocol": 1,
+    "schema": 1,
+    "baselineBuild": 1,
+    "candidateBuild": 2,
+    "rollbackBuild": 1,
+    "oldReadsNew": true,
+    "newReadsOld": true,
+    "chainMembers": 6,
+    "oldMode": "global",
+    "finalMode": "direct",
+    "oldRevision": 2,
+    "finalRevision": 3,
+    "ledgerUploadBefore": 31000,
+    "ledgerUploadAfterRollback": 51000
+  },
+  "installer": {
+    "cases": [
+      "trusted-payload",
+      "wrong-service-digest",
+      "relaxed-client-rejected",
+      "trusted-payload-after-rejections",
+      "non-root-mutation-rejected"
+    ],
+    "manifest": {
+      "flutterClientSeal": "29fe6dd8d5047826a606b5450aa00c6adc670b333cd18b3230b1265da6a16f04",
+      "installer": {
+        "cdHash": "233de8be08c9ad8bdc638b9b5dc3e0b3801a4351",
+        "identifier": "dev.freev6.service-installer"
+      },
+      "protocolVersion": 6,
+      "serviceSHA256": "418e6c0d98c9d5399d187c66e4d1ce3c7cf273c45ec170633d62047b5b62ca32"
+    },
+    "scope": "real signed payload verification; no privileged installation"
+  },
+  "raw": {
+    "package": "build/p6-release-validation/7a05919f-1925-4514-9afa-24c7466fc7d9/release",
+    "sparkle": "build/native-update-probes/fda457a9-5ba9-4ce9-876d-266ccf95fa12/result.json",
+    "installer": "build/installer-probes/88de41b1-0dca-4d84-bfc2-83e85cbfd6ba/result.json"
+  }
+}

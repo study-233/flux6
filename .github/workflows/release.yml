@@ -7,7 +7,7 @@ name: Release
 #   * the release body links to this exact workflow run and carries the asset's SHA256;
 #   * a build-provenance attestation is generated for every asset, so the
 #     asset can be cryptographically verified against this workflow
-#     (`gh attestation verify <file> -o evansrrr`). Requires a PUBLIC repository.
+#     (`gh attestation verify <file> -o study-233`). Requires a PUBLIC repository.
 #   * tags containing `-beta` or `-alpha` are marked pre-release; everything
 #     else is a normal release. Either way it starts as a **draft** for manual
 #     review before publishing.
@@ -20,7 +20,8 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
+      - 'windows-v*'
 
 permissions:
   contents: write        # create the draft release + upload assets
@@ -51,7 +52,7 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: apps/windows/src-tauri -> target
 
       - name: Cache NSIS toolchain
         uses: actions/cache@v4
@@ -63,10 +64,10 @@ jobs:
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'
-          $version = $tag.TrimStart('v')
+          $version = ($tag -replace '^(windows-)?v', '')
           $base = ($version -split '-')[0]
-          $conf = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          $cargoLine = Select-String -Path src-tauri/Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
+          $conf = (Get-Content apps/windows/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $cargoLine = Select-String -Path apps/windows/src-tauri/Cargo.toml -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
           $cargo = $cargoLine.Matches[0].Groups[1].Value
           if ($conf -ne $base) { throw "tag $tag implies version '$base' but tauri.conf.json says '$conf'" }
           if ($cargo -ne $base) { throw "tag $tag implies version '$base' but Cargo.toml says '$cargo'" }
@@ -89,19 +90,20 @@ jobs:
         shell: pwsh
         run: |
           go install github.com/tc-hib/go-winres@v0.3.3
-          $v = (('${{ github.ref_name }}' -replace '^v', '') -split '-')[0]
+          $v = (('${{ github.ref_name }}' -replace '^(windows-)?v', '') -split '-')[0]
           $ver4 = "$v.0"
           Set-Location cmd/freev6-helper
           go-winres make --in winres/winres.json --arch amd64 --product-version $ver4 --file-version $ver4
 
       - name: Build setup.exe (cargo tauri build)
+        working-directory: apps/windows
         run: cargo tauri build
 
       - name: Extract release notes from CHANGELOG.md
         shell: pwsh
         run: |
           $tag = '${{ github.ref_name }}'
-          $version = $tag.TrimStart('v')
+          $version = ($tag -replace '^(windows-)?v', '')
           $base = ($version -split '-')[0]
           $changelog = Get-Content CHANGELOG.md -Raw
           $section = ''
@@ -113,7 +115,7 @@ jobs:
           if (-not $section) {
             throw "CHANGELOG.md has no '## [$version]' or '## [$base]' section - add one before tagging."
           }
-          $setup = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
+          $setup = Get-ChildItem 'apps/windows/src-tauri/target/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
           if (-not $setup) { throw 'no *-setup.exe found under target/release/bundle/nsis' }
           $sha = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLower()
           $runUrl = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
@@ -142,7 +144,7 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
-            src-tauri/target/release/bundle/nsis/*-setup.exe
+            apps/windows/src-tauri/target/release/bundle/nsis/*-setup.exe
             version.json
 
       - name: Create draft release and upload the setup.exe
@@ -152,6 +154,6 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           body_path: release-notes.md
           files: |
-            src-tauri/target/release/bundle/nsis/*-setup.exe
+            apps/windows/src-tauri/target/release/bundle/nsis/*-setup.exe
             version.json
           fail_on_unmatched_files: true

@@ -1,0 +1,98 @@
+﻿NOTE: keep this file in sync with THIRD-PARTY.txt in the repository root;
+      they must contain the same list.
+
+freev6 — THIRD-PARTY LICENSES
+==============================
+
+freev6 itself is MIT-licensed (see LICENSE.txt in this folder). This file
+lists the third-party components it uses.
+
+--------------------------------------------------------------------------
+REDISTRIBUTED IN THIS REPOSITORY / THE INSTALLER
+--------------------------------------------------------------------------
+
+1. Tauri (tauri, tauri-build, tauri-plugin-opener, tauri-plugin-shell)
+   License:   MIT OR Apache-2.0
+   Copyright: Tauri Programme within The Commons Conservancy
+   Source:    https://github.com/tauri-apps/tauri
+
+2. @material/web (vendored at web/vendor/material-web/)
+   License:   Apache-2.0
+   Copyright: Google LLC
+   Source:    https://github.com/material-components/material-web
+
+3. Lit / lit-html / lit-element / @lit/reactive-element
+   (vendored at web/vendor/lit, web/vendor/lit-html, web/vendor/lit-element,
+    web/vendor/@lit/reactive-element)
+   License:   MIT
+   Copyright: Google LLC
+   Source:    https://github.com/lit/lit
+
+4. tslib (vendored at web/vendor/tslib/)
+   License:   MIT
+   Copyright: Microsoft Corporation
+   Source:    https://github.com/microsoft/tslib
+
+5. NSIS - Nullsoft Scriptable Install System (installer runtime embedded in
+   the produced setup.exe)
+   License:   zlib/libpng
+   Copyright: Nullsoft / NSIS contributors
+   Source:    https://nsis.sourceforge.io/
+   Note: the NSIS toolchain is downloaded by the Tauri bundler at build time.
+
+6. GeoSite.dat / GeoIP data (MetaCubeX/meta-rules-dat)
+   Upstream repository license: GNU GPL version 3 (see upstream LICENSE).
+   Source:    https://github.com/MetaCubeX/meta-rules-dat
+   Inputs:    upstream README and workflows identify multiple domain/IP list
+              sources; their own notices and licenses must also be retained.
+   Windows:   cmd/ensure-geodata prepares GeoSite.dat for redistribution at
+              <install dir>\GeoSite.dat. The previous Apache-2.0-only label
+              did not describe the current upstream repository license.
+   macOS:     the app downloads a pinned set at first preparation; the current
+              Mac bundle does not redistribute the data binaries. The source
+              revision, exact sizes and SHA256 values are recorded in
+              internal/mihomo/geodata-assets.json. Bundled data/source material
+              and corresponding notices remain a release verification item.
+
+7. nsis_tauri_utils (NSIS plugin embedded in the produced setup.exe)
+   License:   MIT OR Apache-2.0
+   Copyright: Tauri Programme within The Commons Conservancy
+   Source:    https://github.com/tauri-apps/nsis-tauri-utils
+
+8. gopkg.in/yaml.v3 (Go YAML parser linked into freev6-helper)
+   License:   MIT OR Apache-2.0
+   Copyright: Kirill Simonov (MIT portion); Canonical Ltd (Apache portion)
+   Source:    https://github.com/go-yaml/yaml
+   Full text: yaml.v3-LICENSE.txt in this folder
+
+--------------------------------------------------------------------------
+LOADED AT RUNTIME, NOT SHIPPED WITH THIS PRODUCT
+--------------------------------------------------------------------------
+
+9. Material Symbols Outlined icon font (subset, web/fonts/material-symbols-outlined.woff2)
+   License:   Apache-2.0
+   Copyright: Google LLC
+   Note: subset of the official font (45 used glyphs, ~6KB); bundled
+   locally so icons work offline. Text fonts are bundled
+   as latin subsets as well (entry 10).
+
+10. DM Sans, Manrope, JetBrains Mono fonts (latin subsets, web/fonts/)
+   License:   SIL Open Font License 1.1
+   Copyright: the respective font authors (full text in LICENSES/OFL-1.1.txt)
+   Note: official latin unicode-range variable subsets; bundled locally so
+   text renders offline. Chinese/system fallbacks unchanged.
+
+11. mihomo (Clash.Meta core)
+   License:   GPL-3.0-only
+   Copyright: MetaCubeX contributors
+   Source:    https://github.com/MetaCubeX/mihomo
+   NOTE: mihomo is downloaded at first use by freev6-helper and is NOT part
+   of this repository or of the setup.exe; its use is governed by GPL-3.0.
+   Do not bundle mihomo into this product without accepting GPL obligations.
+
+--------------------------------------------------------------------------
+BUILD TOOLCHAINS (build/test time only, not redistributed)
+--------------------------------------------------------------------------
+
+Go standard toolchain (BSD-3-Clause) - https://go.dev/
+Rust / Cargo (MIT OR Apache-2.0)      - https://github.com/rust-lang/rust

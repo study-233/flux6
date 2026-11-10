@@ -17,7 +17,7 @@ func TestCloudProfileURLDerivation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CloudProfileURL: %v", err)
 	}
-	const want = "https://68eb7f9411d22cfe.freev6.cc.cd/p"
+	const want = "https://raw.githubusercontent.com/study-233/free-v6/main/profiles/68eb7f9411d22cfe.yaml"
 	if url != want {
 		t.Fatalf("url = %q, want %q", url, want)
 	}
@@ -75,17 +75,12 @@ func TestCloudSlugShape(t *testing.T) {
 	}
 }
 
-// 派生只用于"别把域名硬编码进仓库"，不是门禁：URL 里必须能看出域名后缀，
-// 但不能是维护者域名本身（避免被爬虫直接抓）。
-func TestCloudProfileURLHidesBareDomain(t *testing.T) {
+func TestCloudProfileURLStaysInPublisherRepository(t *testing.T) {
 	url, err := CloudProfileURL(testPortalHost)
 	if err != nil {
 		t.Fatalf("CloudProfileURL: %v", err)
 	}
-	if !strings.HasPrefix(url, "https://") || !strings.HasSuffix(url, CloudProfileDomainSuffix+cloudProfilePath) {
+	if !strings.HasPrefix(url, "https://raw.githubusercontent.com/study-233/free-v6/main/profiles/") || !strings.HasSuffix(url, ".yaml") {
 		t.Fatalf("unexpected url %q", url)
-	}
-	if strings.Contains(url, "://freev6.cc.cd") {
-		t.Fatalf("url must not point at the apex domain: %q", url)
 	}
 }

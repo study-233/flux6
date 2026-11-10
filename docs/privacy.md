@@ -112,8 +112,7 @@
 
 如果您对本隐私政策的内容、您的个人信息安全或相关疑问有任何意见、建议或申诉，您可以通过以下方式与开发者取得联系：
 
-- **GitHub 仓库**：<https://github.com/evansrrr/free-v6>
-- **问题反馈**：<https://github.com/evansrrr/free-v6/issues>
-- **电子邮箱**：<enzoraziore@outlook.com>
+- **GitHub 仓库**：<https://github.com/study-233/free-v6>
+- **问题反馈**：<https://github.com/study-233/free-v6/issues>
 
 我们将在收到您的反馈后尽快予以答复。

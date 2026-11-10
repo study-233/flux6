@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Fail the build when a UI icon can't actually be rendered.
 
-The app draws its icons from a *subset* font (web/fonts/material-symbols-outlined.woff2)
+The app draws its icons from a *subset* font (apps/windows/web/fonts/material-symbols-outlined.woff2)
 that only carries the ligatures listed in scripts/subset-icons.py. Adding
 `<md-icon>some_name</md-icon>` without adding `some_name` to that list doesn't
 error — the browser falls back to the plain text, which the 16px icon box then
@@ -24,8 +24,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HTML = ROOT / "web" / "index.html"
-APP_JS = ROOT / "web" / "app.js"
+HTML = ROOT / "apps/windows/web" / "index.html"
+APP_JS = ROOT / "apps/windows/web" / "app.js"
 SUBSET_SCRIPT = ROOT / "scripts" / "subset-icons.py"
 
 # Matches the ligature list literal inside subset-icons.py:
@@ -92,9 +92,9 @@ def main() -> int:
         print(
             "\nFix by either:\n"
             "  1. adding the name to ICON_LIGATURES in scripts/subset-icons.py and\n"
-            "     regenerating web/fonts/material-symbols-outlined.woff2, or\n"
+            "     regenerating apps/windows/web/fonts/material-symbols-outlined.woff2, or\n"
             "  2. drawing it as an inline <svg> inside <md-icon> (see the\n"
-            "     setting-icon icons in web/index.html)."
+            "     setting-icon icons in apps/windows/web/index.html)."
         )
         return 1
 

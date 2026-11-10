@@ -1,19 +1,19 @@
 /bin/
 /dist/
 /target/
-src-tauri/target/
-src-tauri/gen/
+apps/windows/src-tauri/target/
+apps/windows/src-tauri/gen/
 /config/
 /runtime/
 *.exe
 *.test
 
-state/
+/state/
 *.local.json
 mihomo.yaml
 /GeoSite.dat
 
-.agents/
+/.agents/
 docs/agent/
 skills-lock.json
 .mimocode/
@@ -27,3 +27,20 @@ skills-lock.json
 Thumbs.db
 desktop.ini
 /test/
+
+# Native macOS build products and local dependency caches.
+apps/macos/.build/
+apps/macos/.swiftpm/
+/build/
+*.xcuserstate
+xcuserdata/
+__pycache__/
+
+# Signing material belongs outside the source tree.
+*.jks
+*.keystore
+*.p12
+*.p8
+.env
+.env.*
+!.env.example

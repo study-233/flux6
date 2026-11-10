@@ -2,12 +2,9 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,7 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yourname/freev6/internal/app"
 	"github.com/yourname/freev6/internal/mihomo"
+	"github.com/yourname/freev6/internal/notice"
+	"github.com/yourname/freev6/internal/publisher"
 )
 
 // 备用配置（cloud profile）：校内服务端下发的出口节点。
@@ -27,20 +27,13 @@ const (
 	// maxCloudProfileBytes 与订阅导入同档：正常节点表 <100KB，2MB 挡住
 	// 失控下载与内存空转。
 	maxCloudProfileBytes = 2 << 20
-	cloudFetchTimeout    = 20 * time.Second
 )
 
-// 入口地址由「校园网登录页地址」派生（见 internal/mihomo/endpoint.go），
-// 仓库里不出现维护者域名的完整入口，避免被爬虫扫到、以及 fork 之后自动
-// 继承一个能用的地址。
-//
-// 但派生不是门禁：本项目是 MIT 开源，规则与输入（README 里都写着）都是
-// 公开的，输出天然可复现。判断权必须留在服务端——Worker 按请求源 IP 段
-// 决定是否下发（详见 docs/cloud-profile.md）。客户端只负责"问"，问到就
-// 存，问不到就明确告诉用户"请连校园网"。
+// 门户地址选择当前发行仓库 profiles/ 中的公开 YAML。旧发行方的节点快照
+// 不自动沿用；迁移后需要从当前来源重新获取或显式导入。
 
 func (h *helper) cloudProfilePath() string {
-	return filepath.Join(h.root, "config", "cloud-profile.yaml")
+	return filepath.Join(h.root, "config", "cloud-profile-"+publisher.CacheNamespace+".yaml")
 }
 
 // cloudProfileUnlocked 读取「公告里维护者开关」的最近一次结果。
@@ -56,7 +49,7 @@ func (h *helper) cloudProfileUnlocked(now time.Time) bool {
 	if !ok {
 		return false
 	}
-	return cloudProfileAllowed(cache.CloudProfile)
+	return notice.CloudAllowed(cache.CloudProfile)
 }
 
 // cloudConfig serves GET/PUT/DELETE /api/v1/cloud-config. Every method sits
@@ -192,9 +185,9 @@ func (h *helper) cloudImport(writer http.ResponseWriter, request *http.Request) 
 		}
 		// 先拉取后落盘：失败的刷新绝不能覆盖上一份可用快照（服务端维护
 		// 中/网络抖动时，已缓存配置仍要能启动）。
-		fetched, fetchErr := fetchCloudProfile(parsed.String())
+		fetched, fetchErr := app.FetchCloudProfile(request.Context(), parsed.String())
 		if fetchErr != nil {
-			writeJSON(writer, http.StatusBadGateway, map[string]string{"error": fetchErr.Error(), "code": cloudErrorCode(fetchErr)})
+			writeJSON(writer, http.StatusBadGateway, map[string]string{"error": fetchErr.Error(), "code": app.CloudErrorCode(fetchErr)})
 			return
 		}
 		content = fetched
@@ -271,97 +264,12 @@ func (h *helper) cloudClear(writer http.ResponseWriter) {
 	writeJSON(writer, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// cloudGateError 是服务端门禁的拒绝（HTTP 403）。它和学生能自愈的情况
-// （没连校园网）是同一件事，所以单独给一个 code 让 UI 说人话，而不是把
-// "HTTP 403" 直接甩到 toast 上。
-type cloudGateError struct{ status string }
-
-func (e *cloudGateError) Error() string {
-	return "备用配置仅对校园网开放（" + e.status + "），请连接校园网后重试"
-}
-
-// cloudErrorCode 把错误映射成前端可判别的 code。
-func cloudErrorCode(err error) string {
-	var gate *cloudGateError
-	if errors.As(err, &gate) {
-		return "campus-only"
-	}
-	return "fetch-failed"
-}
-
-// fetchCloudProfile downloads the backup profile. Only plain http(s) reaches
-// here; the response is size-capped like a file import.
-//
-// 错误文案一律不带入口地址：这些字符串会原样出现在 toast / 弹窗里，而
-// 弹窗是"会被截图发群里"的东西。完整 err（含 URL）只写 stderr 留作排障。
-func fetchCloudProfile(rawURL string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), cloudFetchTimeout)
-	defer cancel()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "cloud-config: bad request: %v\n", err)
-		return nil, &cloudFetchError{reason: "入口地址无效"}
-	}
-	request.Header.Set("User-Agent", "FreeV6")
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "cloud-config: fetch failed: %v\n", err)
-		return nil, &cloudFetchError{reason: describeFetchFailure(err)}
-	}
-	defer response.Body.Close()
-	switch {
-	case response.StatusCode == http.StatusForbidden, response.StatusCode == http.StatusUnauthorized:
-		return nil, &cloudGateError{status: response.Status}
-	case response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices:
-		return nil, fmt.Errorf("获取备用配置失败：服务端返回 HTTP %s", response.Status)
-	}
-	data, err := io.ReadAll(io.LimitReader(response.Body, maxCloudProfileBytes+1))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "cloud-config: read body failed: %v\n", err)
-		return nil, &cloudFetchError{reason: "响应读取中断"}
-	}
-	if len(data) > maxCloudProfileBytes {
-		return nil, fmt.Errorf("备用配置超过 2MB 上限")
-	}
-	return data, nil
-}
-
-// cloudFetchError 是"网络层失败"的脱敏错误：只给原因类别，不给地址。
-type cloudFetchError struct{ reason string }
-
-func (e *cloudFetchError) Error() string {
-	return "获取备用配置失败：" + e.reason
-}
-
-// describeFetchFailure 把 net/http 的错误归成人类可读的类别。
-// 绝不能直接 %w 透出：Go 的错误里带着完整 URL（Get "https://<slug>.…"）。
-func describeFetchFailure(err error) string {
-	if errors.Is(err, context.DeadlineExceeded) {
-		return "请求超时，请稍后重试"
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
-		return "请求超时，请稍后重试"
-	}
-	var dnsErr *net.DNSError
-	if errors.As(err, &dnsErr) {
-		return "域名解析失败，请检查网络或 DNS"
-	}
-	text := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(text, "connection refused"):
-		return "连接被拒绝"
-	case strings.Contains(text, "certificate"):
-		return "证书校验失败"
-	case strings.Contains(text, "no route to host"), strings.Contains(text, "network is unreachable"):
-		return "网络不可达"
-	}
-	return "网络请求失败，请稍后重试"
-}
-
 // maskCloudEntry 只保留子域名前 4 位用于界面回显：完整入口不该出现在
 // 能被截图/贴群的地方。
 func maskCloudEntry(rawURL string) string {
+	if strings.HasPrefix(rawURL, publisher.ProfilesURL) {
+		return publisher.Repository + "/profiles/…"
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
 		return ""

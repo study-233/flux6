@@ -1,0 +1,41 @@
+{
+  "os": "27.0.1",
+  "build": "26A434",
+  "model": "Mac17,9",
+  "chip": "Apple M5 Pro",
+  "ram": 51539607552,
+  "architecture": "arm64",
+  "xcode": "Xcode 27.2\nBuild version 27B52",
+  "flutter": {
+    "frameworkVersion": "3.47.6",
+    "channel": "stable",
+    "repositoryUrl": "https://github.com/flutter/flutter.git",
+    "frameworkRevision": "5fc346839b5d0eef006ed8404392afb4dfae428d",
+    "frameworkCommitDate": "2026-09-30 15:02:49 -0700",
+    "engineRevision": "692136cb6582dbfc5af3fb33c2515a069f2f66d0",
+    "engineCommitDate": "2026-09-30 00:56:59.000Z",
+    "engineContentHash": "b8c8d3d8d5d0095127057f8a29ca8cc53da2167c",
+    "engineBuildDate": "2026-09-29 18:19:13.915",
+    "dartSdkVersion": "3.13.5",
+    "devToolsVersion": "2.60.0",
+    "flutterVersion": "3.47.6"
+  },
+  "loadBefore": [
+    2.7177734375,
+    2.58056640625,
+    2.4892578125
+  ],
+  "timeStarted": "2026-11-07T01:42:38+0800",
+  "loadAfter": [
+    2.4111328125,
+    2.36669921875,
+    2.39990234375
+  ],
+  "timeFinished": "2026-11-07T01:47:15+0800",
+  "qaPayloadSHA256": {
+    "MacOS/FreeV6 Flutter Integration": "d180aa1b4ca4910605e6e4bcf56208ca4463279a1730308aebef40fff04fd0df",
+    "Frameworks/App.framework/Versions/A/App": "33fe3cda2364f5bab8a768076b35aeaa466077cff3be9d28f86c385cfb720848",
+    "Helpers/freev6-worker": "e1cf01901bb58f99f6860d30ee9f84abfe68cbcad42693c1d93ed23b165eee96",
+    "Helpers/freev6-session-fixture": "24f44cd6f58673e15efeae3b4675590e51832fdae2d2962c71129a8a4c645523"
+  }
+}

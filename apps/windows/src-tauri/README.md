@@ -1,0 +1,15 @@
+# freev6 Tauri shell
+
+The initial Tauri 2 shell loads the Material You interface from `../web`, provides a Windows tray menu, and packages with the NSIS target. On Windows it requests administrator permission at launch; `freev6-helper` runs as a sidecar in the same elevated context and receives the installation root through `FREEV6_ROOT`. Test the latest NSIS package after installation so the embedded `requireAdministrator` manifest is present.
+
+Run from the repository root in Windows PowerShell (Rust, Go and the Tauri CLI are required):
+
+```powershell
+./scripts/windows/build-helper.ps1
+cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
+cd apps/windows
+cargo tauri dev
+cargo tauri build
+```
+
+The frontend reads `/api/v1/status`, `/api/v1/runtime`, and `/api/v1/settings` from the local helper. Proxy start/stop, WARP registration, and verified mihomo Alpha download are also available locally for testing. Every `/api/v1` endpoint requires a per-launch bearer token: the shell mints it at startup, passes it to the sidecar via `FREEV6_API_TOKEN`, and exposes it to the web UI through the `get_api_token` command. A helper started without the env var rejects all API requests. The GUI must not own WARP credentials, mihomo lifecycle, or privileged network operations; those remain in the Go helper.

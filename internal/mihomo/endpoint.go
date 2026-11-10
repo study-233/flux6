@@ -6,29 +6,13 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	"github.com/yourname/freev6/internal/publisher"
 )
 
-// 备用配置入口的派生。
-//
-// 目的只有一个：不在 MIT 开源的仓库里出现可直接复制粘贴的服务端地址，
-// 免得爬虫扫 GitHub、以及 fork 之后自动继承一个能用的入口。
-//
-// 这不是安全机制，也不该被当成安全机制。输入（校园网登录页地址）是公开
-// 常量，甚至已经写在 README 里；规则又在客户端里，所以输出天然可复现。
-// 真正的门禁在服务端：按请求源 IP 段判定（见 docs/cloud-profile.md）。
-//
-// 因为 Worker 对任意子域名都返回同一份配置、不校验 slug，"输错门户 IP"
-// 不会导致取不到配置，同时也不存在 404/200 这种可枚举的判别口。
+// 校园门户仅用来选择仓库中的公开配置文件；摘要不是访问控制或加密。
 const (
-	// CloudProfileDomainSuffix 是维护者自有域名（README 里已公开）。
-	CloudProfileDomainSuffix = "freev6.cc.cd"
-	// cloudProfilePath Worker 上的固定路径。
-	cloudProfilePath = "/p"
-	// cloudSlugSalt 让派生值与本仓库其他 hash 用途隔离（防止有人拿
-	// sha256("门户IP") 直接猜出来）。
-	cloudSlugSalt = "freev6:campus:v1:"
-	// cloudSlugOffset/Length 是从 sha256 hex 里切的位置与长度。16 位 hex
-	// 足够避免碰撞，同时也是合法的 DNS label。
+	cloudSlugSalt   = "freev6:campus:v1:"
 	cloudSlugOffset = 7
 	cloudSlugLength = 16
 )
@@ -60,7 +44,7 @@ func NormalizePortalHost(raw string) (string, error) {
 	return value, nil
 }
 
-// CloudSlug 由门户地址派生入口子域名。
+// CloudSlug 由门户地址派生公开配置文件名。
 func CloudSlug(portalHost string) (string, error) {
 	host, err := NormalizePortalHost(portalHost)
 	if err != nil {
@@ -77,5 +61,5 @@ func CloudProfileURL(portalHost string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("https://%s.%s%s", slug, CloudProfileDomainSuffix, cloudProfilePath), nil
+	return publisher.ProfilesURL + slug + ".yaml", nil
 }
