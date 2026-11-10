@@ -2,6 +2,7 @@ name: Mac and Android
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -42,6 +43,8 @@ jobs:
           channel: stable
           cache: true
       - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37 build-tools;36.0.0 ndk;28.2.13676358'
       - name: Core tests and Android bridge checks
         working-directory: apps/android/core
         run: |
