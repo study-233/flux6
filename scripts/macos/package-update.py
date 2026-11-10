@@ -49,7 +49,7 @@ def main(resources):
     arch = platform.machine()
     channel = json.loads(args.channel.read_text())
     if channel["feeds"].get(arch) == github_channel.feed_url(arch):
-        base = github_channel.download_base(args.version, args.build)
+        base = github_channel.download_base(args.version)
         if args.download_base is not None and args.download_base.rstrip("/") != base:
             parser.error("The project channel requires the matching versioned GitHub release")
     elif args.download_base:

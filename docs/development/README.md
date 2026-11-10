@@ -31,17 +31,17 @@
 
 ## 版本与发布
 
-运行 `python3 scripts/version.py` 查看各端版本。平台独立发布，不为凑齐相同版本号而同步升级。
+运行 `python3 scripts/version.py` 查看各端版本。每个软件版本只创建一个 `v<版本>` 标签和一个 Release，集中提供该版本的各平台附件；平台内部 build 继续独立递增。
 
 macOS 与 Android 的首个公开正式版为 [0.1.0](../releases/first-public-release.md)。用户已确认安装验收和 Android 真机验证完成；本次 macOS 发行不进行 Apple 公证。用户已于 2026-11-10 明确授权发布。
 
 | 平台 | 版本来源 | 后续标签规则 |
 | --- | --- | --- |
-| macOS | `apps/macos/Resources/Info.plist` 的版本与 build | `macos-v<版本>-b<build>` |
-| Android | `apps/android/pubspec.yaml` 的 `version: 版本+build` | `android-v<版本>-b<build>` |
-| Windows | `apps/windows/src-tauri/tauri.conf.json`；Cargo 版本须一致 | `windows-v<版本>` |
+| macOS | `apps/macos/Resources/Info.plist` 的版本与 build | `v<版本>` |
+| Android | `apps/android/pubspec.yaml` 的 `version: 版本+build` | `v<版本>` |
+| Windows | `apps/windows/src-tauri/tauri.conf.json`；Cargo 版本须一致 | `v<版本>` |
 
-各平台均在本地构建和验收，推送标签不会自动打包或上传发行版。Windows 继续使用 `windows-v*`，历史 `v*` 标签保持可读。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
+各平台均在本地构建和验收，推送标签不会自动打包或上传发行版。历史平台标签保留用于追溯，不再为同一版本创建多个平台 Release。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
 
 Android 构建读取版本源，输出到 `dist/android/<版本>-b<build>/`，包名包含版本及 build。源码包和 APK 分别生成校验文件。Mac 本地应用保持 `dist/macos/FreeV6.app`；DMG/更新包由对应打包脚本生成。已发布版本的产物不可覆盖，新发行应先提升版本或 build。旧本地产物确认不再用于回归或回滚后删除，不再默认长期堆放在 `dist/archive/`；保留的安装包必须配对保存对应源码和校验文件。Git 只保存源码、锁文件和必要的验收结论。
 
