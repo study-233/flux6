@@ -1,0 +1,449 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="690" viewBox="0 0 1500 690">
+<rect width="1500" height="690" rx="28" fill="#F6F7FA"/>
+<text x="44" y="55" font-family="Arial,sans-serif" font-size="26" font-weight="600" fill="#1C2534">FreeV6 · Cat icons</text>
+<text x="1456" y="53" text-anchor="end" font-family="Arial,sans-serif" font-size="15" fill="#657184">SVG / shared silhouette / gradient</text>
+<rect x="28" y="85" width="268" height="350" rx="22" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="40" y="100" width="244" height="244" role="img" aria-labelledby="preview-0-title preview-0-desc">
+  <title id="preview-0-title">FreeV6 · 橘猫</title>
+  <desc id="preview-0-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="preview-0-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFB34C"/><stop offset="0.500" stop-color="#F78A24"/><stop offset="1.000" stop-color="#DB6418"/></linearGradient><linearGradient id="preview-0-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="preview-0-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="preview-0-accentcream" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFF5DF"/><stop offset="1.000" stop-color="#FFE3B8"/></linearGradient><pattern id="preview-0-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#preview-0-coat)"/><path d="M204 189 C189 189 184 198 173 202 C161 206 146 202 132 206
+C110 212 101 234 110 251 C126 278 171 290 204 290
+C237 290 282 278 298 251 C307 234 298 212 276 206
+C262 202 247 206 235 202 C224 198 219 189 204 189 Z" fill="url(#preview-0-accentcream)"/><path d="M170 74 H196 L194 112 Q193 125 184 125 Q175 125 173 112 Z
+M212 74 H238 L235 112 Q233 125 224 125 Q215 125 214 112 Z" fill="#B85B22" opacity=".65"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="preview-0-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#preview-0-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="preview-0-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#preview-0-pattern)"/>
+  <path id="preview-0-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#A94A16" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#573017"/><circle cx="261" cy="180" r="18.5" fill="#573017"/>
+  <path id="preview-0-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#573017" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="162" y="380" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="22" fill="#172235">橘猫</text>
+<text x="162" y="409" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="13" fill="#657184">橙金渐变 · 奶油色嘴部</text>
+<rect x="322" y="85" width="268" height="350" rx="22" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="334" y="100" width="244" height="244" role="img" aria-labelledby="preview-1-title preview-1-desc">
+  <title id="preview-1-title">FreeV6 · 奶牛猫</title>
+  <desc id="preview-1-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="preview-1-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFFFFF"/><stop offset="0.500" stop-color="#F3F4F7"/><stop offset="1.000" stop-color="#DCE2E9"/></linearGradient><linearGradient id="preview-1-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="preview-1-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="preview-1-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#preview-1-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#preview-1-dark)"/><path d="M268 -20 H390 V180 C356 207 325 224 293 222
+C257 222 233 206 228 178 C223 149 234 125 247 105
+C259 88 263 61 268 -20 Z" fill="url(#preview-1-dark)"/><path d="M-20 337 H55 C89 328 119 350 119 379 C117 406 86 419 53 410 L-20 400 Z" fill="url(#preview-1-dark)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="preview-1-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#preview-1-dark)" stroke-width="58" stroke-linecap="round"/>
+  <path id="preview-1-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#preview-1-pattern)"/>
+  <path id="preview-1-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#747E8E" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#252935"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="preview-1-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#252935" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="456" y="380" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="22" fill="#172235">奶牛猫 · 默认</text>
+<text x="456" y="409" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="13" fill="#657184">黑白花纹 · 默认图标</text>
+<rect x="616" y="85" width="268" height="350" rx="22" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="628" y="100" width="244" height="244" role="img" aria-labelledby="preview-2-title preview-2-desc">
+  <title id="preview-2-title">FreeV6 · 炫彩猫</title>
+  <desc id="preview-2-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="preview-2-coat" gradientUnits="userSpaceOnUse" x1="65" y1="40" x2="445" y2="470"><stop offset="0.000" stop-color="#04DCE5"/><stop offset="0.500" stop-color="#4069F5"/><stop offset="1.000" stop-color="#E746C8"/></linearGradient><linearGradient id="preview-2-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="preview-2-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="preview-2-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#preview-2-coat)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="preview-2-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#preview-2-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="preview-2-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#preview-2-pattern)"/>
+  <path id="preview-2-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#3835B4" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="preview-2-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="750" y="380" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="22" fill="#172235">炫彩猫</text>
+<text x="750" y="409" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="13" fill="#657184">青蓝紫粉 · 连续渐变</text>
+<rect x="910" y="85" width="268" height="350" rx="22" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="922" y="100" width="244" height="244" role="img" aria-labelledby="preview-3-title preview-3-desc">
+  <title id="preview-3-title">FreeV6 · 四色猫</title>
+  <desc id="preview-3-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="preview-3-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62A4FF"/><stop offset="0.500" stop-color="#4285F4"/><stop offset="1.000" stop-color="#2866CC"/></linearGradient><linearGradient id="preview-3-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="preview-3-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="preview-3-red" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#F66B5C"/><stop offset="0.500" stop-color="#EA4335"/><stop offset="1.000" stop-color="#C9302C"/></linearGradient><linearGradient id="preview-3-yellow" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFD568"/><stop offset="0.500" stop-color="#FBBC05"/><stop offset="1.000" stop-color="#EDA510"/></linearGradient><linearGradient id="preview-3-green" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62CC82"/><stop offset="0.500" stop-color="#34A853"/><stop offset="1.000" stop-color="#228944"/></linearGradient><pattern id="preview-3-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#preview-3-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#preview-3-red)"/><path d="M242 -20 H390 V162 C349 150 294 123 241 88 Z" fill="url(#preview-3-yellow)"/><path d="M-30 298 C90 320 238 306 350 265 L400 520 H-30 Z" fill="url(#preview-3-red)"/><path d="M380 316 C282 321 221 348 175 390 C148 413 135 451 132 520 H390 Z" fill="url(#preview-3-yellow)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="preview-3-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#preview-3-green)" stroke-width="58" stroke-linecap="round"/>
+  <path id="preview-3-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#preview-3-pattern)"/>
+  <path id="preview-3-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#AD5B22" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="preview-3-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="1044" y="380" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="22" fill="#172235">四色猫</text>
+<text x="1044" y="409" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="13" fill="#657184">红黄蓝绿 · 简洁色块</text>
+<rect x="1204" y="85" width="268" height="350" rx="22" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="1216" y="100" width="244" height="244" role="img" aria-labelledby="preview-4-title preview-4-desc">
+  <title id="preview-4-title">FreeV6 · 地球猫</title>
+  <desc id="preview-4-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="preview-4-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#04B8F1"/><stop offset="0.500" stop-color="#0878F4"/><stop offset="1.000" stop-color="#073ACB"/></linearGradient><linearGradient id="preview-4-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="preview-4-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="preview-4-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#preview-4-coat)"/><path d="M-20 311 H55 C83 302 107 302 122 326 C139 350 176 352 191 364
+C215 383 196 396 174 404 C150 416 142 431 139 460
+C117 454 109 443 99 426 C88 413 24 408 -20 382 Z M360 248 C335 260 320 266 301 274
+C277 285 258 297 241 307 C219 321 210 338 230 350
+C243 359 258 355 272 369 C288 385 292 407 340 415
+L390 430 V240 Z" fill="url(#preview-4-accent)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="preview-4-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#preview-4-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="preview-4-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#preview-4-pattern)"/>
+  <path id="preview-4-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#07349A" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="preview-4-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="1338" y="380" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="22" fill="#172235">地球猫</text>
+<text x="1338" y="409" text-anchor="middle" font-family="PingFang SC,Arial,sans-serif" font-size="13" fill="#657184">海洋蓝绿 · 单弧尾巴</text>
+<rect x="28" y="459" width="1444" height="203" rx="22" fill="#192230"/>
+<text x="51" y="492" font-family="PingFang SC,Arial,sans-serif" font-size="14" fill="#BBC5D5">深色背景与小尺寸预览</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="86" y="510" width="112" height="112" role="img" aria-labelledby="dark-0-title dark-0-desc">
+  <title id="dark-0-title">FreeV6 · 橘猫</title>
+  <desc id="dark-0-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="dark-0-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFB34C"/><stop offset="0.500" stop-color="#F78A24"/><stop offset="1.000" stop-color="#DB6418"/></linearGradient><linearGradient id="dark-0-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="dark-0-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="dark-0-accentcream" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFF5DF"/><stop offset="1.000" stop-color="#FFE3B8"/></linearGradient><pattern id="dark-0-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#dark-0-coat)"/><path d="M204 189 C189 189 184 198 173 202 C161 206 146 202 132 206
+C110 212 101 234 110 251 C126 278 171 290 204 290
+C237 290 282 278 298 251 C307 234 298 212 276 206
+C262 202 247 206 235 202 C224 198 219 189 204 189 Z" fill="url(#dark-0-accentcream)"/><path d="M170 74 H196 L194 112 Q193 125 184 125 Q175 125 173 112 Z
+M212 74 H238 L235 112 Q233 125 224 125 Q215 125 214 112 Z" fill="#B85B22" opacity=".65"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="dark-0-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#dark-0-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="dark-0-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#dark-0-pattern)"/>
+  <path id="dark-0-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#A94A16" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#573017"/><circle cx="261" cy="180" r="18.5" fill="#573017"/>
+  <path id="dark-0-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#573017" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="222" y="551" width="32" height="32" role="img" aria-labelledby="small-0-title small-0-desc">
+  <title id="small-0-title">FreeV6 · 橘猫</title>
+  <desc id="small-0-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="small-0-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFB34C"/><stop offset="0.500" stop-color="#F78A24"/><stop offset="1.000" stop-color="#DB6418"/></linearGradient><linearGradient id="small-0-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="small-0-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="small-0-accentcream" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFF5DF"/><stop offset="1.000" stop-color="#FFE3B8"/></linearGradient><pattern id="small-0-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#small-0-coat)"/><path d="M204 189 C189 189 184 198 173 202 C161 206 146 202 132 206
+C110 212 101 234 110 251 C126 278 171 290 204 290
+C237 290 282 278 298 251 C307 234 298 212 276 206
+C262 202 247 206 235 202 C224 198 219 189 204 189 Z" fill="url(#small-0-accentcream)"/><path d="M170 74 H196 L194 112 Q193 125 184 125 Q175 125 173 112 Z
+M212 74 H238 L235 112 Q233 125 224 125 Q215 125 214 112 Z" fill="#B85B22" opacity=".65"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="small-0-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#small-0-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="small-0-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#small-0-pattern)"/>
+  <path id="small-0-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#A94A16" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#573017"/><circle cx="261" cy="180" r="18.5" fill="#573017"/>
+  <path id="small-0-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#573017" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="238" y="608" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#93A1B6">32 px</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="380" y="510" width="112" height="112" role="img" aria-labelledby="dark-1-title dark-1-desc">
+  <title id="dark-1-title">FreeV6 · 奶牛猫</title>
+  <desc id="dark-1-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="dark-1-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFFFFF"/><stop offset="0.500" stop-color="#F3F4F7"/><stop offset="1.000" stop-color="#DCE2E9"/></linearGradient><linearGradient id="dark-1-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="dark-1-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="dark-1-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#dark-1-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#dark-1-dark)"/><path d="M268 -20 H390 V180 C356 207 325 224 293 222
+C257 222 233 206 228 178 C223 149 234 125 247 105
+C259 88 263 61 268 -20 Z" fill="url(#dark-1-dark)"/><path d="M-20 337 H55 C89 328 119 350 119 379 C117 406 86 419 53 410 L-20 400 Z" fill="url(#dark-1-dark)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="dark-1-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#dark-1-dark)" stroke-width="58" stroke-linecap="round"/>
+  <path id="dark-1-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#dark-1-pattern)"/>
+  <path id="dark-1-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#747E8E" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#252935"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="dark-1-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#252935" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="516" y="551" width="32" height="32" role="img" aria-labelledby="small-1-title small-1-desc">
+  <title id="small-1-title">FreeV6 · 奶牛猫</title>
+  <desc id="small-1-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="small-1-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFFFFF"/><stop offset="0.500" stop-color="#F3F4F7"/><stop offset="1.000" stop-color="#DCE2E9"/></linearGradient><linearGradient id="small-1-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="small-1-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="small-1-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#small-1-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#small-1-dark)"/><path d="M268 -20 H390 V180 C356 207 325 224 293 222
+C257 222 233 206 228 178 C223 149 234 125 247 105
+C259 88 263 61 268 -20 Z" fill="url(#small-1-dark)"/><path d="M-20 337 H55 C89 328 119 350 119 379 C117 406 86 419 53 410 L-20 400 Z" fill="url(#small-1-dark)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="small-1-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#small-1-dark)" stroke-width="58" stroke-linecap="round"/>
+  <path id="small-1-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#small-1-pattern)"/>
+  <path id="small-1-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#747E8E" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#252935"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="small-1-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#252935" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="532" y="608" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#93A1B6">32 px</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="674" y="510" width="112" height="112" role="img" aria-labelledby="dark-2-title dark-2-desc">
+  <title id="dark-2-title">FreeV6 · 炫彩猫</title>
+  <desc id="dark-2-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="dark-2-coat" gradientUnits="userSpaceOnUse" x1="65" y1="40" x2="445" y2="470"><stop offset="0.000" stop-color="#04DCE5"/><stop offset="0.500" stop-color="#4069F5"/><stop offset="1.000" stop-color="#E746C8"/></linearGradient><linearGradient id="dark-2-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="dark-2-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="dark-2-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#dark-2-coat)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="dark-2-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#dark-2-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="dark-2-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#dark-2-pattern)"/>
+  <path id="dark-2-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#3835B4" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="dark-2-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="810" y="551" width="32" height="32" role="img" aria-labelledby="small-2-title small-2-desc">
+  <title id="small-2-title">FreeV6 · 炫彩猫</title>
+  <desc id="small-2-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="small-2-coat" gradientUnits="userSpaceOnUse" x1="65" y1="40" x2="445" y2="470"><stop offset="0.000" stop-color="#04DCE5"/><stop offset="0.500" stop-color="#4069F5"/><stop offset="1.000" stop-color="#E746C8"/></linearGradient><linearGradient id="small-2-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="small-2-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="small-2-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#small-2-coat)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="small-2-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#small-2-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="small-2-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#small-2-pattern)"/>
+  <path id="small-2-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#3835B4" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="small-2-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="826" y="608" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#93A1B6">32 px</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="968" y="510" width="112" height="112" role="img" aria-labelledby="dark-3-title dark-3-desc">
+  <title id="dark-3-title">FreeV6 · 四色猫</title>
+  <desc id="dark-3-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="dark-3-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62A4FF"/><stop offset="0.500" stop-color="#4285F4"/><stop offset="1.000" stop-color="#2866CC"/></linearGradient><linearGradient id="dark-3-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="dark-3-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="dark-3-red" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#F66B5C"/><stop offset="0.500" stop-color="#EA4335"/><stop offset="1.000" stop-color="#C9302C"/></linearGradient><linearGradient id="dark-3-yellow" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFD568"/><stop offset="0.500" stop-color="#FBBC05"/><stop offset="1.000" stop-color="#EDA510"/></linearGradient><linearGradient id="dark-3-green" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62CC82"/><stop offset="0.500" stop-color="#34A853"/><stop offset="1.000" stop-color="#228944"/></linearGradient><pattern id="dark-3-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#dark-3-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#dark-3-red)"/><path d="M242 -20 H390 V162 C349 150 294 123 241 88 Z" fill="url(#dark-3-yellow)"/><path d="M-30 298 C90 320 238 306 350 265 L400 520 H-30 Z" fill="url(#dark-3-red)"/><path d="M380 316 C282 321 221 348 175 390 C148 413 135 451 132 520 H390 Z" fill="url(#dark-3-yellow)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="dark-3-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#dark-3-green)" stroke-width="58" stroke-linecap="round"/>
+  <path id="dark-3-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#dark-3-pattern)"/>
+  <path id="dark-3-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#AD5B22" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="dark-3-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="1104" y="551" width="32" height="32" role="img" aria-labelledby="small-3-title small-3-desc">
+  <title id="small-3-title">FreeV6 · 四色猫</title>
+  <desc id="small-3-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="small-3-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62A4FF"/><stop offset="0.500" stop-color="#4285F4"/><stop offset="1.000" stop-color="#2866CC"/></linearGradient><linearGradient id="small-3-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="small-3-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="small-3-red" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#F66B5C"/><stop offset="0.500" stop-color="#EA4335"/><stop offset="1.000" stop-color="#C9302C"/></linearGradient><linearGradient id="small-3-yellow" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFD568"/><stop offset="0.500" stop-color="#FBBC05"/><stop offset="1.000" stop-color="#EDA510"/></linearGradient><linearGradient id="small-3-green" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62CC82"/><stop offset="0.500" stop-color="#34A853"/><stop offset="1.000" stop-color="#228944"/></linearGradient><pattern id="small-3-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#small-3-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#small-3-red)"/><path d="M242 -20 H390 V162 C349 150 294 123 241 88 Z" fill="url(#small-3-yellow)"/><path d="M-30 298 C90 320 238 306 350 265 L400 520 H-30 Z" fill="url(#small-3-red)"/><path d="M380 316 C282 321 221 348 175 390 C148 413 135 451 132 520 H390 Z" fill="url(#small-3-yellow)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="small-3-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#small-3-green)" stroke-width="58" stroke-linecap="round"/>
+  <path id="small-3-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#small-3-pattern)"/>
+  <path id="small-3-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#AD5B22" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="small-3-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="1120" y="608" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#93A1B6">32 px</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="1262" y="510" width="112" height="112" role="img" aria-labelledby="dark-4-title dark-4-desc">
+  <title id="dark-4-title">FreeV6 · 地球猫</title>
+  <desc id="dark-4-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="dark-4-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#04B8F1"/><stop offset="0.500" stop-color="#0878F4"/><stop offset="1.000" stop-color="#073ACB"/></linearGradient><linearGradient id="dark-4-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="dark-4-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="dark-4-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#dark-4-coat)"/><path d="M-20 311 H55 C83 302 107 302 122 326 C139 350 176 352 191 364
+C215 383 196 396 174 404 C150 416 142 431 139 460
+C117 454 109 443 99 426 C88 413 24 408 -20 382 Z M360 248 C335 260 320 266 301 274
+C277 285 258 297 241 307 C219 321 210 338 230 350
+C243 359 258 355 272 369 C288 385 292 407 340 415
+L390 430 V240 Z" fill="url(#dark-4-accent)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="dark-4-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#dark-4-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="dark-4-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#dark-4-pattern)"/>
+  <path id="dark-4-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#07349A" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="dark-4-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" x="1398" y="551" width="32" height="32" role="img" aria-labelledby="small-4-title small-4-desc">
+  <title id="small-4-title">FreeV6 · 地球猫</title>
+  <desc id="small-4-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="small-4-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#04B8F1"/><stop offset="0.500" stop-color="#0878F4"/><stop offset="1.000" stop-color="#073ACB"/></linearGradient><linearGradient id="small-4-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="small-4-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="small-4-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#small-4-coat)"/><path d="M-20 311 H55 C83 302 107 302 122 326 C139 350 176 352 191 364
+C215 383 196 396 174 404 C150 416 142 431 139 460
+C117 454 109 443 99 426 C88 413 24 408 -20 382 Z M360 248 C335 260 320 266 301 274
+C277 285 258 297 241 307 C219 321 210 338 230 350
+C243 359 258 355 272 369 C288 385 292 407 340 415
+L390 430 V240 Z" fill="url(#small-4-accent)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="small-4-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#small-4-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="small-4-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#small-4-pattern)"/>
+  <path id="small-4-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#07349A" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="small-4-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+
+<text x="1414" y="608" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#93A1B6">32 px</text></svg>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="cat-prism-title cat-prism-desc">
+  <title id="cat-prism-title">FreeV6 · 炫彩猫</title>
+  <desc id="cat-prism-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="cat-prism-coat" gradientUnits="userSpaceOnUse" x1="65" y1="40" x2="445" y2="470"><stop offset="0.000" stop-color="#04DCE5"/><stop offset="0.500" stop-color="#4069F5"/><stop offset="1.000" stop-color="#E746C8"/></linearGradient><linearGradient id="cat-prism-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="cat-prism-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="cat-prism-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#cat-prism-coat)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="cat-prism-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#cat-prism-coat)" stroke-width="58" stroke-linecap="round"/>
+  <path id="cat-prism-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#cat-prism-pattern)"/>
+  <path id="cat-prism-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#3835B4" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="cat-prism-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

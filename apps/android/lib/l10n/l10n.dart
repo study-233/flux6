@@ -1526,10 +1526,10 @@ class AppLocalizations {
     );
   }
 
-  /// `App icon design`
+  /// `Original app icon design`
   String get appIconDesign {
     return Intl.message(
-      'App icon design',
+      'Original app icon design',
       name: 'appIconDesign',
       desc: '',
       args: [],
@@ -9477,6 +9477,71 @@ class AppLocalizations {
     return Intl.message(
       'IPv6 configured; internet access unconfirmed',
       name: 'freev6WifiUnverified',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `App icon`
+  String get appIcon {
+    return Intl.message('App icon', name: 'appIcon', desc: '', args: []);
+  }
+
+  /// `Cow cat (default)`
+  String get catIconCow {
+    return Intl.message(
+      'Cow cat (default)',
+      name: 'catIconCow',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Orange cat`
+  String get catIconOrange {
+    return Intl.message(
+      'Orange cat',
+      name: 'catIconOrange',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Prism cat`
+  String get catIconPrism {
+    return Intl.message('Prism cat', name: 'catIconPrism', desc: '', args: []);
+  }
+
+  /// `Four-color cat`
+  String get catIconFourColor {
+    return Intl.message(
+      'Four-color cat',
+      name: 'catIconFourColor',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Earth cat`
+  String get catIconEarth {
+    return Intl.message('Earth cat', name: 'catIconEarth', desc: '', args: []);
+  }
+
+  /// `Changes the launcher icon and remembers your choice. Your launcher may take a moment to refresh.`
+  String get appIconHint {
+    return Intl.message(
+      'Changes the launcher icon and remembers your choice. Your launcher may take a moment to refresh.',
+      name: 'appIconHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Could not change the icon. Please try again.`
+  String get appIconChangeFailed {
+    return Intl.message(
+      'Could not change the icon. Please try again.',
+      name: 'appIconChangeFailed',
       desc: '',
       args: [],
     );

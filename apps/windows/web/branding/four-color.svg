@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="cat-four-color-title cat-four-color-desc">
+  <title id="cat-four-color-title">FreeV6 · 四色猫</title>
+  <desc id="cat-four-color-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
+  <defs><linearGradient id="cat-four-color-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62A4FF"/><stop offset="0.500" stop-color="#4285F4"/><stop offset="1.000" stop-color="#2866CC"/></linearGradient><linearGradient id="cat-four-color-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="cat-four-color-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><linearGradient id="cat-four-color-red" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#F66B5C"/><stop offset="0.500" stop-color="#EA4335"/><stop offset="1.000" stop-color="#C9302C"/></linearGradient><linearGradient id="cat-four-color-yellow" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFD568"/><stop offset="0.500" stop-color="#FBBC05"/><stop offset="1.000" stop-color="#EDA510"/></linearGradient><linearGradient id="cat-four-color-green" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#62CC82"/><stop offset="0.500" stop-color="#34A853"/><stop offset="1.000" stop-color="#228944"/></linearGradient><pattern id="cat-four-color-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#cat-four-color-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#cat-four-color-red)"/><path d="M242 -20 H390 V162 C349 150 294 123 241 88 Z" fill="url(#cat-four-color-yellow)"/><path d="M-30 298 C90 320 238 306 350 265 L400 520 H-30 Z" fill="url(#cat-four-color-red)"/><path d="M380 316 C282 321 221 348 175 390 C148 413 135 451 132 520 H390 Z" fill="url(#cat-four-color-yellow)"/></pattern></defs>
+  <g transform="translate(15.36 15.36) scale(.94)">
+  <path id="cat-four-color-tail" d="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" fill="none" stroke="url(#cat-four-color-green)" stroke-width="58" stroke-linecap="round"/>
+  <path id="cat-four-color-body-shape" d="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z" fill="url(#cat-four-color-pattern)"/>
+  <path id="cat-four-color-paws" d="M138 447 C133 459 133 472 138 480
+M182 447 C187 459 187 472 182 480
+M226 447 C221 459 221 472 226 480
+M270 447 C275 459 275 472 270 480" fill="none" stroke="#AD5B22" stroke-width="2.6" stroke-linecap="round" opacity=".40"/>
+  <circle cx="147" cy="180" r="18.5" fill="#FFFFFF"/><circle cx="261" cy="180" r="18.5" fill="#FFFFFF"/>
+  <path id="cat-four-color-mouth" d="M179 209 C181 222 196 224 204 215 C212 224 227 222 229 209" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

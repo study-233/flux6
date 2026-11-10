@@ -21,7 +21,8 @@ class PackagingTest(unittest.TestCase):
                      'apps/windows/signing.pem', 'apps/windows/flutter_ui/.env', 'output/branding/orange.svg']:
             self.assertFalse(source.permitted(name), name)
         for name in ['apps/windows/flutter_ui/lib/live_main.dart', 'cmd/freev6-helper/main.go',
-                     'apps/windows/flutter_ui/vendor/flclash/LICENSE', 'scripts/windows/build-flutter.ps1']:
+                     'apps/windows/flutter_ui/vendor/flclash/LICENSE', 'scripts/windows/build-flutter.ps1',
+                     'scripts/branding/generate-cats.py', 'scripts/branding/export-icons.cjs']:
             self.assertTrue(source.permitted(name), name)
 
     def test_bundle_notices_archive_and_mutation_detection(self):
@@ -42,6 +43,8 @@ class PackagingTest(unittest.TestCase):
                 names = package.namelist()
                 self.assertIn('FreeV6-source/apps/windows/flutter_ui/lib/live_main.dart', names)
                 self.assertIn('FreeV6-source/apps/windows/installer/flutter.nsi', names)
+                self.assertIn('FreeV6-source/scripts/branding/generate-cats.py', names)
+                self.assertIn('FreeV6-source/assets/branding/cats/cow.svg', names)
                 self.assertEqual(json.loads(package.read('FreeV6-source/windows-source-sha256.json')), snapshot)
                 self.assertFalse(any('/state/' in name or name.endswith('.exe') for name in names))
             with patch.object(source, 'inventory', return_value={**snapshot, 'changed': 'hash'}):

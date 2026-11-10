@@ -316,7 +316,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "answers": MessageLookupByLibrary.simpleMessage("応答"),
     "app": MessageLookupByLibrary.simpleMessage("アプリ"),
     "appAccessControl": MessageLookupByLibrary.simpleMessage("アプリアクセス制御"),
-    "appIconDesign": MessageLookupByLibrary.simpleMessage("アプリアイコンのデザイン"),
+    "appIcon": MessageLookupByLibrary.simpleMessage("アプリアイコン"),
+    "appIconChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "アイコンを変更できませんでした。もう一度お試しください。",
+    ),
+    "appIconDesign": MessageLookupByLibrary.simpleMessage("オリジナル版のアイコンデザイン"),
+    "appIconHint": MessageLookupByLibrary.simpleMessage(
+      "ホーム画面のアイコンを変更し、選択を保存します。更新には少し時間がかかる場合があります。",
+    ),
     "appProxiesEmpty": MessageLookupByLibrary.simpleMessage("ローカルプロキシがありません"),
     "appendSystemDns": MessageLookupByLibrary.simpleMessage("システムDNSを追加"),
     "applied": MessageLookupByLibrary.simpleMessage("適用しました"),
@@ -388,6 +395,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "cancel": MessageLookupByLibrary.simpleMessage("キャンセル"),
     "cancelSelectAll": MessageLookupByLibrary.simpleMessage("すべて選択解除"),
     "cannotSave": MessageLookupByLibrary.simpleMessage("保存できません"),
+    "catIconCow": MessageLookupByLibrary.simpleMessage("白黒猫（標準）"),
+    "catIconEarth": MessageLookupByLibrary.simpleMessage("地球猫"),
+    "catIconFourColor": MessageLookupByLibrary.simpleMessage("4色猫"),
+    "catIconOrange": MessageLookupByLibrary.simpleMessage("茶トラ猫"),
+    "catIconPrism": MessageLookupByLibrary.simpleMessage("虹色猫"),
     "certificate": MessageLookupByLibrary.simpleMessage("証明書"),
     "changeProxyFailedTip": MessageLookupByLibrary.simpleMessage(
       "プロキシの切り替えに失敗したため、前回の選択に戻しました",

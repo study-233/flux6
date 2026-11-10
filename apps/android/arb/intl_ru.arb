@@ -197,7 +197,7 @@
   "go": "Перейти",
   "externalLink": "Внешняя ссылка",
   "otherContributors": "Другие участники",
-  "appIconDesign": "Дизайн значка приложения",
+  "appIconDesign": "Дизайн значка исходного приложения",
   "autoCloseConnections": "Автозакрытие соединений",
   "onlyStatisticsProxy": "Учитывать только трафик прокси",
   "showNotificationStopAction": "Кнопка остановки в уведомлении",
@@ -1132,5 +1132,13 @@
       }
     }
   },
-  "freev6WifiUnverified": "IPv6 настроен; доступ в интернет не подтверждён"
+  "freev6WifiUnverified": "IPv6 настроен; доступ в интернет не подтверждён",
+  "appIcon": "Значок приложения",
+  "catIconCow": "Чёрно-белый кот (по умолчанию)",
+  "catIconOrange": "Рыжий кот",
+  "catIconPrism": "Радужный кот",
+  "catIconFourColor": "Четырёхцветный кот",
+  "catIconEarth": "Кот-планета",
+  "appIconHint": "Меняет значок на главном экране и сохраняет выбор. Обновление может занять некоторое время.",
+  "appIconChangeFailed": "Не удалось изменить значок. Повторите попытку."
 }

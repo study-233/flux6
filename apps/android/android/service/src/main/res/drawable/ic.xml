@@ -1,17 +1,17 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:width="240dp"
-    android:height="240dp"
-    android:viewportWidth="240"
-    android:viewportHeight="240"
-    tools:ignore="VectorRaster">
-  <path
-      android:pathData="M48.1,80.89L168.44,11.41A23.16,23.16 0,0 1,191.6,51.53L71.26,121.01A23.16,23.16 0,0 1,48.1,80.89Z"
-      android:fillColor="#FFFFFF"/>
-  <path
-      android:pathData="M78.98,134.37L139.16,99.63A23.16,23.16 0,0 1,162.32,139.75L102.14,174.49A23.16,23.16 0,0 1,78.98,134.37Z"
-      android:fillColor="#FFFFFF"/>
-  <path
-      android:pathData="M98.28,207.92A23.16,23.16 0,1 1,144.6,207.92A23.16,23.16 0,1 1,98.28,207.92Z"
-      android:fillColor="#FFFFFF"/>
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="512" android:viewportHeight="512">
+    <group android:scaleX="0.94" android:scaleY="0.94" android:translateX="15.36" android:translateY="15.36">
+        <path android:pathData="M278 451 C365 451 422 425 422 369 C422 317 405 279 373 261" android:strokeWidth="58" android:strokeLineCap="round" android:strokeColor="#FFFFFFFF" />
+        <path android:pathData="M74 149 C75 109 80 63 99 40 C107 30 117 33 129 42
+L180 84 Q185 88 191 87 Q213 84 234 88 Q240 89 245 84
+L293 43 C305 32 316 34 323 47
+C336 77 340 112 340 152 C357 179 359 210 347 236
+C337 255 322 268 302 279 L316 320 C328 345 337 374 337 411
+C337 450 316 479 282 480 L274 480
+C270 488 260 492 248 492 C236 492 226 488 222 480
+L186 480 C182 488 172 492 160 492 C148 492 138 488 134 480
+L102 480 C67 480 50 456 51 421
+C51 378 75 323 101 280 C71 263 50 242 49 213
+C46 191 57 168 74 149 Z M128.5 180 A18.5 18.5 0 1 0 165.5 180 A18.5 18.5 0 1 0 128.5 180 Z M242.5 180 A18.5 18.5 0 1 0 279.5 180 A18.5 18.5 0 1 0 242.5 180 Z M173.75 209 C176 229 195 231 204 221 C213 231 232 229 234.25 209 C235 202 224 202 223.75 209 C221 217 212 218 208 211 C205 207 203 207 200 211 C196 218 187 217 184.25 209 C183 202 173 202 173.75 209 Z" android:fillType="evenOdd" android:fillColor="#FFFFFFFF" />
+    </group>
 </vector>

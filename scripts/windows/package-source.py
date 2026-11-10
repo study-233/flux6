@@ -10,7 +10,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-TREES = ('apps/windows/', 'scripts/windows/', 'cmd/', 'internal/', 'mobileapi/',
+TREES = ('apps/windows/', 'scripts/windows/', 'scripts/branding/', 'cmd/', 'internal/', 'mobileapi/',
          'shared/', 'third_party/', 'assets/branding/', 'profiles/')
 FILES = {'LICENSE', 'README.md', 'THIRD-PARTY.txt', 'go.mod', 'go.sum', 'notice.json',
          'docs/agreement.md', 'docs/privacy.md', 'docs/development/windows-flutter-refactor.md',

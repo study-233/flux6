@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:fl_clash/widgets/cat_icon_picker.dart';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -28,6 +30,8 @@ class ThemeView extends StatelessWidget {
         ),
         children: [
           const ThemeLivePreview(),
+          const SizedBox(height: 16),
+          const CatIconPicker(),
           const SizedBox(height: 16),
           const _ThemeModeItem(),
           const SizedBox(height: 16),

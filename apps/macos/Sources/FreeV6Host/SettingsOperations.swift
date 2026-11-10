@@ -16,8 +16,14 @@ extension HostSettings {
         if pendingCredential { accountStatus = "注册已完成，凭据等待保存。请重试保存，无需重新注册。" }
     }
 
+    static let appIcons = ["cow", "orange", "prism", "four-color", "earth"]
+    var appIcon: String {
+        let saved = defaults.string(forKey: "appIcon") ?? "cow"
+        return Self.appIcons.contains(saved) ? saved : "cow"
+    }
+
     var preferencesMap: [String: Any] {
-        ["appearance": defaults.string(forKey: "appearance") ?? "system",
+        ["appIcon": appIcon, "appearance": defaults.string(forKey: "appearance") ?? "system",
          "reduceMotion": defaults.bool(forKey: "reduceMotion"), "showMenuBar": defaults.object(forKey: "showMenuBarExtra") as? Bool ?? true,
          "hideOnStart": startup.silent, "autoConnect": startup.automatic,
          "login": preview ? defaults.bool(forKey: "loginRequested") : startup.loginRequested,
@@ -89,6 +95,12 @@ extension HostSettings {
         let field = a["field"] as? String
         if field == "appearance", let value = a["value"] as? String, ["system","light","dark"].contains(value) {
             defaults.set(value, forKey: "appearance"); return
+        }
+        if field == "appIcon" {
+            guard let value = a["value"] as? String, Self.appIcons.contains(value) else {
+                throw SettingsFailure("无效的图标。")
+            }
+            defaults.set(value, forKey: "appIcon"); return
         }
         guard let value = a["value"] as? Bool else { throw SettingsFailure("无效的偏好值。") }
         switch field {

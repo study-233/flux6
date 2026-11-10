@@ -131,6 +131,35 @@ class _LiveSettingsState extends State<LiveSettingsPage> {
                   _run(context, () => set('appearance', v.first)),
             ),
           ),
+          const SizedBox(height: 16),
+          const Text('应用图标'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (id, label) in const [
+                ('cow', '奶牛猫 · 默认'),
+                ('orange', '橘猫'),
+                ('prism', '炫彩猫'),
+                ('four-color', '四色猫'),
+                ('earth', '地球猫'),
+              ])
+                ChoiceChip(
+                  avatar: Image.asset(
+                    'assets/branding/cats/$id.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                  label: Text(label),
+                  selected: (preferences['appIcon'] ?? 'cow') == id,
+                  onSelected: model.busy
+                      ? null
+                      : (_) => _run(context, () => set('appIcon', id)),
+                ),
+            ],
+          ),
+          const _Hint('切换后立即更新 Dock 图标，并记住你的选择。'),
           _toggle(context, '减少动态效果', 'reduceMotion', preferences, set),
         ]),
         _Section('启动与菜单栏', [
