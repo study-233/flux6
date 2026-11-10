@@ -3,33 +3,34 @@
 <h2> FreeV6 </h2>
 <p> 教育网通用 IPv6 免流客户端 </p>
 
-[下载](https://freev6.cc.cd/download) | [使用说明](https://freev6.cc.cd/guide/introduction) | [实现原理](https://ich.cc.cd/2026/05/11/mianliu/) | [官网](https://freev6.cc.cd)
+[下载](https://github.com/study-233/free-v6/releases) | [使用说明](#简要说明) | [公告维护](docs/notice.md) | [备用配置](docs/cloud-profile.md)
 
 <br />
 
-<a href="https://github.com/evansrrr/free-v6/stargazers">
-<img alt="Stargazers" src="https://img.shields.io/github/stars/evansrrr/free-v6?style=for-the-badge&logo=github&color=f4dbd6&logoColor=D9E0EE&labelColor=302D41"></a>
-<a href="https://github.com/evansrrr/free-v6/releases/latest">
-<img alt="Releases" src="https://img.shields.io/github/release/evansrrr/free-v6.svg?style=for-the-badge&logo=semantic-release&color=f5bde6&logoColor=D9E0EE&labelColor=302D41"/></a>
-<a href="https://github.com/evansrrr/free-v6/blob/main/LICENSE">
-<img alt="License" src="https://img.shields.io/github/license/evansrrr/free-v6?style=for-the-badge&logo=conventionalcommits&color=ee99a0&logoColor=D9E0EE&labelColor=302D41"></a>
-<a href="https://github.com/evansrrr/free-v6/issues">
-<img alt="Issues" src="https://img.shields.io/github/issues/evansrrr/free-v6?style=for-the-badge&color=a6da95"></a>
+<a href="https://github.com/study-233/free-v6/stargazers">
+<img alt="Stargazers" src="https://img.shields.io/github/stars/study-233/free-v6?style=for-the-badge&logo=github&color=f4dbd6&logoColor=D9E0EE&labelColor=302D41"></a>
+<a href="https://github.com/study-233/free-v6/releases/latest">
+<img alt="Releases" src="https://img.shields.io/github/release/study-233/free-v6.svg?style=for-the-badge&logo=semantic-release&color=f5bde6&logoColor=D9E0EE&labelColor=302D41"/></a>
+<a href="https://github.com/study-233/free-v6/blob/main/LICENSE">
+<img alt="License" src="https://img.shields.io/github/license/study-233/free-v6?style=for-the-badge&logo=conventionalcommits&color=ee99a0&logoColor=D9E0EE&labelColor=302D41"></a>
+<a href="https://github.com/study-233/free-v6/issues">
+<img alt="Issues" src="https://img.shields.io/github/issues/study-233/free-v6?style=for-the-badge&color=a6da95"></a>
 </div>
 
 <br />
 
-![freev6-preview.webp](https://imgs.ich.cc.cd/file/public/1792683632507_freev6-preview.webp)
-
 ## 简要说明
 
-**详细使用说明请访问 [FreeV6 官网](https://freev6.cc.cd)！！**
+本发行版由 `study-233` 维护。公告、备用配置和更新入口均由 [本仓库](https://github.com/study-233/free-v6) 管理；原始版权与第三方声明继续保留。
 
-支持以下桌面平台：
+**备用节点目前关闭。** 普通 WARP 注册和连接继续直接使用 Cloudflare；未来公开节点放在 [profiles](profiles/) 中。
 
-- Windows 11 x64
+| 平台 | 状态 | 开发入口 |
+| --- | --- | --- |
+| Windows 11 x64 | 桌面客户端 | [Tauri 构建说明](src-tauri/README.md) |
+| macOS 14+，Apple Silicon | 本地预览版；最低系统和真实校园网络仍待实机验收 | [Mac 构建与安装](macos/README.md) |
 
-由于软件未签名，下载或首次运行如被拦截可选择“仍要继续”
+以下使用说明针对 Windows。macOS 预览版的安装步骤和已验证范围见上表。
 
 首次运行需要下载核心（~21MB），点击“启动免流”并按照提示点击“下载”，程序会自动完成下载安装。再次点击“启动免流”即可
 
@@ -39,13 +40,13 @@
 
 *退出软件或开关机时会尽量恢复网络状态，但仍建议手动关闭免流，避免下次开机后校园网认证异常。*
 
-bug、问题和建议欢迎提 [issue](https://github.com/evansrrr/free-v6/issues)，再点点 **star** 喵
+bug、问题和建议欢迎提 [issue](https://github.com/study-233/free-v6/issues)，再点点 **star** 喵
 
-## TODO
+## 项目结构
 
-- [ ] 更换字体
-- [x] 重置设置
-- [ ] 崩溃清理与残留进程
+- [web](web/) 是 Windows 界面，[src-tauri](src-tauri/) 负责窗口、托盘和安装包。
+- [macos](macos/) 包含 Flutter 界面、Swift 宿主、网络服务及测试；[scripts/macos](scripts/macos/) 提供构建和验收命令。
+- [cmd](cmd/) 是 Go 程序入口，[internal](internal/) 是业务与网络实现，[shared](shared/) 保存跨语言协议及测试样本。
 
 ## 免责声明
 
@@ -60,16 +61,13 @@ bug、问题和建议欢迎提 [issue](https://github.com/evansrrr/free-v6/issue
 
 ## 许可证
 
-本项目采用 [MIT](LICENSE) 许可，第三方组件许可见 [THIRD-PARTY.txt](THIRD-PARTY.txt) 与 [LICENSES/](LICENSES/)
+本项目采用 [MIT](LICENSE) 许可，第三方组件见 [THIRD-PARTY.txt](THIRD-PARTY.txt)。[Windows 随包许可](src-tauri/LICENSES/) 安装在程序的 `LICENSES/` 目录。
 
-## 赞赏
+## 发布维护
 
-感谢支持！请我杯喝的QwQ
+- 公告：修改 `main` 分支的 [notice.json](notice.json)，参见 [公告发布指南](docs/notice.md)。
+- 备用节点：当前关闭，未来按 [公开配置说明](docs/cloud-profile.md) 发布；仓库不包含原作者的节点。
+- Windows 更新：在本仓库推送 `v*` 标签，由 Release 工作流生成草稿、安装包和 `version.json`；核验后发布。
+- macOS 更新：使用本仓库 `macos-updates` 分支的签名清单，发布工具与签名步骤见 [Mac 开发说明](macos/DEVELOPMENT.md)。未配置签名通道的构建不会自动获得更新能力。
 
-<img alt="reward" height="200" width="200" src="https://img.ich.cc.cd/file/ichblog/img/reward.jpg" />
-
-<br />
-
-**鸣谢**：
-
-`仍需妙手` `别说了，困` `星汉灿烂`
+基于原项目作者 `evansrrr` 的 FreeV6；完整版权声明见 [LICENSE](LICENSE)。

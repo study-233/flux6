@@ -1,0 +1,29 @@
+{
+  "archive": "/Users/andy/Study/free-v6/dist/macos/FreeV6_0.5.3_2_source.zip",
+  "archiveSHA256": "2e9419c7d772f2f27b9cb11417bac6e5bbf7ece7f6da54e0187579b18db3e5fa",
+  "rebuiltRoot": "/private/tmp/freev6-final-rebuild.cNiY2R/FreeV6-source",
+  "verifiedSourceFiles": 628,
+  "cleanRebuild": true,
+  "signedSourceInventoryMatches": true,
+  "bundleIdentity": "dev.freev6.desktop",
+  "version": "0.5.3",
+  "build": "2",
+  "architecture": "arm64",
+  "deploymentTarget": "14.0",
+  "signedInstaller": {
+    "flutterClientSeal": "64c969ecfd31182aa924c3848ff7b8fcd0d8a6f9017e870cff930d4ca76aab6e",
+    "installer": {
+      "cdHash": "a7a28a8adc37f9b7eccb95fdbe01c39a8b5c90a2",
+      "identifier": "dev.freev6.service-installer"
+    },
+    "protocolVersion": 6,
+    "serviceSHA256": "58973fa397b335f5582da9539bb865b326ea0fb8b898c9d9fdc7c896dcf39a01"
+  },
+  "shippingCDHash": "7dcabc5541e7ecda1a929fa599775ff9b8600056",
+  "rebuiltCDHash": "cfad22f05b0058ee2b9ed193fa4181d798a29e08",
+  "rebuildSignatureVerified": true,
+  "applicationProductInputs": "unzipped source tree, Xcode 27.2, Flutter 3.47.6 & pinned pub cache, Go 1.25.14 & module dependencies, verified Sparkle 2.9.6 archive",
+  "rebuiltInstallerStaging": "Actual rebuilt verifier and app passed from a private staging path; a staging path below world-writable /private/tmp was rejected by secure directory policy.",
+  "bitIdenticalBinary": false,
+  "libraryConstraintTests": "8 passed, see rebuilt-signing.json"
+}

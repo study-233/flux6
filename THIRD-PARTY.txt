@@ -107,3 +107,17 @@ MACOS UPDATE HELPER (redistributed in the macOS app)
     Full text: FreeV6.app/Contents/Resources/Notices/Sparkle-LICENSE.txt
     The official release archive is pinned by SHA256 in macos/Dependencies.
     Sparkle runs inside the ordinary-user FreeV6UpdateAgent app.
+
+
+MACOS FLUTTER CLIENT
+
+13. FlClash v0.9.3 and Prism UI
+    The combined macOS Flutter client uses their GPLv3 components.
+    See Resources/Notices/FlClash-LICENSE.txt, PrismUI-LICENSE.txt,
+    PrismUI-NOTICE.txt, Flutter-component-sources.json and Flutter-Sources.md.
+    FreeV6's own MIT files retain their original notices.
+
+14. Flutter SDK and packages, including Material icon assets
+    Flutter 3.47.6. The release's generated package and asset licenses
+    are included in Resources/Notices/Flutter-Package-Notices.txt.
+    The Flutter framework license is in Resources/Notices/Flutter-LICENSE.txt.

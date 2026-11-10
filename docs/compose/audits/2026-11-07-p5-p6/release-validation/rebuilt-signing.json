@@ -1,0 +1,14 @@
+{
+  "app": "/Users/andy/Study/free-v6/build/p6-release-validation/rebuilt-secure/FreeV6.app",
+  "clientSeal": "64c969ecfd31182aa924c3848ff7b8fcd0d8a6f9017e870cff930d4ca76aab6e",
+  "cases": [
+    "stock hardened ad-hoc policy rejects Flutter with no Team ID",
+    "kernel permits the exact two AOT/engine CDHashes",
+    "extra dylib and DYLD_INSERT_LIBRARIES injection rejected",
+    "actual candidate accepted by unprivileged copy of the real installer staging path",
+    "unexpected library replacing App.framework is denied after signing",
+    "forged outer and replacement kernel allowlist fail trusted installer fingerprint",
+    "plain disable-library-validation without kernel constraint cannot enroll",
+    "removing the exception cannot bypass the genuine installer's pinned client"
+  ]
+}

@@ -1,0 +1,409 @@
+{
+  "service": {
+    "raw": "build/service-probes/af11e270-2542-4a30-82a0-3fa4cea20c82/result.json",
+    "outcome": {
+      "timestamp": "2026-11-06T17:37:08.428150+00:00",
+      "scope": "user-domain debug Mach service; no root installation or network changes",
+      "registration": {
+        "clients": [
+          {
+            "identity": {
+              "cdHash": "4c78e3d6c896f796b272aed8dee0e3a49656181d",
+              "identifier": "dev.freev6.probe.client"
+            },
+            "uid": 501
+          }
+        ],
+        "schema": 1,
+        "service": {
+          "cdHash": "5facc941fed018c0a92a48050c7932e927da9a35",
+          "identifier": "dev.freev6.probe.service"
+        }
+      },
+      "cases": [
+        "registered client and service mutually authenticate",
+        "App resource transfer and service configuration validation succeed; system-field injection rejected; assembled policy passes real core -t",
+        "real worker imports six proxy types; native service validates chain policy and pinned core parses the assembled configuration",
+        "service independently rejects seven modified chains including unsafe fields, bypasses and missing or injected UDP rules",
+        "loopback two-hop TCP follows the imported HTTP dialer in rule and global modes; failed access and unsupported UDP never reach the direct destination",
+        "backup profile without WARP credentials passes service/core validation; five altered campus requests are refused",
+        "campus route uses one proxy in rule and global modes; failed egress and unsupported UDP do not bypass it",
+        "real XPC file descriptors install pinned core/geodata; corrupt, unknown and unregistered requests rejected",
+        "authenticated campus session starts with its profile UUID and no WARP credential, then restores fixture DNS",
+        "native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC",
+        "opted-in startup waits for a network path, starts exactly one authenticated fixture session and restores DNS on quit",
+        "signed update replaces and reopens v2 only after the desktop gate stops the core and restores isolated DNS",
+        "failed DNS recovery withholds installation, preserves v1 and retries restoration after the fault clears",
+        "slow core measurement in flight: stopped and restored fixture DNS in 0.09s; new session rejected old requests",
+        "XPC start, owner heartbeat, stale/replayed requests, signature rejection and idempotent stop",
+        "supervisor retains core on rollback failure and retries until system state is restored",
+        "supervisor restores DNS when the running core alone crashes",
+        "restarted XPC daemon independently restores an active client session",
+        "matching heartbeat extends the owner lease; disappearance expires it and restores DNS",
+        "different client CDHash rejected; trusted client remains usable",
+        "client rejects unexpected service CDHash",
+        "launchd restart preserves registered identity",
+        "private resources independently verified and interrupted staging cleaned after launchd restart",
+        "registered identity is bound to its UID",
+        "client hash rotation requires re-enrollment and revokes the old hash",
+        "temporary launchd job removed"
+      ],
+      "updateProbes": {
+        "service-upgrade": "build/native-update-probes/f331e684-9c69-4e77-b669-04895aa224a4/result.json",
+        "service-recovery-failure": "build/native-update-probes/e5e9c4e0-1160-4717-a2db-ff5953a542c4/result.json"
+      }
+    }
+  },
+  "login": {
+    "raw": "build/login-probes/73a5f34e-cb94-4fed-9c04-1a49e56c5f0d/result.json",
+    "outcome": {
+      "scope": "temporary ordinary-user Aqua job, disposable app and Library; no real user login registration",
+      "events": [
+        {
+          "pid": 75951,
+          "arguments": [
+            "--freev6-login"
+          ],
+          "event": "launched"
+        },
+        {
+          "pid": 75951,
+          "arguments": [
+            "--freev6-login"
+          ],
+          "event": "terminated"
+        }
+      ],
+      "launcherRuns": 2,
+      "jobRemoved": true,
+      "agentRemoved": true,
+      "observerExited": true
+    }
+  },
+  "keychain": {
+    "raw": "build/native-update-probes/44f86f58-35c8-4bbc-8686-b9ddd85761ae/result.json",
+    "outcome": {
+      "passed": true,
+      "scenario": "keychain-upgrade",
+      "installedVersion": "2",
+      "events": [
+        {
+          "version": "1",
+          "event": "launched",
+          "pid": 82065
+        },
+        {
+          "event": "checking",
+          "pid": 82065,
+          "version": "1",
+          "reason": ""
+        },
+        {
+          "event": "found",
+          "pid": 82065,
+          "version": "1",
+          "reason": ""
+        },
+        {
+          "event": "downloading",
+          "pid": 82065,
+          "version": "1",
+          "reason": ""
+        },
+        {
+          "event": "ready",
+          "pid": 82065,
+          "version": "1",
+          "reason": ""
+        },
+        {
+          "pid": 82065,
+          "version": "1",
+          "event": "network-confirmed"
+        },
+        {
+          "event": "installing",
+          "pid": 82065,
+          "version": "1",
+          "reason": ""
+        },
+        {
+          "pid": 82065,
+          "version": "1",
+          "event": "terminating"
+        },
+        {
+          "event": "launched",
+          "version": "2",
+          "pid": 82073
+        }
+      ],
+      "scope": "ordinary-user signed fixture using product Swift helper; synthetic network preparation",
+      "keychain": {
+        "sourceCDHash": "93d59a4e4c15b13ccd40a0cfdb0f3256a34eb658",
+        "installedCDHash": "ec8ab0fb8dcd2eef650ce842cfe6bed7f5571167",
+        "noninteractiveUpgrade": {
+          "chain": "requires-authorization",
+          "cloud": "requires-authorization",
+          "warp": "requires-authorization"
+        },
+        "unrelatedIdentityDenied": [
+          "chain",
+          "cloud",
+          "warp"
+        ],
+        "registrationPreflight": "requires-authorization",
+        "rollbackReadAllOriginalRecords": true,
+        "networkRegistration": false,
+        "privateKeychainRemoved": true
+      },
+      "installedVersionAfterRollback": "1"
+    }
+  },
+  "unsignedFeed": {
+    "raw": "build/native-update-probes/fcc0a18d-968d-43d3-a43b-c05b29f471b0/result.json",
+    "outcome": {
+      "passed": true,
+      "scenario": "unsigned-feed",
+      "installedVersion": "1",
+      "events": [
+        {
+          "event": "launched",
+          "version": "1",
+          "pid": 82294
+        },
+        {
+          "event": "checking",
+          "version": "1",
+          "reason": "",
+          "pid": 82294
+        },
+        {
+          "event": "failed",
+          "version": "1",
+          "reason": "invalidFeed",
+          "pid": 82294
+        },
+        {
+          "event": "terminating",
+          "version": "1",
+          "pid": 82294
+        }
+      ],
+      "scope": "ordinary-user signed fixture using product Swift helper; synthetic network preparation"
+    }
+  },
+  "invalidArchive": {
+    "raw": "build/native-update-probes/f33543a2-5a6e-479b-bacf-153ed01ce6ff/result.json",
+    "outcome": {
+      "passed": true,
+      "scenario": "bad-archive",
+      "installedVersion": "1",
+      "events": [
+        {
+          "event": "launched",
+          "version": "1",
+          "pid": 82490
+        },
+        {
+          "version": "1",
+          "event": "checking",
+          "reason": "",
+          "pid": 82490
+        },
+        {
+          "reason": "",
+          "event": "found",
+          "pid": 82490,
+          "version": "1"
+        },
+        {
+          "reason": "",
+          "event": "downloading",
+          "pid": 82490,
+          "version": "1"
+        },
+        {
+          "reason": "invalidFeed",
+          "event": "failed",
+          "pid": 82490,
+          "version": "1"
+        },
+        {
+          "pid": 82490,
+          "version": "1",
+          "event": "terminating"
+        }
+      ],
+      "scope": "ordinary-user signed fixture using product Swift helper; synthetic network preparation"
+    }
+  },
+  "serviceGatedInstall": {
+    "raw": "build/native-update-probes/f331e684-9c69-4e77-b669-04895aa224a4/result.json",
+    "outcome": {
+      "passed": true,
+      "scenario": "service-upgrade",
+      "installedVersion": "2",
+      "events": [
+        {
+          "pid": 76027,
+          "version": "1",
+          "event": "launched"
+        },
+        {
+          "event": "checking",
+          "pid": 76027,
+          "reason": "",
+          "version": "1"
+        },
+        {
+          "event": "found",
+          "pid": 76027,
+          "reason": "",
+          "version": "1"
+        },
+        {
+          "event": "downloading",
+          "pid": 76027,
+          "reason": "",
+          "version": "1"
+        },
+        {
+          "event": "ready",
+          "pid": 76027,
+          "reason": "",
+          "version": "1"
+        },
+        {
+          "pid": 76027,
+          "version": "1",
+          "event": "network-confirmed"
+        },
+        {
+          "event": "installing",
+          "pid": 76027,
+          "version": "1",
+          "reason": ""
+        },
+        {
+          "pid": 76027,
+          "version": "1",
+          "event": "terminating"
+        },
+        {
+          "event": "launched",
+          "version": "2",
+          "pid": 76060
+        }
+      ],
+      "scope": "signed fixture with the product update helper, native desktop disconnect, user-domain XPC and isolated DNS"
+    }
+  },
+  "serviceRestoreFailed": {
+    "raw": "build/native-update-probes/e5e9c4e0-1160-4717-a2db-ff5953a542c4/result.json",
+    "outcome": {
+      "passed": true,
+      "scenario": "service-recovery-failure",
+      "installedVersion": "1",
+      "events": [
+        {
+          "pid": 76286,
+          "event": "launched",
+          "version": "1"
+        },
+        {
+          "event": "checking",
+          "version": "1",
+          "pid": 76286,
+          "reason": ""
+        },
+        {
+          "event": "found",
+          "version": "1",
+          "pid": 76286,
+          "reason": ""
+        },
+        {
+          "event": "downloading",
+          "version": "1",
+          "pid": 76286,
+          "reason": ""
+        },
+        {
+          "event": "ready",
+          "version": "1",
+          "pid": 76286,
+          "reason": ""
+        },
+        {
+          "pid": 76286,
+          "event": "installation-cancelled",
+          "version": "1"
+        },
+        {
+          "event": "failed",
+          "version": "1",
+          "pid": 76286,
+          "reason": "cancelled"
+        },
+        {
+          "pid": 76286,
+          "event": "terminating",
+          "version": "1"
+        }
+      ],
+      "scope": "signed fixture with the product update helper, native desktop disconnect, user-domain XPC and isolated DNS"
+    }
+  },
+  "releaseWorkerServiceRepeat": {
+    "raw": "build/service-probes/3cdb536f-57e7-42c6-ab93-bedf297f90ab/result.json",
+    "workerSHA256": "6ea141a28b4415fdd086cba1887dc340151179cca2e1e6e6c77b73aadbc8ad76",
+    "outcome": {
+      "timestamp": "2026-11-06T18:15:40.294876+00:00",
+      "scope": "user-domain debug Mach service; no root installation or network changes",
+      "registration": {
+        "schema": 1,
+        "clients": [
+          {
+            "uid": 501,
+            "identity": {
+              "identifier": "dev.freev6.probe.client",
+              "cdHash": "9576759a9b01450de19f9a66d94722556ba11227"
+            }
+          }
+        ],
+        "service": {
+          "identifier": "dev.freev6.probe.service",
+          "cdHash": "bfc2b3725226f62c4c6ae1a1e53e6460c4f36c9e"
+        }
+      },
+      "cases": [
+        "registered client and service mutually authenticate",
+        "App resource transfer and service configuration validation succeed; system-field injection rejected; assembled policy passes real core -t",
+        "real worker imports six proxy types; native service validates chain policy and pinned core parses the assembled configuration",
+        "service independently rejects seven modified chains including unsafe fields, bypasses and missing or injected UDP rules",
+        "loopback two-hop TCP follows the imported HTTP dialer in rule and global modes; failed access and unsupported UDP never reach the direct destination",
+        "backup profile without WARP credentials passes service/core validation; five altered campus requests are refused",
+        "campus route uses one proxy in rule and global modes; failed egress and unsupported UDP do not bypass it",
+        "real XPC file descriptors install pinned core/geodata; corrupt, unknown and unregistered requests rejected",
+        "authenticated campus session starts with its profile UUID and no WARP credential, then restores fixture DNS",
+        "native desktop starts, changes mode and both node groups, rejects stale controls, measures REJECT, samples traffic and quits through authenticated XPC",
+        "opted-in startup waits for a network path, starts exactly one authenticated fixture session and restores DNS on quit",
+        "slow core measurement in flight: stopped and restored fixture DNS in 0.10s; new session rejected old requests",
+        "XPC start, owner heartbeat, stale/replayed requests, signature rejection and idempotent stop",
+        "supervisor retains core on rollback failure and retries until system state is restored",
+        "supervisor restores DNS when the running core alone crashes",
+        "restarted XPC daemon independently restores an active client session",
+        "matching heartbeat extends the owner lease; disappearance expires it and restores DNS",
+        "different client CDHash rejected; trusted client remains usable",
+        "client rejects unexpected service CDHash",
+        "launchd restart preserves registered identity",
+        "private resources independently verified and interrupted staging cleaned after launchd restart",
+        "registered identity is bound to its UID",
+        "client hash rotation requires re-enrollment and revokes the old hash",
+        "temporary launchd job removed"
+      ],
+      "updateProbes": {}
+    }
+  }
+}

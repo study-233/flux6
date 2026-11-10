@@ -1,6 +1,8 @@
 # macOS 开发进度
 
-目标：按照 macOS 支持计划完成原生客户端、共用业务、网络服务、DMG、应用更新及验收。开发分支为 `mac`，起点 c528f26。当前首版仅交付 Apple Silicon（arm64），最低系统为 macOS 13。Intel 已暂缓，下文早期记录中的 Intel 测试属于范围调整之前的历史。
+目标：按照 macOS 支持计划完成原生客户端、共用业务、网络服务、DMG、应用更新及验收。开发分支为 `mac`，起点 c528f26。早期目标为 Apple Silicon（arm64）和 macOS 13。Intel 已暂缓，下文早期记录中的 Intel 测试属于范围调整之前的历史。
+
+**2026-11-07 更新。** 下文按早期原生客户端计划记录。当前 macOS UI 采用 Flutter + FlClash / Prism UI；0.5.3（build 2）的最低部署目标是 macOS 14。新 UI 计划的 P5/P6 对应性能、可访问性与本地候选交付，阶段编号与此历史表各自独立。[当前改版计划](macos-flclash-ui-plan.md) · [候选包与实测](../audits/2026-11-07-p5-p6/README.md)。
 
 ## 阶段状态
 
@@ -50,9 +52,9 @@
 
 | 验证 | 结果文件 |
 | --- | --- |
-| 用户级服务和身份轮换 | [service result](/Users/andy/Study/free-v6/build/service-probes/57acdab8-e5b5-45a0-b4af-e1f63c3e79db/result.json) |
-| 严格签名主程序 + 独立助手升级 | [update result](/Users/andy/Study/free-v6/build/update-probes/67760da474da44af84f09cdde3148cb6/result.json) |
-| 错误签名拒绝，旧版保留 | [rejection result](/Users/andy/Study/free-v6/build/update-probes/89197ae31a63421fbbf9a9d27dc2035f/result.json) |
+| 用户级服务和身份轮换 | [service result](../../../build/service-probes/57acdab8-e5b5-45a0-b4af-e1f63c3e79db/result.json) |
+| 严格签名主程序 + 独立助手升级 | [update result](../../../build/update-probes/67760da474da44af84f09cdde3148cb6/result.json) |
+| 错误签名拒绝，旧版保留 | [rejection result](../../../build/update-probes/89197ae31a63421fbbf9a9d27dc2035f/result.json) |
 
 这些文件是本地忽略的构建产物，可用 README 中的脚本重新生成。当前没有安装 root 服务、修改 DNS/路由或建立真实 TUN；没有通过 macOS 13、Intel、quarantine DMG 或生产网络服务升级验收。
 
@@ -65,7 +67,7 @@
 - App 已接入真实服务检查、安装/重新登记、安装恢复和卸载入口，安装操作期间防止重复提交。当前仅开放身份握手，连接按钮保持禁用。
 - UI 实测：当前缺少服务时显示“网络服务尚未安装”；从构建目录点击安装会提示先移动到“应用程序”，未发起系统安装；原生设置可打开，缺少服务时卸载按钮禁用。
 - Release App 已完成内部到外层的签名与严格校验；真实签名 payload 的正常校验、错误摘要拒绝、放宽库校验的客户端拒绝和非 root 变更拒绝通过。安装器和 App 共用的 XPC 客户端也通过临时用户级服务的双向身份、重启与摘要轮换实验。
-- 当前 27 项 XCTest 全部通过。最终签名产物验证记录为 [installer result](/Users/andy/Study/free-v6/build/installer-probes/6d721437-6353-425f-8273-f22ef9150644/result.json)；共用客户端的独立服务验证记录为 [service client result](/Users/andy/Study/free-v6/build/service-probes/6600b924-45d6-458f-9fa9-5bc0940ecde4/result.json)。
+- 当前 27 项 XCTest 全部通过。最终签名产物验证记录为 [installer result](../../../build/installer-probes/6d721437-6353-425f-8273-f22ef9150644/result.json)；共用客户端的独立服务验证记录为 [service client result](../../../build/service-probes/6600b924-45d6-458f-9fa9-5bc0940ecde4/result.json)。
 - 系统级 root 安装、管理员授权接受/取消、实际系统 launchd 的重启与卸载尚未验证。已请求用户确认这一新增后台权限，当前没有向 `/Applications` 或系统服务目录安装程序。
 
 尚未完成：真实网络服务生命周期、完整卸载清理、跨版本服务协议协调、macOS 13/Intel 验收。安装事务模拟控制器通过不能替代实际系统授权与 launchd 验收。
@@ -85,10 +87,10 @@
 
 | 验证 | 证据或命令 |
 | --- | --- |
-| 打包 worker 的真实进程验证 | [worker result](/Users/andy/Study/free-v6/build/worker-probes/4498bfbf-fab7-4cde-99b3-c6cf86484c45/result.json)；`python3 scripts/macos/probe-worker.py` |
-| 普通用户签名 payload 验证 | [installer result](/Users/andy/Study/free-v6/build/installer-probes/327d3a19-e113-4fef-b9e6-92ef87c1ad42/result.json) |
-| Go/Swift 与真实 worker 集成 | [test log](/Users/andy/Study/free-v6/build/macos-worker/test-worker.log)；`bash scripts/macos/test-worker.sh` |
-| 协议与共享样本 | [worker v1](/Users/andy/Study/free-v6/shared/protocol/worker-v1.md)、[settings fixture](/Users/andy/Study/free-v6/shared/fixtures/worker-settings.json) |
+| 打包 worker 的真实进程验证 | [worker result](../../../build/worker-probes/4498bfbf-fab7-4cde-99b3-c6cf86484c45/result.json)；`python3 scripts/macos/probe-worker.py` |
+| 普通用户签名 payload 验证 | [installer result](../../../build/installer-probes/327d3a19-e113-4fef-b9e6-92ef87c1ad42/result.json) |
+| Go/Swift 与真实 worker 集成 | [test log](../../../build/macos-worker/test-worker.log)；`bash scripts/macos/test-worker.sh` |
+| 协议与共享样本 | [worker v1](../../../shared/protocol/worker-v1.md)、[settings fixture](../../../shared/fixtures/worker-settings.json) |
 
 当前仍未安装 root 服务、修改 DNS/路由或建立真实 TUN。P1、P2、P5 均未完成；代理配置页接入不等于全部业务迁移完成。原生顶部栏的完整命令与状态联动仍按 UI-01～UI-06 推进。
 
@@ -103,11 +105,11 @@
 
 | 验证 | 证据 |
 | --- | --- |
-| 正式镜像下载与进度 | [download result](/Users/andy/Study/free-v6/build/worker-probes/5bb48f23-808e-4ad0-870c-1691319aeeb4/result.json) |
-| 三种官方资产与竞态测试 | [asset tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-assets-tests.log)、[ZIP tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-zip-tests.log) |
-| Swift 与真实 Go 集成 | [Swift tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-swift-tests.log) |
-| 全量 Go 与 Windows 交叉编译 | [Go tests](/Users/andy/Study/free-v6/build/macos-worker/runtime-go-full.log)、[Windows build](/Users/andy/Study/free-v6/build/macos-worker/runtime-windows-build.log) |
-| Release 与签名 payload | [build log](/Users/andy/Study/free-v6/build/macos-worker/runtime-build-app.log)、[payload result](/Users/andy/Study/free-v6/build/installer-probes/54f7f705-5365-430a-adf8-bf8cd6173455/result.json) |
+| 正式镜像下载与进度 | [download result](../../../build/worker-probes/5bb48f23-808e-4ad0-870c-1691319aeeb4/result.json) |
+| 三种官方资产与竞态测试 | [asset tests](../../../build/macos-worker/runtime-assets-tests.log)、[ZIP tests](../../../build/macos-worker/runtime-zip-tests.log) |
+| Swift 与真实 Go 集成 | [Swift tests](../../../build/macos-worker/runtime-swift-tests.log) |
+| 全量 Go 与 Windows 交叉编译 | [Go tests](../../../build/macos-worker/runtime-go-full.log)、[Windows build](../../../build/macos-worker/runtime-windows-build.log) |
+| Release 与签名 payload | [build log](../../../build/macos-worker/runtime-build-app.log)、[payload result](../../../build/installer-probes/54f7f705-5365-430a-adf8-bf8cd6173455/result.json) |
 
 UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运行验收。当前仍未安装 root 服务或执行实际 TUN/DNS 变更，P1、P2、P5 保持进行中。
 
@@ -120,7 +122,7 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 - 所有退出请求经应用代理统一处理：服务或配置操作期间暂缓；未保存草稿可保存、取消或放弃；核心下载取消后等待 worker 退出再允许 App 结束。保存失败保留窗口与草稿，不将失败当作保存成功。
 - 37 项 XCTest 通过且无跳过：27 项系统测试、6 项业务客户端测试、4 项命令模型测试。新增子进程夹具在下载挂起时退出，确认客户端等待子进程处理 stdin EOF 后退出。Release App 构建及签名检查通过，无新增 entitlement。
 
-证据：[Swift tests](/Users/andy/Study/free-v6/build/macos-worker/native-desktop-tests.log)、[Release build](/Users/andy/Study/free-v6/build/macos-worker/native-desktop-build.log)。
+证据：[Swift tests](../../../build/macos-worker/native-desktop-tests.log)、[Release build](../../../build/macos-worker/native-desktop-build.log)。
 
 此轮未操作 GUI：先前锁屏阻碍尚待用户解锁。顶部菜单顺序、设置入口、焦点切换、工具栏溢出、确认框、窗口恢复、退出主线程流程、VoiceOver 和 macOS 13 仍需实机验证。命令模型和子进程测试只覆盖各自边界，UI-01 至 UI-06 不据此标为全部完成。退出流程尚不包含真实 TUN/DNS 清理。
 
@@ -136,12 +138,12 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 证据 |
 | --- | --- |
-| Swift 全量及凭据工作流 | [Swift tests](/Users/andy/Study/free-v6/build/macos-worker/warp-swift-tests.log) |
-| 独立 Keychain 与清理 | [Keychain tests](/Users/andy/Study/free-v6/build/macos-worker/warp-keychain-cleanup.log) |
-| Go 模拟注册与竞态 | [race tests](/Users/andy/Study/free-v6/build/macos-worker/warp-go-tests.log)、[HTTP integration](/Users/andy/Study/free-v6/build/macos-worker/warp-http-race.log) |
-| 真实 Swift→Go 参数拒绝 | [worker integration](/Users/andy/Study/free-v6/build/macos-worker/warp-worker-integration.log) |
-| Go 全量与 Windows 交叉编译 | [Go tests](/Users/andy/Study/free-v6/build/macos-worker/warp-go-full.log)、[Windows build](/Users/andy/Study/free-v6/build/macos-worker/warp-windows-build.log) |
-| Release 与打包 worker | [Release build](/Users/andy/Study/free-v6/build/macos-worker/warp-release-build.log)、[process result](/Users/andy/Study/free-v6/build/worker-probes/5b0b82c7-7f46-4910-abb1-1144329f0207/result.json) |
+| Swift 全量及凭据工作流 | [Swift tests](../../../build/macos-worker/warp-swift-tests.log) |
+| 独立 Keychain 与清理 | [Keychain tests](../../../build/macos-worker/warp-keychain-cleanup.log) |
+| Go 模拟注册与竞态 | [race tests](../../../build/macos-worker/warp-go-tests.log)、[HTTP integration](../../../build/macos-worker/warp-http-race.log) |
+| 真实 Swift→Go 参数拒绝 | [worker integration](../../../build/macos-worker/warp-worker-integration.log) |
+| Go 全量与 Windows 交叉编译 | [Go tests](../../../build/macos-worker/warp-go-full.log)、[Windows build](../../../build/macos-worker/warp-windows-build.log) |
+| Release 与打包 worker | [Release build](../../../build/macos-worker/warp-release-build.log)、[process result](../../../build/worker-probes/5b0b82c7-7f46-4910-abb1-1144329f0207/result.json) |
 
 尚未验证真实 Cloudflare 注册、产品 App 的系统授权交互、ad-hoc 升级/回退后的 Keychain 访问、macOS 13 和 UI 操作。临时钥匙串测试使用已弃用的隔离创建/删除 API，不能代替产品的登录钥匙串及代码身份测试。后续接入实际连接时还需限制运行中凭据替换/删除，并验证凭据向受控配置流程的交接。未安装 root 服务，未启动真实 TUN。
 
@@ -160,11 +162,11 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 生产规则数据下载、独立摘要和进程回收 | [worker result](/Users/andy/Study/free-v6/build/worker-probes/3b4f67e8-694d-498a-8392-316a766650be/result.json) |
-| 完整配置与真实 GeoSite 解析 | [core check](/Users/andy/Study/free-v6/build/macos-geodata/full-core-check.log) |
-| Swift / Go / 私有 Keychain 集成 | [Swift tests](/Users/andy/Study/free-v6/build/macos-geodata/swift-tests.log) |
-| Go 全量与资源故障竞态 | [Go tests](/Users/andy/Study/free-v6/build/macos-geodata/go-full.log)、[resource race](/Users/andy/Study/free-v6/build/macos-geodata/final-resource-race.log)、[worker race](/Users/andy/Study/free-v6/build/macos-geodata/go-tests.log) |
-| Windows 编译与 Release 构建 | [Windows compile](/Users/andy/Study/free-v6/build/macos-geodata/windows-compile.log)、[Release build](/Users/andy/Study/free-v6/build/macos-geodata/release-build.log) |
+| 生产规则数据下载、独立摘要和进程回收 | [worker result](../../../build/worker-probes/3b4f67e8-694d-498a-8392-316a766650be/result.json) |
+| 完整配置与真实 GeoSite 解析 | [core check](../../../build/macos-geodata/full-core-check.log) |
+| Swift / Go / 私有 Keychain 集成 | [Swift tests](../../../build/macos-geodata/swift-tests.log) |
+| Go 全量与资源故障竞态 | [Go tests](../../../build/macos-geodata/go-full.log)、[resource race](../../../build/macos-geodata/final-resource-race.log)、[worker race](../../../build/macos-geodata/go-tests.log) |
+| Windows 编译与 Release 构建 | [Windows compile](../../../build/macos-geodata/windows-compile.log)、[Release build](../../../build/macos-geodata/release-build.log) |
 
 仍未安装 root 服务或启动 TUN。下一步把 Keychain 凭据、设置 revision 和资源标识通过受控配置请求连接起来，随后由 root 服务独立验证配置与资源，不能把当前用户缓存已校验视为特权启动授权。
 
@@ -183,11 +185,11 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| Go 业务、凭据与 worker 竞态 | [race tests](/Users/andy/Study/free-v6/build/macos-configuration/go-race.log) |
-| Go 全量与 Windows 交叉编译 | [Go regression](/Users/andy/Study/free-v6/build/macos-configuration/go-full.log)、[Windows compile](/Users/andy/Study/free-v6/build/macos-configuration/windows-compile.log) |
-| 49 项原生测试与真实 Swift→Go 配置交接 | [Swift tests](/Users/andy/Study/free-v6/build/macos-configuration/swift-final-tests.log) |
-| 业务投影组成的完整核心配置 | [core check](/Users/andy/Study/free-v6/build/macos-configuration/full-core-check.log) |
-| Release 构建与包内 worker | [Release](/Users/andy/Study/free-v6/build/macos-configuration/release-build.log)、[worker result](/Users/andy/Study/free-v6/build/worker-probes/fc9f10b4-c517-4067-b748-cfefe8032ab9/result.json) |
+| Go 业务、凭据与 worker 竞态 | [race tests](../../../build/macos-configuration/go-race.log) |
+| Go 全量与 Windows 交叉编译 | [Go regression](../../../build/macos-configuration/go-full.log)、[Windows compile](../../../build/macos-configuration/windows-compile.log) |
+| 49 项原生测试与真实 Swift→Go 配置交接 | [Swift tests](../../../build/macos-configuration/swift-final-tests.log) |
+| 业务投影组成的完整核心配置 | [core check](../../../build/macos-configuration/full-core-check.log) |
+| Release 构建与包内 worker | [Release](../../../build/macos-configuration/release-build.log)、[worker result](../../../build/worker-probes/fc9f10b4-c517-4067-b748-cfefe8032ab9/result.json) |
 
 下一阶段需要在 root 服务中重新验证受限业务文档、可信资源 ID 和摘要，组装系统字段并管理核心进程。当前服务仍仅支持身份握手，未安装 root 服务、未启动真实 TUN；不将 App 侧结构检查当作特权启动授权。
 
@@ -206,12 +208,12 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 57 项原生及 Swift/Go/Keychain 回归 | [Swift final tests](/Users/andy/Study/free-v6/build/macos-service-resources/swift-final-tests.log) |
-| 系统层资源、ACL 与事务验证 | [System tests](/Users/andy/Study/free-v6/build/macos-service-resources/system-final-tests.log) |
-| 跨进程资源传递、身份与重启清理 | [XPC result](/Users/andy/Study/free-v6/build/service-probes/5f29fba6-339a-48a7-b946-9f04cb608863/result.json) |
-| 服务复验产物的实际核心配置检查 | [Core check](/Users/andy/Study/free-v6/build/macos-service-resources/core-check.log) |
-| Release 构建及部署元数据 | [Build](/Users/andy/Study/free-v6/build/macos-service-resources/release-build.log)、[Bundle validation](/Users/andy/Study/free-v6/build/macos-service-resources/bundle-validation.json) |
-| 新签名 payload 与非 root 拒绝 | [Installer result](/Users/andy/Study/free-v6/build/installer-probes/ecdf48d1-fca7-4aa3-8b2b-9ce4a8860c17/result.json) |
+| 57 项原生及 Swift/Go/Keychain 回归 | [Swift final tests](../../../build/macos-service-resources/swift-final-tests.log) |
+| 系统层资源、ACL 与事务验证 | [System tests](../../../build/macos-service-resources/system-final-tests.log) |
+| 跨进程资源传递、身份与重启清理 | [XPC result](../../../build/service-probes/5f29fba6-339a-48a7-b946-9f04cb608863/result.json) |
+| 服务复验产物的实际核心配置检查 | [Core check](../../../build/macos-service-resources/core-check.log) |
+| Release 构建及部署元数据 | [Build](../../../build/macos-service-resources/release-build.log)、[Bundle validation](../../../build/macos-service-resources/bundle-validation.json) |
+| 新签名 payload 与非 root 拒绝 | [Installer result](../../../build/installer-probes/ecdf48d1-fca7-4aa3-8b2b-9ce4a8860c17/result.json) |
 
 下一步接入 App 缓存到服务的资源交接、服务端业务文档复验与系统配置组装，随后实现核心进程和 DNS 事务。资源就绪不能作为启动授权；启动时仍须验证实际使用的受控文件。当前卸载保留私有资源目录，完整清理仍在卸载验收范围内。用户尚未批准的 root 安装和锁屏后的 UI 验证保持待执行。
 
@@ -229,11 +231,11 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 62 项原生回归 | [Swift tests](/Users/andy/Study/free-v6/build/macos-service-configuration/swift-tests.log) |
-| App 同路径的跨进程资源与配置交接 | [XPC result](/Users/andy/Study/free-v6/build/service-probes/204b0e37-38c3-4c18-bce6-a78085c8b033/result.json) |
-| 服务组装配置的实际核心解析 | [Core check](/Users/andy/Study/free-v6/build/service-probes/204b0e37-38c3-4c18-bce6-a78085c8b033/core-check.log) |
-| Unix controller 与进程退出 | [Controller result](/Users/andy/Study/free-v6/build/controller-probes/53cf632c-1d40-4168-8c39-e0312d9800ed/result.json) |
-| Release 与签名载荷 | [Build](/Users/andy/Study/free-v6/build/macos-service-configuration/release-build.log)、[Installer result](/Users/andy/Study/free-v6/build/installer-probes/19a29276-4cf8-40e7-9d79-e9fe9c0c46a6/result.json) |
+| 62 项原生回归 | [Swift tests](../../../build/macos-service-configuration/swift-tests.log) |
+| App 同路径的跨进程资源与配置交接 | [XPC result](../../../build/service-probes/204b0e37-38c3-4c18-bce6-a78085c8b033/result.json) |
+| 服务组装配置的实际核心解析 | [Core check](../../../build/service-probes/204b0e37-38c3-4c18-bce6-a78085c8b033/core-check.log) |
+| Unix controller 与进程退出 | [Controller result](../../../build/controller-probes/53cf632c-1d40-4168-8c39-e0312d9800ed/result.json) |
+| Release 与签名载荷 | [Build](../../../build/macos-service-configuration/release-build.log)、[Installer result](../../../build/installer-probes/19a29276-4cf8-40e7-9d79-e9fe9c0c46a6/result.json) |
 
 尚未安装 root 服务或修改网络；最新 UI 交互仍待解锁，最低系统和跨用户验证未完成。接下来实现受控会话目录、实际核心检查及进程管理，再接入 DNS 事务和失败恢复。
 
@@ -250,9 +252,9 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 70 项回归、受控实际核心与只读 launchd | [Swift tests](/Users/andy/Study/free-v6/build/macos-process/swift-tests.log) |
-| Release 构建与严格签名 | [Build](/Users/andy/Study/free-v6/build/macos-process/release-build.log) |
-| 更新后的真实安装载荷 | [Installer result](/Users/andy/Study/free-v6/build/installer-probes/0a03b0ed-5d49-4f6b-bbf4-899376952284/result.json) |
+| 70 项回归、受控实际核心与只读 launchd | [Swift tests](../../../build/macos-process/swift-tests.log) |
+| Release 构建与严格签名 | [Build](../../../build/macos-process/release-build.log) |
+| 更新后的真实安装载荷 | [Installer result](../../../build/installer-probes/0a03b0ed-5d49-4f6b-bbf4-899376952284/result.json) |
 
 下一项为私有会话目录、可信资源副本与持久化恢复记录，将受控进程接入服务启动协调器；之后实现 DNS 写入/比较恢复，并执行已授权范围内的网络验证。
 
@@ -270,11 +272,11 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 79 项完整回归 | [Swift tests](/Users/andy/Study/free-v6/build/macos-sessions/swift-tests.log) |
-| 两个阶段的真实强退与新进程恢复 | [Crash recovery](/Users/andy/Study/free-v6/build/session-probes/01d4e1ea-7388-4056-8e15-edbaf69315c7/result.json) |
-| Release 构建 | [Build](/Users/andy/Study/free-v6/build/macos-sessions/release-build.log) |
-| 生产签名与 Debug 探针排除 | [Bundle validation](/Users/andy/Study/free-v6/build/macos-sessions/bundle-validation.json) |
-| 真实安装载荷检查 | [Installer probe log](/Users/andy/Study/free-v6/build/macos-sessions/installer-probe.log) |
+| 79 项完整回归 | [Swift tests](../../../build/macos-sessions/swift-tests.log) |
+| 两个阶段的真实强退与新进程恢复 | [Crash recovery](../../../build/session-probes/01d4e1ea-7388-4056-8e15-edbaf69315c7/result.json) |
+| Release 构建 | [Build](../../../build/macos-sessions/release-build.log) |
+| 生产签名与 Debug 探针排除 | [Bundle validation](../../../build/macos-sessions/bundle-validation.json) |
+| 真实安装载荷检查 | [Installer probe log](../../../build/macos-sessions/installer-probe.log) |
 
 当前记录 v1 明确只允许无进程、无网络改动的准备阶段，不能用它清理运行中的核心或 DNS 状态。下一步扩展持久化启动意图与进程身份，再串联实际核心检查、启动和 DNS 事务。root 安装、跨用户真实访问、最低系统及 UI 操作仍待对应条件，不将普通用户测试视作这些验收通过。
 
@@ -291,11 +293,11 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 83 项原生回归 | [Swift tests](/Users/andy/Study/free-v6/build/macos-preflight/swift-tests.log) |
-| 进程组清理不足及夹具清理 | [Group contrast](/Users/andy/Study/free-v6/build/group-probes/e885752c-55c5-470d-964d-563a99498f17/result.json) |
-| 独立核心任务、强退接管与真实核心 -t | [Core jobs](/Users/andy/Study/free-v6/build/core-job-probes/3ddcbeea-774f-4679-b4d6-5def5147b543/result.json) |
-| Release 构建及签名 | [Build](/Users/andy/Study/free-v6/build/macos-preflight/release-build.log)、[Bundle validation](/Users/andy/Study/free-v6/build/macos-preflight/bundle-validation.json) |
-| 真实安装载荷验证 | [Installer probe](/Users/andy/Study/free-v6/build/macos-preflight/installer-probe.log) |
+| 83 项原生回归 | [Swift tests](../../../build/macos-preflight/swift-tests.log) |
+| 进程组清理不足及夹具清理 | [Group contrast](../../../build/group-probes/e885752c-55c5-470d-964d-563a99498f17/result.json) |
+| 独立核心任务、强退接管与真实核心 -t | [Core jobs](../../../build/core-job-probes/3ddcbeea-774f-4679-b4d6-5def5147b543/result.json) |
+| Release 构建及签名 | [Build](../../../build/macos-preflight/release-build.log)、[Bundle validation](../../../build/macos-preflight/bundle-validation.json) |
+| 真实安装载荷验证 | [Installer probe](../../../build/macos-preflight/installer-probe.log) |
 
 当前生产 RPC 仍仅在内存中检查配置，准备记录 v1 仍禁止进程及网络副作用。本轮完成的是后续启动协调器所需的任务管理模块，尚未将注册/启动意图、退出确认与持久化记录连接；不能用普通用户 job 实验宣称 root 服务、DNS 恢复或真实 TUN 已通过。下一步升级会话记录，先串联真实 `-t` 与崩溃恢复，再接入运行会话和 DNS 事务。
 
@@ -313,11 +315,11 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 | 验证 | 记录 |
 | --- | --- |
-| 87 项完整原生回归 | [Swift tests](/Users/andy/Study/free-v6/build/macos-preflight/v4-swift-tests.log) |
-| 13 个检查恢复与失败场景 | [Recovery](/Users/andy/Study/free-v6/build/check-recovery-probes/31ba49cc-69e5-4c41-9272-06571ef51fad/result.json) |
-| 真实 XPC v4 核心检查与身份验证 | [Service](/Users/andy/Study/free-v6/build/service-probes/8a149b4d-537f-4e20-9a73-0b048c306a1e/result.json) |
-| Release 构建与正式入口限制 | [Build](/Users/andy/Study/free-v6/build/macos-preflight/v4-release-build.log)、[Bundle](/Users/andy/Study/free-v6/build/macos-preflight/v4-bundle-validation.json) |
-| 真实签名安装载荷 | [Installer](/Users/andy/Study/free-v6/build/macos-preflight/v4-installer-probe.log) |
+| 87 项完整原生回归 | [Swift tests](../../../build/macos-preflight/v4-swift-tests.log) |
+| 13 个检查恢复与失败场景 | [Recovery](../../../build/check-recovery-probes/31ba49cc-69e5-4c41-9272-06571ef51fad/result.json) |
+| 真实 XPC v4 核心检查与身份验证 | [Service](../../../build/service-probes/8a149b4d-537f-4e20-9a73-0b048c306a1e/result.json) |
+| Release 构建与正式入口限制 | [Build](../../../build/macos-preflight/v4-release-build.log)、[Bundle](../../../build/macos-preflight/v4-bundle-validation.json) |
+| 真实签名安装载荷 | [Installer](../../../build/macos-preflight/v4-installer-probe.log) |
 
 本轮完成真实配置检查及其恢复，没有开启代理、安装 root 服务或改动 DNS/路由。跨系统重启分支、最低系统、跨用户隔离与最新 UI 尚待相应实测；当前服务自身留下的未确认任务记录仍要求新的服务实例确认旧组退出。下一步进入受限 controller 接口、正常网络会话与 DNS 事务，继续保留同样的持久化和恢复边界。
 
@@ -335,14 +337,14 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 - 固定 HTTP/1.0 与关闭连接的格式，限制响应头 16 KiB、普通正文 1 MiB、流量单行 4096 字节；拒绝歧义、截断、压缩或分块响应。错误不返回原始正文，流量与节点只暴露限定字段。
 - 11 项新增测试覆盖实际 Unix socket 的身份、目录替换/权限、协议边界、超时、写后回读、非法成员、固定测速目标和不等待 EOF 的流量采样。完整原生回归共 98 项，无失败、无跳过。
 - 固定 v1.19.31 真实核心验证三种模式、两个含中文/特殊字符的分组选择与回读、错误 PID 和非法成员拒绝、REJECT 测速不可用、累计流量及单次流量采样。100 字节 socket 路径、无 IP socket、正常退出和回收均通过。
-- Release 构建及各组件严格签名校验通过，正式服务无 Debug 控制探针符号。开发说明和 [内部接口契约](/Users/andy/Study/free-v6/shared/protocol/core-controller-v1.md) 已同步。
+- Release 构建及各组件严格签名校验通过，正式服务无 Debug 控制探针符号。开发说明和 [内部接口契约](../../../shared/protocol/core-controller-v1.md) 已同步。
 
 | 验证项 | 证据 |
 | --- | --- |
-| 98 项完整原生回归 | [Swift tests](/Users/andy/Study/free-v6/build/macos-preflight/controller-full-tests.log) |
-| 原生客户端与固定核心 | [Controller result](/Users/andy/Study/free-v6/build/controller-probes/3fd2a56d-7366-44be-ae2d-7147c9f24bb6/result.json) |
-| Release 构建与签名/入口隔离 | [Build](/Users/andy/Study/free-v6/build/macos-preflight/controller-release-build.log)、[Bundle](/Users/andy/Study/free-v6/build/macos-preflight/controller-bundle-validation.json) |
-| 更新后的安装载荷 | [Installer](/Users/andy/Study/free-v6/build/installer-probes/cd1d13a4-3224-477d-b042-b4b7ec43ef49/result.json) |
+| 98 项完整原生回归 | [Swift tests](../../../build/macos-preflight/controller-full-tests.log) |
+| 原生客户端与固定核心 | [Controller result](../../../build/controller-probes/3fd2a56d-7366-44be-ae2d-7147c9f24bb6/result.json) |
+| Release 构建与签名/入口隔离 | [Build](../../../build/macos-preflight/controller-release-build.log)、[Bundle](../../../build/macos-preflight/controller-bundle-validation.json) |
+| 更新后的安装载荷 | [Installer](../../../build/installer-probes/cd1d13a4-3224-477d-b042-b4b7ec43ef49/result.json) |
 
 本轮未安装 root 服务或修改 TUN、DNS、路由。当前仅完成服务内部控制模块，尚未从 XPC 暴露运行会话和控制操作；界面真实连接仍保持未接入。跨用户、最低系统、真实流量、连续订阅和日志读取尚待后续验证。
 
@@ -482,6 +484,12 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 已重新生成 `FreeV6_0.5.2-preview_arm64.dmg`，SHA256 为 `5c9e390d300b62e0d4df0c407d058323a4d50a7966d3ed09a072cd50fa96a70f`。只读挂载后已校验说明、拖放入口、副本签名及六个产品程序的架构和最低系统版本。Sparkle 和四个内嵌程序均包含 arm64，最低系统标记为 11.0。安装载荷的四项检查通过。[打包记录](../../../build/macos-arm-release/dmg.log) · [安装载荷检查](../../../build/installer-probes/435b180a-2d5c-421c-8f94-8fa8db70d7b8/result.json)
 
+## 主窗口重开方式调整
+
+Mac 预览版通过 Dock 和右上角的 FreeV6 菜单重开主窗口，快捷键仅用于应用内命令。已在本机重新打开构建后的 App，核对通用设置中的菜单栏与启动选项，并确认主程序没有导入系统热键注册函数。
+
+148 项原生测试通过。重新生成的 arm64 预览 DMG 已只读挂载并完成副本验签，SHA256 为 `61b1ebccf70f86bb68f9352e34ee1c06c8db2d6c258e6bca0e1b88ffc752578c`。[原生回归](../../../build/macos-window/native.log) · [镜像记录](../../../build/macos-window/dmg.log)
+
 ## 下一步
 
 1. 用户确认后验证 root Mach service 的安装、双向身份、授权取消、重启、修复和卸载；确认前继续不依赖该权限的开发。
@@ -492,4 +500,4 @@ UI 操作仍待解锁验证；Intel 和 Windows 资产解析不代表真机运�
 
 ## 可重复验证入口
 
-构建和探针说明见 [macos/README.md](/Users/andy/Study/free-v6/macos/README.md)。Go 测试在受限执行环境中需要允许本机回环服务器；网络依赖下载与真实网络行为分别记录，不能用沙箱失败代替产品失败。
+构建和探针说明见 [macos/README.md](../../../macos/README.md)。Go 测试在受限执行环境中需要允许本机回环服务器；网络依赖下载与真实网络行为分别记录，不能用沙箱失败代替产品失败。
