@@ -13,6 +13,7 @@ Windows 的 Rust 编译、Go 平台测试与 NSIS 安装包构建在本地 Windo
 ```powershell
 go test -timeout=180s ./cmd/... ./internal/... ./mobileapi/...
 go vet ./cmd/... ./internal/... ./mobileapi/...
+node --test scripts/windows/test-web-runtime.mjs
 ./scripts/windows/build-helper.ps1
 cargo check --locked --manifest-path apps/windows/src-tauri/Cargo.toml
 cd apps/windows

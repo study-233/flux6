@@ -71,7 +71,22 @@ const state = {
   logs: [],
 };
 
-const API_BASE = 'http://127.0.0.1:13335/api/v1';
+// Helper API base. The port is reserved per launch by the desktop shell
+// (get_helper_port) so no leftover process can keep it pinned; the historical
+// 13335 is only the fallback for a browser preview or an older shell.
+const DEFAULT_API_BASE = 'http://127.0.0.1:13335/api/v1';
+let apiBase = null;
+
+async function loadApiBase() {
+  const tauri = window.__TAURI_INTERNALS__;
+  if (!tauri || typeof tauri.invoke !== 'function') return null;
+  try {
+    const port = await tauri.invoke('get_helper_port');
+    return typeof port === 'number' && port > 0 ? `http://127.0.0.1:${port}/api/v1` : null;
+  } catch (_) {
+    return null;
+  }
+}
 const MAX_LOG = 100;
 const TRAFFIC_POINTS = 60;
 
@@ -136,8 +151,9 @@ async function loadApiToken() {
 
 async function api(path, options = {}) {
   if (apiToken === null) apiToken = await loadApiToken();
+  if (apiBase === null) apiBase = (await loadApiBase()) || DEFAULT_API_BASE;
   const doFetch = (token) =>
-    fetch(`${API_BASE}${path}`, {
+    fetch(`${apiBase}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -168,6 +184,7 @@ async function api(path, options = {}) {
 // 停止免流。快照损坏/读不出来时 helper 仍会成功停止、只跳过网络状态还原
 // （restoreSkipped）——记进日志提示用户，不能静默吞掉。
 async function stopProxyApi() {
+  proxyOpGen += 1;
   const payload = await api('/proxy/stop', { method: 'POST' });
   if (payload.restoreSkipped) {
     addLog(`网络状态还原已跳过（快照不可用）: ${payload.restoreSkipped}`, true);
@@ -230,7 +247,7 @@ function showView(view) {
     $('#pageTitle').textContent = VIEW_TITLES[view] || view;
     // FABs are window-anchored: proxy toggle on dashboard, delay test on proxies
     $('#proxyToggle')?.classList.toggle('visible', view === 'dashboard');
-    $('#delayTestFab')?.classList.toggle('visible', view === 'proxies');
+    syncDelayFab();
     // 刚显示出来的 FAB 尺寸从 0 变成实际值，库只会重设 canvas 尺寸、不会重绘，
     // 必须主动标脏，否则要等鼠标悬停（button 模式）才会出现玻璃
     if (bgState.liquidGlass) kickGlassRefresh();
@@ -282,6 +299,14 @@ function setRunning(running) {
   // 停止后 mihomo 已退出，接入点列表再无数据来源 → 立即清空回空态
   //（覆盖 FAB 停止、停止并退出、轮询检测到已停止、helper 断开四条路径）
   if (!running) clearProxyList();
+  // 延迟测试只在运行时可点：停止后 :9090 已退出，无节点可测
+  syncDelayFab();
+}
+
+// 延迟测试 FAB 的可见性 = 接入点页 + 免流运行中。
+// 停止免流后隐藏，避免点了只得到「无节点可测」的空转。
+function syncDelayFab() {
+  $('#delayTestFab')?.classList.toggle('visible', state.activeView === 'proxies' && state.proxyRunning);
 }
 
 // FAB 过渡态文案（检测中…/启动中…）。手动路径由点击处理器驱动，自动启动
@@ -302,23 +327,6 @@ function fabDone() {
   if (fab) setFabLabel(state.proxyRunning ? '停止免流' : '启动免流');
 }
 
-function updateConnectionChip(online) {
-  const chip = $('#connectionChip');
-  const dot = $('#headerDot');
-  const headerStatus = $('#headerStatus');
-  if (!chip) return;
-  const ready = online && state.runtimePresent;
-  chip.classList.toggle('connected', ready);
-  dot.classList.toggle('live', ready);
-  if (!online) {
-    headerStatus.textContent = '核心未连接';
-  } else if (!state.runtimePresent) {
-    headerStatus.textContent = '需要下载核心';
-  } else {
-    headerStatus.textContent = '核心已就绪';
-  }
-}
-
 /* ── start ── */
 
 // core detect → IPv6 gatekeeper → /proxy/start。
@@ -331,10 +339,17 @@ function updateConnectionChip(online) {
 // auto=true
 let startFlowBusy = false;
 let startFlowSettled = Promise.resolve(); // 上一次启动流程结束的信号（手动接管等待用）
+// 启停操作代数。每次主动启动/停止（startProxyFlow / stopProxyApi）自增；
+// pollStatus 在发出 /status 前快照、响应回来后比对，代数变了说明期间发生过
+// 启停操作，其携带的 running 是操作前的陈旧值，丢弃——否则停止免流慢时，
+// 一个停止前发出、停止完成后才返回的 /status 会把 running=true 回灌，按钮
+// 短暂跳回「停止免流」又落回「启动免流」。
+let proxyOpGen = 0;
 async function startProxyFlow(auto = false) {
   if (startFlowBusy) return { ok: false, reason: 'busy', message: '启动流程正在进行' };
   if (!state.helperOnline) return { ok: false, reason: 'helper', message: 'helper 未连接' };
   startFlowBusy = true;
+  proxyOpGen += 1;
   let release;
   startFlowSettled = new Promise((resolve) => { release = resolve; });
   try {
@@ -346,7 +361,6 @@ async function startProxyFlow(auto = false) {
       state.runtimePresent = Boolean(runtime.present);
       state.runtimeChecked = true;
     } catch (_) { /* 保持上次已知状态 */ }
-    updateConnectionChip(state.helperOnline);
     if (!state.runtimePresent) return { ok: false, reason: 'core', message: '未检测到运行核心' };
 
     // IPv6 gate: only works on campus IPv6. Developer mode skips it.
@@ -1627,7 +1641,6 @@ async function downloadCore(btn) {
     renderCoreDownloadProgress(0, false);
     if (btn) { btn.disabled = false; btn.textContent = '下载'; }
     updateSettingsUI();
-    updateConnectionChip(state.helperOnline);
   }
 }
 
@@ -1701,8 +1714,6 @@ async function refreshBackendState() {
     await refreshCloudStatus();
     if (state.dynamicColor && !state.dynamicSeed) refreshDynamicColor(true);
 
-    updateConnectionChip(true);
-
     state.warpRegistered = status.warp?.registered || false;
     updateSettingsUI();
     // 首次拉到状态：未注册则自动注册（每会话仅一次）
@@ -1715,9 +1726,17 @@ async function refreshBackendState() {
     state.helperOnline = false;
     state.runtimePresent = false;
     state.runtimeChecked = false;
-    updateConnectionChip(false);
     updateSettingsUI();
-    addLog(`helper 不可用: ${error.message}`, true);
+    // 401 不是"helper 没起来"，而是端口上活着另一个 token 不同的 helper
+    // （重复启动/上次遗留的进程，多见于固定端口的老版本壳）。
+    if (error.message === 'unauthorized') {
+      addLog(
+        'helper 不可用: unauthorized（端口被另一个 freev6 实例或遗留的 freev6-helper.exe 占用，请在任务管理器结束后重开）',
+        true,
+      );
+    } else {
+      addLog(`helper 不可用: ${error.message}`, true);
+    }
   }
 }
 
@@ -1790,6 +1809,7 @@ function resetTrafficDisplay(clearCounters) {
 
 async function pollStatus() {
   const genAtStart = settingsWriteGen;
+  const opGenAtStart = proxyOpGen;
   try {
     const status = await api('/status');
     const firstConnect = !state.helperOnline;
@@ -1802,12 +1822,9 @@ async function pollStatus() {
       if (firstConnect || !state.runtimeChecked || state.runtimePresent !== present) {
         state.runtimePresent = present;
         state.runtimeChecked = true;
-        updateConnectionChip(true);
         updateSettingsUI();
       }
-    } catch (_) {
-      if (firstConnect) updateConnectionChip(true);
-    }
+    } catch (_) { /* 保持上次已知状态 */ }
     if (firstConnect) {
       addLog('已连接 freev6 helper');
       // Helper is up: retry a dynamic-color seed fetch that failed at load
@@ -1821,7 +1838,8 @@ async function pollStatus() {
     }
     const wasRunning = state.proxyRunning;
     const isRunning = Boolean(status.proxy?.running);
-    if (wasRunning !== isRunning) {
+    // 启停操作期间（opGen 变化）不回灌 running：见 proxyOpGen 声明处的说明。
+    if (opGenAtStart === proxyOpGen && wasRunning !== isRunning) {
       setRunning(isRunning);
       addLog(isRunning ? '免流模式已启动' : '免流模式已停止');
       if (isRunning) autoDelayTestAfterStart();
@@ -1864,7 +1882,6 @@ async function pollStatus() {
       state.helperOnline = false;
       state.runtimePresent = false;
       state.runtimeChecked = false;
-      updateConnectionChip(false);
       updateSettingsUI();
       setRunning(false);
       addLog('helper 连接断开', true);

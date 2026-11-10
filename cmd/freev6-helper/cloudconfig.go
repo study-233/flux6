@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -185,7 +186,7 @@ func (h *helper) cloudImport(writer http.ResponseWriter, request *http.Request) 
 		}
 		// 先拉取后落盘：失败的刷新绝不能覆盖上一份可用快照（服务端维护
 		// 中/网络抖动时，已缓存配置仍要能启动）。
-		fetched, fetchErr := app.FetchCloudProfile(request.Context(), parsed.String())
+		fetched, fetchErr := app.FetchCloudProfileWithLog(request.Context(), parsed.String(), h.logCloudFetch)
 		if fetchErr != nil {
 			writeJSON(writer, http.StatusBadGateway, map[string]string{"error": fetchErr.Error(), "code": app.CloudErrorCode(fetchErr)})
 			return
@@ -262,6 +263,24 @@ func (h *helper) cloudClear(writer http.ResponseWriter) {
 		return
 	}
 	writeJSON(writer, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// logCloudFetch 把一次失败写进 state/cloud-config.log（单文件、超 64KiB 重来）。
+// 弹窗里不给地址，但排障时必须能看到"到底连的是谁、报了什么"。
+func (h *helper) logCloudFetch(message string) {
+	path := filepath.Join(h.root, "state", "cloud-config.log")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return
+	}
+	if info, err := os.Stat(path); err == nil && info.Size() > 64<<10 {
+		_ = os.Remove(path)
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	fmt.Fprintf(file, "%s %s\n", time.Now().Format(time.RFC3339), message)
 }
 
 // maskCloudEntry 只保留子域名前 4 位用于界面回显：完整入口不该出现在

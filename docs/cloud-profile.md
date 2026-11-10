@@ -41,3 +41,9 @@ https://raw.githubusercontent.com/study-233/free-v6/main/profiles/<slug>.yaml
 - `internal/notice/`：公告获取与备用配置开关。
 - `cmd/freev6-helper/cloudconfig.go`：Windows 获取、保存与清除。
 - `internal/worker/cloud.go`：macOS 获取、加密保存及配置交接。
+
+## 上游修复同步（2026-11-10）
+
+备用配置获取使用独立 HTTP/1.1 直连客户端，暂时性超时、连接重置或响应读取中断最多重试一次；调用方取消会停止重试。Windows 的失败详情写入 `state/cloud-config.log`，Mac 保持既有脱敏日志策略，界面不暴露完整入口。
+
+Windows 与 Mac 的备用配置均在 `MATCH` 后追加 `NETWORK,UDP,REJECT`：所选节点不支持 UDP 时拒绝该流量，避免 QUIC 跳过代理后意外直连；支持 UDP 的节点仍正常转发。普通 WARP 模式保持原有规则。
