@@ -8,7 +8,7 @@
 | P1 整理产物 | 完成 | Android 签名迁出、分级清理、历史产物整理。 |
 | P2 建立结构 | 完成 | 公共资源归位；迁入 `apps/macos`、`apps/android`、`apps/windows`；新增 iOS、OpenWrt 占位。 |
 | P3 删除旧内容 | 完成 | 删除旧 SwiftUI 入口、无效平台包装与上游工具；合并当前文档。 |
-| P4 完善管理 | 验证中 | 分支规则、版本检查、平台 CI、干净 checkout 验证。 |
+| P4 完善管理 | 完成 | 统一分支、版本、构建与 CI；干净源码验证；本地主线收敛。 |
 
 ## P0 基线
 
@@ -45,8 +45,32 @@ Mac 正式本地应用已完成 Flutter/Swift/Go 组合构建、签名和打包�
 
 Android 静态检查与 62 项相关 Flutter 测试通过，删除后 ARM64 APK 构建通过；Swift 测试通过，环境跳过项保持明确记录。旧历史记录链接已指向当前验收索引。
 
-## P4 进展
+## P4 结果
 
 新增统一开发指南、平台版本读取与一致性检查、目录/链接/第三方来源检查；Android APK 与对应源码按版本和 build 存放。完善 Linux/Windows Go、Windows Rust/Web、Android Go/Flutter/Kotlin/APK 和 Mac Swift/Flutter/App CI，iOS/OpenWrt 不添加构建任务。Windows 发布标签新增 `windows-v*`，兼容既有 `v*`。
 
-修正 helper 测试的隔离条件后，根 Go 源码测试与 vet 通过。Android 224 项 Flutter 回归测试和 Kotlin 单元测试通过；维护保护 7 项通过。后续记录最终构建和干净源码验证结果。
+修正 helper 测试的隔离条件后，根 Go 源码测试与 vet 通过。Android 224 项 Flutter 回归测试和 Kotlin 单元测试通过；维护保护 7 项通过。其中 Kotlin 为 100 项，均无失败。
+
+干净 Git 源码快照发现根 `state/` 忽略规则误排除了 Android 的 7 个业务文件，已改成 `/state/` 并补齐源码；Android 文档忽略也限定到本平台根目录。Gradle wrapper 随源码固定保存；新增源码包输入必须被 Git 跟踪的检查，自动生成的插件注册文件由构建生成、不进入源码包。
+
+最终验证：
+
+| 项目 | 结果 |
+| --- | --- |
+| 根 Go 源码测试、vet | 通过；干净 Git 源码副本再次通过测试 |
+| Android 嵌套 Go 模块 | 干净源码中的 test、vet 通过 |
+| Android Flutter | 224 项回归通过；工作区与干净源码静态检查通过 |
+| Android Kotlin | app 74 项、service 26 项，通过 |
+| Android APK | 原工作区与干净源码副本均完成 ARM64 Release 构建 |
+| Android 签名 | 正式测试包仍为 `dev.freev6.mobile`，与原 0.1.2 包证书 SHA256 一致 |
+| Swift | 193 项，无失败；9 项需要额外运行环境的测试跳过 |
+| Mac Flutter | 干净源码静态检查和 30 项测试通过 |
+| Mac App | Flutter/Swift/Go 组合构建、原本机身份签名、打包校验通过 |
+| 维护与 Windows 静态检查 | 7 项维护测试、126 个 JS 模块、45 个图标、发布来源、版本、资源路径、源码跟踪、文档链接及工作流 YAML 解析通过 |
+| 对应源码 | Android 源码包与 APK 校验文件通过；Mac 源码包与 App 内嵌摘要清单一致 |
+
+Android 本地产物为 `dist/android/0.1.2-b2026111003/`；Mac 应用为 `dist/macos/FreeV6.app`，对应源码为 `dist/macos/0.5.7-b6/`。这次是整理后的本地构建，未升级产品版本、未替换已发布资产。
+
+本地阶段分支顺序合入 `main`，只删除已完全合并的 `mac` 与本次任务分支。所有基线和整理提交仍在主线历史中；不推送、不修改远端。当前主线规则及后续命令见 [开发指南](README.md)。本次独立验证创建的临时源码副本在结束后清除，日志保存在 `build/repository-maintenance/`。
+
+验收边界：未触发远端 GitHub Actions；Windows 原生 Rust/NSIS 构建与安装仍须 Windows runner；Mac 托管 CI 需要 arm64 和 Xcode 27+。未执行管理员服务安装、真实校园网络连接、手机真机 VPN 或 macOS 14 实机测试。Windows 自定义 UI、iOS、OpenWrt 没有启动实现。
