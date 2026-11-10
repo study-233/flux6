@@ -81,7 +81,7 @@ def archive(destination, contents):
     with zipfile.ZipFile(temp, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         for name, payload in [("macOS-source-sha256.json", data), *[(n, None) for n in manifest]]:
             path = ROOT / name
-            info = zipfile.ZipInfo("FreeV6-source/" + name)
+            info = zipfile.ZipInfo("Flux6-source/" + name)
             info.create_system = 3
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = (0o100755 if payload is None and os.access(path, os.X_OK) else 0o100644) << 16

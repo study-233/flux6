@@ -89,8 +89,8 @@
 ; template does the same for its page PRE functions).
 Var F6ConsentChecked
 
-!define F6_AGREEMENT_URL "https://github.com/study-233/free-v6/blob/main/docs/agreement.md"
-!define F6_PRIVACY_URL "https://github.com/study-233/free-v6/blob/main/docs/privacy.md"
+!define F6_AGREEMENT_URL "https://github.com/study-233/flux6/blob/main/docs/agreement.md"
+!define F6_PRIVACY_URL "https://github.com/study-233/flux6/blob/main/docs/privacy.md"
 
 Page custom F6ConsentCreate F6ConsentLeave
 
@@ -104,7 +104,7 @@ Function F6ConsentCreate
   Pop $R9
   ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-  ${NSD_CreateLabel} 0 0 100% 62u "本软件为免费、开源的自由软件，采用 MIT 许可证。完整文本将放置在安装目录下，亦发布于项目仓库 https://github.com/study-233/free-v6 "
+  ${NSD_CreateLabel} 0 0 100% 62u "本软件为免费、开源的自由软件，采用 MIT 许可证。完整文本将放置在安装目录下，亦发布于项目仓库 https://github.com/study-233/flux6 "
   Pop $R0
 
   ${NSD_CreateLabel} 0 74u 100% 10u "在浏览器中查看："

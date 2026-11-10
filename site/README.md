@@ -13,6 +13,6 @@ node scripts/site/preview.mjs --host 127.0.0.1 --port 4173
 
 构建复用仓库已有猫咪品牌图标、macOS 隔离截图和 Android 实机截图，不复制上游产品截图。发布数据在 [release.json](release.json)，安装包文件名、大小与 SHA-256 已按 GitHub `v0.1.0` 公开资产核对；发布新版本时同步更新它及两份更新日志，然后重新构建。浏览器无需请求 GitHub API，未获取到远程数据也不会影响已构建页面。
 
-官网与仓库首页品牌为 Flux6。当前 0.1.0 的应用名称、安装包、Homebrew Cask、包 ID、签名与配置目录仍沿用 FreeV6，页面明确说明该过渡状态。改动不重打包或覆盖已发布资产。
+官网、客户端与安装包统一使用 Flux6。包 ID、数据目录和签名身份保留，以兼容既有安装与用户配置。
 
-`dist/site/` 可作为 GitHub Pages 或其他静态托管的发布目录，所有资源使用相对路径，支持项目子路径。本轮仅本地实现和验证，没有创建远端站点或更改 Pages 设置。
+GitHub Pages 由 [pages.yml](../.github/workflows/pages.yml) 构建 `dist/site/` 并部署，所有资源使用相对路径，支持项目子路径。站点地址为 https://study-233.github.io/flux6/，仓库 About 使用同一地址。

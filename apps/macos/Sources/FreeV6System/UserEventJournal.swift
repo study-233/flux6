@@ -105,7 +105,7 @@ public struct UserEventJournal: Sendable {
         return rows
     }
 
-    // A delayed retry from another FreeV6 process must not reintroduce events from before a clear.
+    // A delayed retry from another Flux6 process must not reintroduce events from before a clear.
     private func clearedThrough(in folder: SecureDirectory) throws -> Date {
         guard let data = try folder.read("cleared-through.json", limit: 128) else { return .distantPast }
         let cutoff = try JSONDecoder().decode(Date.self, from: data)

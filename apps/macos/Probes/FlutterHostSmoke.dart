@@ -235,7 +235,7 @@ Future<void> main() async {
   runApp(
     const Directionality(
       textDirection: TextDirection.ltr,
-      child: Text('FreeV6 isolated host test'),
+      child: Text('Flux6 isolated host test'),
     ),
   );
   try {

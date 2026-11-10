@@ -60,7 +60,7 @@ class _LiveNodesPageState extends State<LiveNodesPage> {
   List<String?> previousOptions = [];
   int highlighted = 0;
   final search = TextEditingController();
-  final focus = FocusNode(debugLabel: 'FreeV6 node search'),
+  final focus = FocusNode(debugLabel: 'Flux6 node search'),
       list = ScrollController();
   StreamSubscription<String>? events;
   static const extent = 60.0;

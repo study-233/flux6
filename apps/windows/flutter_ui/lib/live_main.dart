@@ -138,7 +138,7 @@ class _BootstrapState extends State<_Bootstrap> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('FreeV6', style: TextStyle(fontSize: 28)),
+                  const Text('Flux6', style: TextStyle(fontSize: 28)),
                   const SizedBox(height: 24),
                   if (loading) ...[
                     const CircularProgressIndicator(),

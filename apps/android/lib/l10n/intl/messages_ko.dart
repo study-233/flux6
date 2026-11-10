@@ -540,7 +540,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "FlClash 기반 FreeV6 Android 클라이언트. IPv6 WARP 및 캠퍼스 라우팅을 지원합니다.",
+      "FlClash 기반 Flux6 Android 클라이언트. IPv6 WARP 및 캠퍼스 라우팅을 지원합니다.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("목적지"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage("목적지 GeoIP"),
@@ -591,7 +591,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerChangesTitle": MessageLookupByLibrary.simpleMessage("본 문서의 변경"),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "FreeV6(이하 \"본 소프트웨어\")를 사용하기 전에 본 고지를 주의 깊게 읽고 충분히 이해해 주세요. \"동의\"를 누르면 아래 내용을 읽고 이해했음을 뜻합니다. 계속하지 않으려면 \"종료\"를 누르세요.",
+      "Flux6(이하 \"본 소프트웨어\")를 사용하기 전에 본 고지를 주의 깊게 읽고 충분히 이해해 주세요. \"동의\"를 누르면 아래 내용을 읽고 이해했음을 뜻합니다. 계속하지 않으려면 \"종료\"를 누르세요.",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "관련 법률이 허용하는 최대 범위에서, 개발자와 기여자는 본 소프트웨어의 사용 또는 사용 불능으로 발생하는 직접, 간접, 부수적, 특별, 징벌적 또는 결과적 손해에 대해 책임을 지지 않습니다. 여기에는 데이터 손실, 기기 손상, 네트워크 장애, 사업 중단, 이익 손실 및 그로 인한 법적 분쟁이 포함되며 이에 국한되지 않고, 그러한 손해의 가능성을 사전에 통지받은 경우에도 마찬가지입니다.",
@@ -811,7 +811,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Wi-Fi에 IPv6 주소가 있지만 IPv6 기본 경로가 없습니다. 공유기의 IPv6 게이트웨이 알림을 확인하세요.",
     ),
     "freev6OpenHome": MessageLookupByLibrary.simpleMessage("홈으로 이동"),
-    "freev6Prepare": MessageLookupByLibrary.simpleMessage("FreeV6 준비"),
+    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Flux6 준비"),
     "freev6PrepareFailed": MessageLookupByLibrary.simpleMessage(
       "준비하지 못했습니다. 주소와 네트워크를 확인하세요. 저장된 인증 정보는 유지됩니다.",
     ),
@@ -829,7 +829,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6ProbePassed": MessageLookupByLibrary.simpleMessage(
       "IPv6 TCP 연결에 성공했습니다. WARP에 연결한 후 UDP 터널을 별도로 확인하세요.",
     ),
-    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("FreeV6 설정"),
+    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("Flux6 설정"),
     "freev6ShowDetails": MessageLookupByLibrary.simpleMessage("상세 정보 보기"),
     "freev6SkipSetup": MessageLookupByLibrary.simpleMessage("나중에 설정"),
     "freev6StartSetup": MessageLookupByLibrary.simpleMessage("설정 시작"),
@@ -838,13 +838,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6StepNetwork": MessageLookupByLibrary.simpleMessage("Wi-Fi에 연결"),
     "freev6StepPrepare": MessageLookupByLibrary.simpleMessage("연결 준비"),
     "freev6ToolsHint": MessageLookupByLibrary.simpleMessage(
-      "나중에 도구 → FreeV6에서 학교 네트워크 우회를 조정하거나 네트워크를 확인할 수 있습니다.",
+      "나중에 도구 → Flux6에서 학교 네트워크 우회를 조정하거나 네트워크를 확인할 수 있습니다.",
     ),
     "freev6WelcomeBody": MessageLookupByLibrary.simpleMessage(
       "한 번 설정하면 탭 한 번으로 연결할 수 있습니다. 학교나 공유기의 IPv6 네트워크를 사용하세요.",
     ),
     "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage(
-      "FreeV6에 오신 것을 환영합니다",
+      "Flux6에 오신 것을 환영합니다",
     ),
     "freev6WifiReady": MessageLookupByLibrary.simpleMessage("Wi-Fi 준비 완료"),
     "freev6WifiUnverified": MessageLookupByLibrary.simpleMessage(
@@ -973,7 +973,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("초기화"),
     "initFailed": MessageLookupByLibrary.simpleMessage("시작 실패"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FreeV6를 시작하는 중 오류가 발생하여 계속할 수 없습니다. 세부 정보를 복사하여 문제를 보고하세요. 문제가 계속되면 데이터를 지우면 대개 앱이 다시 시작됩니다.",
+      "Flux6를 시작하는 중 오류가 발생하여 계속할 수 없습니다. 세부 정보를 복사하여 문제를 보고하세요. 문제가 계속되면 데이터를 지우면 대개 앱이 다시 시작됩니다.",
     ),
     "initiator": MessageLookupByLibrary.simpleMessage("요청자"),
     "initiatorShort": MessageLookupByLibrary.simpleMessage("출처"),
@@ -1697,10 +1697,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "보냈습니다. 다른 기기에서 가져오기를 확인하세요.",
     ),
     "sendFromPhonePageTitle": MessageLookupByLibrary.simpleMessage(
-      "FreeV6로 링크 보내기",
+      "Flux6로 링크 보내기",
     ),
     "sendFromPhonePermissionDenied": MessageLookupByLibrary.simpleMessage(
-      "휴대폰에서 링크를 받으려면 FreeV6가 로컬 네트워크에 접근할 수 있도록 \'근처 기기\' 권한이 필요합니다. 앱 설정에서 켜 주세요.",
+      "휴대폰에서 링크를 받으려면 Flux6가 로컬 네트워크에 접근할 수 있도록 \'근처 기기\' 권한이 필요합니다. 앱 설정에서 켜 주세요.",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
       "휴대폰 카메라로 코드를 스캔한 뒤 열린 페이지에 링크를 붙여 넣으세요. 두 기기가 같은 네트워크에 연결되어 있어야 합니다.",

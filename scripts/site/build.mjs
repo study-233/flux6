@@ -11,7 +11,7 @@ export async function buildSite() {
   const release = JSON.parse(await fs.readFile(path.join(SOURCE, 'release.json'), 'utf8'));
   if (!/^v\d+\.\d+\.\d+$/.test(release.tag)) throw new Error('Invalid release tag');
   for (const asset of release.assets) {
-    if (!asset.url.startsWith(`https://github.com/study-233/free-v6/releases/download/${release.tag}/`)
+    if (!asset.url.startsWith(`https://github.com/study-233/flux6/releases/download/${release.tag}/`)
       || !/^sha256:[a-f0-9]{64}$/.test(asset.digest) || !(asset.size > 0)) {
       throw new Error(`Invalid release asset: ${asset.name}`);
     }

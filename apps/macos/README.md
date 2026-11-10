@@ -1,4 +1,4 @@
-# FreeV6 原生 Mac 客户端
+# Flux6 原生 Mac 客户端
 
 当前 Mac 版面向 Apple Silicon（M 系列），最低支持目标为 macOS 14。首页、节点、配置、日志与独立设置窗口运行 Flutter + FlClash / Prism UI。AppKit 管理窗口、原生菜单与菜单栏入口，Swift 业务层和 Go worker 处理连接准备、WARP 凭据、规则与核心数据。正式宿主通过 XPC v6 接入启停、运行模式、节点和流量读取。断开及正常退出会等待网络恢复。[服务协议](../../shared/protocol/service-v6.md)
 
@@ -10,7 +10,7 @@
 
 ## 安装
 
-正式版提供 Homebrew Cask 和 DMG，入口见 [首页](../../README.md#安装)。Homebrew 安装后从「应用程序」打开 FreeV6；DMG 安装时将 FreeV6 拖入「应用程序」。首次启动按引导完成网络服务授权和配置准备。
+正式版提供 Homebrew Cask 和 DMG，入口见 [首页](../../README.md#安装)。Homebrew 安装后从「应用程序」打开 Flux6；DMG 安装时将 Flux6 拖入「应用程序」。首次启动按引导完成网络服务授权和配置准备。
 
 本次发行不进行 Apple 公证。首次打开如被 macOS 拦截，请先核对下载来源与 SHA256，再按 Apple 的 [安全打开说明](https://support.apple.com/zh-cn/102445) 在「系统设置 → 隐私与安全性」中处理。安装脚本不会自动关闭系统安全检查。
 
@@ -26,7 +26,7 @@ bash scripts/macos/swift.sh test
 bash scripts/macos/build-app.sh
 ```
 
-开发应用默认位于 `dist/macos/FreeV6.app`；`FREEV6_APP_OUTPUT` 可指定独立的正式包目录，首发使用 `dist/macos/0.1.0-b9/FreeV6.app`，避免替换旧本地构建。`build-app.sh` 默认 Release，构建当前主机架构的服务、Go worker、安装工具与 App，按内部组件到外层顺序使用固定的本机证书 + Hardened Runtime 签名，保留宿主的框架哈希限制及服务的严格运行保护。Go 不在 PATH 时可传 `GO_BIN=/absolute/path/to/go`。构建缓存位于 `build/`；`FREEV6_RUNNER_WORK` 可指定独立的 Flutter Runner 构建目录。不要直接打开该目录内尚未补齐助手和协议文档的中间 App；请使用 `dist/macos` 内完成打包的产物。运行配置写入用户 Library，不写应用 bundle。主窗口与设置共用一个会话，界面由 Flutter 绘制。
+开发应用默认位于 `dist/macos/Flux6.app`；`FREEV6_APP_OUTPUT` 可指定独立的正式包目录，首发使用 `dist/macos/0.1.0-b10/Flux6.app`，避免替换旧本地构建。`build-app.sh` 默认 Release，构建当前主机架构的服务、Go worker、安装工具与 App，按内部组件到外层顺序使用固定的本机证书 + Hardened Runtime 签名，保留宿主的框架哈希限制及服务的严格运行保护。Go 不在 PATH 时可传 `GO_BIN=/absolute/path/to/go`。构建缓存位于 `build/`；`FREEV6_RUNNER_WORK` 可指定独立的 Flutter Runner 构建目录。不要直接打开该目录内尚未补齐助手和协议文档的中间 App；请使用 `dist/macos` 内完成打包的产物。运行配置写入用户 Library，不写应用 bundle。主窗口与设置共用一个会话，界面由 Flutter 绘制。
 
 默认构建会在 `~/Library/Application Support/dev.freev6.build-signing` 保存仅当前用户可读的专用签名钥匙串、随机口令和公钥证书。私钥不进入源码或安装包；请保留这个目录以维持后续构建的身份。仅系统 `codesign` 获准使用签名密钥，脚本不修改系统信任设置。此证书不是 Developer ID，也不提供 Apple 公证。可用 `FREEV6_CODESIGN_IDENTITY` 指定已有正式证书，或显式设为 `-` 生成一次性 ad-hoc 验收包。
 
@@ -34,7 +34,7 @@ bash scripts/macos/build-app.sh
 
 ### 构建可拖放安装的 DMG
 
-在 Apple Silicon Mac 的原生 arm64 普通用户会话运行 `python3 scripts/macos/build-dmg.py`。该命令执行 Release 构建，当前脚本在 `dist/macos` 输出 `<版本>-b<build>/FreeV6-<版本>-b<build>-arm64.dmg`，并同时生成应用 ZIP、完整对应源码 ZIP 和 `SHA256SUMS`；发行清单见 [首发清单](../../docs/releases/first-public-release.md#版本与交付物)。挂载后把 FreeV6 拖到 Applications，从“应用程序”打开。镜像内附中文安装说明，App 内附协议、隐私说明、FlClash / Prism UI 和各依赖的许可证、组件清单及对应源文件摘要。
+在 Apple Silicon Mac 的原生 arm64 普通用户会话运行 `python3 scripts/macos/build-dmg.py`。该命令执行 Release 构建，当前脚本在 `dist/macos` 输出 `<版本>-b<build>/Flux6-<版本>-b<build>-arm64.dmg`，并同时生成应用 ZIP、完整对应源码 ZIP 和 `SHA256SUMS`；发行清单见 [首发清单](../../docs/releases/first-public-release.md#版本与交付物)。挂载后把 Flux6 拖到 Applications，从“应用程序”打开。镜像内附中文安装说明，App 内附协议、隐私说明、FlClash / Prism UI 和各依赖的许可证、组件清单及对应源文件摘要。
 
 打包脚本只读挂载镜像，在临时目录验证拖放副本的签名、宿主、框架和工具的架构、最低系统、动态库查找路径及安装工具内嵌的服务摘要，随后推出。直接从只读卷或系统转移路径启动时，应用只显示拖放安装指引。安装到可写位置后才进入常规启动流程；安装系统网络服务要求将 App 放在系统的“应用程序”目录。
 
@@ -42,7 +42,7 @@ bash scripts/macos/build-app.sh
 
 ```sh
 python3 scripts/macos/probe-distribution.py "/path/to/browser-downloaded.dmg" \
-  --reference dist/macos/0.1.0-b9/FreeV6-0.1.0-b9-arm64.dmg
+  --reference dist/macos/0.1.0-b10/Flux6-0.1.0-b10-arm64.dmg
 ```
 
 ## 开发与验证

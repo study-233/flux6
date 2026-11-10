@@ -25,7 +25,7 @@ func FetchSubscription(ctx context.Context, rawURL string) ([]byte, error) {
 		return nil, err
 	}
 	// Some subscription hosts reject the default Go UA.
-	request.Header.Set("User-Agent", "FreeV6")
+	request.Header.Set("User-Agent", "Flux6")
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, err

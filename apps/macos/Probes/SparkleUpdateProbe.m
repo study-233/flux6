@@ -1,4 +1,4 @@
-// Isolated P0 fixture, never shipped in FreeV6. A test user driver exercises
+// Isolated P0 fixture, never shipped in Flux6. A test user driver exercises
 // Sparkle's actual downloader, signature verifier, installer and relauncher.
 #import <AppKit/AppKit.h>
 #import <Sparkle/Sparkle.h>

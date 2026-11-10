@@ -160,8 +160,8 @@ func TestFetchCloudProfileReadsBody(t *testing.T) {
 }
 
 func TestMaskCloudEntry(t *testing.T) {
-	masked := maskCloudEntry("https://raw.githubusercontent.com/study-233/free-v6/main/profiles/0f6d31cf1f09ea10.yaml")
-	if masked != "study-233/free-v6/profiles/…" {
+	masked := maskCloudEntry("https://raw.githubusercontent.com/study-233/flux6/main/profiles/0f6d31cf1f09ea10.yaml")
+	if masked != "study-233/flux6/profiles/…" {
 		t.Fatalf("masked = %q", masked)
 	}
 	if strings.Contains(masked, "31cf1f09ea10") {

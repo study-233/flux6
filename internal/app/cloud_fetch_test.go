@@ -28,7 +28,7 @@ func TestCloudFetchRetryAndCancellation(t *testing.T) {
 			var logs []string
 			client := &http.Client{Transport: cloudRoundTripper(func(r *http.Request) (*http.Response, error) {
 				attempts++
-				if r.Header.Get("User-Agent") != "FreeV6" {
+				if r.Header.Get("User-Agent") != "Flux6" {
 					t.Fatal("missing user agent")
 				}
 				if _, ok := r.Context().Deadline(); !ok {

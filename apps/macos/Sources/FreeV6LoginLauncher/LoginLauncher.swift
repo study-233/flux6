@@ -7,7 +7,7 @@ import AppKit
         let root = executable.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         guard let app = Bundle(url: root), let id = app.bundleIdentifier, root.pathExtension == "app",
               executable.path == root.appendingPathComponent("Contents/Helpers/freev6-login-launcher").path,
-              app.executableURL?.lastPathComponent == "FreeV6" else { throw CocoaError(.executableNotLoadable) }
+              app.executableURL?.lastPathComponent == "Flux6" else { throw CocoaError(.executableNotLoadable) }
         guard NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty else { return }
         let config = NSWorkspace.OpenConfiguration()
         config.arguments = ["--freev6-login"]

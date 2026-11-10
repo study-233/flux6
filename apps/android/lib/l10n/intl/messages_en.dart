@@ -645,7 +645,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 for Android, based on FlClash, with WARP over IPv6 and campus routing.",
+      "Flux6 for Android, based on FlClash, with WARP over IPv6 and campus routing.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("Destination"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage(
@@ -706,7 +706,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Changes to this statement",
     ),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "Before using FreeV6 (\"the Software\"), please read this statement carefully and make sure you understand it. Tapping \"Agree\" means you have read and understood what follows. If you do not want to continue, tap \"Exit\".",
+      "Before using Flux6 (\"the Software\"), please read this statement carefully and make sure you understand it. Tapping \"Agree\" means you have read and understood what follows. If you do not want to continue, tap \"Exit\".",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "To the maximum extent permitted by applicable law, neither the developers nor any contributor shall be liable for any direct, indirect, incidental, special, punitive, or consequential damages arising from the use of or inability to use the Software, including but not limited to data loss, device damage, network failures, business interruption, lost profits, or any resulting legal dispute, even if advised of the possibility of such damages.",
@@ -964,7 +964,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Wi-Fi has an IPv6 address but no IPv6 default route. Check the router’s IPv6 gateway advertisements.",
     ),
     "freev6OpenHome": MessageLookupByLibrary.simpleMessage("Go to home"),
-    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Prepare FreeV6"),
+    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Prepare Flux6"),
     "freev6PrepareFailed": MessageLookupByLibrary.simpleMessage(
       "Preparation failed. Check the campus entries and network, then retry. Saved credentials are retained.",
     ),
@@ -982,7 +982,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6ProbePassed": MessageLookupByLibrary.simpleMessage(
       "An IPv6 TCP probe succeeded. Connect WARP to test its UDP tunnel separately.",
     ),
-    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("FreeV6 setup"),
+    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("Flux6 setup"),
     "freev6ShowDetails": MessageLookupByLibrary.simpleMessage("View details"),
     "freev6SkipSetup": MessageLookupByLibrary.simpleMessage("Set up later"),
     "freev6StartSetup": MessageLookupByLibrary.simpleMessage("Get started"),
@@ -995,13 +995,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Prepare your connection",
     ),
     "freev6ToolsHint": MessageLookupByLibrary.simpleMessage(
-      "You can adjust campus bypass or check your network later in Tools → FreeV6.",
+      "You can adjust campus bypass or check your network later in Tools → Flux6.",
     ),
     "freev6WelcomeBody": MessageLookupByLibrary.simpleMessage(
       "Set up once, then connect with one tap. Use the IPv6 network provided by your campus or router.",
     ),
     "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage(
-      "Welcome to FreeV6",
+      "Welcome to Flux6",
     ),
     "freev6WifiReady": MessageLookupByLibrary.simpleMessage("Wi-Fi is ready"),
     "freev6WifiUnverified": MessageLookupByLibrary.simpleMessage(
@@ -1146,7 +1146,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("Init"),
     "initFailed": MessageLookupByLibrary.simpleMessage("Startup failed"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 ran into an error while starting and can\'t continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.",
+      "Flux6 ran into an error while starting and can\'t continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.",
     ),
     "initiator": MessageLookupByLibrary.simpleMessage("Initiator"),
     "initiatorShort": MessageLookupByLibrary.simpleMessage("From"),
@@ -2006,10 +2006,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Sent. Confirm the import on the other device.",
     ),
     "sendFromPhonePageTitle": MessageLookupByLibrary.simpleMessage(
-      "Send a link to FreeV6",
+      "Send a link to Flux6",
     ),
     "sendFromPhonePermissionDenied": MessageLookupByLibrary.simpleMessage(
-      "Receiving a link from your phone needs the Nearby devices permission, which lets FreeV6 reach the local network. Turn it on in the app\'s settings.",
+      "Receiving a link from your phone needs the Nearby devices permission, which lets Flux6 reach the local network. Turn it on in the app\'s settings.",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
       "Scan the code with your phone\'s camera and paste the link on the page that opens. Both devices need to be on the same network.",

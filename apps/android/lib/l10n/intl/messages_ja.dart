@@ -552,7 +552,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "FlClash をベースにした FreeV6 Android クライアント。IPv6 WARP と学内ルーティングに対応。",
+      "FlClash をベースにした Flux6 Android クライアント。IPv6 WARP と学内ルーティングに対応。",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("宛先"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage("宛先GeoIP"),
@@ -601,7 +601,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerChangesTitle": MessageLookupByLibrary.simpleMessage("本声明の変更"),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "FreeV6（以下「本ソフトウェア」）を使用する前に、本声明をよくお読みのうえ十分に理解してください。「同意する」をタップすると、以下の内容を読み理解したことになります。続行しない場合は「終了」をタップしてください。",
+      "Flux6（以下「本ソフトウェア」）を使用する前に、本声明をよくお読みのうえ十分に理解してください。「同意する」をタップすると、以下の内容を読み理解したことになります。続行しない場合は「終了」をタップしてください。",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "適用法で認められる最大限の範囲において、開発者およびすべての貢献者は、本ソフトウェアの使用または使用不能に起因する直接的、間接的、偶発的、特別、懲罰的または結果的な損害（データの消失、機器の損傷、ネットワーク障害、業務の中断、逸失利益、およびそれに起因する法的紛争を含むがこれらに限らない）について、その可能性を知らされていた場合であっても、一切責任を負いません。",
@@ -823,7 +823,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "IPv6 アドレスはありますがデフォルトルートがありません。ルーターの IPv6 ゲートウェイ通知を確認してください。",
     ),
     "freev6OpenHome": MessageLookupByLibrary.simpleMessage("ホームへ"),
-    "freev6Prepare": MessageLookupByLibrary.simpleMessage("FreeV6 を準備"),
+    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Flux6 を準備"),
     "freev6PrepareFailed": MessageLookupByLibrary.simpleMessage(
       "準備に失敗しました。入力とネットワークを確認してください。保存済み認証情報は保持されます。",
     ),
@@ -841,7 +841,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6ProbePassed": MessageLookupByLibrary.simpleMessage(
       "IPv6 TCP 接続に成功しました。WARP の UDP トンネルは接続後に別途確認してください。",
     ),
-    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("FreeV6 設定"),
+    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("Flux6 設定"),
     "freev6ShowDetails": MessageLookupByLibrary.simpleMessage("詳細を見る"),
     "freev6SkipSetup": MessageLookupByLibrary.simpleMessage("後で設定"),
     "freev6StartSetup": MessageLookupByLibrary.simpleMessage("設定を始める"),
@@ -850,12 +850,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6StepNetwork": MessageLookupByLibrary.simpleMessage("Wi-Fi に接続"),
     "freev6StepPrepare": MessageLookupByLibrary.simpleMessage("接続を準備"),
     "freev6ToolsHint": MessageLookupByLibrary.simpleMessage(
-      "後から「ツール → FreeV6」で学内ネットワークの除外やネットワーク確認ができます。",
+      "後から「ツール → Flux6」で学内ネットワークの除外やネットワーク確認ができます。",
     ),
     "freev6WelcomeBody": MessageLookupByLibrary.simpleMessage(
       "一度設定すれば、あとはワンタップで接続。学校やルーターの IPv6 ネットワークを利用します。",
     ),
-    "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage("FreeV6 へようこそ"),
+    "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage("Flux6 へようこそ"),
     "freev6WifiReady": MessageLookupByLibrary.simpleMessage("Wi-Fi の準備完了"),
     "freev6WifiUnverified": MessageLookupByLibrary.simpleMessage(
       "IPv6 設定済み・外部接続は未確認",
@@ -983,7 +983,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("初期化"),
     "initFailed": MessageLookupByLibrary.simpleMessage("起動に失敗しました"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 の起動中にエラーが発生したため、続行できません。詳細をコピーして問題を報告できます。繰り返し発生する場合は、データを消去すると起動できるようになることがあります。",
+      "Flux6 の起動中にエラーが発生したため、続行できません。詳細をコピーして問題を報告できます。繰り返し発生する場合は、データを消去すると起動できるようになることがあります。",
     ),
     "initiator": MessageLookupByLibrary.simpleMessage("発信元"),
     "initiatorShort": MessageLookupByLibrary.simpleMessage("発信元"),
@@ -1725,10 +1725,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "送信しました。もう一方のデバイスでインポートを確認してください。",
     ),
     "sendFromPhonePageTitle": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 にリンクを送信",
+      "Flux6 にリンクを送信",
     ),
     "sendFromPhonePermissionDenied": MessageLookupByLibrary.simpleMessage(
-      "スマートフォンからリンクを受け取るには、FreeV6 がローカルネットワークにアクセスするための「付近のデバイス」権限が必要です。アプリの設定でオンにしてください。",
+      "スマートフォンからリンクを受け取るには、Flux6 がローカルネットワークにアクセスするための「付近のデバイス」権限が必要です。アプリの設定でオンにしてください。",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
       "スマートフォンのカメラでコードをスキャンし、開いたページにリンクを貼り付けてください。両方のデバイスを同じネットワークに接続する必要があります。",

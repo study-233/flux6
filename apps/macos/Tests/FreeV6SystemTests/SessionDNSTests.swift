@@ -49,7 +49,7 @@ private final class IsolatedDNSPreferences: SessionDNSPreferences {
     func withLock<T>(_ body: (SCPreferences) throws -> T) throws -> T {
         guard lock.try() else { throw SessionDNSError.busy }
         defer { lock.unlock() }
-        let prefs = try XCTUnwrap(SCPreferencesCreate(nil, "FreeV6 isolated fixture" as CFString, file.path as CFString))
+        let prefs = try XCTUnwrap(SCPreferencesCreate(nil, "Flux6 isolated fixture" as CFString, file.path as CFString))
         SCPreferencesSynchronize(prefs)
         return try body(prefs)
     }

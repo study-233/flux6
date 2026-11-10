@@ -1,10 +1,10 @@
-"""Generate the FreeV6 public update channel from a publisher's Ed25519 public key."""
+"""Generate the Flux6 public update channel from a publisher's Ed25519 public key."""
 import argparse
 import base64
 import json
 from pathlib import Path
 
-REPOSITORY = "study-233/free-v6"
+REPOSITORY = "study-233/flux6"
 FEED_BRANCH = "macos-updates"
 
 

@@ -32,7 +32,7 @@ def run(*args, private=None):
 
 def main(resources):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--app", type=Path, default=ROOT / "dist/macos/FreeV6.app")
+    parser.add_argument("--app", type=Path, default=ROOT / "dist/macos/Flux6.app")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--channel", required=True, type=Path)
     parser.add_argument("--private-key", required=True, type=Path)
@@ -87,12 +87,12 @@ def main(resources):
     with tempfile.TemporaryDirectory(prefix=".freev6-release-", dir=args.output.parent) as temporary:
         products = Path(temporary) / "products"
         products.mkdir()
-        app = Path(temporary) / "FreeV6.app"
+        app = Path(temporary) / "Flux6.app"
         run("/usr/bin/ditto", args.app, app)
         file = app / "Contents/Info.plist"
         host = plistlib.loads(file.read_bytes())
         if host["CFBundleIdentifier"] != "dev.freev6.desktop":
-            raise ValueError("Expected the FreeV6 product bundle")
+            raise ValueError("Expected the Flux6 product bundle")
         host.update(CFBundleVersion=str(args.build), CFBundleShortVersionString=args.version)
         file.write_bytes(plistlib.dumps(host))
         runpy.run_path(str(ROOT / "scripts/macos/bundle-updater.py"))["configure_channel"](app, args.channel)
@@ -104,7 +104,7 @@ def main(resources):
                         "serviceSHA256": hashlib.sha256(service.read_bytes()).hexdigest()}
         metadata = json.dumps(requirements, sort_keys=True, separators=(",", ":")).encode()
         (app / "Contents/Resources/update-compatibility.json").write_bytes(metadata)
-        agent = app / "Contents/Helpers/FreeV6UpdateAgent.app"
+        agent = app / "Contents/Helpers/Flux6UpdateAgent.app"
         agent_info_file = agent / "Contents/Info.plist"
         agent_info = plistlib.loads(agent_info_file.read_bytes())
         agent_info["CFBundleVersion"] = str(args.build)
@@ -113,13 +113,13 @@ def main(resources):
             agent / "Contents/Resources/update-agent.entitlements", agent)
         sign_flutter_host.sign_host(app, os.environ.get("FREEV6_CODESIGN_IDENTITY", "-"))
         verify_bundle(app, arch)
-        package = products / ("FreeV6_" + args.version + "_" + str(args.build) + "_" + arch + ".zip")
+        package = products / ("Flux6_" + args.version + "_" + str(args.build) + "_" + arch + ".zip")
         run("/usr/bin/ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, package)
         signature = run(sdk / "bin/sign_update", "--ed-key-file", "-", "-p", package, private=private)
         encoded = base64.b64encode(metadata).decode()
         xml = ('<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" '
-               'xmlns:freev6="urn:freev6:update:1"><channel><title>FreeV6 macOS</title><item>'
-               f'<title>FreeV6 {args.version}</title><sparkle:version>{args.build}</sparkle:version>'
+               'xmlns:freev6="urn:freev6:update:1"><channel><title>Flux6 macOS</title><item>'
+               f'<title>Flux6 {args.version}</title><sparkle:version>{args.build}</sparkle:version>'
                f'<sparkle:shortVersionString>{args.version}</sparkle:shortVersionString>'
                f'<sparkle:minimumSystemVersion>{host["LSMinimumSystemVersion"]}</sparkle:minimumSystemVersion>'
                f'<enclosure url={quoteattr(base + "/" + package.name)} '

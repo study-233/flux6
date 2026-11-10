@@ -25,7 +25,7 @@ import AppKit
         record("launched")
         if Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String == "2" { exit(0) }
         let child = Process()
-        child.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/FreeV6UpdateAgent.app/Contents/MacOS/freev6-update-agent")
+        child.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Flux6UpdateAgent.app/Contents/MacOS/freev6-update-agent")
         let output = Pipe()
         child.standardInput = input
         child.standardOutput = output

@@ -401,7 +401,7 @@ do {
               home.deletingLastPathComponent().deletingLastPathComponent().lastPathComponent == "login-probes",
               UUID(uuidString: home.deletingLastPathComponent().lastPathComponent) != nil,
               ["install", "remove"].contains(arguments[2]) else { throw ServiceMessageError.invalid }
-        let manager = LoginItemManager(home: home, app: home.appendingPathComponent("Applications/FreeV6.app"))
+        let manager = LoginItemManager(home: home, app: home.appendingPathComponent("Applications/Flux6.app"))
         try manager.setEnabled(arguments[2] == "install")
     case "desktop-session" where arguments.count == 4, "desktop-update-stop" where arguments.count == 3,
          "desktop-auto-session" where arguments.count == 4:

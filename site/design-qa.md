@@ -30,7 +30,7 @@ No actionable P0/P1/P2 findings remain.
 | Spacing and layout | Original 1120px content measure, navigation, two-column download rail, feature grid, radii and section rhythm retained. Focused download comparison inspected in the combined sheet. |
 | Colors and tokens | Original warm-gray light palette, plum accent and dark palette retained in unchanged upstream CSS. Theme selection and persistence verified. |
 | Image quality | Local repository cat SVG, macOS PNG and Android JPEG; natural proportions and no hotlinked upstream product imagery. Existing upstream UI SVG icons retained. |
-| Copy and content | Flux6 branding, accurate supported systems, verified v0.1.0 download metadata, bilingual copy and changelogs. FreeV6 remains where it truthfully describes current installers/screenshots. |
+| Copy and content | Flux6 branding, accurate supported systems, verified v0.1.0 download metadata, bilingual copy and changelogs. The refreshed installers and Homebrew token use Flux6; existing user-provided screenshots remain unchanged. |
 
 ## Interaction and browser checks
 
@@ -40,7 +40,7 @@ Build, JavaScript syntax, local asset/link checks, repository maintenance checks
 
 ## Verification limits
 
-CUA connections timed out. The user explicitly authorized Playwright; checks used isolated headless Chrome. This was website QA only: no client, proxy/VPN or system service was started or changed, and browser tests did not download or run installers. Native names, package IDs, signing identities, runtime directories and published assets remain unchanged. No remote publishing or deployment occurred.
+CUA connections timed out. The user explicitly authorized Playwright; checks used isolated headless Chrome. This was website QA only: no client, proxy/VPN or system service was started or changed, and browser tests did not download or run installers. This initial website-only pass did not change native apps or publish remotely. A subsequent authorized rebrand rebuilds the native clients while preserving package IDs, signing identities and runtime directories; see the release maintenance record.
 
 ## Implementation checklist
 
@@ -52,3 +52,9 @@ CUA connections timed out. The user explicitly authorized Playwright; checks use
 - [x] Verify interactions, responsive layouts, languages and themes.
 
 Follow-up polish: none required for this handoff.
+
+## 2026-11-10 release rebrand recheck
+
+Repeated the desktop/mobile browser checks after switching all download links and Homebrew commands to Flux6. Five viewport sizes, keyboard controls, clipboard, themes, languages and no-JavaScript fallback passed with no console errors or failed images. `release.json` now contains the actual size and SHA-256 of the rebuilt 0.1.0 assets (macOS build 10, Android build 2026111006). The final release/site deployment is verified separately in the repository maintenance record.
+
+final result: passed

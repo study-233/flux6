@@ -13,7 +13,7 @@ public enum DesktopNetworkPhase: Equatable, Sendable {
         case .running: return "已连接"
         case .disconnecting: return "正在断开…"
         case .recovering: return "网络需要恢复"
-        case .occupied: return "其他用户正在使用 FreeV6"
+        case .occupied: return "其他用户正在使用 Flux6"
         }
     }
     public var symbol: String {
@@ -41,7 +41,7 @@ public enum DesktopNetworkPhase: Equatable, Sendable {
         didSet {
             if mayOwnSession, activity == nil {
                 activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep,
-                                                                 reason: "Maintain the active FreeV6 network session")
+                                                                 reason: "Maintain the active Flux6 network session")
             } else if !mayOwnSession, let activity {
                 ProcessInfo.processInfo.endActivity(activity)
                 self.activity = nil

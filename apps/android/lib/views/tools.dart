@@ -70,7 +70,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
     final items = [
       if (system.isAndroid)
         generateSection(
-          title: 'FreeV6',
+          title: 'Flux6',
           items: [
             ListItem.open(
               leading: const GlyphIcon(AppGlyphs.profiles),

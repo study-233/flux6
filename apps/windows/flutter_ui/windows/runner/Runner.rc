@@ -73,10 +73,10 @@ IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 #endif
 
 #if FREEV6_LIVE
-#define FREEV6_DESCRIPTION "FreeV6"
+#define FREEV6_DESCRIPTION "Flux6"
 #define FREEV6_FILENAME "freev6-desktop.exe"
 #else
-#define FREEV6_DESCRIPTION "FreeV6 Windows Preview"
+#define FREEV6_DESCRIPTION "Flux6 Windows Preview"
 #define FREEV6_FILENAME "freev6-windows-preview.exe"
 #endif
 
@@ -101,7 +101,7 @@ BEGIN
             VALUE "FileDescription", FREEV6_DESCRIPTION "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", FREEV6_DESCRIPTION "\0"
-            VALUE "LegalCopyright", "Copyright (C) FreeV6 contributors." "\0"
+            VALUE "LegalCopyright", "Copyright (C) Flux6 contributors." "\0"
             VALUE "OriginalFilename", FREEV6_FILENAME "\0"
             VALUE "ProductName", FREEV6_DESCRIPTION "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

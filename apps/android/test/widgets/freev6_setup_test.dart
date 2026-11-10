@@ -157,7 +157,7 @@ void main() {
       await tester.tap(find.text('Campus bypass · optional'));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsOneWidget);
-      await tester.tap(find.text('Prepare FreeV6'));
+      await tester.tap(find.text('Prepare Flux6'));
       await tester.pumpAndSettle();
       expect(reads, 1);
       expect(find.textContaining('Preparation failed'), findsOneWidget);
@@ -201,7 +201,7 @@ void main() {
         scale: 2,
         themeMode: ThemeMode.dark,
       );
-      expect(find.text('Welcome to FreeV6'), findsOneWidget);
+      expect(find.text('Welcome to Flux6'), findsOneWidget);
       expect(find.text('Set up later'), findsOneWidget);
       expect(
         tester.getRect(find.text('Get started')).bottom,

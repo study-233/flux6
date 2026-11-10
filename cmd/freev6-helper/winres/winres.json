@@ -11,10 +11,10 @@
     "#1": {
       "0409": {
         "identity": {
-          "name": "FreeV6.Helper",
+          "name": "Flux6.Helper",
           "version": "0.5.2.0"
         },
-        "description": "FreeV6 Helper",
+        "description": "Flux6 Helper",
         "minimum-os": "win10",
         "execution-level": "as invoker",
         "ui-access": false,
@@ -41,16 +41,16 @@
         },
         "info": {
           "0409": {
-            "Comments": "FreeV6 desktop helper service",
-            "CompanyName": "FreeV6 Project",
-            "FileDescription": "FreeV6 Helper",
+            "Comments": "Flux6 desktop helper service",
+            "CompanyName": "Flux6 Project",
+            "FileDescription": "Flux6 Helper",
             "FileVersion": "0.5.2.0",
             "InternalName": "freev6-helper",
             "LegalCopyright": "Copyright (c) 2026 freev6 contributors",
             "LegalTrademarks": "",
             "OriginalFilename": "freev6-helper.exe",
             "PrivateBuild": "",
-            "ProductName": "FreeV6",
+            "ProductName": "Flux6",
             "ProductVersion": "0.5.2.0",
             "SpecialBuild": ""
           }

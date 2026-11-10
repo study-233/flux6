@@ -50,7 +50,7 @@ class PreviewModel extends ClientModel {
   final notices = <JsonMap>[
     {
       'id': 'preview',
-      'title': '欢迎使用 FreeV6',
+      'title': '欢迎使用 Flux6',
       'body': '这是演示公告。所有连接、设置和下载操作均为本地模拟。',
     },
   ];

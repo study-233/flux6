@@ -38,10 +38,10 @@ PY
     "$sdk/bin/flutter" pub get --offline --enforce-lockfile
     "$sdk/bin/flutter" build macos --release --no-pub --target .dart_tool/freev6-probes/perf.dart
     qa="$(bash "$root/scripts/macos/build-flutter-host.sh" --qa-clone)"
-    built="$project/build/macos/Build/Products/Release/FreeV6 Flutter Preview.app"
+    built="$project/build/macos/Build/Products/Release/Flux6 Flutter Preview.app"
     mv "$qa/Contents/Frameworks/App.framework" "$(dirname "$qa")/consumer-framework"
     ditto "$built/Contents/Frameworks/App.framework" "$qa/Contents/Frameworks/App.framework"
-    cp "$built/Contents/MacOS/FreeV6 Flutter Preview" "$qa/Contents/MacOS/FreeV6 Flutter Integration"
+    cp "$built/Contents/MacOS/Flux6 Flutter Preview" "$qa/Contents/MacOS/Flux6 Flutter Integration"
     codesign --force --sign - --entitlements "$project/macos/Runner/Integration.entitlements" "$qa"
     codesign --verify --deep --strict "$qa"
     printf '%s\n' "$qa" > "$target/bundle.txt"

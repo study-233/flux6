@@ -8,7 +8,7 @@ import subprocess
 
 
 def compiler_arguments(root, work, compiler, env, run):
-    # Link the same business sources as FreeV6 without exposing a public
+    # Link the same business sources as Flux6 without exposing a public
     # product API for selecting alternate keychains.
     sources = root / "apps/macos/Sources"
     config = work / "FreeV6Configuration.swiftmodule"
@@ -32,12 +32,12 @@ class KeychainUpgrade:
     def __init__(self, work):
         self.directory = work / "private-keychain-fixture"
         self.directory.mkdir(mode=0o700)
-        self.previous = work / "previous/FreeV6.app"
+        self.previous = work / "previous/Flux6.app"
         self.password = os.urandom(32)
         self.original_list = search_list()
 
     def invoke(self, app, command):
-        result = subprocess.run([app / "Contents/MacOS/FreeV6", "--keychain-upgrade", command, self.directory],
+        result = subprocess.run([app / "Contents/MacOS/Flux6", "--keychain-upgrade", command, self.directory],
                                 input=self.password, capture_output=True, timeout=30)
         if result.returncode:
             raise RuntimeError(result.stderr.decode(errors="replace"))
@@ -82,7 +82,7 @@ class KeychainUpgrade:
                 raise RuntimeError(f"The update lost or changed the {kind} record")
         # Retain the successfully installed N+1 for inspection and restore
         # the original signed N at exactly the same installed path.
-        restored = self.directory.parent / "rollback/FreeV6.app"
+        restored = self.directory.parent / "rollback/Flux6.app"
         subprocess.run(["/usr/bin/ditto", self.previous, restored], check=True)
         updated = self.directory.parent / "updated.app"
         app.rename(updated)

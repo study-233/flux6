@@ -41,11 +41,11 @@ class PackagingTest(unittest.TestCase):
             source.archive(bundle, archive)
             with zipfile.ZipFile(archive) as package:
                 names = package.namelist()
-                self.assertIn('FreeV6-source/apps/windows/flutter_ui/lib/live_main.dart', names)
-                self.assertIn('FreeV6-source/apps/windows/installer/flutter.nsi', names)
-                self.assertIn('FreeV6-source/scripts/branding/generate-cats.py', names)
-                self.assertIn('FreeV6-source/assets/branding/cats/cow.svg', names)
-                self.assertEqual(json.loads(package.read('FreeV6-source/windows-source-sha256.json')), snapshot)
+                self.assertIn('Flux6-source/apps/windows/flutter_ui/lib/live_main.dart', names)
+                self.assertIn('Flux6-source/apps/windows/installer/flutter.nsi', names)
+                self.assertIn('Flux6-source/scripts/branding/generate-cats.py', names)
+                self.assertIn('Flux6-source/assets/branding/cats/cow.svg', names)
+                self.assertEqual(json.loads(package.read('Flux6-source/windows-source-sha256.json')), snapshot)
                 self.assertFalse(any('/state/' in name or name.endswith('.exe') for name in names))
             with patch.object(source, 'inventory', return_value={**snapshot, 'changed': 'hash'}):
                 with self.assertRaisesRegex(ValueError, 'changed during build'):

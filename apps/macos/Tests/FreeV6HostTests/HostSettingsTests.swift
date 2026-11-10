@@ -22,7 +22,7 @@ private actor TestProfileStorage: VersionedSecretStorage {
     private func environment(needsWorker: Bool = false) throws -> (HostSettings, URL, UserDefaults, String) {
         let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let bundled = repository.appendingPathComponent("dist/macos/FreeV6.app/Contents/Helpers/freev6-worker")
+        let bundled = repository.appendingPathComponent("dist/macos/Flux6.app/Contents/Helpers/freev6-worker")
         let executable = ProcessInfo.processInfo.environment["FREEV6_WORKER_TEST_BINARY"].map(URL.init(fileURLWithPath:)) ?? bundled
         if needsWorker && !FileManager.default.isExecutableFile(atPath: executable.path) {
             throw XCTSkip("Build the macOS worker or provide FREEV6_WORKER_TEST_BINARY for the integration scenario.")

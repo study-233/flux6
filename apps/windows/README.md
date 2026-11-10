@@ -1,4 +1,4 @@
-# FreeV6 Windows
+# Flux6 Windows
 
 当前 Windows 客户端仍使用 Web UI、Tauri 窗口与 Go helper。已确定重构方向为 Flutter + Windows 原生宿主，首期保留 Go helper、网络和权限实现；界面风格及页面结构对齐 macOS，保留 Windows 原有功能。
 

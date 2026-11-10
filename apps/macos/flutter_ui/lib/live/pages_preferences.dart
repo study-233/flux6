@@ -163,13 +163,13 @@ class _LiveSettingsState extends State<LiveSettingsPage> {
           _toggle(context, '减少动态效果', 'reduceMotion', preferences, set),
         ]),
         _Section('启动与菜单栏', [
-          _toggle(context, '在菜单栏显示 FreeV6', 'showMenuBar', preferences, set),
+          _toggle(context, '在菜单栏显示 Flux6', 'showMenuBar', preferences, set),
           _toggle(context, '启动时收起主窗口', 'hideOnStart', preferences, set),
           if (preferences['showMenuBar'] == false &&
               preferences['hideOnStart'] == true)
             const _Hint('菜单栏入口已关闭，启动时会显示主窗口。'),
           _toggle(context, '启动时自动连接', 'autoConnect', preferences, set),
-          _toggle(context, '登录时打开 FreeV6', 'login', preferences, set),
+          _toggle(context, '登录时打开 Flux6', 'login', preferences, set),
           if ((preferences['loginStatus'] ?? '') != '')
             _Hint(preferences['loginStatus'] as String),
           if (preferences['needsLoginApproval'] == true)
@@ -420,7 +420,7 @@ class _PreparationState extends State<LivePreparationPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  '欢迎使用 FreeV6',
+                  '欢迎使用 Flux6',
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const _Hint('首次使用前，请阅读用户协议与隐私政策。'),

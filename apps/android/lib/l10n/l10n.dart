@@ -725,20 +725,20 @@ class AppLocalizations {
     );
   }
 
-  /// `Receiving a link from your phone needs the Nearby devices permission, which lets FreeV6 reach the local network. Turn it on in the app's settings.`
+  /// `Receiving a link from your phone needs the Nearby devices permission, which lets Flux6 reach the local network. Turn it on in the app's settings.`
   String get sendFromPhonePermissionDenied {
     return Intl.message(
-      'Receiving a link from your phone needs the Nearby devices permission, which lets FreeV6 reach the local network. Turn it on in the app\'s settings.',
+      'Receiving a link from your phone needs the Nearby devices permission, which lets Flux6 reach the local network. Turn it on in the app\'s settings.',
       name: 'sendFromPhonePermissionDenied',
       desc: '',
       args: [],
     );
   }
 
-  /// `Send a link to FreeV6`
+  /// `Send a link to Flux6`
   String get sendFromPhonePageTitle {
     return Intl.message(
-      'Send a link to FreeV6',
+      'Send a link to Flux6',
       name: 'sendFromPhonePageTitle',
       desc: '',
       args: [],
@@ -981,10 +981,10 @@ class AppLocalizations {
     );
   }
 
-  /// `FreeV6 for Android, based on FlClash, with WARP over IPv6 and campus routing.`
+  /// `Flux6 for Android, based on FlClash, with WARP over IPv6 and campus routing.`
   String get desc {
     return Intl.message(
-      'FreeV6 for Android, based on FlClash, with WARP over IPv6 and campus routing.',
+      'Flux6 for Android, based on FlClash, with WARP over IPv6 and campus routing.',
       name: 'desc',
       desc: '',
       args: [],
@@ -2331,10 +2331,10 @@ class AppLocalizations {
     return Intl.message('Disclaimer', name: 'disclaimer', desc: '', args: []);
   }
 
-  /// `Before using FreeV6 ("the Software"), please read this statement carefully and make sure you understand it. Tapping "Agree" means you have read and understood what follows. If you do not want to continue, tap "Exit".`
+  /// `Before using Flux6 ("the Software"), please read this statement carefully and make sure you understand it. Tapping "Agree" means you have read and understood what follows. If you do not want to continue, tap "Exit".`
   String get disclaimerDesc {
     return Intl.message(
-      'Before using FreeV6 ("the Software"), please read this statement carefully and make sure you understand it. Tapping "Agree" means you have read and understood what follows. If you do not want to continue, tap "Exit".',
+      'Before using Flux6 ("the Software"), please read this statement carefully and make sure you understand it. Tapping "Agree" means you have read and understood what follows. If you do not want to continue, tap "Exit".',
       name: 'disclaimerDesc',
       desc: '',
       args: [],
@@ -6694,10 +6694,10 @@ class AppLocalizations {
     );
   }
 
-  /// `FreeV6 ran into an error while starting and can't continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.`
+  /// `Flux6 ran into an error while starting and can't continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.`
   String get initFailedTip {
     return Intl.message(
-      'FreeV6 ran into an error while starting and can\'t continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.',
+      'Flux6 ran into an error while starting and can\'t continue. Copy the details to report the problem. If it keeps happening, clearing the data usually lets the app start again.',
       name: 'initFailedTip',
       desc: '',
       args: [],
@@ -9092,10 +9092,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Prepare FreeV6`
+  /// `Prepare Flux6`
   String get freev6Prepare {
     return Intl.message(
-      'Prepare FreeV6',
+      'Prepare Flux6',
       name: 'freev6Prepare',
       desc: '',
       args: [],
@@ -9242,10 +9242,10 @@ class AppLocalizations {
     );
   }
 
-  /// `FreeV6 setup`
+  /// `Flux6 setup`
   String get freev6SetupTitle {
     return Intl.message(
-      'FreeV6 setup',
+      'Flux6 setup',
       name: 'freev6SetupTitle',
       desc: '',
       args: [],
@@ -9262,10 +9262,10 @@ class AppLocalizations {
     );
   }
 
-  /// `Welcome to FreeV6`
+  /// `Welcome to Flux6`
   String get freev6WelcomeTitle {
     return Intl.message(
-      'Welcome to FreeV6',
+      'Welcome to Flux6',
       name: 'freev6WelcomeTitle',
       desc: '',
       args: [],
@@ -9412,10 +9412,10 @@ class AppLocalizations {
     );
   }
 
-  /// `You can adjust campus bypass or check your network later in Tools → FreeV6.`
+  /// `You can adjust campus bypass or check your network later in Tools → Flux6.`
   String get freev6ToolsHint {
     return Intl.message(
-      'You can adjust campus bypass or check your network later in Tools → FreeV6.',
+      'You can adjust campus bypass or check your network later in Tools → Flux6.',
       name: 'freev6ToolsHint',
       desc: '',
       args: [],

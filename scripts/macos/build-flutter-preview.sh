@@ -62,9 +62,9 @@ if [ -f pubspec.lock ]; then
 else
     flutter pub get
 fi
-preview_name="FreeV6 Flutter Preview"
+preview_name="Flux6 Flutter Preview"
 if $integration; then
-    product="FreeV6 Flutter Integration"
+    product="Flux6 Flutter Integration"
     target="lib/live_main.dart"
     # Both embedded helpers target this host architecture.
     if [ "$(uname -m)" = arm64 ]; then export FLUTTER_MACOS_ARM64_ONLY=true; fi
@@ -117,7 +117,7 @@ if $integration; then
     cp "$project_root/internal/mihomo/runtime-assets.json" "$contents/Resources"
     cp "$project_root/docs/agreement.md" "$notices/agreement.md"
     { cat "$project_root/apps/macos/Resources/privacy-macos.md"; printf '\n\n'; cat "$project_root/docs/privacy.md"; } > "$notices/privacy.md"
-    cp "$project_root/LICENSE" "$notices/FreeV6-LICENSE.txt"
+    cp "$project_root/LICENSE" "$notices/Flux6-LICENSE.txt"
     cp "$project_root/THIRD-PARTY.txt" "$notices/THIRD-PARTY.txt"
     go_root="$("$go_bin" env GOROOT)"
     cp "$go_root/LICENSE" "$notices/Go-LICENSE.txt"

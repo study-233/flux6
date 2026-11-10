@@ -146,7 +146,7 @@ private final class RunProbePreferences: SessionDNSPreferences {
         guard lock.try() else { throw SessionDNSError.busy }
         defer { lock.unlock() }
         // Always pass a full fixture filename. No call opens the system preferences.
-        guard let prefs = SCPreferencesCreate(nil, "FreeV6 run fixture" as CFString,
+        guard let prefs = SCPreferencesCreate(nil, "Flux6 run fixture" as CFString,
             (data.path + "/" + filename) as CFString) else { throw SessionDNSError.unavailable }
         SCPreferencesSynchronize(prefs)
         return try body(prefs)

@@ -47,25 +47,25 @@ public final class KeychainSecretStorage: VersionedSecretStorage, @unchecked Sen
     public init() {
         service = "dev.freev6.desktop.warp"
         account = "credentials-v1"
-        label = "FreeV6 WARP 凭据"
+        label = "Flux6 WARP 凭据"
         keychain = nil
     }
 
     public static func cloudKey() -> KeychainSecretStorage {
-        KeychainSecretStorage(service: "dev.freev6.desktop.cloud", account: "snapshot-key-v1", keychain: nil, label: "FreeV6 备用配置密钥")
+        KeychainSecretStorage(service: "dev.freev6.desktop.cloud", account: "snapshot-key-v1", keychain: nil, label: "Flux6 备用配置密钥")
     }
 
     public static func chainKey() -> KeychainSecretStorage {
-        KeychainSecretStorage(service: "dev.freev6.desktop.chain", account: "snapshot-key-v1", keychain: nil, label: "FreeV6 链式代理密钥")
+        KeychainSecretStorage(service: "dev.freev6.desktop.chain", account: "snapshot-key-v1", keychain: nil, label: "Flux6 链式代理密钥")
     }
 
     public static func integrationProfileKey(chain: Bool) -> KeychainSecretStorage {
         let kind = chain ? "chain" : "cloud"
         return KeychainSecretStorage(service: "dev.freev6.integration." + kind, account: "snapshot-key-v1", keychain: nil,
-                                     label: chain ? "FreeV6 验收版链式配置" : "FreeV6 验收版备用配置")
+                                     label: chain ? "Flux6 验收版链式配置" : "Flux6 验收版备用配置")
     }
 
-    init(service: String, account: String, keychain: SecKeychain?, label: String = "FreeV6 WARP 凭据") {
+    init(service: String, account: String, keychain: SecKeychain?, label: String = "Flux6 WARP 凭据") {
         self.service = service; self.account = account; self.keychain = keychain; self.label = label
     }
 

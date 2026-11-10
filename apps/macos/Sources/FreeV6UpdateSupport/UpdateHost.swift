@@ -5,10 +5,10 @@ public enum UpdateHost {
     public static func enclosingBundle(agent: Bundle = .main) throws -> Bundle {
         let location = agent.bundleURL
         let root = location.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        guard location.lastPathComponent == "FreeV6UpdateAgent.app",
+        guard location.lastPathComponent == "Flux6UpdateAgent.app",
               location.deletingLastPathComponent().lastPathComponent == "Helpers",
               let host = Bundle(url: root), root.pathExtension == "app",
-              host.executableURL?.lastPathComponent == "FreeV6" else { throw UpdateFailure.invalidHost }
+              host.executableURL?.lastPathComponent == "Flux6" else { throw UpdateFailure.invalidHost }
         try verify(host.bundleURL)
         return host
     }

@@ -1,7 +1,7 @@
 globalThis.Flux6Site = (() => {
   'use strict';
 
-  const REPO = 'https://github.com/study-233/free-v6';
+  const REPO = 'https://github.com/study-233/flux6';
   const FIRST_PAGE = 6;
   const MAX_STAGGER = 16;
   const TYPE_BY_TITLE = {
@@ -35,7 +35,7 @@ globalThis.Flux6Site = (() => {
       ctaDownload: (p) => `Download for ${p}`,
       ctaChoose: "Choose a download",
       ctaIos: "Available for macOS and Android. Choose a build for a supported device below.",
-      previewAlt: "Flux6 macOS dashboard, currently distributed as FreeV6",
+      previewAlt: "Flux6 macOS dashboard, currently distributed as Flux6",
       fact1Title: "Campus IPv6",
       fact1: "Built for campus networks with IPv6 connectivity.",
       fact2Title: "Smart selection",
@@ -58,9 +58,9 @@ globalThis.Flux6Site = (() => {
       hintAndroid: "ARM64 devices · Android 7.0 or later",
       hintMacos: "Apple Silicon · macOS 14 or later. No Intel build.",
       noteAndroidArm64: "Install the APK on an ARM64 phone or tablet",
-      noteMacArm: "Open the DMG and drag FreeV6 into Applications",
+      noteMacArm: "Open the DMG and drag Flux6 into Applications",
       tipBrewTitle: "Homebrew",
-      tipBrew: "Install from your terminal. The Homebrew package is still named freev6.",
+      tipBrew: "Install from your terminal and update with Homebrew.",
       clTitle: "Changelog",
       clMeta: (n, d) => `${n} releases since ${d}`,
       clSearch: "Search changes or versions",
@@ -84,8 +84,8 @@ globalThis.Flux6Site = (() => {
       footReleases: "Releases",
       footTelegram: "Feedback",
       stars: (n) => `${n} stars on GitHub`,
-      mobileAlt: "Flux6 Android dashboard, currently distributed as FreeV6",
-      releaseNote: "Current Flux6 installers still use the FreeV6 name. Version 0.1.0.",
+      mobileAlt: "Flux6 Android dashboard, currently distributed as Flux6",
+      releaseNote: "Flux6 0.1.0 is available for macOS and Android.",
       noteMacZip: "Application archive for manual installation",
       macZip: "Application archive",
       tipSetupTitle: "Getting started",
@@ -111,7 +111,7 @@ globalThis.Flux6Site = (() => {
       ctaDownload: (p) => `下载 ${p} 版`,
       ctaChoose: "选择下载版本",
       ctaIos: "目前提供 macOS 与 Android 版本，请在下方为支持的设备选择安装包。",
-      previewAlt: "Flux6 macOS 仪表盘，当前安装包名为 FreeV6",
+      previewAlt: "Flux6 macOS 仪表盘，当前安装包名为 Flux6",
       fact1Title: "校园 IPv6",
       fact1: "为支持 IPv6 的校园网络而设计。",
       fact2Title: "自动选点",
@@ -134,9 +134,9 @@ globalThis.Flux6Site = (() => {
       hintAndroid: "ARM64 设备 · Android 7.0 及以上",
       hintMacos: "Apple Silicon · macOS 14 及以上，暂不提供 Intel 版本。",
       noteAndroidArm64: "在 ARM64 手机或平板上安装 APK",
-      noteMacArm: "打开 DMG，将 FreeV6 拖入「应用程序」",
+      noteMacArm: "打开 DMG，将 Flux6 拖入「应用程序」",
       tipBrewTitle: "Homebrew",
-      tipBrew: "通过终端安装，之后用 brew 升级。软件包名称仍为 freev6。",
+      tipBrew: "通过终端安装，之后用 brew 升级。",
       clTitle: "更新日志",
       clMeta: (n, d) => `自 ${d}以来共 ${n} 个版本`,
       clSearch: "搜索更新内容或版本",
@@ -160,8 +160,8 @@ globalThis.Flux6Site = (() => {
       footReleases: "发布页",
       footTelegram: "反馈问题",
       stars: (n) => `GitHub 上有 ${n} 个星标`,
-      mobileAlt: "Flux6 Android 仪表盘，当前安装包名为 FreeV6",
-      releaseNote: "Flux6 的当前安装包仍使用 FreeV6 名称，版本为 0.1.0。",
+      mobileAlt: "Flux6 Android 仪表盘，当前安装包名为 Flux6",
+      releaseNote: "Flux6 0.1.0 已发布，支持 macOS 和 Android。",
       noteMacZip: "适用于手动安装的应用压缩包",
       macZip: "应用压缩包",
       tipSetupTitle: "开始使用",

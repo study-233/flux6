@@ -100,10 +100,10 @@ final class HostMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         guard phaseLabel != presentedStatus else { return }
         presentedStatus = phaseLabel
         let symbol = state["phase"] as? String == "running" ? "bolt.shield.fill" : "shield"
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "FreeV6，" + phaseLabel)
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Flux6，" + phaseLabel)
         image?.isTemplate = true
         statusItem?.button?.image = image
-        statusItem?.button?.toolTip = "FreeV6 · " + phaseLabel
+        statusItem?.button?.toolTip = "Flux6 · " + phaseLabel
     }
 
     private var phaseLabel: String {
@@ -122,7 +122,7 @@ final class HostMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         menu.removeAllItems()
         menu.autoenablesItems = false
         if menu === statusMenu {
-            menu.addItem(item("打开 FreeV6", "main"))
+            menu.addItem(item("打开 Flux6", "main"))
             menu.addItem(.separator())
         }
         let status = NSMenuItem(title: phaseLabel, action: nil, keyEquivalent: "")
@@ -183,7 +183,7 @@ final class HostMenus: NSObject, NSMenuDelegate, NSMenuItemValidation {
         if menu === statusMenu {
             menu.addItem(.separator())
             menu.addItem(item("设置…", "settings"))
-            menu.addItem(item("退出 FreeV6", "quit"))
+            menu.addItem(item("退出 Flux6", "quit"))
         }
     }
 

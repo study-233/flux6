@@ -1,4 +1,4 @@
-# FreeV6 Flutter for macOS
+# Flux6 Flutter for macOS
 
 这是 Mac 正式应用的界面工程，由 Swift/AppKit 管理窗口，通过已有桥接协议接入 Go worker 和 XPC 网络服务。正式入口为 `lib/live_main.dart`；发行版本来自上层 `Resources/Info.plist`，不使用本子工程的演示版版本号。
 
@@ -8,7 +8,7 @@
 bash scripts/macos/build-app.sh
 ```
 
-产物为 `dist/macos/FreeV6.app`。完整工具链、签名、安装与 DMG 步骤见 [Mac 说明](../README.md)。[当前验收索引](../../../docs/releases/macos-validation.md) 区分自动检查与实机验证。
+产物为 `dist/macos/Flux6.app`。完整工具链、签名、安装与 DMG 步骤见 [Mac 说明](../README.md)。[当前验收索引](../../../docs/releases/macos-validation.md) 区分自动检查与实机验证。
 
 ## 保留的开发夹具
 

@@ -52,7 +52,7 @@ class _LiveLogsState extends State<LiveLogsPage> {
     if (!mounted || pager.epoch != expected || result['epoch'] != expected)
       return;
     await model.platform('exportText', {
-      'name': 'FreeV6-日志.txt',
+      'name': 'Flux6-日志.txt',
       'text': result['text'],
     });
   }

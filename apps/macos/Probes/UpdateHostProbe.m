@@ -24,7 +24,7 @@
         return;
     }
     self.agent = [NSTask new];
-    self.agent.executableURL = [bundle.bundleURL URLByAppendingPathComponent:@"Contents/Helpers/FreeV6UpdateAgent.app/Contents/MacOS/UpdateProbe"];
+    self.agent.executableURL = [bundle.bundleURL URLByAppendingPathComponent:@"Contents/Helpers/Flux6UpdateAgent.app/Contents/MacOS/UpdateProbe"];
     NSError *error = nil;
     if (![self.agent launchAndReturnError:&error]) {
         fprintf(stderr, "Cannot launch test agent: %s\n", error.description.UTF8String);

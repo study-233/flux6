@@ -3,12 +3,12 @@ import XCTest
 
 @MainActor final class DesktopStartupTests: XCTestCase {
     func testInstallationLocationUsesVolumeAndSystemRelocation() throws {
-        let installed = URL(fileURLWithPath: "/Applications/FreeV6.app")
+        let installed = URL(fileURLWithPath: "/Applications/Flux6.app")
         XCTAssertTrue(ApplicationLocation.requiresInstallation(path: installed, readOnly: true))
         XCTAssertFalse(ApplicationLocation.requiresInstallation(path: installed, readOnly: false))
-        let relocated = URL(fileURLWithPath: "/private/var/folders/example/AppTranslocation/4046889A-9DF0-4CE1-BB36-61BD96A22835/d/FreeV6.app")
+        let relocated = URL(fileURLWithPath: "/private/var/folders/example/AppTranslocation/4046889A-9DF0-4CE1-BB36-61BD96A22835/d/Flux6.app")
         XCTAssertTrue(ApplicationLocation.requiresInstallation(path: relocated, readOnly: false))
-        let project = URL(fileURLWithPath: "/Users/example/AppTranslocation/project/FreeV6.app")
+        let project = URL(fileURLWithPath: "/Users/example/AppTranslocation/project/Flux6.app")
         XCTAssertFalse(ApplicationLocation.requiresInstallation(path: project, readOnly: false))
         XCTAssertFalse(try ApplicationLocation.requiresInstallation(at: FileManager.default.temporaryDirectory))
     }

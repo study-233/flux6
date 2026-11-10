@@ -3,6 +3,7 @@
 ## v0.1.0 (2026-11-10)
 
 **Features**
+- **Flux6** 统一项目、客户端与安装包名称；保留原签名、包 ID 与已有配置。
 - **macOS** 首个公开正式版本，支持 Apple Silicon 与 macOS 14 及以上，提供 DMG、应用 ZIP 和 Homebrew 安装。
 - **Android** 首个公开正式版本，支持 ARM64 与 Android 7.0 及以上，提供 APK 安装包。
 - **连接** 提供校园 IPv6 连接、节点选择与 WARP 出口管理。

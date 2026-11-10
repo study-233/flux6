@@ -2,7 +2,7 @@
 """Launch the signed product on a read-only image and/or in a disposable writable home.
 
 The exact product identity and bytes are used. macOS sandbox rules prevent
-access to the actual FreeV6 user stores, settings, credentials, network and
+access to the actual Flux6 user stores, settings, credentials, network and
 service. The harness never accepts the agreement or requests a connection.
 """
 import argparse
@@ -58,7 +58,7 @@ def exercise(app, mounted, folder, observer):
     initial = metadata()
     sent = ["-acceptedNotices", "P6-FIRST-RUN", "-autoRunProxy", "NO", "-silentStart", "NO",
             "-NSQuitAlwaysKeepsWindows", "NO", "-ApplePersistenceIgnoreState", "YES"]
-    args = ["/usr/bin/sandbox-exec", "-f", str(profile), app / "Contents/MacOS/FreeV6", *sent]
+    args = ["/usr/bin/sandbox-exec", "-f", str(profile), app / "Contents/MacOS/Flux6", *sent]
     with (folder / "startup.log").open("w") as stream:
         child = subprocess.Popen(args, env={**os.environ, "CFFIXED_USER_HOME": str(home)},
                                  stdout=stream, stderr=stream, stdin=subprocess.DEVNULL)
@@ -86,7 +86,7 @@ def exercise(app, mounted, folder, observer):
                 run(["/usr/sbin/screencapture", "-x", "-o", "-l", str(window["window"]), str(screenshot)])
                 recognized = run([observer, "recognize", screenshot]).stdout
                 text = "".join(recognized.split())
-                possible = ["安装", "FreeV6", "应用程序", "退出"] if mounted else ["欢迎使用", "用户协议", "隐私政策", "同意", "退出"]
+                possible = ["安装", "Flux6", "应用程序", "退出"] if mounted else ["欢迎使用", "用户协议", "隐私政策", "同意", "退出"]
                 words = [word for word in possible if word in text]
                 if len(words) < 2:
                     raise RuntimeError(f"Cannot identify expected UI in {screenshot}: {words}")
@@ -94,7 +94,7 @@ def exercise(app, mounted, folder, observer):
             for pid in children.stdout.split():
                 path = run(["/bin/ps", "-p", pid, "-o", "comm="], check=False).stdout
                 if "freev6-worker" in path or "network-service" in path:
-                    raise RuntimeError("Running a FreeV6 helper before consent")
+                    raise RuntimeError("Running a Flux6 helper before consent")
             writes = [entry for entry in STORES if (home / "Library" / entry).exists()]
             if mounted and writes:
                 raise RuntimeError("Installation guide created product data in the test home")
@@ -135,7 +135,7 @@ if __name__ == "__main__":
         with args.image.open("rb") as image:
             digest = hashlib.sha256(image.read()).hexdigest()
         with volume(args.image.resolve(strict=True)) as mount:
-            result["mounted"] = exercise(mount / "FreeV6.app", True, folder / "mounted", observer)
+            result["mounted"] = exercise(mount / "Flux6.app", True, folder / "mounted", observer)
             result["imageSHA256"] = digest
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

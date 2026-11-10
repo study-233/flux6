@@ -1,4 +1,4 @@
-# FreeV6 Windows Flutter
+# Flux6 Windows Flutter
 
 Flutter Windows 客户端迁移工程，使用与 Mac 相同来源的 Prism UI 和 FlClash 视觉组件。
 

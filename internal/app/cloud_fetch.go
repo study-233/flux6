@@ -93,7 +93,7 @@ func cloudAttempt(ctx context.Context, rawURL string, client *http.Client, logFa
 		logFailure("bad request: " + err.Error())
 		return nil, &cloudFetchError{reason: "入口地址无效"}
 	}
-	request.Header.Set("User-Agent", "FreeV6")
+	request.Header.Set("User-Agent", "Flux6")
 	response, err := client.Do(request)
 	if err != nil {
 		logFailure("do: " + err.Error())

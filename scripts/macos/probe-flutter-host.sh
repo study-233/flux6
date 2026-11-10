@@ -14,7 +14,7 @@ bash "$root/scripts/macos/build-flutter-preview.sh" --prepare >/dev/null
 qa="$(bash "$root/scripts/macos/build-flutter-host.sh" --qa-clone)"
 qa_stage="$(dirname "$qa")"
 case "$qa" in
-    "$root"/build/macos-ui/host-qa.*/"FreeV6 Flutter QA.app") ;;
+    "$root"/build/macos-ui/host-qa.*/"Flux6 Flutter QA.app") ;;
     *) echo "Unexpected QA bundle location: $qa" >&2; exit 1 ;;
 esac
 
@@ -24,7 +24,7 @@ cp "$root/apps/macos/Probes/FlutterHostSmoke.dart" .dart_tool/freev6-probes/host
 "$sdk/bin/flutter" pub get --enforce-lockfile
 "$sdk/bin/flutter" build macos --release --no-pub --target .dart_tool/freev6-probes/host_smoke.dart
 
-built="$project/build/macos/Build/Products/Release/FreeV6 Flutter Preview.app"
+built="$project/build/macos/Build/Products/Release/Flux6 Flutter Preview.app"
 driver="$built/Contents/Frameworks/App.framework"
 codesign --verify --strict "$driver"
 # Exercise the delivered Swift binary and helper bytes. Only replace Flutter's AOT
@@ -46,7 +46,7 @@ import time
 
 qa = Path(sys.argv[1])
 log = Path(sys.argv[2])
-exe = qa / "Contents/MacOS/FreeV6 Flutter Integration"
+exe = qa / "Contents/MacOS/Flux6 Flutter Integration"
 with log.open("wb") as output:
     for round_name, marker in [("first", "HOST-SMOKE PASS"), ("reopen", "HOST-SMOKE REOPEN PASS")]:
         start = time.monotonic()

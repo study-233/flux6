@@ -3,34 +3,34 @@
   "publishedAt": "2026-11-10T11:58:29Z",
   "assets": [
     {
-      "name": "FreeV6-0.1.0-Android-source.tar.gz",
-      "size": 22691198,
-      "digest": "sha256:4c4924eb26589fe0b88470b6a721216b0c35de679a5c21f23ec99c74deb1285c",
-      "url": "https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-Android-source.tar.gz"
+      "name": "Flux6-0.1.0-macOS.dmg",
+      "size": 21329043,
+      "digest": "sha256:e60c6cabf100b7058d0f57b8a53df5646177c69b8056ec5518cff4750c7b4fda",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-macOS.dmg"
     },
     {
-      "name": "FreeV6-0.1.0-Android.apk",
-      "size": 61388657,
-      "digest": "sha256:dd08b7f56be98561cc1e76ad142fa2418a66519c182cf9ff36f2a2e05465bf99",
-      "url": "https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-Android.apk"
+      "name": "Flux6-0.1.0-macOS.zip",
+      "size": 18970978,
+      "digest": "sha256:46e3c5377b6310517650d0effe61f62bc17ec81dbf5446cdfde7e219db6de576",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-macOS.zip"
     },
     {
-      "name": "FreeV6-0.1.0-macOS-source.zip",
-      "size": 2229063,
-      "digest": "sha256:a4a2ab15bc436df2bd40501f921bfb3203b85cbc6d15b04b659a3ab80580678e",
-      "url": "https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-macOS-source.zip"
+      "name": "Flux6-0.1.0-macOS-source.zip",
+      "size": 2228272,
+      "digest": "sha256:a132ea732b678e69bc1f0906f8c2ce30ef7e90588cc0d5bd5d6e936042c63451",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-macOS-source.zip"
     },
     {
-      "name": "FreeV6-0.1.0-macOS.dmg",
-      "size": 21324315,
-      "digest": "sha256:640d211c4958b0470f356dfca7a32ae3ffd063c1d95f05a051d3566f0a5bcecd",
-      "url": "https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-macOS.dmg"
+      "name": "Flux6-0.1.0-Android.apk",
+      "size": 61388845,
+      "digest": "sha256:c4d53dff45de9984afd23e2f719393e24d8fb6aacc8f4d35c04cbf84e854476d",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-Android.apk"
     },
     {
-      "name": "FreeV6-0.1.0-macOS.zip",
-      "size": 18972329,
-      "digest": "sha256:5e4dadc2cbf36088a2c08ca557e115d4bb8e6a55716787fc14f5c1bd3ec2f3b6",
-      "url": "https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-macOS.zip"
+      "name": "Flux6-0.1.0-Android-source.tar.gz",
+      "size": 22691629,
+      "digest": "sha256:5587590b87ec8b450bad4985e49350100ed1880ee903814139ea9f8c378da3cc",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-Android-source.tar.gz"
     }
   ]
 }

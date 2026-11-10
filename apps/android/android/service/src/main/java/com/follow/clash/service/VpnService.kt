@@ -144,7 +144,7 @@ class VpnService : SystemVpnService(), ManagedService {
     }
 
     private fun handleStart(options: VpnOptions) {
-        val network = wifiNetwork() ?: error("FreeV6 requires Wi-Fi")
+        val network = wifiNetwork() ?: error("Flux6 requires Wi-Fi")
         observeWifi(network)
         val fd = with(Builder()) {
             setUnderlyingNetworks(arrayOf(network))
@@ -218,7 +218,7 @@ class VpnService : SystemVpnService(), ManagedService {
             callback,
         )
         wifiCallback = callback
-        check(wifiNetwork() == activeWifi) { "Wi-Fi changed while starting FreeV6" }
+        check(wifiNetwork() == activeWifi) { "Wi-Fi changed while starting Flux6" }
     }
 
     private fun Builder.addAddressAndRoutes(options: VpnOptions) {

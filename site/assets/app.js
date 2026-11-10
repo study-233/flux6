@@ -116,7 +116,7 @@
     if (!release) return [];
     return buildsFor(platform, arch)
       .map((build) => {
-        const name = `FreeV6-${release.version}-${build.id}`;
+        const name = `Flux6-${release.version}-${build.id}`;
         const asset = release.assets ? release.assets.get(name) : null;
         if (release.assets && !asset) return null;
         return {
@@ -364,7 +364,7 @@
 
   function extrasFor(platform) {
     if (platform === 'android') return [tip('tipSetupTitle', 'tipSetup')];
-    if (platform === 'macos') return [tip('tipBrewTitle', 'tipBrew', commandBlock('brew tap study-233/tap\nbrew install --cask study-233/tap/freev6'))];
+    if (platform === 'macos') return [tip('tipBrewTitle', 'tipBrew', commandBlock('brew tap study-233/tap\nbrew install --cask study-233/tap/flux6'))];
     return [];
   }
 

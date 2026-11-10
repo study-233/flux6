@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and verify the native FreeV6 disk image on a Mac."""
+"""Build and verify the native Flux6 disk image on a Mac."""
 import argparse
 import hashlib
 import json
@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "dist/macos"
 GUIDE = ROOT / "apps/macos/Resources/安装说明.txt"
 BINARIES = (
-    "MacOS/FreeV6", "Helpers/freev6-worker", "Helpers/freev6-service-installer", "Helpers/freev6-login-launcher",
-    "Helpers/FreeV6UpdateAgent.app/Contents/MacOS/freev6-update-agent",
+    "MacOS/Flux6", "Helpers/freev6-worker", "Helpers/freev6-service-installer", "Helpers/freev6-login-launcher",
+    "Helpers/Flux6UpdateAgent.app/Contents/MacOS/freev6-update-agent",
     "Library/LaunchServices/dev.freev6.network-service",
 )
 
@@ -52,27 +52,27 @@ def readonly_volume(image):
 def verify_bundle(app, arch):
     subprocess.run(["/usr/bin/codesign", "--verify", "--deep", "--strict", app], check=True)
     payload = app / "Contents"
-    agent = payload / "Helpers/FreeV6UpdateAgent.app"
+    agent = payload / "Helpers/Flux6UpdateAgent.app"
     agent_info = plistlib.loads((agent / "Contents/Info.plist").read_bytes())
     if agent_info.get("FreeV6UpdateProbeBuild") is not False:
         raise RuntimeError("Product bundles must contain the production update helper")
     rights = plistlib.loads(output("/usr/bin/codesign", "-d", "--entitlements", "-", "--xml", agent))
     if rights != {"com.apple.security.cs.disable-library-validation": True}:
         raise RuntimeError("Unexpected update helper entitlements")
-    dependencies = output("/usr/bin/otool", "-L", payload / "MacOS/FreeV6").decode()
+    dependencies = output("/usr/bin/otool", "-L", payload / "MacOS/Flux6").decode()
     if "@rpath/FlutterMacOS.framework/" not in dependencies or "Sparkle.framework" in dependencies:
         raise RuntimeError("The host must load Flutter, with Sparkle confined to the update helper")
     host = plistlib.loads((payload / "Info.plist").read_bytes())
     if host["LSMinimumSystemVersion"] != "14.0" or agent_info["LSMinimumSystemVersion"] != "14.0":
         raise RuntimeError("The host and its update helper must target macOS 14")
-    if host.get("CFBundleIdentifier") != "dev.freev6.desktop" or host.get("CFBundleExecutable") != "FreeV6" or host.get("NSMainNibFile") != "MainMenu":
+    if host.get("CFBundleIdentifier") != "dev.freev6.desktop" or host.get("CFBundleExecutable") != "Flux6" or host.get("NSMainNibFile") != "MainMenu":
         raise RuntimeError("Missing the production Flutter application identity or main nib")
     if not (payload / "Resources/Base.lproj/MainMenu.nib").exists():
         raise RuntimeError("Missing compiled app entry nib")
-    allowed_helpers = {"freev6-worker", "freev6-service-installer", "freev6-login-launcher", "FreeV6UpdateAgent.app"}
+    allowed_helpers = {"freev6-worker", "freev6-service-installer", "freev6-login-launcher", "Flux6UpdateAgent.app"}
     if {item.name for item in (payload / "Helpers").iterdir()} != allowed_helpers:
         raise RuntimeError("Unexpected executables in the production Helpers directory")
-    runner = (payload / "MacOS/FreeV6").read_bytes()
+    runner = (payload / "MacOS/Flux6").read_bytes()
     for marker in (b"FreeV6QAStartupNotices", b"qaWindowInfo", b"freev6-session-fixture", b"dev.freev6.flutter-host.qa."):
         if marker in runner:
             raise RuntimeError("An acceptance-only backend or channel was linked into the release")
@@ -83,7 +83,7 @@ def verify_bundle(app, arch):
     for lib in frameworks:
         subprocess.run(["/usr/bin/codesign", "--verify", "--strict", lib], check=True)
     framework_bins = [str((lib / lib.stem).relative_to(payload)) for lib in frameworks]
-    identities = {"MacOS/FreeV6": "dev.freev6.desktop", "Helpers/freev6-worker": "dev.freev6.worker",
+    identities = {"MacOS/Flux6": "dev.freev6.desktop", "Helpers/freev6-worker": "dev.freev6.worker",
                   "Helpers/freev6-service-installer": "dev.freev6.service-installer",
                   "Helpers/freev6-login-launcher": "dev.freev6.desktop.login",
                   BINARIES[-2]: "dev.freev6.desktop.update-agent", BINARIES[-1]: "dev.freev6.network-service"}
@@ -95,7 +95,7 @@ def verify_bundle(app, arch):
         if relative in identities and f"Identifier={identities[relative]}\n" not in signature:
             raise RuntimeError(f"Unexpected code identity on {relative}")
         if relative in BINARIES:
-            release_rpaths.verify(binary, updater=binary.name in ("FreeV6", "freev6-update-agent"))
+            release_rpaths.verify(binary, updater=binary.name in ("Flux6", "freev6-update-agent"))
         if output("/usr/bin/lipo", "-archs", binary).decode().split() != [arch]:
             raise RuntimeError(f"Unexpected architecture in {relative}")
         build = output("/usr/bin/xcrun", "vtool", "-show-build", binary).decode()
@@ -105,7 +105,7 @@ def verify_bundle(app, arch):
         version = tuple(int(part) for part in minima[0].split("."))
         if version + (0,) * (3 - len(version)) > (14, 0, 0):
             raise RuntimeError(f"{relative} requires macOS {minima[0]}")
-        if relative == "MacOS/FreeV6":
+        if relative == "MacOS/Flux6":
             sdk = re.search(r"^\s*sdk\s+([\d.]+)$", build, re.M)
             if version[:2] != (14, 0) or not sdk or int(sdk[1].split(".")[0]) < 26:
                 raise RuntimeError(f"Expected a macOS 14 app linked against a modern SDK: {build}")
@@ -116,7 +116,7 @@ def verify_bundle(app, arch):
         if rights != sign_flutter_host.LOCAL_RIGHTS:
             raise RuntimeError("The local Flutter program must carry only its pinned library constraint exception")
         probe = Path(output("bash", ROOT / "scripts/macos/swift.sh", "build", "-c", "release", "--show-bin-path").decode().strip()) / "freev6-probe"
-        if output(probe, "flutter-client-seal", payload / "MacOS/FreeV6").decode().strip() != manifest["flutterClientSeal"]:
+        if output(probe, "flutter-client-seal", payload / "MacOS/Flux6").decode().strip() != manifest["flutterClientSeal"]:
             raise RuntimeError("Flutter client's program or kernel constraint does not match the trusted installer")
     elif output("/usr/bin/codesign", "-d", "--entitlements", "-", "--xml", app).strip():
         raise RuntimeError("Unexpected entitlements in a Team-signed production host")
@@ -139,7 +139,7 @@ def main():
     if not args.from_app:
         subprocess.run(["/bin/bash", ROOT / "scripts/macos/build-app.sh"], cwd=ROOT, check=True,
                        env={**os.environ, "CONFIGURATION": "release"})
-    app = (args.from_app or OUTPUT / "FreeV6.app").resolve()
+    app = (args.from_app or OUTPUT / "Flux6.app").resolve()
     verify_bundle(app, arch)
     notices = app / "Contents/Resources/Notices"
     expected_privacy = (ROOT / "apps/macos/Resources/privacy-macos.md").read_bytes() + b"\n\n" + (ROOT / "docs/privacy.md").read_bytes()
@@ -153,9 +153,9 @@ def main():
     if not re.fullmatch(r"[1-9]\d*", build):
         raise RuntimeError("Unexpected build number")
     destination = args.output_dir or OUTPUT / f"{version}-b{build}"
-    filename = f"FreeV6-{version}-b{build}-{arch}.dmg"
-    zip_name = f"FreeV6-{version}-b{build}-{arch}.zip"
-    source_name = f"FreeV6-{version}-b{build}-source.zip"
+    filename = f"Flux6-{version}-b{build}-{arch}.dmg"
+    zip_name = f"Flux6-{version}-b{build}-{arch}.zip"
+    source_name = f"Flux6-{version}-b{build}-source.zip"
     artifact_names = (filename, zip_name, source_name, "SHA256SUMS")
     if any((destination / name).exists() for name in artifact_names):
         raise SystemExit(f"Release output already exists: {destination}")
@@ -169,7 +169,7 @@ def main():
         shutil.copyfile(GUIDE, source / GUIDE.name)
         image = stage / filename
         subprocess.run(["/usr/bin/hdiutil", "create", "-quiet", "-fs", "HFS+", "-format", "UDZO",
-                        "-volname", "FreeV6", "-srcfolder", source, image], check=True)
+                        "-volname", "Flux6", "-srcfolder", source, image], check=True)
         subprocess.run(["/usr/bin/hdiutil", "verify", "-quiet", image], check=True)
         with readonly_volume(image) as volume:
             if os.readlink(volume / "Applications") != "/Applications" or (volume / GUIDE.name).read_bytes() != GUIDE.read_bytes():

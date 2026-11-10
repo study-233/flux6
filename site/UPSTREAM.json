@@ -28,7 +28,7 @@
     }
   },
   "localChanges": [
-    "Replace website brand and product copy with Flux6; preserve current FreeV6 installer names.",
+    "Replace website brand, product copy and installer links with Flux6.",
     "Use repository-owned cat icon and macOS/Android screenshots; omit upstream product imagery.",
     "Limit downloads to released macOS Apple Silicon and Android ARM64 packages; include exact sizes and SHA-256 digests.",
     "Embed verified release data and bilingual changelogs at build time; remove runtime remote metadata requests.",

@@ -3,17 +3,17 @@
   <h1>Flux6</h1>
   <p>教育网 IPv6 免流客户端 · macOS / Android</p>
 
-[下载](https://github.com/study-233/free-v6/releases) · [反馈](https://github.com/study-233/free-v6/issues) · [开发文档](docs/development/README.md)
+[官网](https://study-233.github.io/flux6/) · [下载](https://github.com/study-233/flux6/releases) · [反馈](https://github.com/study-233/flux6/issues) · [开发文档](docs/development/README.md)
 
 </div>
 
-原 FreeV6。当前 0.1.0 安装包与 Homebrew 软件包仍使用 FreeV6 名称。[官网源码与本地预览](site/README.md)。
+[官网源码与本地预览](site/README.md)。
 
 ## 界面
 
 <p align="center">
-  <a href="docs/compose/audits/2026-11-07-p5-p6/visual/offline-1232.png"><img src="docs/compose/audits/2026-11-07-p5-p6/visual/offline-1232.png" alt="FreeV6 macOS 界面" height="360" /></a>
-  <a href="docs/images/android-home.jpg"><img src="docs/images/android-home.jpg" alt="FreeV6 Android 首页实机截图" height="360" /></a>
+  <a href="docs/compose/audits/2026-11-07-p5-p6/visual/offline-1232.png"><img src="docs/compose/audits/2026-11-07-p5-p6/visual/offline-1232.png" alt="Flux6 macOS 界面" height="360" /></a>
+  <a href="docs/images/android-home.jpg"><img src="docs/images/android-home.jpg" alt="Flux6 Android 首页实机截图" height="360" /></a>
 </p>
 
 ## 安装
@@ -24,14 +24,14 @@
 
 ```sh
 brew tap study-233/tap
-brew install --cask study-233/tap/freev6
+brew install --cask study-233/tap/flux6
 ```
 
-也可下载 [DMG 安装包](https://github.com/study-233/free-v6/releases)，将 FreeV6 拖入「应用程序」。
+也可下载 [DMG 安装包](https://github.com/study-233/flux6/releases)，将 Flux6 拖入「应用程序」。
 
 ### Android
 
-下载 [ARM64 APK](https://github.com/study-233/free-v6/releases) 安装。连接支持 IPv6 的 Wi-Fi，按首次引导完成配置后连接。
+下载 [ARM64 APK](https://github.com/study-233/flux6/releases) 安装。连接支持 IPv6 的 Wi-Fi，按首次引导完成配置后连接。
 
 ## 致谢
 
@@ -48,4 +48,4 @@ brew install --cask study-233/tap/freev6
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=study-233/free-v6&type=Date)](https://www.star-history.com/#study-233/free-v6&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=study-233/flux6&type=Date)](https://www.star-history.com/#study-233/flux6&Date)

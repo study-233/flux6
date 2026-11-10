@@ -14,7 +14,7 @@ private final class UpdateAgentProcess: @unchecked Sendable {
     init(host: Bundle) throws {
         var continuation: AsyncThrowingStream<UpdateEvent, Error>.Continuation!
         events = AsyncThrowingStream(bufferingPolicy: .bufferingOldest(16)) { continuation = $0 }
-        let executable = host.bundleURL.appendingPathComponent("Contents/Helpers/FreeV6UpdateAgent.app/Contents/MacOS/freev6-update-agent")
+        let executable = host.bundleURL.appendingPathComponent("Contents/Helpers/Flux6UpdateAgent.app/Contents/MacOS/freev6-update-agent")
         process.executableURL = executable
         process.standardInput = input
         process.standardOutput = output

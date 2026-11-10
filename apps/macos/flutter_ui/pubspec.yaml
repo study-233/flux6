@@ -1,5 +1,5 @@
 name: freev6_flutter_preview
-description: FreeV6 macOS interface preview using FlClash and Prism UI.
+description: Flux6 macOS interface preview using FlClash and Prism UI.
 publish_to: none
 version: 0.1.0+1
 environment:
