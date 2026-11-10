@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,7 +23,24 @@ import (
 	"github.com/yourname/freev6/internal/warp"
 )
 
-const listenAddress = "127.0.0.1:13335"
+const defaultListenAddress = "127.0.0.1:13335"
+
+// listenAddress honours FREEV6_API_PORT — the desktop shell reserves a free
+// port per launch and passes it down, so a leftover helper (or any other
+// program) can never make the new helper fail to bind. Without the variable
+// (manual `go run`, older shell) it falls back to the historical fixed port.
+func listenAddress() string {
+	raw := strings.TrimSpace(os.Getenv("FREEV6_API_PORT"))
+	if raw == "" {
+		return defaultListenAddress
+	}
+	port, err := strconv.Atoi(raw)
+	if err != nil || port <= 0 || port > 65535 {
+		fmt.Fprintf(os.Stderr, "helper: ignoring invalid FREEV6_API_PORT %q\n", raw)
+		return defaultListenAddress
+	}
+	return net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+}
 
 // icsOpTimeout 覆盖 WinRT tethering 异步操作的最坏情况（Stop/Start 各
 // 最多 Wait-Op 60s），正常几百毫秒完成；探测单独给短超时。
@@ -98,11 +117,14 @@ func main() {
 	if apiToken == "" {
 		fmt.Fprintln(os.Stderr, "helper: FREEV6_API_TOKEN is not set; all API requests will be rejected")
 	}
-	server := &http.Server{Addr: listenAddress, Handler: withCORS(guardLocalOnly(requireAuth(apiToken, mux))), ReadHeaderTimeout: 5 * time.Second}
+	addr := listenAddress()
+	server := &http.Server{Addr: addr, Handler: withCORS(guardLocalOnly(requireAuth(apiToken, mux))), ReadHeaderTimeout: 5 * time.Second}
 	// Bind with orphan takeover: killing the desktop via Task Manager leaves
 	// its helper child alive (Windows doesn't cascade-kill), and that orphan
-	// otherwise holds :13335 forever — every relaunch died on the bind error.
-	listener, err := listenOrTakeOver(listenAddress)
+	// otherwise keeps our address busy forever — every relaunch died on the
+	// bind error. The shell now hands out a free port per launch, so this is
+	// the second line of defence rather than the only one.
+	listener, err := listenOrTakeOver(addr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "helper: %v\n", err)
 		os.Exit(1)
@@ -538,7 +560,10 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 	// 残留自愈：走到这里说明端口检查已通过（mihomo 必未在跑）。
 	healLeftoverSnapshot(snapshotPath)
 	snapshotCtx, snapshotCancel := context.WithTimeout(request.Context(), 10*time.Second)
-	snapshot, err := network.CaptureSnapshot(snapshotCtx)
+	// ICS 共享基线只在热点共享开启时需要：跳过它的 COM 枚举能省掉一次
+	// powershell.exe 冷启动（默认关闭热点共享时，启动免流只做一次 GetAdaptersAddresses
+	// 系统调用，不再为用不上的基线 spawn 子进程）。
+	snapshot, err := network.CaptureSnapshot(snapshotCtx, storedForChain.HotspotShare)
 	snapshotCancel()
 	if err != nil {
 		writeJSON(writer, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -699,16 +724,19 @@ func (h *helper) stopProxy(writer http.ResponseWriter, request *http.Request) {
 	defer h.mu.Unlock()
 	pidPath := filepath.Join(h.root, "state", "mihomo.pid")
 	snapshotPath := filepath.Join(h.root, "state", "network-snapshot.json")
-	// 先还原再停进程：ICS/WinRT 还原要在 TUN 适配器仍在时完成（FreeV6TUN
-	// 连接存在才能显式禁用其共享角色）。还原失败时快照保留、mihomo 照常
-	// 停止，下次启动免流前会先按它自愈还原。
+	// 阶段化还原：热点上游（ICS/WinRT）必须在 TUN 适配器仍在时还原——
+	// FreeV6TUN 连接存在才能显式禁用其共享角色。DNS 还原不依赖 TUN，放到
+	// mihomo 退出之后并行执行。这样 mihomo 尽快退出（/status 立刻回到
+	// running=false），慢的 netsh 还原不再挡住"停止"的感知时延。
 	var restoreErr error
 	var restoreSkipped string
+	var snapshotLoaded bool
 	snapshot, err := network.LoadSnapshot(snapshotPath)
 	switch {
 	case err == nil:
+		snapshotLoaded = true
 		ctx, cancel := context.WithTimeout(context.Background(), icsOpTimeout)
-		restoreErr = network.RestoreSnapshot(ctx, snapshot)
+		restoreErr = network.RestoreHotspot(ctx, snapshot)
 		cancel()
 	case errors.Is(err, network.ErrCorruptSnapshot):
 		// 坏文件没有可还原基线：跳过还原，但停止 mihomo 优先——快照问题
@@ -718,12 +746,19 @@ func (h *helper) stopProxy(writer http.ResponseWriter, request *http.Request) {
 	default:
 		restoreSkipped = err.Error()
 	}
-	if restoreErr == nil {
-		_ = os.Remove(snapshotPath)
-	}
+	// 热点还原（若有）完成后立即停 mihomo，再还原 DNS。DNS 与热点独立：
+	// 即使热点还原失败也照做（失败仅告警，不改变 restoreErr 语义）。
 	if stopErr := mihomo.Stop(pidPath); stopErr != nil {
 		writeJSON(writer, http.StatusInternalServerError, map[string]string{"error": stopErr.Error()})
 		return
+	}
+	if snapshotLoaded {
+		dnsCtx, dnsCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		network.RestoreDNS(dnsCtx, snapshot)
+		dnsCancel()
+	}
+	if restoreErr == nil {
+		_ = os.Remove(snapshotPath)
 	}
 	if restoreErr != nil {
 		writeJSON(writer, http.StatusInternalServerError, map[string]string{"error": restoreErr.Error()})

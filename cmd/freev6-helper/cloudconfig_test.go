@@ -255,3 +255,16 @@ func TestStartProxyBlockedWhenCloudLocked(t *testing.T) {
 		t.Fatalf("unlocked start = %d %s, want missing local profile before network preparation", unlocked.Code, unlocked.Body.String())
 	}
 }
+
+// 失败日志落 state/cloud-config.log：弹窗不给地址，排障要能查。
+func TestLogCloudFetchWritesFile(t *testing.T) {
+	h := &helper{root: t.TempDir()}
+	h.logCloudFetch("do: dial failed")
+	data, err := os.ReadFile(filepath.Join(h.root, "state", "cloud-config.log"))
+	if err != nil {
+		t.Fatalf("log file missing: %v", err)
+	}
+	if !strings.Contains(string(data), "do: dial failed") {
+		t.Fatalf("log content = %q", string(data))
+	}
+}
