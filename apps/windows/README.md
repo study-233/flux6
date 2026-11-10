@@ -4,9 +4,13 @@
 
 在 Windows 开发环境，从本目录运行 `cargo tauri dev` 或 `cargo tauri build`。Tauri 的构建钩子调用仓库根 `scripts/windows/build-helper.ps1`，生成 Go sidecar 并准备 GeoSite 数据。完整说明见 [Tauri 工程](src-tauri/README.md) 和 [统一开发指南](../../docs/development/README.md)。
 
-功能/接口清单、数据迁移、实施阶段与验收要求见 [Windows Flutter 重构实施方案](../../docs/development/windows-flutter-refactor.md)。独立 [Flutter 工程](flutter_ui/DEVELOPMENT.md)已开始实现；下列命令仍用于现有 Tauri 客户端。用户后续在 Windows 拉取源码编译验收，验证通过后再切换正式入口并单独删除旧代码。
+功能/接口清单、数据迁移、实施阶段与验收要求见 [Windows Flutter 重构实施方案](../../docs/development/windows-flutter-refactor.md)。独立 [Flutter 工程](flutter_ui/DEVELOPMENT.md)已具备预览、真实宿主和候选打包源码；下列命令仍用于现有 Tauri 客户端。用户后续在 Windows 拉取源码编译验收，验证通过后再切换正式入口并单独删除旧代码。
 
-## 本地验证与发布
+## Flutter 候选验证
+
+准备 Flutter 3.47.6、Visual Studio C++ 桌面开发、Go、Python 和 NSIS，执行 `scripts/windows/check-flutter.ps1` 与 `scripts/windows/build-flutter.ps1`。详细命令、旧版数据迁移和原生待验项目见 [Windows 验收手册](../../docs/development/windows-flutter-acceptance.md)。新客户端构建不依赖 Rust。
+
+## 现有 Tauri 本地验证与发布
 
 Windows 的 Rust 编译、Go 平台测试与 NSIS 安装包构建在本地 Windows 主机执行，远端只做通用轻量检查。从仓库根目录运行：
 

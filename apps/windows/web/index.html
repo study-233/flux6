@@ -368,6 +368,15 @@
               <button class="glass-switch" id="hotspotShareSwitch" role="switch" aria-checked="false" aria-label="共享移动热点"><span class="gs-handle"></span></button>
             </div>
             <md-divider></md-divider>
+            <div class="setting-item">
+              <div class="setting-text">
+                <div class="setting-label">界面偏好备份</div>
+                <div class="setting-desc">迁移主题、壁纸、公告和流量历史到新版</div>
+                <div id="exportPreferencesStatus" role="status"></div>
+              </div>
+              <md-outlined-button id="exportPreferencesButton">导出 JSON</md-outlined-button>
+            </div>
+            <md-divider></md-divider>
             <div class="setting-item clickable" id="resetSettingsItem">
               <div class="setting-icon">
                 <md-icon>autorenew</md-icon>
@@ -779,6 +788,7 @@
   </div>
 
   <script src="app.js"></script>
+  <script type="module" src="preferences-export.mjs"></script>
   <script src="halloween.js"></script>
 </body>
 </html>

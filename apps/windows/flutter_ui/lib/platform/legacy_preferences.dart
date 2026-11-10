@@ -2,8 +2,9 @@ import 'dart:convert';
 
 /// The export contains UI preferences only, never helper credentials.
 class LegacyPreferences {
-  LegacyPreferences._(this.values);
+  LegacyPreferences._(this.values, this.version);
   final Map<String, String> values;
+  final int version;
   static const maxBytes = 6 * 1024 * 1024;
   static const keys = {
     'freev6-theme',
@@ -19,6 +20,7 @@ class LegacyPreferences {
     'freev6-halloween-force',
     'freev6-halloween-greeted',
   };
+  static const modernKeys = {...keys, 'reduce-motion'};
 
   factory LegacyPreferences.decode(String text) {
     if (text.length > maxBytes || utf8.encode(text).length > maxBytes) {
@@ -27,13 +29,15 @@ class LegacyPreferences {
     final raw = jsonDecode(text);
     if (raw is! Map ||
         raw['format'] != 'freev6-ui-preferences' ||
-        raw['version'] != 1 ||
+        ![1, 2].contains(raw['version']) ||
         raw['values'] is! Map) {
       throw const FormatException('无法识别界面备份格式');
     }
     final values = <String, String>{};
+    final version = raw['version'] as int;
+    final allowedKeys = version == 1 ? keys : modernKeys;
     for (final entry in (raw['values'] as Map).entries) {
-      if (!keys.contains(entry.key) || entry.value is! String) {
+      if (!allowedKeys.contains(entry.key) || entry.value is! String) {
         throw const FormatException('界面备份包含未知字段');
       }
       values[entry.key as String] = entry.value as String;
@@ -52,6 +56,7 @@ class LegacyPreferences {
       'freev6-webgl-glass',
       'freev6-guide-done',
       'freev6-halloween-force',
+      'reduce-motion',
     ]) {
       choice(key, {'0', '1'});
     }
@@ -90,12 +95,12 @@ class LegacyPreferences {
         counters(month.value);
       }
     }
-    return LegacyPreferences._(Map.unmodifiable(values));
+    return LegacyPreferences._(Map.unmodifiable(values), version);
   }
 
   String encode() => jsonEncode({
     'format': 'freev6-ui-preferences',
-    'version': 1,
+    'version': version,
     'values': values,
   });
 }

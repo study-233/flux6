@@ -1,1 +1,4 @@
 *.bat text eol=crlf
+
+# Pinned Flutter source hashes must be identical on Windows and macOS.
+apps/windows/flutter_ui/** text=auto eol=lf

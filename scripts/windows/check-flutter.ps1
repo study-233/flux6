@@ -17,10 +17,10 @@ try {
     Invoke-Flutter analyze --no-pub
     Invoke-Flutter test --no-pub
     if (-not $SkipBuild) {
-        Invoke-Flutter build windows --release --no-pub --build-name=$releaseVersion --build-number=0
-        $exe = Join-Path (Get-Location) 'build/windows/x64/runner/Release/freev6-windows-preview.exe'
+        Invoke-Flutter build windows --release --no-pub --flavor preview --target lib/main.dart --build-name=$releaseVersion --build-number=0
+        $exe = Join-Path (Get-Location) 'build/windows/x64/preview/runner/Release/freev6-windows-preview.exe'
         if (-not (Test-Path $exe)) { throw 'Preview executable missing' }
-        $probe = Start-Process -FilePath $exe -ArgumentList '--host-probe' -PassThru
+        $probe = Start-Process -FilePath $exe -ArgumentList '--host-probe' -WorkingDirectory (Split-Path $exe) -PassThru
         if (-not $probe.WaitForExit(30000)) {
             # Only this test-owned process is terminated; never search by name.
             $probe.Kill()

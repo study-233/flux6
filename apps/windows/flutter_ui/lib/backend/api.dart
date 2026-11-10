@@ -123,6 +123,7 @@ class HelperApi {
   final Transport transport;
   final Future<HelperCredentials> Function() credentials;
   HelperCredentials? _cached;
+  void resetCredentials() => _cached = null;
   Future<JsonMap> call(
     String path, {
     String method = 'GET',

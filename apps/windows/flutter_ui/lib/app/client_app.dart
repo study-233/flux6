@@ -62,6 +62,7 @@ class _ClientWindowState extends State<ClientWindow> {
   int page = 0;
   bool? expanded;
   final scroll = ScrollController();
+  final windowFocus = FocusNode(debugLabel: 'FreeV6 navigation');
   StreamSubscription<String>? subscription;
   bool exitDialog = false;
   @override
@@ -87,6 +88,18 @@ class _ClientWindowState extends State<ClientWindow> {
           '连接校园网后，在仪表盘启动连接。首次使用会准备 WARP；缺少运行核心时，请在设置中下载。\n\n关闭窗口会保留在系统托盘，退出时会先停止连接。原 Windows 界面偏好可在设置中导入备份。',
         ),
         actions: [
+          TextButton(
+            onPressed: () => widget.model.act('external.open', {
+              'url': 'https://github.com/study-233/free-v6/blob/main/docs/agreement.md',
+            }),
+            child: const Text('用户协议'),
+          ),
+          TextButton(
+            onPressed: () => widget.model.act('external.open', {
+              'url': 'https://github.com/study-233/free-v6/blob/main/docs/privacy.md',
+            }),
+            child: const Text('隐私政策'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(dialog),
             child: const Text('开始使用'),
@@ -118,12 +131,13 @@ class _ClientWindowState extends State<ClientWindow> {
   @override
   void dispose() {
     scroll.dispose();
+    windowFocus.dispose();
     subscription?.cancel();
     super.dispose();
   }
 
   void navigate(int next) {
-    FocusManager.instance.primaryFocus?.unfocus();
+    windowFocus.requestFocus();
     setState(() => page = next);
   }
 
@@ -157,6 +171,7 @@ class _ClientWindowState extends State<ClientWindow> {
                 settings,
           },
           child: Focus(
+            focusNode: windowFocus,
             autofocus: true,
             child: LayoutBuilder(
               builder: (context, room) {
@@ -227,8 +242,12 @@ class _ClientWindowState extends State<ClientWindow> {
                                 IconButton(
                                   tooltip: '公告',
                                   onPressed: () => showNotices(context, model),
-                                  icon: const Icon(
-                                    Icons.notifications_none_rounded,
+                                  icon: Badge(
+                                    isLabelVisible: model.unreadNotices > 0,
+                                    label: Text('${model.unreadNotices}'),
+                                    child: const Icon(
+                                      Icons.notifications_none_rounded,
+                                    ),
                                   ),
                                 ),
                                 IconButton(

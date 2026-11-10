@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../dashboard_model.dart';
 
 typedef JsonMap = Map<String, dynamic>;
@@ -15,6 +17,17 @@ abstract class ClientModel extends DashboardModel {
   JsonMap get coreDownload;
   JsonMap get update;
   List<JsonMap> get notices;
+  Set<String> get readNoticeIds {
+    try {
+      final value = jsonDecode(preference('freev6-notice-read', '[]'));
+      return value is List ? value.whereType<String>().toSet() : {};
+    } on FormatException {
+      return {};
+    }
+  }
+
+  int get unreadNotices =>
+      notices.where((n) => !readNoticeIds.contains(n['id']?.toString())).length;
   String get proxyTab;
   bool pending(String action);
   bool setting(String field) => settings[field] == true;

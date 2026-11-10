@@ -71,7 +71,9 @@ class LiveModel extends ClientModel {
   bool _nodesPolling = false, _trafficPolling = false, _writing = false;
   bool _exclusive = false;
   Future<void>? _registration;
+  Future<void> _preferenceWrites = Future.value();
   int _settingsGen = 0, _runGen = 0, _nodeGen = 0, _autoGen = 0;
+  int _resourceGen = 0;
   int _lastUp = 0, _lastDown = 0;
   DateTime? _started, _sampleTime;
   JsonMap _stats = {
@@ -206,6 +208,11 @@ class LiveModel extends ClientModel {
     try {
       await host.call('hotkey', {'enabled': setting('hotkeyEnabled')});
     } catch (e) {
+      try {
+        await _saveSettings({'hotkeyEnabled': false});
+      } catch (_) {
+        _log('F6 未注册，且无法保存关闭状态', warning: true);
+      }
       _failure(e);
     }
     await _appearance();
@@ -214,7 +221,7 @@ class LiveModel extends ClientModel {
         _online = false;
         _knownStopped = false;
         _setRunning(false);
-        _failure('本地组件已退出。请退出后重新打开 FreeV6；若此前已连接，请先检查网络恢复状态。');
+        _failure('本地组件已退出。可点击刷新重试；若此前已连接，请检查网络恢复状态。');
       }
       if (event == 'appearanceChanged') unawaited(_appearance());
     });
@@ -244,6 +251,7 @@ class LiveModel extends ClientModel {
         ),
       );
       unawaited(_startup());
+      unawaited(_checkUpdate(automatic: true));
     }
     _log('本地组件已连接');
   }
@@ -251,14 +259,18 @@ class LiveModel extends ClientModel {
   Future<void> refreshStatus({bool strict = false}) async {
     if (_statusPolling || _disposed) return;
     _statusPolling = true;
-    final settingsGen = _settingsGen, runGen = _runGen;
+    final settingsGen = _settingsGen,
+        runGen = _runGen,
+        resources = _resourceGen;
     try {
       final status = await helper.call('/status');
       if (_disposed) return;
       _online = true;
       if (runGen == _runGen && !_busy)
         _secret = status['controllerSecret']?.toString() ?? _secret;
-      runtime['warpRegistered'] = object(status['warp'])['registered'] == true;
+      if (resources == _resourceGen && _registration == null)
+        runtime['warpRegistered'] =
+            object(status['warp'])['registered'] == true;
       runtime['admin'] = status['admin'];
       runtime['hotspot'] = status['hotspot'];
       if (settingsGen == _settingsGen && !_writing) {
@@ -285,6 +297,7 @@ class LiveModel extends ClientModel {
   }
 
   Future<void> refreshResources() async {
+    final generation = ++_resourceGen;
     for (final pair in [
       ('/runtime', runtime),
       ('/chain-proxy', chain),
@@ -292,8 +305,9 @@ class LiveModel extends ClientModel {
       ('/cloud-config', cloud),
     ]) {
       try {
+        if (_disposed || generation != _resourceGen) return;
         final value = await helper.call(pair.$1);
-        if (_disposed) return;
+        if (_disposed || generation != _resourceGen) return;
         pair.$2.addAll(value);
         if (pair.$1 == '/notice') {
           notices
@@ -301,6 +315,7 @@ class LiveModel extends ClientModel {
             ..addAll((value['notices'] as List? ?? []).map(object));
         }
       } catch (e) {
+        if (_disposed || generation != _resourceGen) return;
         _log('读取${pair.$1}失败：$e', warning: true);
       }
     }
@@ -369,7 +384,9 @@ class LiveModel extends ClientModel {
           ? 1.0
           : math.max(.001, now.difference(_sampleTime!).inMilliseconds / 1000);
       final du = _lastUp > 0 ? math.max(0, up - _lastUp) : 0;
-      final dd = _lastDown > 0 ? math.max(0, down - _lastDown) : 0;
+      // Keep the legacy accounting baseline: both counters start after an
+      // upload sample, rather than silently changing migrated usage totals.
+      final dd = _lastUp > 0 ? math.max(0, down - _lastDown) : 0;
       _lastUp = up;
       _lastDown = down;
       _sampleTime = now;
@@ -400,10 +417,28 @@ class LiveModel extends ClientModel {
     }
   }
 
-  Future<void> _flush() async {
-    preferences['freev6-traffic-stats'] = jsonEncode(_stats);
-    await store.save(preferences);
+  Future<void> _savePreferences(
+    Map<String, String> Function(Map<String, String>) change, {
+    bool loadStats = false,
+  }) {
+    final operation = _preferenceWrites.catchError((Object _) {}).then((
+      _,
+    ) async {
+      final next = change(Map.of(preferences));
+      await store.save(next);
+      preferences
+        ..clear()
+        ..addAll(next);
+      if (loadStats) _readStats();
+      _notify();
+    });
+    _preferenceWrites = operation;
+    return operation;
   }
+
+  Future<void> _flush() => _savePreferences(
+    (current) => {...current, 'freev6-traffic-stats': jsonEncode(_stats)},
+  );
 
   Future<void> _flushSafely() async {
     try {
@@ -413,13 +448,32 @@ class LiveModel extends ClientModel {
     }
   }
 
-  Future<void> _preference(String key, String value) async {
-    final next = {...preferences, key: value};
-    await store.save(next);
-    preferences
-      ..clear()
-      ..addAll(next);
-    _notify();
+  Future<void> _preference(String key, String value) =>
+      _savePreferences((current) => {...current, key: value});
+
+  Future<void> _checkUpdate({bool automatic = false}) async {
+    try {
+      final info = await helper.call(
+        '/update/latest',
+        timeout: const Duration(seconds: 60),
+      );
+      if (_disposed) return;
+      if (info['error'] != null) throw ApiFailure(info['error'].toString());
+      update
+        ..clear()
+        ..addAll(info)
+        ..['available'] =
+            info['update'] == true &&
+            compareVersions(info['version']?.toString() ?? '', version) > 0 &&
+            (!automatic ||
+                preference('freev6-skip-version') != info['version']);
+      if (automatic && update['available'] == true)
+        _message = '发现新版本 ${info['version']}，可在设置中查看并更新';
+      _notify();
+    } catch (e) {
+      if (!automatic) rethrow;
+      _log('自动检查更新暂不可用', warning: true);
+    }
   }
 
   Future<void> _appearance() async {
@@ -555,15 +609,21 @@ class LiveModel extends ClientModel {
     () => _registration = null,
   );
   Future<void> _registerOnce() async {
-    final value = await helper.call(
-      '/warp/register',
-      method: 'POST',
-      body: {'name': 'freev6-windows'},
-      timeout: const Duration(seconds: 60),
-    );
-    runtime['warpRegistered'] = value['registered'] == true;
-    if (runtime['warpRegistered'] != true) throw const ApiFailure('WARP 注册未完成');
-    _log('WARP 注册已完成');
+    _resourceGen++;
+    try {
+      final value = await helper.call(
+        '/warp/register',
+        method: 'POST',
+        body: {'name': 'freev6-windows'},
+        timeout: const Duration(seconds: 60),
+      );
+      runtime['warpRegistered'] = value['registered'] == true;
+      if (runtime['warpRegistered'] != true)
+        throw const ApiFailure('WARP 注册未完成');
+      _log('WARP 注册已完成');
+    } finally {
+      _resourceGen++;
+    }
   }
 
   Future<void> _startup() async {
@@ -734,11 +794,19 @@ class LiveModel extends ClientModel {
       return false;
     }
     if (_disposed || !_pending.add(action)) return false;
-    if (exclusive) _exclusive = true;
+    if (exclusive) {
+      _exclusive = true;
+      _resourceGen++;
+    }
     _notify();
     try {
       switch (action) {
         case 'refresh':
+          if (!_online) {
+            helper.resetCredentials();
+            await host.call('bootstrap');
+            await pause(const Duration(milliseconds: 300));
+          }
           await refreshStatus(strict: true);
           await refreshResources();
           await refreshNodes();
@@ -827,16 +895,14 @@ class LiveModel extends ClientModel {
           final imported = LegacyPreferences.decode(
             await _readFile(path, LegacyPreferences.maxBytes),
           );
-          final next = {
-            ...preferences,
-            ...imported.values,
-            'legacy-imported': '1',
-          };
-          await store.save(next);
-          preferences
-            ..clear()
-            ..addAll(next);
-          _readStats();
+          await _savePreferences(
+            (current) => {
+              ...current,
+              ...imported.values,
+              'legacy-imported': '1',
+            },
+            loadStats: true,
+          );
           await _appearance();
           _log('界面备份已导入');
         case 'preferences.export':
@@ -845,10 +911,10 @@ class LiveModel extends ClientModel {
           if (path == null) return false;
           final content = jsonEncode({
             'format': 'freev6-ui-preferences',
-            'version': 1,
+            'version': 2,
             'values': {
               for (final entry in preferences.entries)
-                if (LegacyPreferences.keys.contains(entry.key))
+                if (LegacyPreferences.modernKeys.contains(entry.key))
                   entry.key: entry.value,
             },
           });
@@ -880,35 +946,25 @@ class LiveModel extends ClientModel {
           );
           await _preference('freev6-bg-mode', 'wallpaper');
         case 'wallpaper.clear':
-          final next = {...preferences}..remove('freev6-wallpaper');
-          next['freev6-bg-mode'] = 'default';
-          await store.save(next);
-          preferences
-            ..clear()
-            ..addAll(next);
+          await _savePreferences(
+            (current) => current
+              ..remove('freev6-wallpaper')
+              ..['freev6-bg-mode'] = 'default',
+          );
+          await _appearance();
         case 'notice.read':
+          final ids = {
+            ...readNoticeIds,
+            ...notices
+                .map((n) => n['id']?.toString() ?? '')
+                .where((id) => id.isNotEmpty),
+          }.toList();
           await _preference(
             'freev6-notice-read',
-            jsonEncode(
-              notices
-                  .map((n) => n['id']?.toString() ?? '')
-                  .where((id) => id.isNotEmpty)
-                  .take(50)
-                  .toList(),
-            ),
+            jsonEncode(ids.skip(math.max(0, ids.length - 50)).toList()),
           );
         case 'update.check':
-          final info = await helper.call(
-            '/update/latest',
-            timeout: const Duration(seconds: 60),
-          );
-          if (info['error'] != null) throw ApiFailure(info['error'].toString());
-          update
-            ..clear()
-            ..addAll(info)
-            ..['available'] =
-                info['update'] == true &&
-                compareVersions(info['version']?.toString() ?? '', version) > 0;
+          await _checkUpdate();
         case 'update.skip':
           await _preference(
             'freev6-skip-version',
@@ -948,7 +1004,10 @@ class LiveModel extends ClientModel {
       return false;
     } finally {
       _pending.remove(action);
-      if (exclusive) _exclusive = false;
+      if (exclusive) {
+        _exclusive = false;
+        _resourceGen++;
+      }
       _notify();
     }
   }

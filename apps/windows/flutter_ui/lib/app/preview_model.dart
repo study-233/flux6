@@ -164,6 +164,7 @@ class PreviewModel extends ClientModel {
   @override
   bool measuring(String node) => _measuring.contains(node);
   void _log(String message) {
+    if (_disposed) return;
     _logs.insert(0, PreviewLog(DateTime.now(), message));
     if (_logs.length > 100) _logs.removeLast();
     notifyListeners();

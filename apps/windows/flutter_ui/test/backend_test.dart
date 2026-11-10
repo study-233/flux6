@@ -7,6 +7,7 @@ import 'package:freev6_windows/app/live_model.dart';
 import 'package:freev6_windows/backend/api.dart';
 import 'package:freev6_windows/platform/preferences_store.dart';
 import 'package:freev6_windows/platform/windows_host.dart';
+import 'package:freev6_windows/features/window_background.dart';
 
 class Request {
   Request(this.method, this.uri, this.headers, this.body);
@@ -118,6 +119,7 @@ class FixtureHost extends DesktopHost {
   final calls = <String>[];
   final stream = StreamController<String>.broadcast();
   bool hotkeyFails = false;
+  String? selectedFile;
   @override
   Stream<String> get events => stream.stream;
   @override
@@ -126,6 +128,7 @@ class FixtureHost extends DesktopHost {
     Map<String, dynamic> args = const {},
   ]) async {
     calls.add('$method:${args['enabled'] ?? ''}');
+    if (method == 'file.pick') return selectedFile;
     if (method == 'hotkey' && args['enabled'] == true && hotkeyFails)
       throw const ApiFailure('F6 occupied');
     return null;
@@ -353,5 +356,128 @@ void main() {
     expect(await store.load(), {'theme': 'light'});
     await store.save({'theme': 'system'});
     expect(await store.load(), {'theme': 'system'});
+    await file.delete();
+    expect(await store.load(), {'theme': 'light'});
+  });
+  test('missing core and non-campus IPv6 prevent proxy start', () async {
+    final (model, wire, _) = await fixture();
+    model.runtime['present'] = false;
+    await model.toggleConnection();
+    expect(
+      wire.requests.any((r) => r.uri.path.endsWith('/proxy/start')),
+      false,
+    );
+    model.runtime['present'] = true;
+    await model.act('settings.save', {'devMode': false});
+    wire.intercept = (r) async => r.uri.host == 'api-ipv6.ip.sb'
+        ? const WireReply(200, '2001:db8::1')
+        : wire.response(r);
+    await model.toggleConnection();
+    expect(model.connected, false);
+    expect(
+      wire.requests.any((r) => r.uri.path.endsWith('/proxy/start')),
+      false,
+    );
+    wire.intercept = (r) async => r.uri.host == 'api-ipv6.ip.sb'
+        ? const WireReply(200, '2001:da8::1')
+        : wire.response(r);
+    await model.toggleConnection();
+    expect(model.connected, true);
+  });
+  test('repeated migration replaces counters and rejects unknown fields without changing preferences', () async {
+    final (model, _, host) = await fixture();
+    final directory = await Directory.systemTemp.createTemp(
+      'freev6-import-test-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/fixture.json');
+    host.selectedFile = file.path;
+    await file.writeAsString(
+      jsonEncode({
+        'format': 'freev6-ui-preferences',
+        'version': 1,
+        'values': {
+          'freev6-theme': 'dark',
+          'freev6-traffic-stats': jsonEncode({
+            'total': {'up': 100, 'down': 200},
+            'months': {},
+          }),
+        },
+      }),
+    );
+    expect(await model.act('preferences.import'), true);
+    expect(await model.act('preferences.import'), true);
+    model.setMonthly(false);
+    expect(model.usageUpload, 100);
+    expect(model.usageDownload, 200);
+    final previous = Map.of(model.preferences);
+    await file.writeAsString(
+      jsonEncode({
+        'format': 'freev6-ui-preferences',
+        'version': 1,
+        'values': {'token': 'synthetic'},
+      }),
+    );
+    expect(await model.act('preferences.import'), false);
+    expect(model.preferences, previous);
+  });
+  test(
+    'concurrent preference actions merge after earlier durable writes',
+    () async {
+      final (model, _, _) = await fixture();
+      await Future.wait([
+        model.act('preferences.set', {'key': 'freev6-theme', 'value': 'dark'}),
+        model.act('notice.read'),
+        model.act('wallpaper.clear'),
+      ]);
+      expect(model.preferences['freev6-theme'], 'dark');
+      expect(model.preferences['freev6-notice-read'], '[]');
+      expect(model.preferences['freev6-bg-mode'], 'default');
+    },
+  );
+  test('seasonal activation and greeting keys use the supplied local date', () {
+    expect(halloweenEnabled(DateTime(2026, 10, 31), ''), true);
+    expect(halloweenEnabled(DateTime(2026, 11, 1), ''), false);
+    expect(halloweenEnabled(DateTime(2026, 11, 1), '1'), true);
+    expect(halloweenDateKey(DateTime(2026, 10, 31)), '2026-10-31');
+  });
+  test(
+    'late resource refresh cannot restore a cleared configuration',
+    () async {
+      final (model, wire, _) = await fixture();
+      final entered = Completer<void>(), late = Completer<WireReply>();
+      var reads = 0;
+      wire.intercept = (r) {
+        if (r.uri.path == '/api/v1/chain-proxy' &&
+            r.method == 'GET' &&
+            ++reads == 1) {
+          entered.complete();
+          return late.future;
+        }
+        return wire.response(r);
+      };
+      final refresh = model.refreshResources();
+      await entered.future;
+      expect(await model.act('chain.clear'), true);
+      late.complete(const WireReply(200, '{"count":99}'));
+      await refresh;
+      expect(model.chain['count'] ?? 0, 0);
+    },
+  );
+  test('late status cannot undo a completed credential registration', () async {
+    final (model, wire, _) = await fixture();
+    final stale = Completer<WireReply>();
+    wire.intercept = (r) =>
+        r.uri.path.endsWith('/status') ? stale.future : wire.response(r);
+    final poll = model.refreshStatus();
+    expect(await model.act('warp.register'), true);
+    stale.complete(
+      const WireReply(
+        200,
+        '{"warp":{"registered":false},"proxy":{"running":false}}',
+      ),
+    );
+    await poll;
+    expect(model.runtime['warpRegistered'], true);
   });
 }

@@ -440,6 +440,12 @@ Future<void> showNotices(BuildContext context, ClientModel m) async {
                             SelectableText(
                               '${item['body'] ?? item['content'] ?? ''}',
                             ),
+                            if (item['link'] case final String link)
+                              TextButton(
+                                onPressed: () =>
+                                    m.act('external.open', {'url': link}),
+                                child: Text('${item['linkText'] ?? '查看详情'}'),
+                              ),
                           ],
                         ),
                       ),

@@ -16,3 +16,9 @@ test('exports only the allowlist, including traffic and wallpaper', () => {
 test('storage read failures propagate instead of exporting an empty backup', () => {
   assert.throws(() => exportPreferences({ getItem() { throw Error('storage locked'); } }), /storage locked/);
 });
+
+test('standalone export rejects oversized backups and never initializes the app', async () => {
+  const { backupText } = await import('../../apps/windows/web/preferences-export.mjs');
+  assert.equal(JSON.parse(backupText({getItem: () => null})).format, 'freev6-ui-preferences');
+  assert.throws(() => backupText({getItem: key => key === 'freev6-wallpaper' ? 'x'.repeat(7 * 1024 * 1024) : null}), /6 MiB/);
+});

@@ -14,6 +14,22 @@ void main() {
     'values': values,
   });
 
+  test(
+    'modern backup preserves reduced motion and legacy version stays strict',
+    () {
+      final modern = LegacyPreferences.decode(
+        '{"format":"freev6-ui-preferences","version":2,"values":{"reduce-motion":"1"}}',
+      );
+      expect(modern.values['reduce-motion'], '1');
+      expect(LegacyPreferences.decode(modern.encode()).version, 2);
+      expect(
+        () => LegacyPreferences.decode(
+          '{"format":"freev6-ui-preferences","version":1,"values":{"reduce-motion":"1"}}',
+        ),
+        throwsFormatException,
+      );
+    },
+  );
   test('legacy traffic, appearance and read markers survive round trip', () {
     final source = backup({
       'freev6-theme': 'dark',

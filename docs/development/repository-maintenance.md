@@ -169,3 +169,27 @@ W1 源码及本机检查完成，Windows C++ 编译、桥接探针、旧安装�
 新增 `live` flavor 及独立入口：C++ 宿主保留 `freev6-desktop.exe`、生产单实例 mutex、安装根路径、管理员 manifest、StartupApproved 门禁、静默启动、托盘和 F6。helper 使用每次启动随机 token、动态端口和私有环境块；只管理自身创建的子进程。退出/更新等待 helper 确认停止，更新再次校验固定缓存路径及 SHA256。默认演示入口和 `--host-probe` 不启动 helper。
 
 Flutter analyze 与 23 项离线测试通过，包括两种凭据隔离、401 端口/token 刷新、设置保留/回滚、过期状态/节点/测速响应、6 路并发、失败停止阻止退出/更新、备份恢复及页面布局。Windows C++、DWM 背景回退、F6/托盘、管理员启动、安装器执行、真实网络和系统恢复仍待用户原生验证。本机没有运行 helper 或改动网络，也没有修改共享 Go 业务。
+
+## Windows Flutter W4 迁移、打包与源码交付
+
+新增旧 WebView 的独立 JSON 导出入口与复制兜底，只读取允许的 UI 偏好，不初始化另一套应用或访问 helper token。Flutter 接受旧 v1 备份及包含减少动态效果的 v2 备份，重复导入覆盖指定值、不累加流量。界面偏好写入串行化，损坏或缺失主文件时可恢复有效 `.bak`。已发布的旧二进制没有新增导出按钮时，仍需最后一版带导出入口的 Tauri 构建；没有宣称自动解析 WebView profile 或已完成实机迁移。
+
+新增 Windows x64 构建脚本、独立 NSIS 安装器、只读进程占用检查、按本安装路径撤销自启、精确卸载文件清单，以及构建前后源码摘要一致性检查、许可证/Flutter notices/对应源码 ZIP/SHA256SUMS。默认保留 config/state/runtime 和旧 WebView；安装/卸载不会强杀代理。沿用客户端/helper 文件名、HKCU 卸载项及既有安装路径，系统范围旧安装明确停止迁移，留待实机确认。正式版本源和 Tauri 构建入口保留，未执行 W5 或发布候选。
+
+收尾修复包含连续 Ctrl+数字切页的焦点保持、资源刷新/重新注册的过期状态保护、旧流量统计基线、公告链接与未读标记、启动失败后的组件重连、原生资源绝对路径，以及 Flutter 3.47.6 flavor 实际产物目录。视觉回归增加页面内容断言，确认抓到的是各自页面，而非仅检查未溢出。
+
+最终本机验证：
+
+| 检查 | 结果 |
+| --- | --- |
+| Flutter | analyze 无问题，30 项离线 Dart/界面回归通过 |
+| 视觉 | 1280×800 明亮、720×600 深色且 1.3 文本缩放，全部页面与设置截图检查；截图保存在 `build/windows-flutter-visual/` |
+| 旧 Windows Web | 4 项原接口测试 + 3 项偏好导出测试通过；127 个 JS 文件与 45 个图标检查通过 |
+| 源码打包 | 2 项合成夹具测试通过：允许清单、许可/源码归档及构建后源码变化阻断；不运行夹具二进制 |
+| 固定来源 | 209 个来源文件、4 项已登记视觉适配摘要通过；固定源码采用 LF，避免 Windows checkout 换行影响校验 |
+| Go helper | `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -buildvcs=false` 成功，产物确认为 Windows x86-64 PE；未执行该二进制 |
+| 仓库 | 7 项维护测试、结构/文档/版本检查与 Git 差异空白检查通过 |
+
+Windows C++ 编译/宿主探针、PowerShell/NSIS 执行、UAC/托盘/F6/DWM、旧安装/升级/卸载、实际偏好迁移、下载更新和真实校园网络仍待用户在 Windows 验证。Mac 没有 Windows 原生工具链，未把源码审查、Dart mock 或 Go 交叉编译计为这些测试通过。未改共享 Go、Mac、Android 源码，未启动真实 helper/代理，未停止用户进程。用户自己的 `output/` 品牌产物未修改或纳入提交。
+
+交付步骤见 [Windows Flutter 验收手册](windows-flutter-acceptance.md)。本轮仅本地提交；按用户安排由用户随后推送 GitHub、在 Windows 拉取编译。W1–W4 源码与本机检查已完成，W5 正式切换和旧代码删除等待原生验收。

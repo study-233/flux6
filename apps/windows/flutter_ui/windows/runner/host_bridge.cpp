@@ -346,13 +346,18 @@ void HostBridge::PollHelper() {
       std::filesystem::create_directories(state,error);
       const auto log=state/L"helper.log";
       std::ifstream previous(log,std::ios::binary);
+      if (previous) {
+        previous.seekg(0,std::ios::end);
+        const auto size=previous.tellg();
+        previous.seekg(size > std::streamoff(128*1024) ? size-std::streamoff(128*1024) : std::streampos(0));
+      }
       std::string text((std::istreambuf_iterator<char>(previous)),std::istreambuf_iterator<char>());
       previous.close(); text+=chunk;
       if (text.size()>256*1024) text.erase(0,text.size()-128*1024);
       std::ofstream file(log,std::ios::binary|std::ios::trunc); file.write(text.data(),static_cast<std::streamsize>(text.size()));
     }
   }
-  if (helper_ && WaitForSingleObject(helper_,0)!=WAIT_TIMEOUT) { StopHelper(); Event("helperExited"); }
+  if (helper_ && WaitForSingleObject(helper_,0)!=WAIT_TIMEOUT) { StopHelper(); Show(); Event("helperExited"); }
 }
 void HostBridge::StopHelper() {
   if (helper_) {

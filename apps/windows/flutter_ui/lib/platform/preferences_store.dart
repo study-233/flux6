@@ -33,14 +33,20 @@ class FilePreferences extends PreferencesStore {
 
   @override
   Future<Map<String, String>> load() async {
-    if (!await file.exists()) return {};
+    final backup = File('${file.path}.bak');
+    if (!await file.exists()) return await backup.exists() ? _read(backup) : {};
     try {
-      return _decode(await file.readAsString());
+      return await _read(file);
     } on Object {
-      final backup = File('${file.path}.bak');
-      if (await backup.exists()) return _decode(await backup.readAsString());
+      if (await backup.exists()) return _read(backup);
       rethrow;
     }
+  }
+
+  Future<Map<String, String>> _read(File source) async {
+    if (await source.length() > 8 * 1024 * 1024)
+      throw const FormatException('界面偏好文件过大');
+    return _decode(await source.readAsString());
   }
 
   @override
@@ -53,7 +59,7 @@ class FilePreferences extends PreferencesStore {
       if (await file.exists()) {
         // Only preserve a parseable previous generation as recovery data.
         try {
-          _decode(await file.readAsString());
+          await _read(file);
           await file.copy('${file.path}.bak');
         } on FormatException {
           /* keep the last valid backup */
