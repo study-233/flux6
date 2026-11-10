@@ -306,3 +306,14 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 用户明确要求发布新版本，授权范围为此前确认的 macOS、Android 0.1.0 正式包、对应源码、精简 Release 正文、README 实机截图、仓库 About 及独立 Homebrew Tap。保留平台构建号、首发签名和不进行 Apple 公证的决定，不启用应用内更新通道。
 
 远端 main 基线仍为 `6621133`，没有既有 Release 或冲突标签。主分支规则集要求 `checks` 且严格与 main 同步，按任务分支、CI、合并流程交付。再次核对正式产物及对应源码归档，全部摘要与已验收文件一致；构建后仓库仅增加截图与发布文档，应用代码和构建输入的非文档部分保持一致。归档保留构建时文档快照，发布标签包含后续 README 图片及发行记录。
+
+
+## 2026-11-10 0.1.0 正式发布完成
+
+退出修复与首发整理分别提交为 `fb8438e`、`a30142b`，通过 [PR #6](https://github.com/study-233/free-v6/pull/6) 合入 main；PR 与合并提交的 `checks` 均通过。两个附注标签 `macos-v0.1.0-b9`、`android-v0.1.0-b2026111005` 均指向 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf`。
+
+[macOS 0.1.0](https://github.com/study-233/free-v6/releases/tag/macos-v0.1.0-b9) 与 [Android 0.1.0](https://github.com/study-233/free-v6/releases/tag/android-v0.1.0-b2026111005) 已公开，`draft=false`、`prerelease=false`；正文采用用户确认的精简内容，不展示 SHA256。两个 Release 共 8 个安装包、源码包与摘要附件，逐项核对 GitHub 返回的大小及摘要与本地一致后才公开。
+
+已创建公开 [Homebrew Tap](https://github.com/study-233/homebrew-tap)，首个提交 `ce46948` 包含经审核的 Cask、安装说明与许可证；线上 Cask 与本地逐字节一致。匿名下载 DMG 的摘要与 Cask 匹配，Android APK 的匿名下载入口返回 HTTP 200。仓库 About 已更新为正式版描述、下载入口及七个主题，README 包含用户提供的 Android 首页截图。
+
+验证资料保存于 `build/first-public-release/publish/`。本轮没有安装或启动产品、修改系统网络、进行 Apple 公证或启用应用内更新通道。发布后的本次提交仅同步文档结果，不移动发行标签或替换已发布附件。

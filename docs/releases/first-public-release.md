@@ -1,6 +1,6 @@
 # FreeV6 0.1.0 发行清单
 
-用户已于 2026-11-10 授权发布 macOS 与 Android 0.1.0。
+macOS 与 Android 0.1.0 已于 2026-11-10 正式发布，Homebrew Tap 与仓库 About 已同步上线。
 
 [macOS Release](https://github.com/study-233/free-v6/releases/tag/macos-v0.1.0-b9) · [Android Release](https://github.com/study-233/free-v6/releases/tag/android-v0.1.0-b2026111005) · [Homebrew Tap](https://github.com/study-233/homebrew-tap)
 
@@ -15,7 +15,7 @@
 
 ## 版本与交付物
 
-按用户要求，两端首个公开版本统一为 `0.1.0`，平台构建号继续递增；以 [版本脚本](../../scripts/version.py) 的结果为准。当前源码基线为 `6621133`，文档准备分支为 `release/first-public-docs`。
+按用户要求，两端首个公开版本统一为 `0.1.0`，平台构建号继续递增；以 [版本脚本](../../scripts/version.py) 的结果为准。发布标签指向主线提交 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf`；[发布 PR #6](https://github.com/study-233/free-v6/pull/6) 及合并后的主线 CI 均已通过。
 
 | 平台 | 当前版本 | 发布标签 | 公开交付物 |
 | --- | --- | --- | --- |
@@ -26,24 +26,24 @@
 
 正式产物的文件名已去掉 `preview`，Android 七种语言的简介、引导与关于页已清理测试版标识，构建显式使用 `APP_ENV=stable`；Mac 随包安装说明已改为正式版内容。开发专用的隔离预览宿主保留原身份，不进入正式 App。
 
-## 本地验收文件
+## 发行文件
 
-| 文件 | 路径 |
+| 文件 | 下载 |
 | --- | --- |
-| macOS DMG | [FreeV6-0.1.0-b9-arm64.dmg](../../dist/macos/0.1.0-b9/FreeV6-0.1.0-b9-arm64.dmg) |
-| macOS 应用 ZIP | [FreeV6-0.1.0-b9-arm64.zip](../../dist/macos/0.1.0-b9/FreeV6-0.1.0-b9-arm64.zip) |
-| macOS 对应源码 | [FreeV6-0.1.0-b9-source.zip](../../dist/macos/0.1.0-b9/FreeV6-0.1.0-b9-source.zip) |
-| macOS 摘要 | [SHA256SUMS](../../dist/macos/0.1.0-b9/SHA256SUMS) |
-| Android APK | [FreeV6-0.1.0-b2026111005-arm64.apk](../../dist/android/0.1.0-b2026111005/FreeV6-0.1.0-b2026111005-arm64.apk) |
-| Android 对应源码 | [FreeV6-0.1.0-b2026111005-source.tar.gz](../../dist/android/0.1.0-b2026111005/FreeV6-0.1.0-b2026111005-source.tar.gz) |
-| Android 摘要 | [APK-SHA256SUMS](../../dist/android/0.1.0-b2026111005/APK-SHA256SUMS) · [SOURCE-SHA256SUMS](../../dist/android/0.1.0-b2026111005/SOURCE-SHA256SUMS) |
+| macOS DMG | [FreeV6-0.1.0-b9-arm64.dmg](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/FreeV6-0.1.0-b9-arm64.dmg) |
+| macOS 应用 ZIP | [FreeV6-0.1.0-b9-arm64.zip](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/FreeV6-0.1.0-b9-arm64.zip) |
+| macOS 对应源码 | [FreeV6-0.1.0-b9-source.zip](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/FreeV6-0.1.0-b9-source.zip) |
+| macOS 摘要 | [SHA256SUMS](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/SHA256SUMS) |
+| Android APK | [FreeV6-0.1.0-b2026111005-arm64.apk](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/FreeV6-0.1.0-b2026111005-arm64.apk) |
+| Android 对应源码 | [FreeV6-0.1.0-b2026111005-source.tar.gz](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/FreeV6-0.1.0-b2026111005-source.tar.gz) |
+| Android 摘要 | [APK-SHA256SUMS](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/APK-SHA256SUMS) · [SOURCE-SHA256SUMS](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/SOURCE-SHA256SUMS) |
 | Homebrew Cask | [freev6.rb](../../packaging/homebrew/Casks/freev6.rb) |
 
 ## macOS 退出修复
 
 0.1.0 保留此前 build 8 的退出修复：遇到不完整服务安装时，重新检查安装后，若仍报告安装文件不完整且本次客户端未持有网络会话，允许正常退出；持有会话时继续要求网络恢复，升级仍要求安装检查通过。四项隔离回归覆盖异常启动退出、已有会话保护、升级保护与重开后发现会话的恢复。
 
-用户截图所示进程来自 `build/macos-release-runner` 内的 Xcode 中间 App，该包缺少正式打包阶段补入的协议文档与助手。请使用本页链接的完整 DMG；旧验收产物原地保留，当前验收与 Cask 均切换至 `0.1.0 / build 9`。关闭与退出的本轮自动化验证采用隔离测试，没有修改现有系统服务安装或强制停止用户进程。
+用户截图所示进程来自 `build/macos-release-runner` 内的 Xcode 中间 App，该包缺少正式打包阶段补入的协议文档与助手。请使用本页链接的完整 DMG；旧验收产物原地保留，正式 DMG 与 Cask 均为 `0.1.0 / build 9`。关闭与退出的本轮自动化验证采用隔离测试，没有修改现有系统服务安装或强制停止用户进程。
 
 ## 首发签名身份
 
@@ -81,7 +81,7 @@ README 的 Homebrew 命令通过独立 Tap 分发，绑定固定版本的 macOS 
 
 Cask 仅负责安装应用，网络服务由应用原有授权流程管理。通过 Homebrew 更新 Cask 不等于已部署应用内更新通道；后者按 [Mac 更新手册](../../apps/macos/DEVELOPMENT.md#swift-更新助手与发布) 单独配置。
 
-本次 Cask 已通过 Ruby 语法、Homebrew DSL 解析和离线审计；未安装 `homebrew/core`，因此排除了需要该目录的 `token_conflicts` 检查。线上下载、仓库热度及签名公证检查未执行，未运行 `brew install` 或更改用户安装。正式 URL 固定指向 `macos-v0.1.0-b9` 资产，发布时核对在线文件与本地摘要一致。
+Cask 已通过 Ruby 语法、Homebrew DSL 解析和离线审计；未安装 `homebrew/core`，因此排除了需要该目录的 `token_conflicts` 检查。发布后已确认线上 Cask 与本地一致，并匿名下载固定版本 DMG，摘要与 Cask 一致。未运行 `brew install`、签名公证检查或更改用户安装。
 
 ## 仓库 About 文案
 
@@ -96,22 +96,22 @@ Cask 仅负责安装应用，网络服务由应用原有授权流程管理。通
 - [FreeV6 for macOS 0.1.0](macos-v0.1.0.md)
 - [FreeV6 for Android 0.1.0](android-v0.1.0.md)
 
-## 验收与发布顺序
+## 发布与验证结果
 
 | 项目 | 状态 |
 | --- | --- |
 | 首发平台、正式版定位、不公证 | 用户已确认 |
 | 安装验收、Android 真机验证 | 用户确认完成 |
-| README、About、Release 文案 | 已准备，用户已授权发布 |
+| README、About、Release 文案 | 已上线 |
 | Android 真机截图 | 用户已提供，已加入 README |
 | 正式包命名、应用内版本标识、最终构建和校验 | 已完成 |
-| Homebrew Cask 与最终 DMG 绑定 | 已完成；Tap 随版本上线 |
+| Homebrew Cask 与最终 DMG 绑定 | 已完成，Tap 已上线 |
 | 首发新签名及私有备份 | 用户已确认；备份已核验 |
-| GitHub Release、远端标签、About | 用户已明确授权发布 |
+| GitHub Release、远端标签、About | 已发布，两端均为正式版 |
 | 应用内更新通道 | 本次不启用 |
 
 本轮 `0.1.0` 版本调整重新完成两端 Release 构建、Android 静态分析、4 项 macOS 退出回归及 7 项维护测试。此前同一业务源码的 Swift 完整回归为 198 项，179 项通过、19 项因额外夹具条件跳过、0 失败；Android 22 项本地化、动态消息键、FreeV6 业务及引导测试通过，本轮未重复这些未受版本元数据影响的完整测试。Mac DMG 通过只读挂载、拖放副本、签名、架构、最低系统、服务摘要和 ZIP 解压复验；APK 通过签名及包元数据核验，版本正确、仅包含 ARM64 原生库、未启用调试。
 
 Mac 668 个源文件与应用内清单和源码 ZIP 逐项一致；Android 2721 个源文件在构建前后未改变，并与源码包逐项一致。所有发行摘要已重新核算。检查报告保存在本地 `build/first-public-release/verification.json`，日志在同目录；本轮未重新做管理员安装、真实 VPN 或设备联网测试。
 
-发行时先上传并核验固定版本资产，发布两端正式 Release，随后上线 Tap 和首页入口。两端下载均使用各自固定标签，避免 GitHub 的单一 `latest` 入口指向另一平台。启用 Mac 应用内更新时，最后更新签名清单。
+两个 Release 共 8 个附件的远端大小和摘要均与本地一致；DMG 匿名下载校验通过，APK 公开下载入口返回 HTTP 200。两端下载均使用各自固定标签，避免 GitHub 的单一 `latest` 入口指向另一平台。启用 Mac 应用内更新时，最后更新签名清单。
