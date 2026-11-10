@@ -31,6 +31,8 @@ extension type CoreController._(CoreHandlerInterface _interface)
   @visibleForTesting
   CoreController.scoped(this._interface);
 
+  CoreController.adapter(this._interface);
+
   @visibleForTesting
   static void resetInstance() {
     _instance = null;

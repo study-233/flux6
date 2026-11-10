@@ -221,3 +221,139 @@ Mac 设置增加五款选择，通过现有宿主偏好保存，更新 Dock 图�
 唯一未跟踪目录 `output/` 为图标导出与预览副本，现加入忽略列表并原地保留；其中最新五款 SVG、PNG、预览和默认奶牛猫清单均与已跟踪的 `assets/branding/cats/` 逐字节一致，生成脚本也已纳入 `scripts/branding/`。导出 ZIP、旧版预览和构建缓存不重复提交。清理仅针对已经合入主线的任务分支，工作树中的本地构建与验证资料保留。
 
 本次交付不创建正式发行版或切换 Windows 正式构建入口。各平台原生验收边界及 Android 广泛回归的已知失败仍以上述记录为准；推送与主线合并的最终提交、检查结果以 GitHub PR 和 CI 运行记录为准。
+
+## 2026-11-10 Windows 本机离线编译与候选打包
+
+在 Windows 11 25H2 x64（10.0.26200.9711）执行，基线为已合并 PR #5 的 `6621133`，任务分支为 `chore/windows-native-validation`。用户授权补齐工具链、修复本机编译问题、离线测试和打包；真实联网及安装行为不属于本轮执行范围。
+
+工具链保存在忽略目录 `build/toolchains/`：Flutter 3.47.6（官方标签提交 `5fc346839b5d0eef006ed8404392afb4dfae428d`）、Dart 3.13.5、Go 1.27.3、NSIS 3.13；复用 Visual Studio 2022 17.14.8、MSVC 14.44.35207、Windows SDK 10.0.26100.0、Python 3.12.7 和 Node 24.19.0。Go 下载包通过官方 SHA256 校验。Flutter 官方发布索引返回 404 后，改为固定官方 Git 标签安装并准备 Windows 引擎缓存；doctor 的 Windows/Visual Studio 项通过，固定标签的 channel 提示不作为整体 doctor 全通过。
+
+本轮修复与环境处理：
+
+- 固定 Mac vendor 与 Android Prism 来源文件使用 LF，避免 Windows `core.autocrlf` 破坏来源摘要；仓库源码输入检查统一使用 POSIX 相对路径。未修改这些组件的产品源码。
+- 维护测试明确跳过两项依赖 POSIX ownership/mode 的签名迁移检查，以及当前主机无权限创建符号链接的检查，不将跳过计为通过。
+- C++ runner 显式引入 `shellapi.h`；宿主的构建模式判断兼容 MSVC `/W4 /WX`；live 链接器 UAC 参数与 `runner.live.manifest` 的管理员级别一致，解决清单合并失败。
+- 64 位 SDK 注册路径指向缺少 UCRT 的目录，在本任务进程设置 `UCRTContentRoot=C:\Program Files (x86)\Windows Kits\10\`，并删除首次配置失败遗留的 Flutter `CMakeCache.txt` 后恢复构建。未修改系统注册表。
+- Flutter 检查新增 `-Offline`，隐藏启动桥接探针；测试期间临时为回环地址补充 `NO_PROXY` 并在结束后恢复，解决系统代理导致测试套件无法加载的问题。
+- 打包检查排除会调用自启动或 DNS 写入接口的 `TestAutoStartRoundTrip`、`TestRemoveAutoStartIdempotent`、`TestRestoreSnapshotDNSFailureIsNonFatal`，这些项目留待隔离系统验收。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| Flutter 离线分析与回归 | analyze 无问题；30 项测试通过；离线检查时外网代理被阻断，回环夹具正常运行 |
+| Windows 原生 | preview/live x64 Release 编译通过；预览隐藏 Dart/C++ 桥接探针退出码 0；提取成品清单确认 preview 为 `asInvoker`、live 为 `requireAdministrator` |
+| 根 Go 源码 | `./cmd/... ./internal/... ./mobileapi/...` test/vet 通过；189 项顶层测试通过、16 项跳过，另显式排除上述 3 项系统写入测试；依赖已预取，测试时 `GOPROXY=off`、外网代理被阻断 |
+| Go 跳过说明 | 13 项 Mac worker/POSIX 条件、2 项未提供官方外部资源夹具、1 项符号链接权限；不作为 Windows 功能已验证的证据 |
+| 仓库与 Web | 来源/目录/版本/链接检查、209 个固定视觉来源与 4 个补丁摘要、45 个图标、发布来源和 128 个 JS 模块通过；10 项 Web/偏好导出/图标测试通过 |
+| 维护与打包回归 | 维护 4 项通过、3 项跳过；2 项对应源码打包测试通过；PowerShell 语法与差异空白检查通过 |
+| 安装包与源码 | NSIS 3.13 实际编译通过；portable 的 42 个文件与 staging 逐字节一致，625 个源码文件与源码清单及当前工作区摘要一致；三个产物的 SHA256SUMS 校验通过 |
+| 源码重建 | 从源码 ZIP 解压到独立目录，无 Git 元数据，使用缓存离线编译 Go helper 与 live Windows 工程成功；未运行重建后的程序 |
+
+本机可复用 `build/windows-native-validation/environment.ps1` 设置工具与缓存路径。主要验证命令为：
+
+```powershell
+. .\build\windows-native-validation\environment.ps1
+.\scripts\windows\check-flutter.ps1 -Offline
+$env:GOPROXY = 'off'
+.\scripts\windows\build-flutter.ps1 -MakeNsis .\build\toolchains\nsis-3.13\makensis.exe
+```
+
+重复生成本地未发布候选需加 `-Rebuild`，并确认目标目录没有运行数据。完整构建保留全部检查，不使用 `-SkipChecks`。补充本记录后重新执行打包，使分发内的源码摘要与最终记录一致。
+
+产物保存在 `dist/windows/0.5.3-flutter/`：`FreeV6_0.5.3_x64_flutter_setup.exe`、`FreeV6_0.5.3_x64_flutter_portable.zip`、`FreeV6_0.5.3_windows_flutter_source.zip` 与 `SHA256SUMS`。完整命令输出、Go JSON 测试记录、成品清单、包摘要核对和源码重建日志位于 `build/windows-native-validation/`，不纳入 Git。
+
+验收限制：安装包未签名，未发布或切换正式入口；没有启动真实 live 客户端、helper 或代理，没有改动系统网络或停止用户进程。未执行 UAC 交互、托盘/F6/自启动、安装/升级/卸载、真实旧版偏好迁移、真实网络与 DNS/热点恢复；Windows 10、多屏/DPI 亦未覆盖。本机旧版盘点未发现已有安装，不能据此宣称旧安装兼容性已通过。W5 继续等待系统与安装迁移验收。
+
+
+## 2026-11-10 UI 优先验收（首轮视觉方案，已被后续复核取代）
+
+用户要求继续安装与离线系统功能验收后，Windows 管理员启动请求返回取消，未获得可操作的管理员会话；用户也未看到 UAC，且未能从所报 AppData 路径定位入口。未执行安装、替换已安装 helper、创建自启动任务或运行真实客户端。随后用户明确改为先优化 UI，验收后再进入下一步；已撤下安装队列并停用其旧启动入口。
+
+准备的 `scripts/windows/acceptance-desktop.ps1` 仅用于指定窗口操作，预览模式禁止安装/API/自启动操作；`offline-acceptance-gateway.go` 为单独构建的离线测试夹具，使用真实 helper 处理本地读取与设置，阻断代理/WARP/下载等操作，并通过 Windows Job Object 管理自己创建的子进程。夹具的两项测试（含 7 个被阻断路径子项）和 vet 通过，但未将其计作已安装客户端功能验收。该网关不替换产品构建中的 helper。
+
+UI 优化沿用已有 Prism/FlClash 风格、蓝色主色及默认奶牛猫：
+
+- 桌面侧栏加入品牌标识、底部设置与预览状态，展开宽度 188、紧凑宽度 68；小窗口自动收起，展开浮层不会继续挤占内容。
+- 标题栏增加页面说明，首页保留主卡片上的单一连接入口；其他页面保留连接操作，刷新与公告位置一致。
+- 统一 Segoe UI/中文回退字体、20px 卡片圆角、明暗背景层级及表单/按钮样式；保留动态取色、纯黑和原有功能行为。
+- 设置按通用、外观、接入、数据、关于分类，常用操作不必滚动穿过整页；补齐日志空状态说明。
+- 品牌图复用仓库 `assets/branding/128x128.png`，固定视觉源码的两处适配更新到 `WINDOWS-PATCHES.json`，第三方来源和许可证保留。
+
+验证：Flutter analyze 无问题，32 项离线回归通过；新增覆盖窗口收窄后的侧栏/浮层导航，以及设置分类切换。预览 x64 Release 编译与隐藏 Dart/C++ 探针通过；来源检查覆盖 209 文件和 5 处登记适配。已检查 1280×800 明亮界面、720×600 深色加大文字的全页面/设置截图，并在本机 200% DPI 下检查 2560×1505 与 1440×960 的原生窗口截图。紧凑窗口可同时展示上传、下载卡片；原生预览最小化、最大化和还原有状态记录。截图测试显式等待品牌图片解码并恢复绘制调试状态，避免把未加载图标或无模糊阴影当成设计结果。中文字形仅使用本机系统字体进行测试，没有将系统字体打包。
+
+证据保存在 `build/windows-ui-review/` 和 `build/windows-native-validation/preview-desktop/`，预览包位于 `dist/windows/ui-preview/`，附对应源码与校验文件。预览仅操作内存合成数据，不启动 helper、代理或真实联网，也不申请管理员权限。等待用户验收 UI；安装、托盘、F6、自启动与联网功能继续单独标为待验，不能把预览开关的演示状态计为系统功能通过。
+
+
+## 2026-11-10 UI 复核：按 Mac 实际界面修正
+
+用户指出首轮 Windows 预览与 Mac 的外观不一致；复核确认首轮自行加入了品牌侧栏、深蓝灰配色、说明副标题和较大按钮，节点页也没有复用 Mac 的网格容器。上一节仅保留为历史记录，该视觉方案未获用户验收。
+
+本轮直接对照 `apps/macos/flutter_ui/lib/live_main.dart`、`lib/live/nodes_page.dart`、`lib/live/pages_preferences.dart`，以及 `docs/compose/audits/2026-11-10-node-batch/visual/batch-nodes-light.png` / `batch-nodes-compact.png`。没有修改 Mac 平台源码。
+
+- 默认主题与仪表盘卡片圆角恢复为已固定的 Mac 视觉基线；Windows 的动态取色、纯黑及原生背景能力保留。对应的 `app_theme.dart`、`dashboard_style.dart` 和 `WINDOWS-PATCHES.json` 与本次工作开始前一致，来源检查恢复为 209 文件、4 处既有适配。
+- 主窗口使用原有 Prism 导航组件，展开 220、紧凑 78、标题栏 68；取消上一轮品牌区和副标题，设置入口置于底部，刷新与公告放入更多菜单。Windows 原生标题栏和 Ctrl 快捷键保留。
+- 节点页面采用 Mac 的填充式搜索框、摘要/排序工具栏和固定高度 142 的网格卡片，窄窗口改为两列并可滚动，放大文字时增加卡片高度。支持清除搜索、按名称/延迟排序和定位当前节点；定位会清除筛选并滚动到节点。链式分组为空时仍可返回接入点。Windows 尚无 Mac 的自动预选及下载测速接口，本轮不新增这些控制或伪造结果。
+- 设置使用同类左侧分类导航及 16 圆角分区；保留 Windows 的自启动、静默启动、F6、热点、外观、接入与维护选项。设置仍为 Windows 原有的应用内对话框，没有移植 AppKit 独立窗口。
+
+验证完成：Flutter analyze 无问题；35 项离线回归通过，包含搜索后定位当前节点、收窄窗口后的浮层导航、设置分类与 Windows 选项回归。使用本机中文字体验证明暗宽窗口（1280×800）、浅色最小窗口（720×480）和深色放大文字窗口（720×600、1.3 倍文字），4 项截图测试通过，已检查 20 张页面/设置渲染截图。系统字体只用于本地测试，未打包。Windows x64 Release 预览编译及隐藏 Dart/C++ 桥接探针通过。
+
+证据位于 `build/windows-ui-mac-aligned/`，检查日志位于 `build/windows-native-validation/mac-aligned-*.log`。本轮尝试原生可见窗口检查时桌面处于锁屏状态，200% DPI 的窗口状态记录不能代替目测；屏幕截图捕获了锁屏，已标为拒收，不能算 UI 证据。新的离线预览交付目录为 `dist/windows/ui-preview-mac-aligned/`，随附对应源码、许可及校验文件。上一版 `dist/windows/ui-preview/` 仅为被否决的历史产物。
+
+当前等待用户审阅 UI；原生可见窗口目测、安装、托盘、F6、自启动仍待验收。没有申请新的 UAC、安装候选或启动真实 helper/代理，也没有进行真实联网。预览中的连接与测延迟只操作内存合成数据，不能计为系统功能通过。
+
+## 2026-11-10 Windows 路线比较（仅评估）
+
+按用户要求，暂停界面实施和原生验收，比较直接改造 FlClash Windows 与当前 Mac 界面移植。已只读核对官方稳定版 v0.9.3、固定提交 `be84736605527034689c95bf27828ff27d912c5e`、Prism 子模块，以及上游应用初始化、核心/IPC、providers/actions、Windows 窗口/托盘/快捷键、权限服务、自启动、数据目录、构建和安装源码；与现有 FreeV6 helper、Dart 后端、原生宿主和功能清单逐项对照。
+
+结论与候选方案记录在 [Windows FlClash 路线评估](windows-flclash-evaluation.md)：建议保留当前可回退基线，先验证以 FlClash 完整 Windows 界面接 FreeV6 后端的离线原型；不直接替换网络核心、权限或安装模型。明确单键 F6、自启动计划任务、WARP/校园规则、热点/网络恢复及上游默认后台任务的适配边界，列出完整功能映射、分阶段通过条件和人日估算。
+
+验证限度：本轮是官方源码静态评估，没有构建完整上游、制作新原型或运行上游二进制，不能视作路线 B 已验证成功；工作量是待原型校准的区间。只新增方案文档和本记录，没有修改应用源码、启动新客户端/helper/代理、安装服务、调整系统设置或进行真实联网。既有系统验收缺口继续保留，不因用户已解锁桌面而自动继续安装或 UI 操作。
+
+## 2026-11-10 Windows FlClash 完整界面离线原型（B）
+
+用户随后批准先实施 B 的离线原型，先验收 UI，不安装、不启动真实联网。工作分支为 `feat/windows-flclash-offline-prototype`。新增独立 `apps/windows/flclash_ui/`，原 A 工程、生产入口、macOS/Android 和 Go 业务保持原有状态；未提交、推送或发布。
+
+从官方 FlClash v0.9.3 固定提交 `be84736605527034689c95bf27828ff27d912c5e` 导出完整 Windows 应用与 Prism `63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。保留 1389 个来源文件和原始 SHA256，34 处本地修改逐文件记录摘要和原因。完整许可证、原 README/AGENTS、依赖锁与未启用的核心桥接源码保留；省略其他平台顶层 runner、站点/CI/代理配置及不用的 EnableLoopback.exe。
+
+保留上游 PrismApp/HomePage、标题栏与导航、明暗主题、完整仪表盘布局、节点分组/搜索/选择/测延迟和日志；FreeV6 的校园白名单、链式/备用配置和设置入口使用上游 ListItem/分区/排版。通过本地 path 依赖复用现有 ClientModel/PreviewModel，provider/action 只接到内存模型。LiveModel、Go helper、mihomo 业务、凭据和权限机制未重写；真实后端接入仍是后续阶段。
+
+默认入口仅委托 guarded offline main，要求 FREEV6_OFFLINE 与 SAFE_MODE 同时为 true。HTTP client 创建及上游核心生命周期/调用会拒绝执行；禁用默认初始化、IP 探测、托盘/快捷键/代理管理器。两个核心 build hook 均关闭，CMake 移除核心/helper 复制和停止 helper 的动作，原生 manifest 明确 asInvoker。构建的 Release 目录只有预览 EXE、DLL 与 data，不含核心/helper/安装器。依赖准备曾访问官方源码与软件包服务，属于开发工具准备；应用未进行真实联网。
+
+修复并记录的问题：未授予符号链接权限时用工作区 NTFS junction 准备插件，无需 UAC/Developer Mode，并兼容 PowerShell Target 属性的字符串/数组形式；删去上游默认核心/loopback 产物复制后原生构建成功；selector 组显式 hidden=false，避免规则模式下节点消失；FreeV6 卡片在窄布局中补充高度约束，解决 1.3 倍文字下 Spacer 约束错误；修正上游动态本地化扫描的 Windows 路径分隔符。新增词条从 ARB 生成，不手改生成文件；原型只开放简体中文，其他五种非英语语言的新词条暂为英语回退。
+
+离线验证：完整工程 analyze 无问题；9 项 FreeV6 适配/交互/安全/布局测试通过，包含原始启动按钮与节点卡片、F6 设置内存状态、96 个长中文节点、放大文字和四组主题/窗口尺寸；63 项上游控制器、导航、节点和本地化相关回归通过。生成并检查 20 张主页面明暗/宽窄截图，并补查设置子页。系统字体仅用于本地截图，不打包。自动检查入口为 `scripts/windows/check-flclash-preview.ps1`，来源与离线边界检查为 `check-flclash-sources.py`。
+
+本机 x64 Release 已编译并运行。用户解锁后实际检查 200% DPI 的节点页、设置页以及最小 720×480 逻辑尺寸的配置页，证据在 `build/windows-native-validation/flclash-desktop/`；早先捕获的锁屏和遮挡截图不能作为 UI 通过证据。只读观察预览进程没有 TCP 连接或子进程；这是当次观察，不是完整抓包。只关闭记录过路径/PID 的本任务预览及控制器，未停止用户进程。
+
+交付为 `dist/windows/flclash-ui-prototype/` 的独立便携预览、对应源码、许可与校验文件。当前等待用户 UI 验收。系统 F6、自启动、托盘、安装/升级、迁移、真实后端/网络、ARM64、读屏及完整上游测试套件未验收；预览中的系统开关、下载、注册、导入/导出和更新仅演示内存状态，不计为这些功能完成。壁纸/原生背景/玻璃/动态取色等宿主效果同样待正式接入。
+
+## 2026-11-10～11 FlClash UI 接入 FreeV6 后端与离线功能验收
+
+用户确认沿用 B 的界面，并要求接完整 FreeV6 现有后端和功能，先离线验证，不安装、不启动真实联网；完成后交用户验收。分支为 `feat/windows-flclash-backend`。保留原生产 Tauri 入口、A 工程及之前的 UI 原型产物，没有提交或推送。
+
+新增 `fixture_main.dart` 和 `live_main.dart`。二者都使用原 `freev6_windows` 的 LiveModel、HelperApi、ControllerApi 和偏好逻辑；fixture 使用严格限定请求的内存 Transport/Host/Preferences，live 使用原 IoTransport/FilePreferences/WindowsHost。两个 runner 共同编译原 HostBridge 的源码，Go 生命周期、网络恢复、WARP、凭据和权限逻辑未重写。原后端新增日志导出，复用现有宿主文件选择；未修改 Go/macOS/Android。
+
+保留已验收的 Prism/FlClash 界面，将启停与准备、模式、节点/链式、六路并发测速、流量统计、校园规则、链式/备用配置、公告门禁、下载/注册、设置、外观、文件/迁移、公告/许可、更新和安全退出接到原后端。配置输入等待结果，失败保留草稿；设置失败保留原状态，F6 注册或保存失败回退；连接中禁用冲突操作。分组切换先完成再选节点，测速显示运行/等待状态，切换可取消旧批次并丢弃旧响应，清除链式后回到接入点。保留原统计、重试、取消、掉线反馈、日期问候和更新停止保护。
+
+关闭继续交给原生 HostBridge 决定隐藏或托盘失败回退，托盘退出事件先由 UI 确认并停止连接；停止未确认时不退出、不请求安装。两种 FreeV6 构建标志下均禁用上游额外配置修改/仪表盘编辑入口，live 也使用同一节点/模式展示。未初始化上游 Bootstrap/Rust/Core/代理/服务/托盘管理器，CoreController 仍注入拒绝调用的适配器，没有第二套网络生命周期。
+
+原生修复：共享宿主使用 WIN32_LEAN_AND_MEAN 后，补齐 runner/utils.cpp 的 shellapi.h；离线退出探针暴露上游 tray 插件即使未创建托盘也会在析构 Hide 中访问已销毁的 Flutter view。用本任务探针的调用栈定位后，改用通知图标已保存的 HWND 清理定时器，避免访问失效视图。保留 1389 个原始来源文件与摘要，39 处上游补丁逐项登记；许可证及生成流程保留。
+
+验证结果与日志：
+
+- B 完整 analyze 无问题，`flclash-backend-final-analyze.log`；22 项 UI/适配/安全/后端集成回归通过，`flclash-backend-final-tests.log`。
+- 上游相关控制器/导航/节点/本地化 63 项、现有 A 完整 35 项通过，见 `flclash-backend-verified.log`，共 120 项相关测试；该日志中的中途原生探针失败由后续修复和单独日志闭环，未将失败日志标为整轮成功。
+- fixture x64 Release 编译通过，`flclash-fixture-verified-build.log`；隐藏宿主探针退出码 0，完整应用冷启动/正常关闭两次均退出码 0，见 `flclash-backend-probe/final-result.json` 与 `full-window-exits.json`。
+- live x64 Release 仅编译通过，`flclash-live-compile.log`，没有运行。提取实际 PE manifest：fixture 为 asInvoker，live 为 requireAdministrator；检查两组 CMake install 清单只指向各自工作区 Release，不是系统安装。
+- 四组主题/尺寸及设置子页回归和 20 张本机字体渲染截图更新在 `build/flclash-backend-ui-review/`。本机当前锁屏，新的屏幕截图明确拒收，不能作为原生 UI 目测证据。只读观察离线进程没有 TCP 连接或子进程，这是当次观察，不是完整抓包。
+
+集成测试包括实际 UI 的保存失败/重试、认证隔离、缺核心/IPv6 阻止 start、自动注册、分组与过期响应、六路测速、F6 冲突/保存回退、公告门禁、下载失败/重试、停止失败阻止退出/更新、helper 掉线和凭据恢复，以及临时目录中的偏好导入/导出、壁纸、YAML 和日志。未读取用户配置或密钥，系统字体不打包。离线 Host 的本机文件选择默认模拟取消；文件读写链路由显式临时夹具验证，live 的原生文件对话框已接入并编译。
+
+交付目录为 `dist/windows/flclash-backend-offline/`，只含可直接打开的离线验收程序、对应源码、许可和校验。网络/系统操作在内存中模拟，真实入口未交付为可点击的验收程序，不附带 helper、核心或安装器。真实校园/WARP 连通、DNS/ICS 恢复、系统托盘/F6/自启动、安装升级、真实用户迁移、原生可见窗口目测、ARM64 和读屏仍待后续实机验收；本轮不以代码/模拟结果代替这些结果。
+
+## 2026-11-11 Windows 当前工作提交准备
+
+用户要求将当前全部源码改动提交到 GitHub，暂不提交到 main。目标分支为 `feat/windows-flclash-backend`，固定 FlClash/Prism 源码导入与 FreeV6 功能集成分开提交；构建缓存、离线二进制交付及运行配置继续排除在版本控制外。按上游提交前质量复核检查功能与宿主边界，未发现需要暂停提交的结构问题。
+
+提交检查发现 Prism 的固定 Windows 导出包含 CRLF，Git 自动转换会破坏已登记的 SHA256；为完整 `flclash_ui` 导出关闭 Git 换行转换，并在来源记录说明摘要对应原始导出字节。未改写上游源码或重新定义其摘要。提交时核对 Git 对象中的源码字节，避免只验证工作区而遗漏克隆后的差异。
+
+本轮来源检查通过（1389 个固定文件、39 处登记补丁），仓库检查通过；维护测试 7 项通过、3 项因 Windows 平台条件跳过，离线验收网关 Go 测试通过。提交前扫描未发现新增私钥、凭据或误纳入的构建缓存。沿用上一阶段的 120 项离线回归及两种 Release 编译记录，本轮未改应用逻辑，未重复执行系统或联网验收。功能分支推送本身不代表 GitHub CI 通过，也不改变此前列出的实机验收缺口。

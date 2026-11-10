@@ -121,3 +121,15 @@ MACOS FLUTTER CLIENT
     Flutter 3.47.6. The release's generated package and asset licenses
     are included in Resources/Notices/Flutter-Package-Notices.txt.
     The Flutter framework license is in Resources/Notices/Flutter-LICENSE.txt.
+
+WINDOWS FLCLASH UI PROTOTYPE
+
+15. Full FlClash v0.9.3 Windows application and Prism UI
+    Source: https://github.com/chen08209/FlClash
+    Revision: be84736605527034689c95bf27828ff27d912c5e
+    Prism UI revision: 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185
+    The GPLv3-derived application lives in apps/windows/flclash_ui/.
+    Original file hashes and local patches are recorded in its vendor/ directory.
+    The portable preview ships matching source, GPLv3/Prism/Flutter licenses
+    and generated package/asset notices. Existing FreeV6 MIT files retain
+    their notices; the root MIT license does not replace component terms.

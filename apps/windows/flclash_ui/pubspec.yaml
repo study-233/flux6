@@ -8,13 +8,15 @@ environment:
 hooks:
   user_defines:
     setup:
-      build_assets: true
+      build_assets: false
     rust_api:
-      build_assets: true
+      build_assets: false
 
 dependencies:
   flutter:
     sdk: flutter
+  freev6_windows:
+    path: ../flutter_ui
   flutter_localizations:
     sdk: flutter
   intl: any
@@ -92,13 +94,17 @@ dev_dependencies:
   mocktail: ^1.0.5
 
 flutter:
+  uses-material-design: true
   assets:
+    - LICENSE
+    - assets/legal/
+    - plugins/prism_ui/LICENSE
+    - plugins/prism_ui/NOTICE
     - assets/data/
     - assets/fonts/
     - assets/images/
     - assets/images/avatar/
     - assets/images/services/
-    - core/Clash.Meta/component/ca/ca-certificates.crt
     - path: assets/images/tray/unix/
       platforms: [ linux, macos ]
     - path: assets/images/tray/macos/
@@ -117,3 +123,7 @@ flutter_intl:
   class_name: AppLocalizations
   arb_dir: arb
   output_dir: lib/l10n
+
+dependency_overrides:
+  prism_ui:
+    path: plugins/prism_ui

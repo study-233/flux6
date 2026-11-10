@@ -35,6 +35,7 @@ class MaintenanceTests(unittest.TestCase):
             os.chmod(path / name, 0o600)
         return path
 
+    @unittest.skipUnless(os.name == 'posix', 'Signing migration requires POSIX ownership and permissions')
     def test_signing_migration_is_identical_and_repeatable(self):
         source = self.legacy()
         signing.prepare(self.destination)
@@ -43,6 +44,7 @@ class MaintenanceTests(unittest.TestCase):
             self.assertEqual((source / name).read_bytes(), (self.destination / name).read_bytes())
             self.assertEqual((self.destination / name).stat().st_mode & 0o777, 0o600)
 
+    @unittest.skipUnless(os.name == 'posix', 'Signing migration requires POSIX ownership and permissions')
     def test_signing_mismatch_is_not_overwritten(self):
         self.legacy()
         signing.prepare(self.destination)
@@ -68,7 +70,12 @@ class MaintenanceTests(unittest.TestCase):
     def test_cleanup_rejects_redirected_parent(self):
         outside = self.base / 'outside'
         outside.mkdir()
-        (self.root / 'build').symlink_to(outside, target_is_directory=True)
+        try:
+            (self.root / 'build').symlink_to(outside, target_is_directory=True)
+        except OSError as error:
+            if os.name == 'nt' and error.winerror == 1314:
+                self.skipTest('Creating Windows symlinks requires Developer Mode or elevation')
+            raise
         with self.assertRaises(ValueError):
             clean.validate(self.root, 'build/service-probes')
 

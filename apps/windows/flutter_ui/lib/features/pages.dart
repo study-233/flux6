@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/sidebar.dart' as sidebar;
+
+import '../components/app_glyphs.dart';
 
 import '../app/client_model.dart';
 import '../components/proxy_card.dart';
@@ -9,24 +12,34 @@ class Panel extends StatelessWidget {
   final String title;
   final List<Widget> children;
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 16),
-    child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Semantics(
-            header: true,
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Material(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant
+              .withValues(alpha: .55),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
+            const SizedBox(height: 10),
+            ...children,
+          ],
+        ),
       ),
     ),
   );
@@ -63,96 +76,236 @@ class NodesPage extends StatefulWidget {
   State<NodesPage> createState() => _NodesPageState();
 }
 
+enum _NodeOrder { name, delay }
+
 class _NodesPageState extends State<NodesPage> {
   String query = '';
+  _NodeOrder order = _NodeOrder.delay;
+  final search = TextEditingController();
+  final list = ScrollController();
+  int columns = 1;
+  double rowStride = 152;
+
+  @override
+  void dispose() {
+    search.dispose();
+    list.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final m = widget.model;
-    final nodes =
-        m.nodes
-            .where((n) => n.toLowerCase().contains(query.toLowerCase()))
-            .toList()
-          ..sort(
-            (a, b) =>
-                (m.latency(a) ?? 999999).compareTo(m.latency(b) ?? 999999),
-          );
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            for (final item in [('access', '接入点'), ('chain', '链式代理')])
-              ChoiceChip(
-                label: Text(item.$2),
-                selected: m.proxyTab == item.$1,
-                onSelected: (_) => m.act('node.group', {'tab': item.$1}),
-              ),
-            TextButton.icon(
-              onPressed: m.connected && !m.pending('nodes.measure')
-                  ? () => m.act('nodes.measure')
-                  : null,
-              icon: const Icon(Icons.speed_rounded),
-              label: const Text('测量全组'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: '搜索节点',
-            prefixIcon: Icon(Icons.search),
-          ),
-          onChanged: (value) => setState(() => query = value),
-        ),
-        const SizedBox(height: 16),
-        if (!m.connected)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 16),
-            child: Text('连接后可以切换节点和测试延迟。'),
-          ),
-        if (nodes.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: Text('暂无可显示的节点')),
-          ),
-        LayoutBuilder(
-          builder: (context, room) {
-            final scale = MediaQuery.textScalerOf(context)
-                .scale(1)
-                .clamp(1.0, 2.0);
-            final count = (room.maxWidth / (260 * scale)).floor().clamp(1, 6);
-            final width = (room.maxWidth - (count - 1) * 12) / count;
-            return Wrap(
-              spacing: 12,
-              runSpacing: 12,
+    final colors = Theme.of(context).colorScheme;
+    final allNodes = m.nodes.toList()
+      ..sort((a, b) {
+        if (order == _NodeOrder.name) return a.compareTo(b);
+        int delay(String node) {
+          final value = m.latency(node);
+          return value == null || value < 0 ? 999999 : value;
+        }
+
+        final compared = delay(a).compareTo(delay(b));
+        return compared == 0 ? a.compareTo(b) : compared;
+      });
+    final nodes = allNodes
+        .where((n) => n.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+    final chainAvailable =
+        m.proxyTab == 'chain' || (m.chain['count'] as num? ?? 0) > 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (chainAvailable) ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
-                for (final node in nodes)
-                  SizedBox(
-                    width: width,
-                    child: HostProxyCard(
-                      name: node,
-                      selected: m.preferredNode == node,
-                      active: m.currentNode == node,
-                      status: m.currentNode == node ? '当前接入点' : '可用节点',
-                      delay: m.latency(node) == null
-                          ? '未测试'
-                          : '${m.latency(node)} ms',
-                      onSelect: m.connected && !m.busy
-                          ? () => m.selectNode(node)
-                          : null,
-                      showMeasure: true,
-                      measuring: m.measuring(node),
-                      onMeasure: m.canMeasure ? () => m.measure(node) : null,
-                    ),
+                for (final item in [('access', '接入点'), ('chain', '链式代理')])
+                  ChoiceChip(
+                    label: Text(item.$2),
+                    selected: m.proxyTab == item.$1,
+                    onSelected: (_) => m.act('node.group', {'tab': item.$1}),
                   ),
               ],
-            );
-          },
-        ),
-      ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          Semantics(
+            label: '搜索节点',
+            textField: true,
+            child: TextField(
+              controller: search,
+              decoration: InputDecoration(
+                hintText: '搜索节点',
+                filled: true,
+                prefixIcon: const Icon(Icons.search_rounded, size: 19),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: '清除节点搜索',
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () {
+                          search.clear();
+                          setState(() => query = '');
+                        },
+                      ),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) => setState(() => query = value),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: LayoutBuilder(
+              builder: (context, room) {
+                final summary = Text(
+                  '${m.proxyTab == 'chain' ? '链式代理' : '当前会话'} · ${m.nodes.length} 个节点',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                );
+                final actions = Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    PopupMenuButton<_NodeOrder>(
+                      tooltip: '节点排序',
+                      initialValue: order,
+                      onSelected: (value) => setState(() => order = value),
+                      itemBuilder: (_) => [
+                        for (final value in _NodeOrder.values)
+                          CheckedPopupMenuItem(
+                            value: value,
+                            checked: order == value,
+                            child: Text(value == _NodeOrder.name ? '名称' : '延迟'),
+                          ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.sort_rounded, size: 18),
+                            const SizedBox(width: 6),
+                            Text(order == _NodeOrder.name ? '名称' : '延迟'),
+                            const Icon(Icons.expand_more_rounded, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '定位当前节点',
+                      icon: const Icon(Icons.my_location_rounded, size: 18),
+                      onPressed: m.currentNode == null
+                          ? null
+                          : () {
+                              search.clear();
+                              setState(() => query = '');
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (!mounted || !list.hasClients) return;
+                                final index = allNodes.indexOf(
+                                  m.currentNode ?? '',
+                                );
+                                if (index < 0) return;
+                                list.jumpTo(
+                                  ((index ~/ columns) * rowStride).clamp(
+                                    0.0,
+                                    list.position.maxScrollExtent,
+                                  ),
+                                );
+                              });
+                            },
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.bolt_rounded, size: 17),
+                      label: const Text('整组测延迟'),
+                      onPressed: m.canMeasure && !m.pending('nodes.measure')
+                          ? () => m.act('nodes.measure')
+                          : null,
+                    ),
+                  ],
+                );
+                if (room.maxWidth >=
+                    720 * MediaQuery.textScalerOf(context).scale(1)) {
+                  return Row(children: [summary, const Spacer(), actions]);
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [summary, const SizedBox(height: 4), actions],
+                );
+              },
+            ),
+          ),
+          if (!m.connected)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: Text('连接后可以切换节点和测试延迟。'),
+            ),
+          Expanded(
+            child: nodes.isEmpty
+                ? Center(
+                    child: Text(query.isEmpty ? '暂无节点，请先检查配置。' : '没有匹配的节点'),
+                  )
+                : LayoutBuilder(
+                    builder: (context, room) {
+                      final scale = MediaQuery.textScalerOf(context)
+                          .scale(1)
+                          .clamp(1.0, 2.0);
+                      columns = (room.maxWidth ~/ 235).clamp(1, 5);
+                      rowStride = 142 * scale + 10;
+                      return GridView.builder(
+                        controller: list,
+                        itemCount: nodes.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          mainAxisExtent: 142 * scale,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemBuilder: (context, index) {
+                          final node = nodes[index];
+                          final latency = m.latency(node);
+                          return HostProxyCard(
+                            key: ValueKey('node:$node'),
+                            name: node,
+                            selected: m.preferredNode == node,
+                            active: m.connected && m.currentNode == node,
+                            status: m.connected && m.currentNode == node
+                                ? '使用中'
+                                : '可选',
+                            delay: latency == null
+                                ? '—'
+                                : latency < 0
+                                ? '超时'
+                                : '$latency ms',
+                            onSelect: m.connected && m.canSelectNode
+                                ? () => m.selectNode(node)
+                                : null,
+                            showMeasure: true,
+                            measuring: m.measuring(node),
+                            onMeasure: m.canMeasure
+                                ? () => m.measure(node)
+                                : null,
+                          );
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -393,7 +546,29 @@ class LogsPage extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 16),
-      if (model.logs.isEmpty) const Text('暂无日志'),
+      if (model.logs.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 64),
+          child: Column(
+            children: [
+              Icon(
+                Icons.history_rounded,
+                size: 36,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              const Text('暂无日志'),
+              const SizedBox(height: 6),
+              Text(
+                '连接状态与操作记录会显示在这里',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
       for (final log in model.logs)
         ListTile(
           dense: true,
@@ -463,9 +638,23 @@ Future<void> showNotices(BuildContext context, ClientModel m) async {
   );
 }
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, required this.model});
   final ClientModel model;
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  int page = 0;
+  static const destinations = [
+    sidebar.SidebarDestination(glyph: AppGlyphs.settings, label: '通用'),
+    sidebar.SidebarDestination(glyph: AppGlyphs.dashboard, label: '外观'),
+    sidebar.SidebarDestination(glyph: AppGlyphs.proxies, label: '接入'),
+    sidebar.SidebarDestination(glyph: AppGlyphs.resources, label: '数据'),
+    sidebar.SidebarDestination(glyph: AppGlyphs.logs, label: '关于'),
+  ];
+  ClientModel get model => widget.model;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: model,
@@ -519,235 +708,274 @@ class SettingsPage extends StatelessWidget {
           },
         ),
       );
-      return Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '设置',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  tooltip: '关闭设置',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
+      return LayoutBuilder(
+        builder: (context, room) => Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            sidebar.NavigationSidebar(
+              destinations: destinations,
+              selectedIndex: page,
+              expanded: room.maxWidth >= 750,
+              windowControls: const Size(78, 0),
+              onSelected: (value) => setState(() => page = value),
             ),
-          ),
-          if (m.message case final String message)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                message,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            destinations[page].label,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: '关闭设置',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (m.message case final String message)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: IndexedStack(
+                      index: page,
+                      sizing: StackFit.expand,
+                      children: [
+                        for (final section in <Widget>[
+                          Panel(
+                            title: '通用',
+                            children: [
+                              toggle(
+                                'autoStart',
+                                '开机自启动',
+                                '登录 Windows 时打开 FreeV6',
+                              ),
+                              toggle('silentStart', '静默启动', '启动后驻留托盘'),
+                              toggle('autoRunProxy', '自动运行免流', '打开后自动尝试连接'),
+                              toggle('hotkeyEnabled', 'F6 快捷键', '按 F6 显示主窗口'),
+                              toggle(
+                                'hotspotShare',
+                                '共享移动热点',
+                                '连接时尝试将已开启的热点切换到代理出口',
+                              ),
+                              toggle('devMode', '开发者模式', '开放直连模式与开发选项'),
+                            ],
+                          ),
+                          Panel(
+                            title: '外观',
+                            children: [
+                              choice('freev6-theme', '主题', {
+                                'system': '跟随系统',
+                                'light': '浅色',
+                                'dark': '深色',
+                              }, 'system'),
+                              prefToggle('freev6-dynamic-color', '动态取色'),
+                              prefToggle('freev6-pure-black', '纯黑背景'),
+                              choice('freev6-bg-mode', '背景', {
+                                'default': '默认',
+                                'wallpaper': '壁纸',
+                                'acrylic': '亚克力',
+                                'mica': '云母',
+                              }, 'default'),
+                              prefToggle('freev6-webgl-glass', '玻璃效果', true),
+                              prefToggle('reduce-motion', '减少动态效果'),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: () => m.act('wallpaper.choose'),
+                                    child: const Text('更换壁纸'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => m.act('wallpaper.clear'),
+                                    child: const Text('清除壁纸'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Panel(
+                            title: '核心与接入凭据',
+                            children: [
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('运行核心'),
+                                subtitle: Text(
+                                  m.runtime['present'] == true ? '已安装' : '未安装',
+                                ),
+                                trailing: OutlinedButton(
+                                  onPressed: m.pending('core.download')
+                                      ? null
+                                      : () => m.act('core.download'),
+                                  child: const Text('下载核心'),
+                                ),
+                              ),
+                              if (m.coreDownload['state'] == 'downloading')
+                                const LinearProgressIndicator(),
+                              if (m.coreDownload['error'] != null)
+                                Text('${m.coreDownload['error']}'),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('WARP 接入凭据'),
+                                subtitle: Text(
+                                  m.runtime['warpRegistered'] == true
+                                      ? '已注册'
+                                      : '未注册',
+                                ),
+                                trailing: OutlinedButton(
+                                  onPressed: m.pending('warp.register')
+                                      ? null
+                                      : () => m.act('warp.register'),
+                                  child: Text(
+                                    m.runtime['warpRegistered'] == true
+                                        ? '重新注册'
+                                        : '注册',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Panel(
+                            title: '数据与维护',
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: () =>
+                                        m.act('preferences.import'),
+                                    child: const Text('导入旧版界面备份'),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: () =>
+                                        m.act('preferences.export'),
+                                    child: const Text('导出界面备份'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () async {
+                                      if (await confirm(
+                                        context,
+                                        '重置设置？',
+                                        '将恢复默认设置，撤销自启动，并清除链式和备用配置。接入凭据与界面历史会保留。',
+                                      ))
+                                        await m.act('settings.reset');
+                                    },
+                                    child: const Text('重置设置'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Panel(
+                            title: '关于 FreeV6',
+                            children: [
+                              Text(
+                                m.preview
+                                    ? 'Windows 界面预览'
+                                    : 'Windows 客户端 ${m.runtime['appVersion'] ?? ''}',
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: m.pending('update.check')
+                                        ? null
+                                        : () => m.act('update.check'),
+                                    child: const Text('检查更新'),
+                                  ),
+                                  if (m.update['available'] == true)
+                                    FilledButton(
+                                      onPressed: m.pending('update.install')
+                                          ? null
+                                          : () async {
+                                              if (await confirm(
+                                                context,
+                                                '安装更新',
+                                                '下载并校验后，会停止连接并打开安装器。',
+                                              ))
+                                                await m.act('update.install');
+                                            },
+                                      child: Text('更新至 ${m.update['version']}'),
+                                    ),
+                                  if (m.update['available'] == true)
+                                    TextButton(
+                                      onPressed: () => m.act('update.skip'),
+                                      child: const Text('忽略此版本'),
+                                    ),
+                                  TextButton(
+                                    onPressed: () => m.act('external.open', {
+                                      'url': 'https://github.com/study-233/free-v6',
+                                    }),
+                                    child: const Text('GitHub'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => m.act('external.open', {
+                                      'url': 'https://github.com/study-233/free-v6/issues',
+                                    }),
+                                    child: const Text('反馈'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => showLicensePage(
+                                      context: context,
+                                      applicationName: 'FreeV6',
+                                    ),
+                                    child: const Text('开源许可证'),
+                                  ),
+                                ],
+                              ),
+                              if (m.pending('update.install')) ...[
+                                const LinearProgressIndicator(),
+                                Text(
+                                  '已下载 ${m.update['done'] ?? 0} / ${m.update['total'] ?? '未知'} 字节',
+                                ),
+                              ],
+                              if (m.update['notes'] case final String notes)
+                                SelectableText(notes),
+                              if (m.update['available'] == false)
+                                Text(
+                                  m.preference('freev6-skip-version') ==
+                                          m.update['version']
+                                      ? '已忽略此版本，可再次检查更新'
+                                      : '当前已是最新版本',
+                                ),
+                              if (!m.preview)
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('返回应用'),
+                                ),
+                            ],
+                          ),
+                        ])
+                          ListView(
+                            padding: const EdgeInsets.all(20),
+                            children: [section],
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Panel(
-                  title: '通用',
-                  children: [
-                    toggle('autoStart', '开机自启动', '登录 Windows 时打开 FreeV6'),
-                    toggle('silentStart', '静默启动', '启动后驻留托盘'),
-                    toggle('autoRunProxy', '自动运行免流', '打开后自动尝试连接'),
-                    toggle('hotkeyEnabled', 'F6 快捷键', '按 F6 显示主窗口'),
-                    toggle('hotspotShare', '共享移动热点', '连接时尝试将已开启的热点切换到代理出口'),
-                    toggle('devMode', '开发者模式', '开放直连模式与开发选项'),
-                  ],
-                ),
-                Panel(
-                  title: '外观',
-                  children: [
-                    choice('freev6-theme', '主题', {
-                      'system': '跟随系统',
-                      'light': '浅色',
-                      'dark': '深色',
-                    }, 'system'),
-                    prefToggle('freev6-dynamic-color', '动态取色'),
-                    prefToggle('freev6-pure-black', '纯黑背景'),
-                    choice('freev6-bg-mode', '背景', {
-                      'default': '默认',
-                      'wallpaper': '壁纸',
-                      'acrylic': '亚克力',
-                      'mica': '云母',
-                    }, 'default'),
-                    prefToggle('freev6-webgl-glass', '玻璃效果', true),
-                    prefToggle('reduce-motion', '减少动态效果'),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => m.act('wallpaper.choose'),
-                          child: const Text('更换壁纸'),
-                        ),
-                        TextButton(
-                          onPressed: () => m.act('wallpaper.clear'),
-                          child: const Text('清除壁纸'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Panel(
-                  title: '核心与接入凭据',
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('运行核心'),
-                      subtitle: Text(
-                        m.runtime['present'] == true ? '已安装' : '未安装',
-                      ),
-                      trailing: OutlinedButton(
-                        onPressed: m.pending('core.download')
-                            ? null
-                            : () => m.act('core.download'),
-                        child: const Text('下载核心'),
-                      ),
-                    ),
-                    if (m.coreDownload['state'] == 'downloading')
-                      const LinearProgressIndicator(),
-                    if (m.coreDownload['error'] != null)
-                      Text('${m.coreDownload['error']}'),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('WARP 接入凭据'),
-                      subtitle: Text(
-                        m.runtime['warpRegistered'] == true ? '已注册' : '未注册',
-                      ),
-                      trailing: OutlinedButton(
-                        onPressed: m.pending('warp.register')
-                            ? null
-                            : () => m.act('warp.register'),
-                        child: Text(
-                          m.runtime['warpRegistered'] == true ? '重新注册' : '注册',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Panel(
-                  title: '数据与维护',
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => m.act('preferences.import'),
-                          child: const Text('导入旧版界面备份'),
-                        ),
-                        OutlinedButton(
-                          onPressed: () => m.act('preferences.export'),
-                          child: const Text('导出界面备份'),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            if (await confirm(
-                              context,
-                              '重置设置？',
-                              '将恢复默认设置，撤销自启动，并清除链式和备用配置。接入凭据与界面历史会保留。',
-                            ))
-                              await m.act('settings.reset');
-                          },
-                          child: const Text('重置设置'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Panel(
-                  title: '关于 FreeV6',
-                  children: [
-                    Text(
-                      m.preview
-                          ? 'Windows 界面预览'
-                          : 'Windows 客户端 ${m.runtime['appVersion'] ?? ''}',
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton(
-                          onPressed: m.pending('update.check')
-                              ? null
-                              : () => m.act('update.check'),
-                          child: const Text('检查更新'),
-                        ),
-                        if (m.update['available'] == true)
-                          FilledButton(
-                            onPressed: m.pending('update.install')
-                                ? null
-                                : () async {
-                                    if (await confirm(
-                                      context,
-                                      '安装更新',
-                                      '下载并校验后，会停止连接并打开安装器。',
-                                    ))
-                                      await m.act('update.install');
-                                  },
-                            child: Text('更新至 ${m.update['version']}'),
-                          ),
-                        if (m.update['available'] == true)
-                          TextButton(
-                            onPressed: () => m.act('update.skip'),
-                            child: const Text('忽略此版本'),
-                          ),
-                        TextButton(
-                          onPressed: () => m.act('external.open', {
-                            'url': 'https://github.com/study-233/free-v6',
-                          }),
-                          child: const Text('GitHub'),
-                        ),
-                        TextButton(
-                          onPressed: () => m.act('external.open', {
-                            'url':
-                                'https://github.com/study-233/free-v6/issues',
-                          }),
-                          child: const Text('反馈'),
-                        ),
-                        TextButton(
-                          onPressed: () => showLicensePage(
-                            context: context,
-                            applicationName: 'FreeV6',
-                          ),
-                          child: const Text('开源许可证'),
-                        ),
-                      ],
-                    ),
-                    if (m.pending('update.install')) ...[
-                      const LinearProgressIndicator(),
-                      Text(
-                        '已下载 ${m.update['done'] ?? 0} / ${m.update['total'] ?? '未知'} 字节',
-                      ),
-                    ],
-                    if (m.update['notes'] case final String notes)
-                      SelectableText(notes),
-                    if (m.update['available'] == false)
-                      Text(
-                        m.preference('freev6-skip-version') ==
-                                m.update['version']
-                            ? '已忽略此版本，可再次检查更新'
-                            : '当前已是最新版本',
-                      ),
-                    if (!m.preview)
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('返回应用'),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       );
     },
   );

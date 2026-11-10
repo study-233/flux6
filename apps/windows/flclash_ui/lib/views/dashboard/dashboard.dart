@@ -1,3 +1,4 @@
+import 'package:fl_clash/freev6/pages.dart';
 import 'dart:math' as math;
 
 import 'package:fl_clash/common/common.dart';
@@ -19,7 +20,6 @@ import 'widgets/widgets.dart';
 
 // Narrower columns leave a pair of service cells too tight for a status, so
 // the grid stacks them in one.
-const _servicePairColumnMin = 290.0;
 
 const _maxColumnWidth = 440.0;
 
@@ -75,7 +75,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             )
           : null,
       iconActions: [
-        if (editable && !editing)
+        if (editable &&
+            !editing &&
+            !safeModeBuild &&
+            !const bool.fromEnvironment('FREEV6_BACKEND'))
           IconButtonData(
             glyph: AppGlyphs.edit,
             tooltip: appLocalizations.editDashboard,
@@ -167,13 +170,13 @@ class _DesktopDashboard extends StatelessWidget {
         final switches =
             DashboardWidget.networkTakeover.platforms.contains(platform)
             ? const [
-                (1, NetworkTakeoverTile(TakeoverSwitch.systemProxy)),
-                (1, NetworkTakeoverTile(TakeoverSwitch.tun)),
+                (1, FreeV6ConnectionTile()),
+                (1, FreeV6ConnectionTile(settings: true)),
               ]
             : const [(2, VpnTile())];
         final half = columns ~/ 2;
         final summaries = row([
-          (half, const ConnectionStatsCard()),
+          (half, const FreeV6ActivityCard()),
           (half, const ProxyGroupsSummaryCard()),
         ]);
         if (columns == 2) {
@@ -201,11 +204,14 @@ class _DesktopDashboard extends StatelessWidget {
                 sized(controlHeight, row(switches)),
                 sized(
                   middleHeight,
-                  row(const [(1, IntranetIpCard()), (1, ProfilesCard())]),
+                  row(const [(1, FreeV6UsageCard()), (1, FreeV6ProfileCard())]),
                 ),
                 sized(
                   middleHeight,
-                  row(const [(1, ServiceStatusCard()), (1, MemoryInfo())]),
+                  row(const [
+                    (1, FreeV6RuntimeCard(hotspot: true)),
+                    (1, FreeV6RuntimeCard()),
+                  ]),
                 ),
                 sized(summaryHeight, summaries),
               ],
@@ -228,15 +234,10 @@ class _DesktopDashboard extends StatelessWidget {
           sized(
             middleHeight,
             row([
-              (1, const IntranetIpCard()),
-              (1, const ProfilesCard()),
-              (
-                1,
-                ServiceStatusCard(
-                  columns: column >= _servicePairColumnMin * scale ? 2 : 1,
-                ),
-              ),
-              (1, const MemoryInfo()),
+              (1, const FreeV6UsageCard()),
+              (1, const FreeV6ProfileCard()),
+              (1, const FreeV6RuntimeCard(hotspot: true)),
+              (1, const FreeV6RuntimeCard()),
             ]),
           ),
         ];
@@ -266,9 +267,7 @@ class _DesktopDashboard extends StatelessWidget {
                         children: const [
                           Expanded(
                             flex: 3,
-                            child: RepaintBoundary(
-                              child: ConnectionsTableCard(),
-                            ),
+                            child: RepaintBoundary(child: FreeV6ActivityCard()),
                           ),
                           Expanded(
                             flex: 2,

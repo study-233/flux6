@@ -1,4 +1,4 @@
-param([string]$FlutterSdk = $env:FREEV6_FLUTTER_SDK, [switch]$SkipBuild)
+param([string]$FlutterSdk = $env:FREEV6_FLUTTER_SDK, [switch]$SkipBuild, [switch]$Offline)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $flutter = if ($FlutterSdk) { Join-Path $FlutterSdk 'bin/flutter.bat' } else { 'flutter' }
@@ -11,16 +11,21 @@ function Invoke-Flutter {
 $version = (& $flutter --version --machine | Out-String | ConvertFrom-Json).frameworkVersion
 if ($LASTEXITCODE -ne 0 -or $version -ne '3.47.6') { throw "Expected Flutter 3.47.6; found $version" }
 $releaseVersion = (Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
+$oldNoProxy = $env:NO_PROXY
+# Flutter's test runner connects to its own loopback server. Do not proxy it.
+$env:NO_PROXY = (@($oldNoProxy, 'localhost', '127.0.0.1', '::1') | Where-Object { $_ }) -join ','
 Push-Location (Join-Path $root 'apps/windows/flutter_ui')
 try {
-    Invoke-Flutter pub get --enforce-lockfile
+    $pubFlags = @('--enforce-lockfile')
+    if ($Offline) { $pubFlags += '--offline' }
+    Invoke-Flutter pub get @pubFlags
     Invoke-Flutter analyze --no-pub
     Invoke-Flutter test --no-pub
     if (-not $SkipBuild) {
         Invoke-Flutter build windows --release --no-pub --flavor preview --target lib/main.dart --build-name=$releaseVersion --build-number=0
         $exe = Join-Path (Get-Location) 'build/windows/x64/preview/runner/Release/freev6-windows-preview.exe'
         if (-not (Test-Path $exe)) { throw 'Preview executable missing' }
-        $probe = Start-Process -FilePath $exe -ArgumentList '--host-probe' -WorkingDirectory (Split-Path $exe) -PassThru
+        $probe = Start-Process -FilePath $exe -ArgumentList '--host-probe' -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden -PassThru
         if (-not $probe.WaitForExit(30000)) {
             # Only this test-owned process is terminated; never search by name.
             $probe.Kill()
@@ -30,4 +35,4 @@ try {
         if ($probe.ExitCode -ne 0) { throw "Native bridge probe failed: $($probe.ExitCode)" }
         Write-Output "Preview build and native bridge probe passed: $exe"
     }
-} finally { Pop-Location }
+} finally { $env:NO_PROXY = $oldNoProxy; Pop-Location }

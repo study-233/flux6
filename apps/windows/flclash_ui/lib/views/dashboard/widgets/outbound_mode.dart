@@ -1,3 +1,4 @@
+import 'package:fl_clash/freev6/session.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
@@ -28,6 +29,11 @@ class OutboundModeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final modes = Mode.values
+        .where(
+          (value) => value != Mode.direct || watchFreeV6(ref).allowDirectMode,
+        )
+        .toList();
     final mode = ref.watch(
       patchClashConfigProvider.select((state) => state.mode),
     );
@@ -44,12 +50,12 @@ class OutboundModeCard extends ConsumerWidget {
           const SizedBox(height: 12),
           DashboardConnectedGroup(
             children: [
-              for (final (index, item) in Mode.values.indexed)
+              for (final (index, item) in modes.indexed)
                 Expanded(
                   child: DashboardConnectedButton(
                     selected: item == mode,
                     first: index == 0,
-                    last: index == Mode.values.length - 1,
+                    last: index == modes.length - 1,
                     outer: _outer,
                     inner: 12,
                     background: tone,
@@ -95,6 +101,11 @@ class OutboundModeBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final density = DashboardDensityScope.of(context);
+    final modes = Mode.values
+        .where(
+          (value) => value != Mode.direct || watchFreeV6(ref).allowDirectMode,
+        )
+        .toList();
     final mode = ref.watch(
       patchClashConfigProvider.select((state) => state.mode),
     );
@@ -131,12 +142,12 @@ class OutboundModeBar extends ConsumerWidget {
               child: DashboardConnectedGroup(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final (index, item) in Mode.values.indexed)
+                  for (final (index, item) in modes.indexed)
                     Expanded(
                       child: DashboardConnectedButton(
                         selected: item == mode,
                         first: index == 0,
-                        last: index == Mode.values.length - 1,
+                        last: index == modes.length - 1,
                         outer: outer,
                         inner: 10,
                         background: DashboardColors.of(context).tone,

@@ -1,3 +1,5 @@
+import 'package:fl_clash/freev6/pages.dart';
+import 'package:fl_clash/freev6/session.dart';
 import 'dart:math' as math;
 
 import 'package:fl_clash/common/common.dart';
@@ -204,7 +206,7 @@ class _CurrentOutboundCardState extends ConsumerState<CurrentOutboundCard>
                   child: Center(
                     child: _StartToggle(
                       size: metrics.buttonSize,
-                      enabled: hasProfile,
+                      enabled: hasProfile && watchFreeV6(ref).canConnectAction,
                       running: isStart,
                       suspended: suspended,
                     ),
@@ -314,6 +316,10 @@ class _ExitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (const bool.fromEnvironment('FREEV6_OFFLINE') ||
+        const bool.fromEnvironment('FREEV6_BACKEND')) {
+      return const FreeV6ExitLabel();
+    }
     final colorScheme = context.colorScheme;
     final style = DashboardText.figure(
       context,
@@ -587,7 +593,7 @@ class _CountryBadgeState extends State<_CountryBadge>
   }
 }
 
-class _Cells extends StatelessWidget {
+class _Cells extends ConsumerWidget {
   const _Cells({
     required this.quality,
     required this.loading,
@@ -601,7 +607,7 @@ class _Cells extends StatelessWidget {
   final double gap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
     final organization = switch (quality) {
       IpQuality(organization: final name?) when name.isNotEmpty => name,
@@ -617,8 +623,12 @@ class _Cells extends StatelessWidget {
         ),
         Flexible(
           child: _Cell(
-            label: appLocalizations.ipOrganization,
-            value: organization != null
+            label: appLocalizations.outboundMode,
+            value:
+                const bool.fromEnvironment('FREEV6_OFFLINE') ||
+                    const bool.fromEnvironment('FREEV6_BACKEND')
+                ? _CellText(watchFreeV6(ref).mode)
+                : organization != null
                 ? _CellText(organization)
                 : loading
                 ? SkeletonText(width: 96, style: _cellStyle(context))

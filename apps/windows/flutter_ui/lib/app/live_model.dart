@@ -995,6 +995,18 @@ class LiveModel extends ClientModel {
           await host.call('external.open', arguments);
         case 'logs.clear':
           _logs.clear();
+        case 'logs.export':
+          final path = await _pick('logs', save: true);
+          if (path == null) return false;
+          await File(path).writeAsString(
+            _logs.reversed
+                .map(
+                  (log) =>
+                      '${log.time.toIso8601String()} [${log.level}] ${log.message}',
+                )
+                .join('\n'),
+            flush: true,
+          );
         default:
           throw ApiFailure('未知操作：$action');
       }

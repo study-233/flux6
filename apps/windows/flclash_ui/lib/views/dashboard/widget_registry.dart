@@ -1,3 +1,4 @@
+import 'package:fl_clash/freev6/pages.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -11,12 +12,22 @@ extension DashboardWidgetView on DashboardWidget {
     DashboardWidget.outboundMode => const OutboundModeCard(),
     DashboardWidget.vpnButton => const VpnCard(),
     DashboardWidget.networkTakeover => const NetworkTakeoverCard(),
-    DashboardWidget.serviceStatus => const ServiceStatusCard(),
-    DashboardWidget.profiles => const ProfilesCard(),
+    DashboardWidget.serviceStatus => const FreeV6AdaptiveCard(
+      child: FreeV6RuntimeCard(hotspot: true),
+    ),
+    DashboardWidget.profiles => const FreeV6AdaptiveCard(
+      child: FreeV6ProfileCard(),
+    ),
     DashboardWidget.proxyGroups => const ProxyGroupsCard(),
-    DashboardWidget.connectionStats => const ConnectionStatsCard(),
-    DashboardWidget.intranetIp => const IntranetIpCard(),
-    DashboardWidget.memoryInfo => const MemoryInfo(),
+    DashboardWidget.connectionStats => const FreeV6AdaptiveCard(
+      child: FreeV6ActivityCard(),
+    ),
+    DashboardWidget.intranetIp => const FreeV6AdaptiveCard(
+      child: FreeV6UsageCard(),
+    ),
+    DashboardWidget.memoryInfo => const FreeV6AdaptiveCard(
+      child: FreeV6RuntimeCard(),
+    ),
   };
 
   Glyph get glyph => switch (this) {

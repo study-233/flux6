@@ -6,8 +6,8 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project, bool probe)
+    : project_(project), probe_(probe) {}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -27,10 +27,11 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  bridge_ = std::make_unique<HostBridge>(flutter_controller_->engine()->messenger(), GetHandle(), probe_);
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
-
+    if (bridge_ && bridge_->should_show()) this->Show();
   });
 
   // Flutter can complete the first frame before the "show window" callback is
@@ -42,6 +43,10 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  if (bridge_) {
+    probe_passed_ = bridge_->probe_passed();
+    bridge_.reset();
+  }
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
@@ -53,6 +58,10 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (bridge_) {
+    const auto result = bridge_->HandleMessage(message, wparam, lparam);
+    if (result) return *result;
+  }
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     WindowPluginForwardVisibility(*flutter_controller_, message, wparam,

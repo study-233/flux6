@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../app/client_model.dart';
 
@@ -40,7 +41,9 @@ class _WindowBackgroundState extends State<WindowBackground> {
     final native =
         !black && ['mica', 'acrylic'].contains(m.runtime['backdrop']);
     final glass = m.preference('freev6-webgl-glass', '1') == '1';
-    final color = black ? Colors.black : Theme.of(context).colorScheme.surface;
+    final color = black
+        ? Colors.black
+        : prism.SurfaceLevel.page.colorOf(prism.Theme.of(context).colorScheme);
     return Stack(
       fit: StackFit.expand,
       children: [

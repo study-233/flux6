@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
+get_filename_component(FREEV6_HOST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../flutter_ui/windows/runner" ABSOLUTE)
+if(FREEV6_LIVE)
+  set(FREEV6_MANIFEST "${FREEV6_HOST_DIR}/runner.live.manifest")
+else()
+  set(FREEV6_MANIFEST "runner.exe.manifest")
+endif()
 
 # Define the application target. To change its name, change BINARY_NAME in the
 # top-level CMakeLists.txt, not the value here, or `flutter run` will no longer
@@ -8,17 +14,23 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "flutter_window.cpp"
+  "${FREEV6_HOST_DIR}/host_bridge.cpp"
   "main.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
-  "runner.exe.manifest"
+  "${FREEV6_MANIFEST}"
 )
 
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
+if(FREEV6_LIVE)
+  target_link_options(${BINARY_NAME} PRIVATE "/MANIFESTUAC:level='requireAdministrator' uiAccess='false'")
+endif()
+target_compile_definitions(${BINARY_NAME} PRIVATE "FREEV6_LIVE=${FREEV6_LIVE}" "WIN32_LEAN_AND_MEAN" "_WIN32_WINNT=0x0A00" "WINVER=0x0A00")
+target_compile_options(${BINARY_NAME} PRIVATE /utf-8)
 
 # Add preprocessor definitions for the build version.
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION=\"${FLUTTER_VERSION}\"")
@@ -34,6 +46,8 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "bcrypt.lib" "ws2_32.lib" "shell32.lib" "ole32.lib" "uuid.lib" "advapi32.lib" "comdlg32.lib")
+target_include_directories(${BINARY_NAME} PRIVATE "${FREEV6_HOST_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

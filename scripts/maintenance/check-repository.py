@@ -79,7 +79,7 @@ def check():
         tracked = set(subprocess.check_output(['git', 'ls-files', '-z'], cwd=ROOT).decode().split('\0'))
         android_sources = runpy.run_path(str(ROOT / 'scripts/android/package-source.py'))['sources']()
         macos_sources = runpy.run_path(str(ROOT / 'scripts/macos/flutter-source-release.py'))['sources']()
-        inputs = {str(path.relative_to(ROOT)) for path in android_sources} | set(macos_sources)
+        inputs = {path.relative_to(ROOT).as_posix() for path in android_sources} | set(macos_sources)
         for path in sorted(inputs - tracked):
             errors.append(f'Untracked build/source-package input: {path}')
     if errors:

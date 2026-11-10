@@ -278,7 +278,10 @@ void TrayPlugin::RestoreIcon() {
 }
 
 void TrayPlugin::Hide() {
-  ::KillTimer(MainWindow(), kRestoreTimerId);
+  // The Flutter view may already be gone when the registrar deletes plugins.
+  if (icon_data_.hWnd != nullptr) {
+    ::KillTimer(icon_data_.hWnd, kRestoreTimerId);
+  }
   if (icon_requested_) {
     ::Shell_NotifyIconW(NIM_DELETE, &icon_data_);
   }

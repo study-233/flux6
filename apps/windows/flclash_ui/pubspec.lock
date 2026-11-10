@@ -547,6 +547,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  freev6_windows:
+    dependency: "direct main"
+    description:
+      path: "../flutter_ui"
+      relative: true
+    source: path
+    version: "0.5.3+0"
   freezed:
     dependency: "direct dev"
     description:
@@ -1722,5 +1729,5 @@ packages:
     source: hosted
     version: "2.2.4"
 sdks:
-  dart: ">=3.13.2 <4.0.0"
-  flutter: ">=3.47.2"
+  dart: ">=3.13.5 <4.0.0"
+  flutter: ">=3.47.6"

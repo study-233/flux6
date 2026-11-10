@@ -7663,8 +7663,7 @@ class AppLocalizations {
   String customImportDroppedSubRules(num count, Object label) {
     return Intl.plural(
       count,
-      one:
-          '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
+      one: '1 SUB-RULE rule was dropped, since custom profiles do not support sub-rules',
       other:
           '$label SUB-RULE rules were dropped, since custom profiles do not support sub-rules',
       name: 'customImportDroppedSubRules',
@@ -9068,6 +9067,641 @@ class AppLocalizations {
     return Intl.message(
       'These domains are resolved by Fallback directly.',
       name: 'fallbackFilterDomainDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Offline`
+  String get freev6Offline {
+    return Intl.message('Offline', name: 'freev6Offline', desc: '', args: []);
+  }
+
+  /// `Configuration`
+  String get freev6Configuration {
+    return Intl.message(
+      'Configuration',
+      name: 'freev6Configuration',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Settings`
+  String get freev6Settings {
+    return Intl.message('Settings', name: 'freev6Settings', desc: '', args: []);
+  }
+
+  /// `Campus`
+  String get freev6Campus {
+    return Intl.message('Campus', name: 'freev6Campus', desc: '', args: []);
+  }
+
+  /// `Campus Rules`
+  String get freev6CampusRules {
+    return Intl.message(
+      'Campus Rules',
+      name: 'freev6CampusRules',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Chain`
+  String get freev6Chain {
+    return Intl.message('Chain', name: 'freev6Chain', desc: '', args: []);
+  }
+
+  /// `Cloud`
+  String get freev6Cloud {
+    return Intl.message('Cloud', name: 'freev6Cloud', desc: '', args: []);
+  }
+
+  /// `Import Url`
+  String get freev6ImportUrl {
+    return Intl.message(
+      'Import Url',
+      name: 'freev6ImportUrl',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Import File`
+  String get freev6ImportFile {
+    return Intl.message(
+      'Import File',
+      name: 'freev6ImportFile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear`
+  String get freev6Clear {
+    return Intl.message('Clear', name: 'freev6Clear', desc: '', args: []);
+  }
+
+  /// `Url`
+  String get freev6Url {
+    return Intl.message('Url', name: 'freev6Url', desc: '', args: []);
+  }
+
+  /// `Portal`
+  String get freev6Portal {
+    return Intl.message('Portal', name: 'freev6Portal', desc: '', args: []);
+  }
+
+  /// `Imported`
+  String get freev6Imported {
+    return Intl.message('Imported', name: 'freev6Imported', desc: '', args: []);
+  }
+
+  /// `Enabled`
+  String get freev6Enabled {
+    return Intl.message('Enabled', name: 'freev6Enabled', desc: '', args: []);
+  }
+
+  /// `Disabled`
+  String get freev6Disabled {
+    return Intl.message('Disabled', name: 'freev6Disabled', desc: '', args: []);
+  }
+
+  /// `Import`
+  String get freev6Import {
+    return Intl.message('Import', name: 'freev6Import', desc: '', args: []);
+  }
+
+  /// `General`
+  String get freev6General {
+    return Intl.message('General', name: 'freev6General', desc: '', args: []);
+  }
+
+  /// `Auto Start`
+  String get freev6AutoStart {
+    return Intl.message(
+      'Auto Start',
+      name: 'freev6AutoStart',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Silent`
+  String get freev6Silent {
+    return Intl.message('Silent', name: 'freev6Silent', desc: '', args: []);
+  }
+
+  /// `Auto Run`
+  String get freev6AutoRun {
+    return Intl.message('Auto Run', name: 'freev6AutoRun', desc: '', args: []);
+  }
+
+  /// `F6`
+  String get freev6F6 {
+    return Intl.message('F6', name: 'freev6F6', desc: '', args: []);
+  }
+
+  /// `Hotspot`
+  String get freev6Hotspot {
+    return Intl.message('Hotspot', name: 'freev6Hotspot', desc: '', args: []);
+  }
+
+  /// `Developer`
+  String get freev6Developer {
+    return Intl.message(
+      'Developer',
+      name: 'freev6Developer',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Appearance`
+  String get freev6Appearance {
+    return Intl.message(
+      'Appearance',
+      name: 'freev6Appearance',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Theme`
+  String get freev6Theme {
+    return Intl.message('Theme', name: 'freev6Theme', desc: '', args: []);
+  }
+
+  /// `System`
+  String get freev6System {
+    return Intl.message('System', name: 'freev6System', desc: '', args: []);
+  }
+
+  /// `Light`
+  String get freev6Light {
+    return Intl.message('Light', name: 'freev6Light', desc: '', args: []);
+  }
+
+  /// `Dark`
+  String get freev6Dark {
+    return Intl.message('Dark', name: 'freev6Dark', desc: '', args: []);
+  }
+
+  /// `Dynamic`
+  String get freev6Dynamic {
+    return Intl.message('Dynamic', name: 'freev6Dynamic', desc: '', args: []);
+  }
+
+  /// `Black`
+  String get freev6Black {
+    return Intl.message('Black', name: 'freev6Black', desc: '', args: []);
+  }
+
+  /// `Background`
+  String get freev6Background {
+    return Intl.message(
+      'Background',
+      name: 'freev6Background',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Default`
+  String get freev6Default {
+    return Intl.message('Default', name: 'freev6Default', desc: '', args: []);
+  }
+
+  /// `Mica`
+  String get freev6Mica {
+    return Intl.message('Mica', name: 'freev6Mica', desc: '', args: []);
+  }
+
+  /// `Acrylic`
+  String get freev6Acrylic {
+    return Intl.message('Acrylic', name: 'freev6Acrylic', desc: '', args: []);
+  }
+
+  /// `Wallpaper`
+  String get freev6Wallpaper {
+    return Intl.message(
+      'Wallpaper',
+      name: 'freev6Wallpaper',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Glass`
+  String get freev6Glass {
+    return Intl.message('Glass', name: 'freev6Glass', desc: '', args: []);
+  }
+
+  /// `Motion`
+  String get freev6Motion {
+    return Intl.message('Motion', name: 'freev6Motion', desc: '', args: []);
+  }
+
+  /// `Access`
+  String get freev6Access {
+    return Intl.message('Access', name: 'freev6Access', desc: '', args: []);
+  }
+
+  /// `Core`
+  String get freev6Core {
+    return Intl.message('Core', name: 'freev6Core', desc: '', args: []);
+  }
+
+  /// `Ready`
+  String get freev6Ready {
+    return Intl.message('Ready', name: 'freev6Ready', desc: '', args: []);
+  }
+
+  /// `Missing`
+  String get freev6Missing {
+    return Intl.message('Missing', name: 'freev6Missing', desc: '', args: []);
+  }
+
+  /// `Download`
+  String get freev6Download {
+    return Intl.message('Download', name: 'freev6Download', desc: '', args: []);
+  }
+
+  /// `Register`
+  String get freev6Register {
+    return Intl.message('Register', name: 'freev6Register', desc: '', args: []);
+  }
+
+  /// `Data`
+  String get freev6Data {
+    return Intl.message('Data', name: 'freev6Data', desc: '', args: []);
+  }
+
+  /// `Export`
+  String get freev6Export {
+    return Intl.message('Export', name: 'freev6Export', desc: '', args: []);
+  }
+
+  /// `Restore`
+  String get freev6Restore {
+    return Intl.message('Restore', name: 'freev6Restore', desc: '', args: []);
+  }
+
+  /// `Reset`
+  String get freev6Reset {
+    return Intl.message('Reset', name: 'freev6Reset', desc: '', args: []);
+  }
+
+  /// `Notices`
+  String get freev6Notices {
+    return Intl.message('Notices', name: 'freev6Notices', desc: '', args: []);
+  }
+
+  /// `About`
+  String get freev6About {
+    return Intl.message('About', name: 'freev6About', desc: '', args: []);
+  }
+
+  /// `Update`
+  String get freev6Update {
+    return Intl.message('Update', name: 'freev6Update', desc: '', args: []);
+  }
+
+  /// `Usage`
+  String get freev6Usage {
+    return Intl.message('Usage', name: 'freev6Usage', desc: '', args: []);
+  }
+
+  /// `Month`
+  String get freev6Month {
+    return Intl.message('Month', name: 'freev6Month', desc: '', args: []);
+  }
+
+  /// `Total`
+  String get freev6Total {
+    return Intl.message('Total', name: 'freev6Total', desc: '', args: []);
+  }
+
+  /// `Activity`
+  String get freev6Activity {
+    return Intl.message('Activity', name: 'freev6Activity', desc: '', args: []);
+  }
+
+  /// `Network`
+  String get freev6Network {
+    return Intl.message('Network', name: 'freev6Network', desc: '', args: []);
+  }
+
+  /// `Stopped`
+  String get freev6Stopped {
+    return Intl.message('Stopped', name: 'freev6Stopped', desc: '', args: []);
+  }
+
+  /// `Connected`
+  String get freev6Connected {
+    return Intl.message(
+      'Connected',
+      name: 'freev6Connected',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Invalid Url`
+  String get freev6InvalidUrl {
+    return Intl.message(
+      'Invalid Url',
+      name: 'freev6InvalidUrl',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `File Demo`
+  String get freev6FileDemo {
+    return Intl.message(
+      'File Demo',
+      name: 'freev6FileDemo',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `File Detail`
+  String get freev6FileDetail {
+    return Intl.message(
+      'File Detail',
+      name: 'freev6FileDetail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Preview Action`
+  String get freev6PreviewAction {
+    return Intl.message(
+      'Preview Action',
+      name: 'freev6PreviewAction',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Cloud Gate`
+  String get freev6CloudGate {
+    return Intl.message(
+      'Cloud Gate',
+      name: 'freev6CloudGate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `User agreement`
+  String get freev6Agreement {
+    return Intl.message(
+      'User agreement',
+      name: 'freev6Agreement',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear logs`
+  String get freev6ClearLogs {
+    return Intl.message(
+      'Clear logs',
+      name: 'freev6ClearLogs',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Latest`
+  String get freev6Latest {
+    return Intl.message('Latest', name: 'freev6Latest', desc: '', args: []);
+  }
+
+  /// `Nodes`
+  String get freev6Nodes {
+    return Intl.message('Nodes', name: 'freev6Nodes', desc: '', args: []);
+  }
+
+  /// `Choose wallpaper`
+  String get freev6ChooseWallpaper {
+    return Intl.message(
+      'Choose wallpaper',
+      name: 'freev6ChooseWallpaper',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear wallpaper`
+  String get freev6ClearWallpaper {
+    return Intl.message(
+      'Clear wallpaper',
+      name: 'freev6ClearWallpaper',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Welcome to FreeV6`
+  String get freev6Welcome {
+    return Intl.message(
+      'Welcome to FreeV6',
+      name: 'freev6Welcome',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Connect to the campus network and start from the dashboard. Prepare the core and WARP in settings. Closing keeps the app in the tray; quitting first stops the connection. UI preference backups can be imported in Data and maintenance.`
+  String get freev6Guide {
+    return Intl.message(
+      'Connect to the campus network and start from the dashboard. Prepare the core and WARP in settings. Closing keeps the app in the tray; quitting first stops the connection. UI preference backups can be imported in Data and maintenance.',
+      name: 'freev6Guide',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stop and quit`
+  String get freev6Quit {
+    return Intl.message(
+      'Stop and quit',
+      name: 'freev6Quit',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Stop the connection and restore network settings before quitting?`
+  String get freev6QuitDetail {
+    return Intl.message(
+      'Stop the connection and restore network settings before quitting?',
+      name: 'freev6QuitDetail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Save failed. Your draft is retained; check the error and retry.`
+  String get freev6SaveFailed {
+    return Intl.message(
+      'Save failed. Your draft is retained; check the error and retry.',
+      name: 'freev6SaveFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Working…`
+  String get freev6Working {
+    return Intl.message('Working…', name: 'freev6Working', desc: '', args: []);
+  }
+
+  /// `Read the current announcement before using the backup profile.`
+  String get freev6CloudLocked {
+    return Intl.message(
+      'Read the current announcement before using the backup profile.',
+      name: 'freev6CloudLocked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Clear this configuration? The change takes effect after reconnecting.`
+  String get freev6ClearDetail {
+    return Intl.message(
+      'Clear this configuration? The change takes effect after reconnecting.',
+      name: 'freev6ClearDetail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Restore default settings, disable autostart and clear chain and backup profiles? Stop the connection first.`
+  String get freev6ResetDetail {
+    return Intl.message(
+      'Restore default settings, disable autostart and clear chain and backup profiles? Stop the connection first.',
+      name: 'freev6ResetDetail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Completed`
+  String get freev6Completed {
+    return Intl.message(
+      'Completed',
+      name: 'freev6Completed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View details`
+  String get freev6Details {
+    return Intl.message(
+      'View details',
+      name: 'freev6Details',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Download and update`
+  String get freev6InstallUpdate {
+    return Intl.message(
+      'Download and update',
+      name: 'freev6InstallUpdate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Download and verify the update, then stop the connection and open the installer.`
+  String get freev6InstallDetail {
+    return Intl.message(
+      'Download and verify the update, then stop the connection and open the installer.',
+      name: 'freev6InstallDetail',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Ignore this version`
+  String get freev6SkipVersion {
+    return Intl.message(
+      'Ignore this version',
+      name: 'freev6SkipVersion',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Check complete; no pending update`
+  String get freev6UpdateChecked {
+    return Intl.message(
+      'Check complete; no pending update',
+      name: 'freev6UpdateChecked',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open source licenses`
+  String get freev6Licenses {
+    return Intl.message(
+      'Open source licenses',
+      name: 'freev6Licenses',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Repository`
+  String get freev6Repository {
+    return Intl.message(
+      'Repository',
+      name: 'freev6Repository',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Feedback`
+  String get freev6Feedback {
+    return Intl.message('Feedback', name: 'freev6Feedback', desc: '', args: []);
+  }
+
+  /// `Privacy policy`
+  String get freev6Privacy {
+    return Intl.message(
+      'Privacy policy',
+      name: 'freev6Privacy',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Refresh local status`
+  String get freev6Refresh {
+    return Intl.message(
+      'Refresh local status',
+      name: 'freev6Refresh',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Happy Halloween! 🎃`
+  String get freev6Halloween {
+    return Intl.message(
+      'Happy Halloween! 🎃',
+      name: 'freev6Halloween',
       desc: '',
       args: [],
     );

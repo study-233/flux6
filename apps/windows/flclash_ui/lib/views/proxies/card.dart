@@ -119,7 +119,9 @@ class ProxyCard extends ConsumerWidget {
           checked: pinned,
           onPressed: () => _handleSelect(ref),
         ),
-      if (addable)
+      if (addable &&
+          !const bool.fromEnvironment('FREEV6_OFFLINE') &&
+          !const bool.fromEnvironment('FREEV6_BACKEND'))
         PopupMenuItem(
           glyph: AppGlyphs.listAdd,
           label: appLocalizations.addToLocalProxies,

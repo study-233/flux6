@@ -89,13 +89,22 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.follow" "\0"
-            VALUE "FileDescription", "FlClash" "\0"
+            VALUE "CompanyName", "FreeV6 contributors" "\0"
+#if FREEV6_LIVE
+            VALUE "FileDescription", "FreeV6 Windows Client" "\0"
+#else
+            VALUE "FileDescription", "FreeV6 FlClash Offline Acceptance" "\0"
+#endif
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "clash" "\0"
+            VALUE "InternalName", "freev6-flclash-preview" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.follow. All rights reserved." "\0"
-            VALUE "OriginalFilename", "FlClash.exe" "\0"
-            VALUE "ProductName", "clash" "\0"
+#if FREEV6_LIVE
+            VALUE "OriginalFilename", "freev6-desktop.exe" "\0"
+            VALUE "ProductName", "FreeV6" "\0"
+#else
+            VALUE "OriginalFilename", "freev6-flclash-offline.exe" "\0"
+            VALUE "ProductName", "FreeV6 FlClash Offline" "\0"
+#endif
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
