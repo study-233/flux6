@@ -14,6 +14,7 @@
 | `cmd/`、`internal/`、`mobileapi/` | Go 程序、共享业务、移动端接口 | 共享维护 |
 | `shared/` | 协议与跨语言测试夹具 | 共享维护 |
 | `assets/branding/`、`third_party/` | 品牌资源、第三方许可与来源索引 | 共享维护 |
+| `site/`、`scripts/site/` | Flux6 官网源码及无依赖静态构建/预览工具 | [本地预览说明](../../site/README.md) |
 | `scripts/` | 各端构建、验证与维护脚本 | 从仓库根目录调用 |
 | `build/`、`dist/` | 工具缓存和临时构建、分发产物 | 不进 Git |
 

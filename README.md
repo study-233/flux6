@@ -1,11 +1,13 @@
 <div align="center">
-  <img src="assets/branding/icon.svg" alt="FreeV6" width="100" height="100" />
-  <h1>FreeV6</h1>
+  <img src="assets/branding/icon.svg" alt="Flux6" width="100" height="100" />
+  <h1>Flux6</h1>
   <p>教育网 IPv6 免流客户端 · macOS / Android</p>
 
 [下载](https://github.com/study-233/free-v6/releases) · [反馈](https://github.com/study-233/free-v6/issues) · [开发文档](docs/development/README.md)
 
 </div>
+
+原 FreeV6。当前 0.1.0 安装包与 Homebrew 软件包仍使用 FreeV6 名称。[官网源码与本地预览](site/README.md)。
 
 ## 界面
 
@@ -42,7 +44,7 @@ brew install --cask study-233/tap/freev6
 
 ## 许可证
 
-[MIT](LICENSE)
+[MIT](LICENSE) · [第三方许可说明](third_party/README.md)（官网沿用 GPL-3.0）
 
 ## Star History
 

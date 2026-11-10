@@ -1,0 +1,26 @@
+/* Flux6 adaptations of the FlClash website. See ../UPSTREAM.json and ../LICENSE. */
+.glyph { object-fit: contain; }
+.stage { display: grid; place-items: center; }
+.stage img { width: min(75%, 240px); height: auto; }
+.product-shots { position: relative; aspect-ratio: 16 / 10; mask-image: none; -webkit-mask-image: none; }
+.desktop-shot { position: absolute; top: 4%; left: 0; width: 87%; height: auto; border-radius: 14px; box-shadow: 0 12px 40px rgb(38 33 34 / 12%); }
+.mobile-shot { position: absolute; right: 0; bottom: 0; width: 23%; height: auto; border-radius: 22px; box-shadow: 0 12px 32px rgb(38 33 34 / 18%); }
+.release-note { margin: 0 0 18px; color: var(--ink-2); font-size: 13px; line-height: 1.7; }
+.reel-track { width: max-content; }
+.reel-track > span { flex: 0 0 1.12em; width: max-content; }
+.foot-links { flex-wrap: wrap; }
+.file-title:focus-visible { outline-offset: 5px; }
+noscript a { color: var(--accent); }
+@media (max-width: 1100px) {
+  .stage { display: none; }
+}
+@media (max-width: 700px) {
+  .desktop-shot { border-radius: 7px; }
+  .mobile-shot { border-radius: 10px; }
+  .display .line { font-size: min(64px, 100cqi / 7.1); }
+  .display .word { font-size: min(84px, 100cqi / 3.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reel, .reel-track { transition: none !important; }
+}
