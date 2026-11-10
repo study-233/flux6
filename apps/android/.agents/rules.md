@@ -160,7 +160,7 @@ how important it feels.
 
 - **Assertable behavior goes in a test.** A test is the only form that cannot drift, because it fails when the behavior
   it describes is broken. Prefer it over both a comment and a document whenever the fact can be checked in code.
-- **Repository-wide defaults, ownership, and invariants go in `.agents/*.md` or a `.agents/skills/*/SKILL.md`.** They
+- **Android-specific defaults, ownership and invariants go in this project's `.agents/*.md`; reusable workflows go in the root [repository skills](../../../.agents/skills.md).** They
   are violated from many files, so they must reach every future agent at session start. A comment in one file cannot do
   that.
 - **A fact that is true only at one call site, and is not visible from that call site, is the one thing a comment does

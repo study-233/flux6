@@ -365,3 +365,13 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 [GitHub Pages 部署](https://github.com/study-233/flux6/actions/runs/42836218561) 已成功，官网为 https://study-233.github.io/flux6/，启用 HTTPS。仓库 About 与 Tap 官网链接均指向该地址，主题中的旧品牌已替换为 flux6。线上页面在隔离 Playwright/Chrome 中完成 320、390、768、1024、1440px 验证：无横向溢出、损坏图片或控制台错误；下载链接、双语/主题持久化、复制、键盘操作、日志搜索与无 JS 回退通过，线上 release.json 与本地已验证附件元数据完全一致。截图和记录位于 `build/flux6-release/site-live/`。
 
 另外通过 Windows Go helper 的 amd64 交叉编译；这不等于 Windows 原生安装或运行验证。所有既有测试边界继续有效：本轮未执行实际 VPN/代理联网、管理员安装、真机覆盖安装、Apple 公证，也未停止用户进程。后续维护记录提交不改动签名产物、对应源码或发行标签。
+
+## 2026-11-10 统一代理规范与仓库技能
+
+借鉴 FlClash v0.9.3 的 `AGENTS.md` 和五个技能，固定来源为 `be84736605527034689c95bf27828ff27d912c5e`。根入口增加按平台阅读导航、任务范围、生命周期归属、生成代码、隔离验证和检查结果报告要求，保留 Flux6 原有分支、签名、联网、第三方来源及预留平台约束。来源文件映射、本地适配与 GPL-3.0 许可见 [代理规范来源](../../.agents/UPSTREAM.md)。
+
+按用户要求，删除 Android 内的五个技能及旧索引，在根 `.agents/skills/` 维护 `localization`、`ui-work`、`core-platform`、`ui-performance`、`pre-commit-quality-review`，名称不加前缀。Android 的架构、命令、设置归属、界面与编码参考保留，入口改为引用 [统一技能索引](../../.agents/skills.md)。根忽略规则仅开放这套技能、索引和来源许可，本地代理状态继续忽略。技能按 Mac Swift/XPC、Android ServiceState、Windows Go helper 和各端实际文案机制适配，未引入上游 hooks、子代理配置或发布流程。
+
+验证：五个技能通过 `skill-creator` 的 `quick_validate.py`；根仓库检查通过；新增及修改的代理文档本地链接、代码路径、技能名称唯一性、Android 技能目录移除、GPL 原文一致性、文案扫描命令和 Git 忽略边界均已核对；`git diff --check` 通过。校验依赖只安装到临时目录。此次为代理文档与配置整理，没有修改应用代码或构建/源码打包脚本，因此没有重复平台编译、安装、签名或真实联网验收；现有验证结论不因此扩大。
+
+用户随后要求提交全部本地遗漏改动，本轮将独立工作树中的该组改动提交，并与最新 Flux6 主线合并；保留完整的官网、重打包和发布记录。新增代理文档中的项目名同步为 Flux6。按 pre-commit-quality-review 的文档整理分流跳过结构审查；复核五个技能格式、71 个本地链接、许可一致性、忽略边界及仓库检查。当前已发布 0.1.0 安装包和对应源码归档保持原发布快照，不因代理文档更新而重打包。
