@@ -32,6 +32,16 @@ final class ServiceInstallationRequestTests: XCTestCase {
         }
     }
 
+    func testMaintenanceUsesCurrentAppInstaller() throws {
+        for action in [ServiceInstallationAction.recover, .uninstall] {
+            let request = try ServiceInstallationRequest(action: action,
+                app: URL(fileURLWithPath: "/Applications/Flux6.app"), uid: 501,
+                clientHash: String(repeating: "a", count: 40))
+            XCTAssertEqual(request.executable.path, "/Applications/Flux6.app/Contents/Helpers/freev6-service-installer")
+            XCTAssertEqual(request.arguments, [action.rawValue])
+        }
+    }
+
     func testAppleScriptEscapesItsOwnStringLiteral() throws {
         let request = try ServiceInstallationRequest(action: .install,
             app: URL(fileURLWithPath: "/Applications/Flux6 \"test\".app"), uid: 501,

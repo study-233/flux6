@@ -161,7 +161,7 @@ python3 scripts/macos/probe-check-recovery.py --resources /absolute/path/to/veri
 
 ## 服务安装与事务
 
-应用需位于 `/Applications`。仪表盘页提供安装/重新登记入口，设置页提供恢复未完成安装与卸载入口，管理员凭据交由 macOS 系统授权窗口处理。安装登记同时绑定用户和 App CDHash，更新后的 App 需要重新登记；其他用户的登记保留。当前 root 实机安装流程仍待验收，不将本地模拟事务测试当作系统级成功。
+应用需位于 `/Applications`。仪表盘页提供安装/重新登记入口，设置页提供恢复未完成安装与卸载入口，管理员凭据交由 macOS 系统授权窗口处理。安装登记同时绑定用户和 App CDHash，更新后的 App 需要重新登记；其他用户的登记保留。管理员安装、升级及卸载需要分别进行实机验收，不将本地模拟事务测试当作系统级成功。
 
 固定系统路径：
 
@@ -174,6 +174,8 @@ python3 scripts/macos/probe-check-recovery.py --resources /absolute/path/to/veri
 
 安装工具先复制并验证客户端代码、服务固定摘要和自身代码身份，再修改固定目标。事务持有安装锁和全局网络锁，持久化旧文件、摘要和提交记录；失败回退，恢复失败保留记录供下次重试。安装工具以自己的 root CDHash 完成安装后的双向 XPC 健康检查。发现 `network-session.json` 时拒绝安装恢复、升级和卸载，以免覆盖待恢复的网络状态。服务健康握手不取得网络锁，避免与尚未提交的安装事务相互等待。
 
+如果只有 launchd plist 缺失，而服务、恢复工具和登记文件仍完整，当前安装器会在处理完已有事务后校验两份已安装代码的签名、运行保护和登记身份，再原子重建固定配置。单独恢复不加载或停止服务；安装、升级及卸载在生成回滚快照前完成这一修复，保证升级失败仍能启动旧服务。已有 plist 不会被这一步覆盖，其他文件缺失或身份校验失败仍拒绝继续。应用内维护操作使用当前 App 随带的安装器，避免旧恢复工具缺少修复逻辑；更新到包含修复的版本后，可从“设置 → 网络服务”执行恢复或修复。
+
 误删应用后，管理员仍可使用固定恢复工具的 `recover` 或 `uninstall` 动作。这里的 `recover` 仅恢复安装事务；网络恢复由会话服务负责。卸载移除 daemon、服务、登记和恢复工具，保留 root 私有暂存及资源目录；完整数据清理归入后续卸载验收。
 
 无需管理员权限的真实签名产物验证：
@@ -182,7 +184,7 @@ python3 scripts/macos/probe-check-recovery.py --resources /absolute/path/to/veri
 python3 scripts/macos/probe-installer.py
 ```
 
-验证正常 payload、错误服务摘要、放宽运行期保护的客户端拒绝，以及非 root 安装拒绝。文件复制到独立的 `build/installer-probes/<UUID>`，不调用系统级 launchd。事务 XCTest 还覆盖首次安装/升级失败、中断恢复、坏备份、符号链接目标、并发锁、多用户重新登记和幂等卸载。
+验证正常 payload、错误服务摘要、放宽运行期保护的客户端拒绝，以及非 root 安装拒绝。文件复制到独立的 `build/installer-probes/<UUID>`，不调用系统级 launchd。事务 XCTest 还覆盖首次安装/升级失败、中断恢复、坏备份、符号链接目标、并发锁、多用户重新登记、幂等卸载及缺失 launchd 配置的受限恢复。
 
 ## 系统探针
 

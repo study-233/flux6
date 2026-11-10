@@ -118,12 +118,17 @@ final class ServiceInstaller {
     private let controller: ServiceControlling
     private let layout: InstallationLayout
     private let owner: uid_t
+    private let installedIdentity: (URL, String) throws -> CodeIdentity
     private let slots = ["service", "recovery", "registration", "plist"]
 
-    init(layout: InstallationLayout, owner: uid_t, controller: ServiceControlling) throws {
+    init(layout: InstallationLayout, owner: uid_t, controller: ServiceControlling,
+         installedIdentity: @escaping (URL, String) throws -> CodeIdentity = {
+             try CodeIdentity.protectedFile(at: $0, identifier: $1)
+         }) throws {
         self.layout = layout
         self.owner = owner
         self.controller = controller
+        self.installedIdentity = installedIdentity
         helpers = try SecureDirectory(path: layout.helpers, owner: owner, create: true, mode: 0o755)
         daemons = try SecureDirectory(path: layout.daemons, owner: owner)
         data = try SecureDirectory(path: layout.data, owner: owner, create: true, mode: 0o755)
@@ -148,6 +153,33 @@ final class ServiceInstaller {
         let (directory, name, mode) = location(slot)
         if let value { try directory.write(name, data: value, mode: mode) }
         else { try directory.remove(name) }
+    }
+
+    private func launchDaemonPlist() throws -> Data {
+        let plist: [String: Any] = ["Label": ServiceProtocolVersion.machService,
+            "ProgramArguments": [layout.helpers + "/" + ServiceProtocolVersion.machService],
+            "MachServices": [ServiceProtocolVersion.machService: true],
+            "RunAtLoad": true, "KeepAlive": true, "ProcessType": "Background", "ThrottleInterval": 10,
+            "AbandonProcessGroup": false]
+        return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+    }
+
+    private func repairMissingLaunchDaemon() throws {
+        guard try current("plist") == nil,
+              try current("service") != nil, try current("recovery") != nil,
+              let bytes = try current("registration") else { return }
+        let registration = try ServiceRegistration.decode(bytes)
+        let service = try installedIdentity(URL(fileURLWithPath: layout.helpers + "/" + ServiceProtocolVersion.machService),
+                                            ServiceProtocolVersion.machService)
+        guard registration.service == service else { throw RegistrationError.serviceIdentityMismatch }
+        let recovery = try installedIdentity(URL(fileURLWithPath: layout.helpers + "/dev.freev6.service-installer"),
+                                             "dev.freev6.service-installer")
+        guard registration.clients.contains(where: { $0.uid == 0 && $0.identity == recovery }) else {
+            throw RegistrationError.invalidClients
+        }
+        // This derived file can be rebuilt atomically without restarting a job.
+        // Repair before the next snapshot so a failed upgrade can restart the old service.
+        try put("plist", launchDaemonPlist())
     }
 
     private func journal(_ value: InstallationJournal) throws {
@@ -202,7 +234,12 @@ final class ServiceInstaller {
         return try body()
     }
 
-    func recover() throws { try state.withLock { try withNetworkLease { try recoverUnlocked() } } }
+    func recover() throws {
+        try state.withLock { try withNetworkLease {
+            try recoverUnlocked()
+            try repairMissingLaunchDaemon()
+        } }
+    }
 
     func install(_ payload: InstallationPayload) throws {
         try mutate { payload }
@@ -216,6 +253,7 @@ final class ServiceInstaller {
         try state.withLock { try withNetworkLease {
             try recoverUnlocked()
             let payload = try prepare()
+            try repairMissingLaunchDaemon()
             var previous: [String: Bool] = [:]
             var digests: [String: String] = [:]
             for slot in slots {
@@ -244,15 +282,10 @@ final class ServiceInstaller {
             do {
                 try controller.stop()
                 if let payload {
-                    let plist: [String: Any] = ["Label": ServiceProtocolVersion.machService,
-                        "ProgramArguments": [layout.helpers + "/" + ServiceProtocolVersion.machService],
-                        "MachServices": [ServiceProtocolVersion.machService: true],
-                        "RunAtLoad": true, "KeepAlive": true, "ProcessType": "Background", "ThrottleInterval": 10,
-                        "AbandonProcessGroup": false]
                     try put("recovery", payload.recovery)
                     try put("service", payload.service)
                     try put("registration", JSONEncoder().encode(proposedRegistration!))
-                    try put("plist", PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0))
+                    try put("plist", launchDaemonPlist())
                     try controller.start(plist: layout.daemons + "/" + ServiceProtocolVersion.machService + ".plist")
                     try controller.healthCheck(identity: payload.registration.service)
                 } else {
