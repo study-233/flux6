@@ -1,10 +1,10 @@
 # FreeV6 Windows
 
-当前 Windows 客户端保留 Web UI、Tauri 窗口与 Go helper，后续将单独进行自定义 UI 重构。本次仓库整理不替换 Windows 界面或网络实现。
+当前 Windows 客户端仍使用 Web UI、Tauri 窗口与 Go helper。已确定重构方向为 Flutter + Windows 原生宿主，首期保留 Go helper、网络和权限实现；界面风格及页面结构对齐 macOS，保留 Windows 原有功能。
 
 在 Windows 开发环境，从本目录运行 `cargo tauri dev` 或 `cargo tauri build`。Tauri 的构建钩子调用仓库根 `scripts/windows/build-helper.ps1`，生成 Go sidecar 并准备 GeoSite 数据。完整说明见 [Tauri 工程](src-tauri/README.md) 和 [统一开发指南](../../docs/development/README.md)。
 
-新 UI 重构的顺序为：功能与接口清单、用户指定 UI、逐页接入现有 helper、系统能力与安装回归、删除被替代的旧 UI。该阶段尚未开始。
+重构准备已完成，功能/接口清单、数据迁移、实施阶段与验收要求见 [Windows Flutter 重构实施方案](../../docs/development/windows-flutter-refactor.md)。Flutter 工程和生产入口尚未修改；下列命令仍用于现有 Tauri 客户端。新客户端完成系统功能、数据迁移和安装回归后，再单独删除旧入口。
 
 ## 本地验证与发布
 

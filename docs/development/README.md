@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `apps/macos/` | Flutter 界面、Swift/AppKit 宿主、XPC 网络服务 | 继续开发 |
 | `apps/android/` | 基于 FlClash 的 Flutter、Android VPN 服务、嵌套 Go 核心 | 继续开发 |
-| `apps/windows/` | 现有 Web UI、Tauri 窗口与安装包装 | 保留功能；自定义 UI 重构另立任务 |
+| `apps/windows/` | 现有 Web UI、Tauri 窗口与安装包装 | [Flutter 重构准备完成](windows-flutter-refactor.md)，保留 Go helper；实现待开始 |
 | `apps/ios/` | 平台说明、待确认事项 | 仅占位 |
 | `apps/openwrt/` | 路由器平台说明、待确认事项 | 仅占位 |
 | `cmd/`、`internal/`、`mobileapi/` | Go 程序、共享业务、移动端接口 | 共享维护 |
