@@ -30,10 +30,10 @@ jobs:
           cache-dependency-path: |
             go.sum
             apps/android/core/go.sum
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: '1.99.0'
@@ -42,9 +42,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37 build-tools;36.0.0 ndk;28.2.13676358'
+          cmdline-tools-version: '15859902'
+          log-accepted-android-sdk-licenses: false
+          packages: 'platform-tools platforms;android-37.0 build-tools;36.0.0 ndk;28.2.13676358'
+      - name: Use JDK 17 for the application build
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Core tests and Android bridge checks
         working-directory: apps/android/core
         run: |

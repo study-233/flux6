@@ -10,9 +10,17 @@ final class PreparedSessionStoreTests: XCTestCase {
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
     private func fixture(_ body: (URL) throws -> Void) throws {
-        // Keep the actual Unix socket path within Darwin's 104-byte limit.
-        let root = repository.appendingPathComponent("build/n-" + UUID().uuidString.prefix(8))
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755])
+        // Checkout paths on hosted runners can exhaust Darwin's 104-byte
+        // socket limit before preparation reaches the operation under test.
+        // Use an atomically created private directory under the user's home;
+        // /tmp is unsuitable because SecureDirectory rejects writable ancestors.
+        var template = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".freev6-session-XXXXXX").path.utf8CString
+        guard template.withUnsafeMutableBufferPointer({ mkdtemp($0.baseAddress!) != nil }) else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        let path = template.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
+        let root = URL(fileURLWithPath: path)
         defer { try? FileManager.default.removeItem(at: root) }
         try body(root)
     }
