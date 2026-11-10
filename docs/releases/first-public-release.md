@@ -40,4 +40,6 @@ macOS 要求 Apple Silicon 与 macOS 14+；Android 要求 ARM64 与 Android 7.0+
 
 官网由 [GitHub Actions](../../.github/workflows/pages.yml) 构建 `dist/site/` 并部署至 GitHub Pages。下载元数据使用 [release.json](../../site/release.json) 中逐项核验的大小与摘要；仓库 About 链接到官网。来源与 GPL-3.0 许可见 [网站说明](../../site/README.md)。
 
-精简 Release 正文见 [v0.1.0.md](v0.1.0.md)。发布时先上传新附件并核对远端摘要，再移除旧附件；标签更新为包含本轮源码的主线提交，原标签目标 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf` 留在历史记录。
+精简 Release 正文见 [v0.1.0.md](v0.1.0.md)。五个新附件已全部上传并核对远端大小及摘要，旧附件随后移除。`v0.1.0` 现指向 [PR #10](https://github.com/study-233/flux6/pull/10) 合并提交 `0a256d7bc28c68341c145318e76a03ad7b373f27`，PR 与主线 CI 均通过；原标签目标 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf` 留在历史记录。
+
+官网已完成 [Pages 部署](https://github.com/study-233/flux6/actions/runs/42836218561) 与线上桌面/手机浏览器验证，About 链接已同步。Homebrew Tap 提交 `52d8f1c` 的 Cask 和迁移文件与本地一致；匿名下载 DMG 的摘要校验通过。完整发布结果见 [维护记录](../development/repository-maintenance.md#2026-11-10-flux6-发布与官网部署完成)。

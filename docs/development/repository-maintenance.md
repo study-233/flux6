@@ -353,3 +353,15 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 共享 Go 与 Android 嵌套模块测试/vet 通过；Swift 199 项中 177 通过、22 按夹具条件跳过、0 失败；Android analyze 及 19 项相关测试、macOS Flutter analyze/31 项测试、Windows Flutter analyze/30 项测试通过。仓库结构、9 项维护测试、45 项图标、发行来源、128 个 Web 模块、2 项 Windows 打包工具测试通过。官网改名后的五档宽度、交互及无 JS 回退复验通过。日志与摘要保存在 `build/flux6-release/`，浏览器记录在 `build/site-qa/`。
 
 本轮仅构建、单元测试、隔离夹具及只读包验证，没有启动产品网络/VPN、执行管理员安装、停止用户进程或更换签名身份。Windows 源码品牌同步，但本机未进行 Windows 原生构建，也不发布 Windows 资产。Pages、Release 和 Tap 的线上结果在后续完成记录中补充。
+
+## 2026-11-10 Flux6 发布与官网部署完成
+
+[PR #10](https://github.com/study-233/flux6/pull/10) 已合入主线 `0a256d7bc28c68341c145318e76a03ad7b373f27`；PR 与主线 `checks` 均成功。仓库已改名为 [study-233/flux6](https://github.com/study-233/flux6)，本地 origin 同步更新。用户授权替换的 `v0.1.0` 标签现指向该合并提交；用原标签对象 `c1052ea3c0512a567f98e32f902d1a687ae71f3d` 的精确 lease 保护远端更新，原提交 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf` 继续保留在历史记录和原平台标签中。
+
+[Flux6 0.1.0](https://github.com/study-233/flux6/releases/tag/v0.1.0) 保持正式版与 Latest，现包含五个 Flux6 名称的新附件。先上传全部新文件并逐项核对 GitHub 返回的大小、SHA-256，再移除旧名称附件。匿名下载 DMG 的实际摘要与本地及 Cask 一致。旧五个文件和发布元数据仍保存在本地旧发行目录及 `build/first-public-release/release-before-flux6.json`，本轮未将私钥或口令上传。
+
+[Homebrew Tap](https://github.com/study-233/homebrew-tap) 已更新至 `52d8f1c`，包含 Flux6 Cask、0.1.0/build 10、新 DMG 摘要、安装说明和 `freev6` → `flux6` 的迁移映射。Ruby 语法与 Homebrew 本地 DSL/离线审计通过；未安装 homebrew/core，排除依赖该目录的 token_conflicts 检查。线上 Cask 和迁移文件与本地逐字节一致，没有运行 brew install/upgrade 或更改用户安装。
+
+[GitHub Pages 部署](https://github.com/study-233/flux6/actions/runs/42836218561) 已成功，官网为 https://study-233.github.io/flux6/，启用 HTTPS。仓库 About 与 Tap 官网链接均指向该地址，主题中的旧品牌已替换为 flux6。线上页面在隔离 Playwright/Chrome 中完成 320、390、768、1024、1440px 验证：无横向溢出、损坏图片或控制台错误；下载链接、双语/主题持久化、复制、键盘操作、日志搜索与无 JS 回退通过，线上 release.json 与本地已验证附件元数据完全一致。截图和记录位于 `build/flux6-release/site-live/`。
+
+另外通过 Windows Go helper 的 amd64 交叉编译；这不等于 Windows 原生安装或运行验证。所有既有测试边界继续有效：本轮未执行实际 VPN/代理联网、管理员安装、真机覆盖安装、Apple 公证，也未停止用户进程。后续维护记录提交不改动签名产物、对应源码或发行标签。
