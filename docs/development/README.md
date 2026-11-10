@@ -92,6 +92,8 @@ Windows 构建在 Windows 主机完成，详见 [Windows 入口](../../apps/wind
 
 `.github/workflows/ci.yml` 检查目录、文档链接、组件来源、版本、清理保护、Windows Web、Linux/Windows Go 以及 Windows Rust。`clients.yml` 增加 Android Go/Flutter/Kotlin/APK 和 Mac Swift/Flutter/App 构建。Android CI 使用测试签名，不读取本机私钥、不作为可覆盖安装的正式发行包。Mac CI 使用 ad-hoc 签名。
 
-Mac job 默认选择 `macos-latest` 并显式检查 arm64 与 Xcode 27+；如果托管镜像不满足，配置仓库变量 `FREEV6_MACOS_RUNNER` 指向符合要求的 runner 标签，不能把跳过或失败视为通过。工具版本固定；升级时同步本地说明、构建入口和 CI。
+Mac job 默认选择 GitHub 的 `xcode-27` Apple Silicon 镜像，并显式检查 arm64 与 Xcode 27+；需要替换时可配置仓库变量 `FREEV6_MACOS_RUNNER`，不能把跳过或失败视为通过。[镜像说明](https://github.blog/changelog/2026-10-15-xcode-27-runner-image-generally-available/)。工具版本固定；升级时同步本地说明、构建入口和 CI。普通 Actions 日志保留 30 天，Android CI 测试附件保留 14 天；正式发行资产不套用此清理周期。
+
+未接入自有文档站前不保留继承的 Vercel 发布 Hook 工作流；将来启用时单独配置自己的站点与凭据。
 
 本地整理完成不表示远端 Actions 已运行。Windows NSIS 实机安装、Mac 服务安装与升级、macOS 14、Android 真机 VPN、校园网络出口等仍需对应环境验收。当前检查不启动实际网络代理、不替换正在运行的应用。阶段结果见 [整理记录](repository-maintenance.md)。

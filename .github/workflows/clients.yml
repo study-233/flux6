@@ -65,12 +65,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: android-ci-build
+          retention-days: 14
           path: |
             apps/android/build/app/outputs/flutter-apk/app-release.apk
             build/ci-source/
 
   macos:
-    runs-on: ${{ vars.FREEV6_MACOS_RUNNER || 'macos-latest' }}
+    runs-on: ${{ vars.FREEV6_MACOS_RUNNER || 'xcode-27' }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
