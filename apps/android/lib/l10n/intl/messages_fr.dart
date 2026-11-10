@@ -380,8 +380,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "appAccessControl": MessageLookupByLibrary.simpleMessage(
       "Contrôle d’accès des apps",
     ),
+    "appIcon": MessageLookupByLibrary.simpleMessage("Icône de l’application"),
+    "appIconChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "Impossible de modifier l’icône. Réessayez.",
+    ),
     "appIconDesign": MessageLookupByLibrary.simpleMessage(
-      "Conception de l’icône de l’app",
+      "Icône de l’application d’origine",
+    ),
+    "appIconHint": MessageLookupByLibrary.simpleMessage(
+      "Modifie l’icône du lanceur et mémorise votre choix. L’actualisation peut prendre un instant.",
     ),
     "appProxiesEmpty": MessageLookupByLibrary.simpleMessage(
       "Aucun proxy local",
@@ -484,6 +491,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "cannotSave": MessageLookupByLibrary.simpleMessage(
       "Enregistrement impossible",
     ),
+    "catIconCow": MessageLookupByLibrary.simpleMessage(
+      "Chat noir et blanc (par défaut)",
+    ),
+    "catIconEarth": MessageLookupByLibrary.simpleMessage("Chat planète"),
+    "catIconFourColor": MessageLookupByLibrary.simpleMessage(
+      "Chat quadrichrome",
+    ),
+    "catIconOrange": MessageLookupByLibrary.simpleMessage("Chat roux"),
+    "catIconPrism": MessageLookupByLibrary.simpleMessage("Chat arc-en-ciel"),
     "certificate": MessageLookupByLibrary.simpleMessage("Certificat"),
     "changeProxyFailedTip": MessageLookupByLibrary.simpleMessage(
       "Échec du changement de proxy ; la sélection précédente a été rétablie",

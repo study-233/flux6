@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/cat_icon.dart';
 import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
@@ -143,10 +144,16 @@ class _AboutHero extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(_logoInset),
-                child: Image.asset(
-                  'assets/images/icon.png',
-                  width: _logoSize - _logoInset * 2,
-                  height: _logoSize - _logoInset * 2,
+                child: FutureBuilder<void>(
+                  future: catIconController.load(),
+                  builder: (context, _) => ValueListenableBuilder<CatIcon>(
+                    valueListenable: catIconController,
+                    builder: (context, icon, _) => Image.asset(
+                      icon.asset,
+                      width: _logoSize - _logoInset * 2,
+                      height: _logoSize - _logoInset * 2,
+                    ),
+                  ),
                 ),
               ),
             ),

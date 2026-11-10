@@ -49,11 +49,13 @@ def check():
         if blob != expected:
             errors.append(f'Unrecorded Android Prism change: {name}')
     runpy.run_path(str(ROOT / 'scripts/macos/flutter-source-release.py'))['verify_components'](vendor)
+    runpy.run_path(str(ROOT / 'scripts/windows/check-sources.py'))['check']()
     markdown = list((ROOT / 'docs').rglob('*.md')) + list((ROOT / 'shared').rglob('*.md'))
     markdown += [ROOT / name for name in (
         'README.md', 'apps/macos/README.md', 'apps/macos/DEVELOPMENT.md',
         'apps/macos/flutter_ui/README.md', 'apps/android/README.md', 'apps/android/FREEV6.md',
         'apps/windows/README.md', 'apps/windows/src-tauri/README.md',
+        'apps/windows/flutter_ui/README.md', 'apps/windows/flutter_ui/DEVELOPMENT.md',
         'apps/ios/README.md', 'apps/openwrt/README.md',
     )]
     for path in markdown:

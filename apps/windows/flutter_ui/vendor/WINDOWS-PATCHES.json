@@ -1,0 +1,18 @@
+{
+  "lib/app_theme.dart": {
+    "sha256": "720398583ad08f8b971065562074b89c8eb68073e86ee13c341116e6c7304b24",
+    "reason": "Use Windows conventions and optional dynamic seed / pure-black surfaces while retaining Mac Prism structure."
+  },
+  "lib/dashboard_model.dart": {
+    "sha256": "16d59469a13c8e0e095db2405680b30a343b1122ded920268ade2f011024c70e",
+    "reason": "Expose developer-mode gating to Windows presentation."
+  },
+  "lib/dashboard.dart": {
+    "sha256": "1ab7878331b88fdb67708225e24f9d451030fca0770b6bf6a2594216231ad495",
+    "reason": "Pass Windows developer-mode capability to the mode control."
+  },
+  "lib/components/outbound_mode.dart": {
+    "sha256": "1eb1dcf1e5ea3ada1cc4ac3ca21c2e22fed27e4eb3c954f75a0e3809dee9dc0e",
+    "reason": "Hide direct mode unless Windows developer mode is enabled."
+  }
+}

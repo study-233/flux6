@@ -1,0 +1,9 @@
+# Flutter preview component sources
+
+The dashboard uses Dart source from [FlClash v0.9.3](https://github.com/chen08209/FlClash/tree/be84736605527034689c95bf27828ff27d912c5e). Its original sidebar, shapes, motion, line chart, theme and press surfaces come from [Prism UI](https://github.com/chen08209/prism_ui/tree/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185), the submodule revision pinned by that release. The full Prism package (with one local sidebar accessibility patch listed in UPSTREAM.json) is present in `prism_ui/`, including shaders, generated Dart code, [license](prism_ui/LICENSE) and [third-party notices](prism_ui/NOTICE).
+
+The P1 preview runs seven FlClash component files in `../lib/components/`. The original icon paths and responsive layout are used directly. The desktop status card retains its original cookie shape, morph painter, glyph animation, decoration and layout metrics. Its inputs expose FreeV6's selected node, mode, running time and simulated connection action. The speed cards feed preview samples to Prism's original chart, expose an idle baseline without traffic, and separate upload from download. The connected mode segments receive a selection and callback instead of a FlClash provider. FlClash's license is included in [flclash/LICENSE](flclash/LICENSE).
+
+[UPSTREAM.json](UPSTREAM.json) identifies the upstream file, revision, original Git blob and modifications for each component. It also identifies every file in the vendored Prism package. The preview has no runtime dependency on a FlClash core, networking plugin, subscription or service.
+
+The integration app also adapts the pinned FlClash ProxyCard. The Prism card, typography, pinned/active badges and details row are reused. The node name, current/preferred state and independent latency action come from the local FreeV6 host.

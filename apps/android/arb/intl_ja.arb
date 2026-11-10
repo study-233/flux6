@@ -197,7 +197,7 @@
   "go": "開く",
   "externalLink": "外部リンク",
   "otherContributors": "その他の貢献者",
-  "appIconDesign": "アプリアイコンのデザイン",
+  "appIconDesign": "オリジナル版のアイコンデザイン",
   "autoCloseConnections": "接続を自動的に閉じる",
   "onlyStatisticsProxy": "プロキシトラフィックのみ集計",
   "showNotificationStopAction": "通知に停止ボタンを表示",
@@ -1132,5 +1132,13 @@
       }
     }
   },
-  "freev6WifiUnverified": "IPv6 設定済み・外部接続は未確認"
+  "freev6WifiUnverified": "IPv6 設定済み・外部接続は未確認",
+  "appIcon": "アプリアイコン",
+  "catIconCow": "白黒猫（標準）",
+  "catIconOrange": "茶トラ猫",
+  "catIconPrism": "虹色猫",
+  "catIconFourColor": "4色猫",
+  "catIconEarth": "地球猫",
+  "appIconHint": "ホーム画面のアイコンを変更し、選択を保存します。更新には少し時間がかかる場合があります。",
+  "appIconChangeFailed": "アイコンを変更できませんでした。もう一度お試しください。"
 }

@@ -369,8 +369,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "appAccessControl": MessageLookupByLibrary.simpleMessage(
       "Контроль доступа приложений",
     ),
+    "appIcon": MessageLookupByLibrary.simpleMessage("Значок приложения"),
+    "appIconChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось изменить значок. Повторите попытку.",
+    ),
     "appIconDesign": MessageLookupByLibrary.simpleMessage(
-      "Дизайн значка приложения",
+      "Дизайн значка исходного приложения",
+    ),
+    "appIconHint": MessageLookupByLibrary.simpleMessage(
+      "Меняет значок на главном экране и сохраняет выбор. Обновление может занять некоторое время.",
     ),
     "appProxiesEmpty": MessageLookupByLibrary.simpleMessage(
       "Нет локальных прокси",
@@ -467,6 +474,15 @@ class MessageLookup extends MessageLookupByLibrary {
     "cancel": MessageLookupByLibrary.simpleMessage("Отмена"),
     "cancelSelectAll": MessageLookupByLibrary.simpleMessage("Снять выделение"),
     "cannotSave": MessageLookupByLibrary.simpleMessage("Не удалось сохранить"),
+    "catIconCow": MessageLookupByLibrary.simpleMessage(
+      "Чёрно-белый кот (по умолчанию)",
+    ),
+    "catIconEarth": MessageLookupByLibrary.simpleMessage("Кот-планета"),
+    "catIconFourColor": MessageLookupByLibrary.simpleMessage(
+      "Четырёхцветный кот",
+    ),
+    "catIconOrange": MessageLookupByLibrary.simpleMessage("Рыжий кот"),
+    "catIconPrism": MessageLookupByLibrary.simpleMessage("Радужный кот"),
     "certificate": MessageLookupByLibrary.simpleMessage("Сертификат"),
     "changeProxyFailedTip": MessageLookupByLibrary.simpleMessage(
       "Не удалось переключить прокси; восстановлен предыдущий выбор",

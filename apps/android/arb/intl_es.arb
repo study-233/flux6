@@ -197,7 +197,7 @@
   "go": "Ir",
   "externalLink": "Enlace externo",
   "otherContributors": "Otros colaboradores",
-  "appIconDesign": "Diseño del icono de la app",
+  "appIconDesign": "Diseño del icono original",
   "autoCloseConnections": "Cerrar conexiones automáticamente",
   "onlyStatisticsProxy": "Contar solo el tráfico del proxy",
   "showNotificationStopAction": "Botón de detener en la notificación",
@@ -1132,5 +1132,13 @@
       }
     }
   },
-  "freev6WifiUnverified": "IPv6 configurado; acceso a Internet sin confirmar"
+  "freev6WifiUnverified": "IPv6 configurado; acceso a Internet sin confirmar",
+  "appIcon": "Icono de la aplicación",
+  "catIconCow": "Gato blanco y negro (predeterminado)",
+  "catIconOrange": "Gato naranja",
+  "catIconPrism": "Gato arcoíris",
+  "catIconFourColor": "Gato de cuatro colores",
+  "catIconEarth": "Gato planeta",
+  "appIconHint": "Cambia el icono de inicio y guarda tu elección. La actualización puede tardar un momento.",
+  "appIconChangeFailed": "No se pudo cambiar el icono. Inténtalo de nuevo."
 }

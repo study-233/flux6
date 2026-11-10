@@ -44,7 +44,9 @@ class _PageHost extends LiveModel {
   @override
   Future<StateMap> command(String action, [StateMap args = const {}]) async {
     calls.add(action);
-    if (action == 'rules.edit') {
+    if (action == 'preferences.set') {
+      (data['preferences'] as Map)[args['field']] = args['value'];
+    } else if (action == 'rules.edit') {
       rule[args['field']] = args['value'];
       rule['dirty'] = true;
       rule.remove('issue');
@@ -69,6 +71,33 @@ class _PageHost extends LiveModel {
 }
 
 void main() {
+  testWidgets(
+    'cow is selected by default and choosing earth updates the host',
+    (tester) async {
+      final model = _PageHost(windowRole: 'settings');
+      await tester.pumpWidget(
+        FreeV6Theme(
+          title: '设置',
+          reduceMotion: true,
+          home: Scaffold(body: LiveSettingsPage(model: model)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final cow = find.widgetWithText(ChoiceChip, '奶牛猫 · 默认');
+      final earth = find.widgetWithText(ChoiceChip, '地球猫');
+      expect(tester.widget<ChoiceChip>(cow).selected, isTrue);
+      await tester.ensureVisible(earth);
+      await tester.tap(earth);
+      await tester.pumpAndSettle();
+      expect((model.data['preferences'] as Map)['appIcon'], 'earth');
+      expect(tester.widget<ChoiceChip>(earth).selected, isTrue);
+      expect(tester.widget<ChoiceChip>(cow).selected, isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      model.dispose();
+    },
+  );
+
   testWidgets(
     'failed rule save focuses and selects the original physical line',
     (tester) async {

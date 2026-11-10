@@ -133,3 +133,91 @@ Android 本地产物为 `dist/android/0.1.2-b2026111003/`；Mac 应用为 `dist/
 核验 `main-protection` 要求分支与主线同步、GitHub Actions 的 `checks` 成功，禁止删除主线及非快进强推，没有绕过权限。使用普通 merge commit 保留上游和本仓库历史，合并后清理任务分支并同步本地 `main`。PR 检查与合并后主线 CI 均需确认成功，最终合并 SHA、运行链接及检查结果保存在该 PR 与 [CI 运行记录](https://github.com/study-233/free-v6/actions/workflows/ci.yml)。
 
 远端 `checks` 执行仓库/Web 静态检查和本次共享 Go test/vet；其成功不扩大上文平台实机验收范围，不触发安装包或正式发行。GitHub 连接器缺少 PR 写权限，写入操作通过本机已登录的 GitHub CLI 完成，未更改仓库保护或 CI 配置。
+
+## Windows Flutter 重构准备 W0
+
+2026-11-10，用户确认采用 Flutter + Windows 原生宿主替换 Web/Tauri，首期保留 Go helper、网络和权限实现；界面风格与页面结构对齐当前 Mac，保留 Windows 原有功能。用户有 Windows 电脑配合后续验证。
+
+从已同步的 `main`（`81843cb`）建立 `refactor/windows-flutter-plan`，完成 [实施方案](windows-flutter-refactor.md)：功能矩阵、16 条 helper 路径、mihomo 控制器调用、原生宿主职责、WebView 偏好迁移、安装身份兼容、W1–W5 交付条件及 Windows 验收清单。同步 Windows README、开发入口和平台边界说明。
+
+验证：仓库结构/文档链接/版本/来源检查通过；4 项现有前端隔离测试通过；126 个 JS 模块检查、`app.js` 语法和差异空白检查通过。准备阶段只改文档，未创建 Flutter Windows 工程、改产品代码、替换当前 Tauri 构建、升级版本或发布产物，未运行真实网络或停止用户进程。
+
+验证边界：未执行 Windows 原生构建、安装、WebView 数据迁移及系统功能测试；这些属于后续阶段的完成条件。尤其不能将 helper 数据目录保留等同于 WebView 流量历史/壁纸已迁移，也不能将 Tauri NSIS hooks 直接当作 Flutter 安装器使用。
+
+## Windows Flutter W1 源码与本机验证
+
+用户授权按阶段实施，随后明确先在 Mac 写完源码，再由用户推送 GitHub、在 Windows 拉取编译验证。任务分支改为 `refactor/windows-flutter`；W0 文档提交为 `79cba11`。从 Mac 基线原样复制 209 个视觉/第三方文件，保留上游许可及补丁，并在 `b430e70` 单独提交机械复制。
+
+新增固定 Flutter 3.47.6 的 Windows 工程、锁定依赖、独立预览身份、内存演示入口及 C++ 最小桥接。隐藏 `--host-probe` 提供后续 Windows Dart/C++ 往返验证；当前预览不启动 helper、不请求管理员权限、不操作真实用户数据。新增本机/Windows 检查脚本、第三方 SHA256 校验、只读旧安装信息收集脚本，以及带允许清单的界面偏好导出和解码契约。
+
+本机验证：Flutter analyze 无问题，7 项 Dart/组件测试通过（含 1280×800 与 720×480 布局），2 项偏好导出 Node 测试通过，209 个固定来源及 1 项本地主题适配哈希核验通过。测试使用合成数据，Flutter 测试运行器因沙箱回环端口限制在授权环境运行，未启动实际代理。
+
+W1 源码及本机检查完成，Windows C++ 编译、桥接探针、旧安装注册信息和真实 WebView 数据读取仍待用户在 Windows 验证；未将这些待验项计作通过。偏好迁移采用版本化导出/导入契约，W4 接入旧界面导出入口和新客户端导入；自动读取旧 profile 的路线尚未验证。按用户安排继续 W2–W4 代码，不切换正式入口。
+
+## Windows Flutter W2 界面
+
+完成 Mac 风格的侧栏、仪表盘、节点、配置、日志和设置面板，使用 Windows Ctrl 快捷键。页面通过独立 ClientModel 契约操作，演示实现仍只使用内存合成数据；包含热点、F6、自启、核心/WARP、外观、更新及旧界面备份入口。直连选项默认隐藏，开发者模式开放后才展示。
+
+本机 Flutter analyze 通过；页面导航、配置 URL 错误、Windows 设置项和原有基础测试通过。额外生成明亮宽屏及深色紧凑窗口的所有页面与设置图，补齐测试渲染器的中文和图标字体后人工检查；产物保存在 `build/windows-flutter-visual/`，不打包本机系统字体。Windows 字体、DPI、原生窗口和系统功能仍待原生验收；本阶段界面使用演示模型，真实操作在 W3 接入。
+
+核对旧 HTML 后修正准备文档：运行中的退出弹窗仅有“取消/停止并退出”，内部 `quitDirectly` 函数不代表存在可让用户保留连接直接退出的按钮。迁移按实际交互保留。
+
+## Windows Flutter W3 真实接口与原生宿主源码
+
+接入现有 helper 的动态回环端口/Bearer 接口和独立 mihomo 控制器凭据，覆盖连接、IPv6 门禁、启动重试、WARP、设置、热点状态、节点/测速、流量、核心下载、公告和更新。新增带备份恢复的界面偏好存储、导入/导出、动态取色、纯黑、壁纸、原生背景效果和季节反馈。状态代数丢弃跨设置写入、停止和分组切换的过期响应，测速并发上限 6。
+
+新增 `live` flavor 及独立入口：C++ 宿主保留 `freev6-desktop.exe`、生产单实例 mutex、安装根路径、管理员 manifest、StartupApproved 门禁、静默启动、托盘和 F6。helper 使用每次启动随机 token、动态端口和私有环境块；只管理自身创建的子进程。退出/更新等待 helper 确认停止，更新再次校验固定缓存路径及 SHA256。默认演示入口和 `--host-probe` 不启动 helper。
+
+Flutter analyze 与 23 项离线测试通过，包括两种凭据隔离、401 端口/token 刷新、设置保留/回滚、过期状态/节点/测速响应、6 路并发、失败停止阻止退出/更新、备份恢复及页面布局。Windows C++、DWM 背景回退、F6/托盘、管理员启动、安装器执行、真实网络和系统恢复仍待用户原生验证。本机没有运行 helper 或改动网络，也没有修改共享 Go 业务。
+
+## Windows Flutter W4 迁移、打包与源码交付
+
+新增旧 WebView 的独立 JSON 导出入口与复制兜底，只读取允许的 UI 偏好，不初始化另一套应用或访问 helper token。Flutter 接受旧 v1 备份及包含减少动态效果的 v2 备份，重复导入覆盖指定值、不累加流量。界面偏好写入串行化，损坏或缺失主文件时可恢复有效 `.bak`。已发布的旧二进制没有新增导出按钮时，仍需最后一版带导出入口的 Tauri 构建；没有宣称自动解析 WebView profile 或已完成实机迁移。
+
+新增 Windows x64 构建脚本、独立 NSIS 安装器、只读进程占用检查、按本安装路径撤销自启、精确卸载文件清单，以及构建前后源码摘要一致性检查、许可证/Flutter notices/对应源码 ZIP/SHA256SUMS。默认保留 config/state/runtime 和旧 WebView；安装/卸载不会强杀代理。沿用客户端/helper 文件名、HKCU 卸载项及既有安装路径，系统范围旧安装明确停止迁移，留待实机确认。正式版本源和 Tauri 构建入口保留，未执行 W5 或发布候选。
+
+收尾修复包含连续 Ctrl+数字切页的焦点保持、资源刷新/重新注册的过期状态保护、旧流量统计基线、公告链接与未读标记、启动失败后的组件重连、原生资源绝对路径，以及 Flutter 3.47.6 flavor 实际产物目录。视觉回归增加页面内容断言，确认抓到的是各自页面，而非仅检查未溢出。
+
+最终本机验证：
+
+| 检查 | 结果 |
+| --- | --- |
+| Flutter | analyze 无问题，30 项离线 Dart/界面回归通过 |
+| 视觉 | 1280×800 明亮、720×600 深色且 1.3 文本缩放，全部页面与设置截图检查；截图保存在 `build/windows-flutter-visual/` |
+| 旧 Windows Web | 4 项原接口测试 + 3 项偏好导出测试通过；127 个 JS 文件与 45 个图标检查通过 |
+| 源码打包 | 2 项合成夹具测试通过：允许清单、许可/源码归档及构建后源码变化阻断；不运行夹具二进制 |
+| 固定来源 | 209 个来源文件、4 项已登记视觉适配摘要通过；固定源码采用 LF，避免 Windows checkout 换行影响校验 |
+| Go helper | `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -buildvcs=false` 成功，产物确认为 Windows x86-64 PE；未执行该二进制 |
+| 仓库 | 7 项维护测试、结构/文档/版本检查与 Git 差异空白检查通过 |
+
+Windows C++ 编译/宿主探针、PowerShell/NSIS 执行、UAC/托盘/F6/DWM、旧安装/升级/卸载、实际偏好迁移、下载更新和真实校园网络仍待用户在 Windows 验证。Mac 没有 Windows 原生工具链，未把源码审查、Dart mock 或 Go 交叉编译计为这些测试通过。未改共享 Go、Mac、Android 源码，未启动真实 helper/代理，未停止用户进程。用户自己的 `output/` 品牌产物未修改或纳入提交。
+
+交付步骤见 [Windows Flutter 验收手册](windows-flutter-acceptance.md)。本轮仅本地提交；按用户安排由用户随后推送 GitHub、在 Windows 拉取编译。W1–W4 源码与本机检查已完成，W5 正式切换和旧代码删除等待原生验收。
+
+## 2026-11-10 小猫图标统一接入
+
+按用户确认的造型绘制并细修五款 SVG，最终默认改为奶牛猫；其余为橘猫、炫彩猫、四色猫、地球猫。共用身体、前爪、五官和单弧尾巴，保留渐变，修正花纹接缝、耳朵切角、前爪色块台阶和尾根凸起。资源与清单位于 `assets/branding/cats/`；SVG 生成和平台导出脚本位于 `scripts/branding/`，共享 `icon.svg`、PNG 与 ICO 均采用奶牛猫。
+
+Mac 设置增加五款选择，通过现有宿主偏好保存，更新 Dock 图标；Android 主题页增加选择器，通过系统 launcher alias 保存和切换桌面入口，关于页同步显示；Windows Tauri 设置更新窗口、托盘、侧栏及本地选择。Android 仅切换入口别名，不禁用真实 MainActivity，不调用 VPN 生命周期，切换失败保留原有选择。Windows 安装包与快捷方式、Mac Finder 图标保持默认奶牛猫。当前 Windows Flutter 重构在另一个活动分支进行，本分支不修改其尚未提交的界面和后端。
+
+平台资源从 SVG 导出，包括 Mac AppIcon、Android 手机/TV、自适应与单色资源、Windows helper 嵌入图标。Android 自适应图标保留圆形遮罩安全区；Mac/Android 对应源码包包含 SVG 和生成脚本。构建、测试日志位于本地 `build/branding-review/`。本任务临时 worktree 被外部清理后，从已保存 SVG 和本任务操作记录恢复到仓库内 `.worktrees/cat-icon-themes`；任务改动与当前 Windows 重构工作目录隔离。
+
+验证完成：五款 SVG 与用户确认版本逐字节一致；16/32/64/256/512/1024 像素共 30 次渲染的 alpha 轮廓一致且外圈透明；ICO 的 7 档尺寸有效。Mac 与 Android Flutter analyze 无问题；Mac 设置/无障碍 8 项、Swift 默认值/保存/非法值 1 项、Android 图标/本地化/规范/遮罩 34 项、Windows 选择及失败回退 3 项通过。Mac Flutter 原生 Debug 宿主构建通过；Android `compileDebugKotlin` 和 `processDebugResources` 通过，合并 Manifest 的 5 个 alias 均指向保持启用的 `com.follow.clash.MainActivity`。固定 `go-winres v0.3.3` 已重绘 Windows helper 的 `.syso`，Windows/amd64 helper 交叉编译通过。Web 127 个模块、45 个界面图标与发行来源检查通过。
+
+扩大 Android `test/widgets/` 回归时，1035 项通过，旧更新功能 3 项失败；在未修改 Android 的原工作区复现同样的更新包校验和缺失更新按钮失败。两组测试随后均等待未完成的更新夹具，本任务仅中断记录过 PID 的测试进程；关闭测试通道的额外报错不计为产品回归通过或新失败。完整广泛回归未通过，不以本次相关检查替代。
+
+验证边界：未运行 Windows Rust/Tauri 原生编译或 NSIS 打包，未进行 Android 真机桌面图标缓存验收或真实 Mac Dock 点击验收。未创建正式发行版、覆盖已安装应用、启动真实代理或停止用户进程；iOS/OpenWrt 保持占位。当前源码和可构建资源位于独立任务分支 `feat/cat-icon-themes`。
+
+## 2026-11-10 图标分支合入 Windows 重构分支
+
+按用户要求，将 `feat/cat-icon-themes` 的 `0872bce` 合入当前 `refactor/windows-flutter`（合并前 `5a13b42`），保留双方提交历史。维护记录的追加冲突保留双方完整阶段；Web 页面保留旧版偏好导出与新增图标选择入口。同步 Windows Flutter Runner 的 ICO 为共享奶牛猫默认图标，并将品牌生成脚本纳入 Windows 对应源码包。当前 Tauri 的五款选择功能保持生效；Flutter 候选继续遵循原有验收与正式入口切换计划。
+
+合并后验证：仓库结构/版本/来源检查、7 项维护测试、2 项 Windows 源码打包测试、209 个视觉来源及 4 个补丁哈希、128 个 JS 模块、45 个界面图标、发行来源检查均通过；图标选择/旧偏好导出/Web 运行时共 10 项 Node 测试通过，Windows Flutter analyze 无问题。确认默认清单和共享 SVG 均指向奶牛猫，Flutter Runner ICO 与共享 ICO 逐字节一致，Web 中图标选择与偏好导出入口并存。本次未重复未改动的 Mac/Android 平台构建，既有 Windows 原生验收边界继续适用。
+
+## 2026-11-10 GitHub 交付准备
+
+用户追加授权将全部本地代码改动提交到自有 GitHub 仓库，并清理无用分支，替代此前仅本地提交的安排。Windows Flutter W1–W4 与小猫图标已汇入 `refactor/windows-flutter`，保留各阶段提交历史。刷新远端后确认本分支包含最新 `origin/main`，主线要求 GitHub Actions `checks` 成功且分支与主线同步，不绕过保护规则。
+
+唯一未跟踪目录 `output/` 为图标导出与预览副本，现加入忽略列表并原地保留；其中最新五款 SVG、PNG、预览和默认奶牛猫清单均与已跟踪的 `assets/branding/cats/` 逐字节一致，生成脚本也已纳入 `scripts/branding/`。导出 ZIP、旧版预览和构建缓存不重复提交。清理仅针对已经合入主线的任务分支，工作树中的本地构建与验证资料保留。
+
+本次交付不创建正式发行版或切换 Windows 正式构建入口。各平台原生验收边界及 Android 广泛回归的已知失败仍以上述记录为准；推送与主线合并的最终提交、检查结果以 GitHub PR 和 CI 运行记录为准。

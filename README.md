@@ -1,5 +1,5 @@
 <div align="center">
-<img alt="logo" height="100" width="100" src="assets/branding/128x128.png" />
+<img alt="logo" height="100" width="100" src="assets/branding/icon.svg" />
 <h2> FreeV6 </h2>
 <p> 教育网通用 IPv6 免流客户端 </p>
 

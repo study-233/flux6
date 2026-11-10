@@ -1,0 +1,36 @@
+{
+  "default": "cow",
+  "viewBox": [
+    0,
+    0,
+    512,
+    512
+  ],
+  "icons": [
+    {
+      "id": "orange",
+      "name": "橘猫",
+      "file": "orange.svg"
+    },
+    {
+      "id": "cow",
+      "name": "奶牛猫",
+      "file": "cow.svg"
+    },
+    {
+      "id": "prism",
+      "name": "炫彩猫",
+      "file": "prism.svg"
+    },
+    {
+      "id": "four-color",
+      "name": "四色猫",
+      "file": "four-color.svg"
+    },
+    {
+      "id": "earth",
+      "name": "地球猫",
+      "file": "earth.svg"
+    }
+  ]
+}

@@ -316,7 +316,14 @@ class MessageLookup extends MessageLookupByLibrary {
     "answers": MessageLookupByLibrary.simpleMessage("응답"),
     "app": MessageLookupByLibrary.simpleMessage("앱"),
     "appAccessControl": MessageLookupByLibrary.simpleMessage("앱 접근 제어"),
-    "appIconDesign": MessageLookupByLibrary.simpleMessage("앱 아이콘 디자인"),
+    "appIcon": MessageLookupByLibrary.simpleMessage("앱 아이콘"),
+    "appIconChangeFailed": MessageLookupByLibrary.simpleMessage(
+      "아이콘을 변경하지 못했습니다. 다시 시도해 주세요.",
+    ),
+    "appIconDesign": MessageLookupByLibrary.simpleMessage("원본 앱 아이콘 디자인"),
+    "appIconHint": MessageLookupByLibrary.simpleMessage(
+      "홈 화면 아이콘을 변경하고 선택을 저장합니다. 반영까지 잠시 걸릴 수 있습니다.",
+    ),
     "appProxiesEmpty": MessageLookupByLibrary.simpleMessage("로컬 프록시 없음"),
     "appendSystemDns": MessageLookupByLibrary.simpleMessage("시스템 DNS 추가"),
     "applied": MessageLookupByLibrary.simpleMessage("적용했습니다"),
@@ -382,6 +389,11 @@ class MessageLookup extends MessageLookupByLibrary {
     "cancel": MessageLookupByLibrary.simpleMessage("취소"),
     "cancelSelectAll": MessageLookupByLibrary.simpleMessage("모두 선택 해제"),
     "cannotSave": MessageLookupByLibrary.simpleMessage("저장할 수 없음"),
+    "catIconCow": MessageLookupByLibrary.simpleMessage("젖소 고양이 (기본)"),
+    "catIconEarth": MessageLookupByLibrary.simpleMessage("지구 고양이"),
+    "catIconFourColor": MessageLookupByLibrary.simpleMessage("네 가지 색 고양이"),
+    "catIconOrange": MessageLookupByLibrary.simpleMessage("치즈 고양이"),
+    "catIconPrism": MessageLookupByLibrary.simpleMessage("무지개 고양이"),
     "certificate": MessageLookupByLibrary.simpleMessage("인증서"),
     "changeProxyFailedTip": MessageLookupByLibrary.simpleMessage(
       "프록시를 전환하지 못해 이전 선택을 복원했습니다",

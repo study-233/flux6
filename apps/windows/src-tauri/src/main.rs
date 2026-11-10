@@ -90,6 +90,25 @@ fn app_quit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+#[tauri::command]
+fn app_icon_set(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let pixels: &[u8] = match id.as_str() {
+        "cow" => include_bytes!("../../../../assets/branding/cats/native/cow.rgba"),
+        "orange" => include_bytes!("../../../../assets/branding/cats/native/orange.rgba"),
+        "prism" => include_bytes!("../../../../assets/branding/cats/native/prism.rgba"),
+        "four-color" => include_bytes!("../../../../assets/branding/cats/native/four-color.rgba"),
+        "earth" => include_bytes!("../../../../assets/branding/cats/native/earth.rgba"),
+        _ => return Err("无效的图标。".into()),
+    };
+    let image = tauri::image::Image::new_owned(pixels.to_vec(), 64, 64);
+    let window = app.get_webview_window("main").ok_or("主窗口不可用。")?;
+    window.set_icon(image.clone()).map_err(|_| "无法更新窗口图标。")?;
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_icon(Some(image)).map_err(|_| "无法更新托盘图标。")?;
+    }
+    Ok(())
+}
+
 /* ── Local API auth (per-launch bearer token) ────────────────────── */
 
 // RtlGenRandom: one Advapi32 syscall for OS-grade randomness. Raw Win32 FFI
@@ -504,7 +523,7 @@ fn main() {
             let show = MenuItem::with_id(app, "show", "打开 freev6", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("main")
                 .menu(&menu)
                 .icon(
                     app.default_window_icon()
@@ -561,6 +580,7 @@ fn main() {
             window_start_dragging,
             window_show,
             app_quit,
+            app_icon_set,
             get_api_token,
             get_helper_port,
             hotkey_set,

@@ -197,7 +197,7 @@
   "go": "Go",
   "externalLink": "External link",
   "otherContributors": "Other contributors",
-  "appIconDesign": "App icon design",
+  "appIconDesign": "Original app icon design",
   "autoCloseConnections": "Auto close connections",
   "onlyStatisticsProxy": "Only count proxy traffic",
   "showNotificationStopAction": "Stop button in notification",
@@ -1132,5 +1132,13 @@
       }
     }
   },
-  "freev6WifiUnverified": "IPv6 configured; internet access unconfirmed"
+  "freev6WifiUnverified": "IPv6 configured; internet access unconfirmed",
+  "appIcon": "App icon",
+  "catIconCow": "Cow cat (default)",
+  "catIconOrange": "Orange cat",
+  "catIconPrism": "Prism cat",
+  "catIconFourColor": "Four-color cat",
+  "catIconEarth": "Earth cat",
+  "appIconHint": "Changes the launcher icon and remembers your choice. Your launcher may take a moment to refresh.",
+  "appIconChangeFailed": "Could not change the icon. Please try again."
 }
