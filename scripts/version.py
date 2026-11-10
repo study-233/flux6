@@ -31,8 +31,7 @@ def versions(root=ROOT, platform=None):
             raise ValueError(f'Invalid {platform} version')
         if item['build'] is not None and not re.fullmatch(r'[1-9]\d*', str(item['build'])):
             raise ValueError(f'Invalid {platform} build')
-        suffix = f"-b{item['build']}" if item['build'] is not None else ''
-        item['tag'] = f"{platform}-v{item['version']}{suffix}"
+        item['tag'] = f"v{item['version']}"
     return data
 
 

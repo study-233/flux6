@@ -2,7 +2,7 @@
 
 macOS 与 Android 0.1.0 已于 2026-11-10 正式发布，Homebrew Tap 与仓库 About 已同步上线。
 
-[macOS Release](https://github.com/study-233/free-v6/releases/tag/macos-v0.1.0-b9) · [Android Release](https://github.com/study-233/free-v6/releases/tag/android-v0.1.0-b2026111005) · [Homebrew Tap](https://github.com/study-233/homebrew-tap)
+[FreeV6 0.1.0 Release](https://github.com/study-233/free-v6/releases/tag/v0.1.0) · [Homebrew Tap](https://github.com/study-233/homebrew-tap)
 
 ## 已确认范围
 
@@ -15,12 +15,12 @@ macOS 与 Android 0.1.0 已于 2026-11-10 正式发布，Homebrew Tap 与仓库 
 
 ## 版本与交付物
 
-按用户要求，两端首个公开版本统一为 `0.1.0`，平台构建号继续递增；以 [版本脚本](../../scripts/version.py) 的结果为准。发布标签指向主线提交 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf`；[发布 PR #6](https://github.com/study-233/free-v6/pull/6) 及合并后的主线 CI 均已通过。
+按用户要求，两端首个公开版本统一为 `0.1.0`，同版本的各平台附件集中到一个 Release，平台构建号继续递增；以 [版本脚本](../../scripts/version.py) 的结果为准。发布标签指向主线提交 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf`；[发布 PR #6](https://github.com/study-233/free-v6/pull/6) 及合并后的主线 CI 均已通过。
 
 | 平台 | 当前版本 | 发布标签 | 公开交付物 |
 | --- | --- | --- | --- |
-| macOS | 0.1.0 / build 9 | `macos-v0.1.0-b9` | Apple Silicon DMG、应用 ZIP、完整对应源码、SHA256 校验文件 |
-| Android | 0.1.0 / build 2026111005 | `android-v0.1.0-b2026111005` | ARM64 APK、完整对应源码、SHA256 校验文件 |
+| macOS | 0.1.0 / build 9 | `v0.1.0` | Apple Silicon DMG、应用 ZIP、完整对应源码、SHA256 校验文件 |
+| Android | 0.1.0 / build 2026111005 | `v0.1.0` | ARM64 APK、完整对应源码、SHA256 校验文件 |
 
 对外版本重置为 `0.1.0`，两端 build 保持递增，正式包与旧测试包分目录保存，打包脚本拒绝覆盖已有同名发行资产。版本、标签和最终源文件均已核对，私钥和口令不进入仓库或源码包。
 
@@ -30,13 +30,13 @@ macOS 与 Android 0.1.0 已于 2026-11-10 正式发布，Homebrew Tap 与仓库 
 
 | 文件 | 下载 |
 | --- | --- |
-| macOS DMG | [FreeV6-0.1.0-b9-arm64.dmg](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/FreeV6-0.1.0-b9-arm64.dmg) |
-| macOS 应用 ZIP | [FreeV6-0.1.0-b9-arm64.zip](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/FreeV6-0.1.0-b9-arm64.zip) |
-| macOS 对应源码 | [FreeV6-0.1.0-b9-source.zip](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/FreeV6-0.1.0-b9-source.zip) |
-| macOS 摘要 | [SHA256SUMS](https://github.com/study-233/free-v6/releases/download/macos-v0.1.0-b9/SHA256SUMS) |
-| Android APK | [FreeV6-0.1.0-b2026111005-arm64.apk](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/FreeV6-0.1.0-b2026111005-arm64.apk) |
-| Android 对应源码 | [FreeV6-0.1.0-b2026111005-source.tar.gz](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/FreeV6-0.1.0-b2026111005-source.tar.gz) |
-| Android 摘要 | [APK-SHA256SUMS](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/APK-SHA256SUMS) · [SOURCE-SHA256SUMS](https://github.com/study-233/free-v6/releases/download/android-v0.1.0-b2026111005/SOURCE-SHA256SUMS) |
+| macOS DMG | [FreeV6-0.1.0-b9-arm64.dmg](https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-b9-arm64.dmg) |
+| macOS 应用 ZIP | [FreeV6-0.1.0-b9-arm64.zip](https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-b9-arm64.zip) |
+| macOS 对应源码 | [FreeV6-0.1.0-b9-source.zip](https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-b9-source.zip) |
+| macOS 摘要 | [SHA256SUMS](https://github.com/study-233/free-v6/releases/download/v0.1.0/SHA256SUMS) |
+| Android APK | [FreeV6-0.1.0-b2026111005-arm64.apk](https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-b2026111005-arm64.apk) |
+| Android 对应源码 | [FreeV6-0.1.0-b2026111005-source.tar.gz](https://github.com/study-233/free-v6/releases/download/v0.1.0/FreeV6-0.1.0-b2026111005-source.tar.gz) |
+| Android 摘要 | [APK-SHA256SUMS](https://github.com/study-233/free-v6/releases/download/v0.1.0/APK-SHA256SUMS) · [SOURCE-SHA256SUMS](https://github.com/study-233/free-v6/releases/download/v0.1.0/SOURCE-SHA256SUMS) |
 | Homebrew Cask | [freev6.rb](../../packaging/homebrew/Casks/freev6.rb) |
 
 ## macOS 退出修复
@@ -73,7 +73,7 @@ README 的 Homebrew 命令通过独立 Tap 分发，绑定固定版本的 macOS 
 | --- | --- |
 | `version` | `0.1.0,9`，对应正式 Mac App 的版本与 build |
 | `sha256` | 最终 DMG 的实际摘要 |
-| `url` | 本仓库固定 macOS 标签下的 DMG，不使用跨平台 `releases/latest` |
+| `url` | 本仓库统一版本标签 `v0.1.0` 下的 DMG |
 | `name` / `desc` | `FreeV6` / `IPv6 client for campus networks` |
 | `homepage` | `https://github.com/study-233/free-v6` |
 | `depends_on` | Apple Silicon、macOS 14 或更新版本 |
@@ -93,8 +93,7 @@ Cask 已通过 Ruby 语法、Homebrew DSL 解析和离线审计；未安装 `hom
 
 ## Release 正文
 
-- [FreeV6 for macOS 0.1.0](macos-v0.1.0.md)
-- [FreeV6 for Android 0.1.0](android-v0.1.0.md)
+[FreeV6 0.1.0](v0.1.0.md)
 
 ## 发布与验证结果
 
@@ -107,11 +106,11 @@ Cask 已通过 Ruby 语法、Homebrew DSL 解析和离线审计；未安装 `hom
 | 正式包命名、应用内版本标识、最终构建和校验 | 已完成 |
 | Homebrew Cask 与最终 DMG 绑定 | 已完成，Tap 已上线 |
 | 首发新签名及私有备份 | 用户已确认；备份已核验 |
-| GitHub Release、远端标签、About | 已发布，两端均为正式版 |
+| GitHub Release、远端标签、About | 已发布，统一为一个正式版 Release |
 | 应用内更新通道 | 本次不启用 |
 
 本轮 `0.1.0` 版本调整重新完成两端 Release 构建、Android 静态分析、4 项 macOS 退出回归及 7 项维护测试。此前同一业务源码的 Swift 完整回归为 198 项，179 项通过、19 项因额外夹具条件跳过、0 失败；Android 22 项本地化、动态消息键、FreeV6 业务及引导测试通过，本轮未重复这些未受版本元数据影响的完整测试。Mac DMG 通过只读挂载、拖放副本、签名、架构、最低系统、服务摘要和 ZIP 解压复验；APK 通过签名及包元数据核验，版本正确、仅包含 ARM64 原生库、未启用调试。
 
 Mac 668 个源文件与应用内清单和源码 ZIP 逐项一致；Android 2721 个源文件在构建前后未改变，并与源码包逐项一致。所有发行摘要已重新核算。检查报告保存在本地 `build/first-public-release/verification.json`，日志在同目录；本轮未重新做管理员安装、真实 VPN 或设备联网测试。
 
-两个 Release 共 8 个附件的远端大小和摘要均与本地一致；DMG 匿名下载校验通过，APK 公开下载入口返回 HTTP 200。两端下载均使用各自固定标签，避免 GitHub 的单一 `latest` 入口指向另一平台。启用 Mac 应用内更新时，最后更新签名清单。
+统一 Release 的 8 个附件的远端大小和摘要均与本地一致；DMG 匿名下载校验通过，APK 公开下载入口返回 HTTP 200。每个版本仅保留一个 Release，当前 `v0.1.0` 设为 Latest；平台 build 只用于产物名称与升级判断。启用 Mac 应用内更新时，最后更新签名清单。

@@ -12,8 +12,8 @@ def feed_url(arch):
     return f"https://raw.githubusercontent.com/{REPOSITORY}/{FEED_BRANCH}/appcast-{arch}.xml"
 
 
-def download_base(version, build):
-    return f"https://github.com/{REPOSITORY}/releases/download/macos-v{version}-b{build}"
+def download_base(version):
+    return f"https://github.com/{REPOSITORY}/releases/download/v{version}"
 
 
 def main():

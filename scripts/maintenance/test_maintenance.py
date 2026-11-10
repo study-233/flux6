@@ -1,6 +1,8 @@
 import importlib.util
+import json
 import os
 from pathlib import Path
+import plistlib
 import tempfile
 import unittest
 
@@ -15,6 +17,33 @@ def module(name, path):
 HERE = Path(__file__).resolve().parent
 clean = module('clean', HERE / 'clean.py')
 signing = module('signing', HERE.parent / 'android/prepare-signing.py')
+versions = module('versions', HERE.parent / 'version.py')
+channel = module('channel', HERE.parent / 'macos/github_channel.py')
+
+
+class ReleaseLayoutTests(unittest.TestCase):
+    def test_platforms_share_a_release_tag_and_keep_their_build_numbers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            mac = root / 'apps/macos/Resources/Info.plist'
+            android = root / 'apps/android/pubspec.yaml'
+            windows = root / 'apps/windows/src-tauri'
+            mac.parent.mkdir(parents=True)
+            android.parent.mkdir(parents=True)
+            windows.mkdir(parents=True)
+            mac.write_bytes(plistlib.dumps({'CFBundleShortVersionString': '0.1.0', 'CFBundleVersion': '9'}))
+            android.write_text('version: 0.1.0+2026111005\n')
+            (windows / 'tauri.conf.json').write_text(json.dumps({'version': '0.1.0'}))
+            (windows / 'Cargo.toml').write_text('version = "0.1.0"\n')
+            result = versions.versions(root)
+            self.assertEqual({value['tag'] for value in result.values()}, {'v0.1.0'})
+            self.assertEqual(result['macos']['build'], '9')
+            self.assertEqual(result['android']['build'], '2026111005')
+            self.assertIsNone(result['windows']['build'])
+
+    def test_update_download_uses_the_shared_version_release(self):
+        self.assertEqual(channel.download_base('0.1.0'),
+                         'https://github.com/study-233/free-v6/releases/download/v0.1.0')
 
 
 class MaintenanceTests(unittest.TestCase):

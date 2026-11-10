@@ -226,7 +226,7 @@ def audit(candidate, baseline, destination):
         assert signed_info["SUPublicEDKey"] == pub.read_text()
         assert signed_info["SUFeedURL"] == json.loads(channel.read_text())["feeds"][ARCH]
         assert enclosure.get("length") == str(archive.stat().st_size)
-        assert enclosure.get("url", "").endswith("/macos-v0.5.3-b2/" + archive.name)
+        assert enclosure.get("url", "").endswith("/v0.5.3/" + archive.name)
         # Sign_update has already verified the XML and ZIP; prove mismatched keys are refused.
         spec = json.loads(channel.read_text())
         spec["publicKey"] = base64.b64encode(bytes(32)).decode()

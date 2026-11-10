@@ -43,7 +43,7 @@ try:
     minimum = item.findtext("{http://www.andymatuschak.org/xml-namespaces/sparkle}minimumSystemVersion")
     assert minimum == "14.0"
     enclosure = item.find("enclosure")
-    assert enclosure.get("url") == "https://github.com/study-233/free-v6/releases/download/macos-v0.5.3-b2/" + archive.name
+    assert enclosure.get("url") == "https://github.com/study-233/free-v6/releases/download/v0.5.3/" + archive.name
     with zipfile.ZipFile(archive) as zipped:
         settings = plistlib.loads(zipped.read("FreeV6.app/Contents/Info.plist"))
         assert settings["LSMinimumSystemVersion"] == minimum
