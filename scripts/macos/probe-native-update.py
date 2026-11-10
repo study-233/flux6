@@ -57,7 +57,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
     agent_binary = work / "agent"
     shutil.copy2(binary_dir / "freev6-update-agent", agent_binary)
     env.update(DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer", CLANG_MODULE_CACHE_PATH=str(ROOT / "build/macos-module-cache"))
-    host_binary = work / "FreeV6"
+    host_binary = work / "Flux6"
     support = ROOT / "apps/macos/Sources/FreeV6UpdateSupport"
     compiler = ["/usr/bin/xcrun", "swiftc", "-parse-as-library", "-target", ARCH + "-apple-macos14.0"]
     keychain = KeychainUpgrade(work) if scenario == "keychain-upgrade" else None
@@ -81,11 +81,11 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
     embed = runpy.run_path(str(ROOT / "scripts/macos/bundle-updater.py"))["bundle"]
 
     def make_app(parent, version):
-        app = parent / "FreeV6.app"
+        app = parent / "Flux6.app"
         (app / "Contents/MacOS").mkdir(parents=True)
-        shutil.copy2(host_binary, app / "Contents/MacOS/FreeV6")
-        info = {"CFBundleIdentifier": identifier, "CFBundleExecutable": "FreeV6", "CFBundlePackageType": "APPL",
-                "CFBundleName": "FreeV6 Update Fixture", "CFBundleVersion": str(version), "CFBundleShortVersionString": str(version),
+        shutil.copy2(host_binary, app / "Contents/MacOS/Flux6")
+        info = {"CFBundleIdentifier": identifier, "CFBundleExecutable": "Flux6", "CFBundlePackageType": "APPL",
+                "CFBundleName": "Flux6 Update Fixture", "CFBundleVersion": str(version), "CFBundleShortVersionString": str(version),
                 "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
                 "SUFeedURL": base + "/appcast-" + ARCH + ".xml", "SUPublicEDKey": public,
                 "SURequireSignedFeed": True, "SUVerifyUpdateBeforeExtraction": True, "SUSignedFeedFailureExpirationInterval": 0,
@@ -106,13 +106,13 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
         # original production signature and package without these QA overrides.
         source = Path(flutter_target).resolve(strict=True)
         run(["/usr/bin/codesign", "--verify", "--strict", "--deep", source])
-        app = parent / "FreeV6.app"
+        app = parent / "Flux6.app"
         parent.mkdir()
         run(["/usr/bin/ditto", source, app])
         info_file = app / "Contents/Info.plist"
         info = plistlib.loads(info_file.read_bytes())
         if info.get("CFBundleIdentifier") != "dev.freev6.desktop" or info["CFBundleVersion"] != "2":
-            raise ValueError("Expected the signed FreeV6 Flutter build 2 update target")
+            raise ValueError("Expected the signed Flux6 Flutter build 2 update target")
         if not (app / "Contents/Frameworks/App.framework/Versions/A/App").is_file():
             raise ValueError("Target does not carry the Dart AOT framework")
         info.update(CFBundleIdentifier=identifier, SUFeedURL=base + "/appcast-" + ARCH + ".xml", SUPublicEDKey=public)
@@ -146,7 +146,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
                 requirements["serviceSHA256"] = hashlib.sha256((next_app / "Contents/Library/LaunchServices/dev.freev6.network-service").read_bytes()).hexdigest()
         encoded = base64.b64encode(json.dumps(requirements).encode()).decode()
         xml = ('<?xml version="1.0"?><rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" '
-               'xmlns:freev6="urn:freev6:update:1"><channel><title>FreeV6 isolated update</title><item><title>Version 2</title>'
+               'xmlns:freev6="urn:freev6:update:1"><channel><title>Flux6 isolated update</title><item><title>Version 2</title>'
                '<sparkle:version>2</sparkle:version><sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>'
                f'<enclosure url={quoteattr(base + "/update.zip")} sparkle:edSignature={quoteattr(signature)} '
                f'length="{package.stat().st_size}" type="application/octet-stream" freev6:requirements={quoteattr(encoded)}/>'
@@ -158,7 +158,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
         if before_check:
             before_check()
         with (work / "process.log").open("w") as log:
-            child = subprocess.Popen([app / "Contents/MacOS/FreeV6"], stdout=log, stderr=log,
+            child = subprocess.Popen([app / "Contents/MacOS/Flux6"], stdout=log, stderr=log,
                                      stdin=subprocess.PIPE if confirm_installation else subprocess.DEVNULL)
             deadline = time.monotonic() + (120 if flutter_target else 90)
             history = []
@@ -228,7 +228,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
         stop_failed = False
         if flutter_target and child is not None and (work / "target-observer").is_file():
             try:
-                stopped = subprocess.run([work / "target-observer", identifier, work / "installed/FreeV6.app",
+                stopped = subprocess.run([work / "target-observer", identifier, work / "installed/Flux6.app",
                                           str(child.pid), "finish"], capture_output=True, timeout=15)
                 stop_failed = stopped.returncode not in (0, 2)
             except subprocess.TimeoutExpired:

@@ -23,7 +23,7 @@ def run(args, *, check=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-build", action="store_true")
-    parser.add_argument("--app", type=Path, default=ROOT / "dist/macos/FreeV6.app",
+    parser.add_argument("--app", type=Path, default=ROOT / "dist/macos/Flux6.app",
                         help="Verify this already built application with --no-build.")
     args = parser.parse_args()
     if os.geteuid() == 0:

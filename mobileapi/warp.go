@@ -13,7 +13,7 @@ import (
 
 func RegisterWarp(ctx context.Context) (string, error) {
 	client := warp.NewClient(&http.Client{Timeout: 20 * time.Second})
-	device, err := client.Register(ctx, "FreeV6 Android")
+	device, err := client.Register(ctx, "Flux6 Android")
 	if err != nil {
 		return "", err
 	}
@@ -26,7 +26,7 @@ func RegisterWarp(ctx context.Context) (string, error) {
 
 func RenderWarpProfile(credentials string, campusTargets []string) (string, error) {
 	if len(credentials) > 32*1024 || len(campusTargets) > 128 {
-		return "", errors.New("invalid FreeV6 configuration size")
+		return "", errors.New("invalid Flux6 configuration size")
 	}
 	var device warp.Device
 	if json.Unmarshal([]byte(credentials), &device) != nil || warp.ValidateDevice(device) != nil {

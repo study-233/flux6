@@ -62,8 +62,8 @@ public enum DesktopCommand: Equatable, Sendable {
         case .exportLogs: return "导出日志…"
         case .exportDiagnostics: return "导出脱敏诊断…"
         case .checkUpdates: return "检查更新…"
-        case .help: return "FreeV6 使用说明"
-        case .quit: return "退出 FreeV6"
+        case .help: return "Flux6 使用说明"
+        case .quit: return "退出 Flux6"
         }
     }
     public var symbol: String {

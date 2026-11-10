@@ -48,9 +48,9 @@ def main():
         raise RuntimeError("Gatekeeper must already be enabled to test default distribution policy")
     run("/usr/bin/hdiutil", "verify", "-quiet", image)
     with tempfile.TemporaryDirectory(prefix="freev6-downloaded-") as tmp:
-        copied = Path(tmp) / "Applications/FreeV6.app"
+        copied = Path(tmp) / "Applications/Flux6.app"
         with readonly_volume(image) as mount:
-            source = mount / "FreeV6.app"
+            source = mount / "Flux6.app"
             run("/usr/bin/ditto", "--qtn", source, copied)
         report["copyQuarantine"] = quarantine(copied)
         if not report["copyQuarantine"]:

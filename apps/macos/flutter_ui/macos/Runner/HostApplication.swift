@@ -48,7 +48,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
     private var updateObservation: AnyCancellable?
 
     func attachMain(_ window: NSWindow, controller: FlutterViewController) {
-        window.title = Self.isOfficial ? "FreeV6" : "FreeV6 Flutter 集成验收"
+        window.title = Self.isOfficial ? "Flux6" : "Flux6 Flutter 集成验收"
         window.identifier = NSUserInterfaceItemIdentifier("freev6-main")
         window.delegate = self
         main = HostWindowChannel(window: window, role: "main", controller: controller, app: self)
@@ -148,7 +148,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
             window.contentViewController = controller
             window.identifier = NSUserInterfaceItemIdentifier("freev6-settings")
             window.isReleasedWhenClosed = false
-            window.title = "FreeV6 设置"
+            window.title = "Flux6 设置"
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.titlebarSeparatorStyle = .none
@@ -200,7 +200,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
 
     private func showError(_ message: String) async {
         let alert = NSAlert()
-        alert.messageText = "FreeV6"
+        alert.messageText = "Flux6"
         alert.informativeText = message
         alert.addButton(withTitle: "知道了")
         if let window = focused?.window, window.attachedSheet == nil {
@@ -295,8 +295,8 @@ final class HostApplication: NSObject, NSWindowDelegate {
         updater.check(prepare: { [weak self] release, source in
             guard let self, !self.terminating else { throw UpdateFailure.cancelled }
             let prompt = NSAlert()
-            prompt.messageText = "安装更新并重新打开 FreeV6？"
-            prompt.informativeText = "FreeV6 会先处理未保存的修改并恢复当前网络。"
+            prompt.messageText = "安装更新并重新打开 Flux6？"
+            prompt.informativeText = "Flux6 会先处理未保存的修改并恢复当前网络。"
             prompt.addButton(withTitle: "安装并重新打开")
             prompt.addButton(withTitle: "稍后")
             guard prompt.runModal() == .alertFirstButtonReturn, await self.confirmAllEdits() else { throw UpdateFailure.cancelled }

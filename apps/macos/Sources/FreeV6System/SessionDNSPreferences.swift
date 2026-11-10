@@ -37,7 +37,7 @@ struct SystemDNSPreferences: SessionDNSPreferences {
     func withLock<T>(_ body: (SCPreferences) throws -> T) throws -> T {
         guard geteuid() == 0 else { throw SessionDNSError.wrongSession }
         _ = try ServiceProcessOrigin.current()
-        guard let prefs = SCPreferencesCreate(nil, "FreeV6 network session" as CFString, nil) else {
+        guard let prefs = SCPreferencesCreate(nil, "Flux6 network session" as CFString, nil) else {
             throw SessionDNSError.unavailable
         }
         guard SCPreferencesLock(prefs, false) else {
@@ -49,7 +49,7 @@ struct SystemDNSPreferences: SessionDNSPreferences {
     }
 
     func primaryServices() throws -> [String: String] {
-        guard let store = SCDynamicStoreCreate(nil, "FreeV6 primary network" as CFString, nil, nil) else {
+        guard let store = SCDynamicStoreCreate(nil, "Flux6 primary network" as CFString, nil, nil) else {
             throw SessionDNSError.unavailable
         }
         let keys = [kSCEntNetIPv4, kSCEntNetIPv6].map {
@@ -83,7 +83,7 @@ struct SystemDNSPreferences: SessionDNSPreferences {
     /// Inspect configd's published setup and state, including per-service
     /// entries. An empty or inaccessible store is not evidence of removal.
     func resolverReleased() throws -> Bool {
-        guard let store = SCDynamicStoreCreate(nil, "FreeV6 DNS activation" as CFString, nil, nil) else {
+        guard let store = SCDynamicStoreCreate(nil, "Flux6 DNS activation" as CFString, nil, nil) else {
             throw SessionDNSError.unavailable
         }
         let root = (kSCDynamicStoreDomainSetup as String) + "/"

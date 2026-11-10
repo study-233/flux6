@@ -31,7 +31,7 @@ do {
         try check(SecTrustedApplicationCreateFromPath("/usr/bin/codesign", &trusted))
         guard let trusted else { exit(2) }
         var access: SecAccess?
-        try check(SecAccessCreate("FreeV6 local build signing" as CFString, [trusted] as CFArray, &access))
+        try check(SecAccessCreate("Flux6 local build signing" as CFString, [trusted] as CFArray, &access))
         guard let access else { exit(2) }
         let p12 = try Data(contentsOf: root.appendingPathComponent("identity.p12"))
         let options: [String: Any] = [kSecImportExportPassphrase as String: String(decoding: password, as: UTF8.self),

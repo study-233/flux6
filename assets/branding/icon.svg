@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="cat-cow-title cat-cow-desc">
-  <title id="cat-cow-title">FreeV6 · 奶牛猫</title>
+  <title id="cat-cow-title">Flux6 · 奶牛猫</title>
   <desc id="cat-cow-desc">坐姿小猫，圆眼睛、W 形嘴和两只前爪；身体与单弧尾巴整体呼应数字 6。透明背景。</desc>
   <defs><linearGradient id="cat-cow-coat" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#FFFFFF"/><stop offset="0.500" stop-color="#F3F4F7"/><stop offset="1.000" stop-color="#DCE2E9"/></linearGradient><linearGradient id="cat-cow-accent" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#91F4CE"/><stop offset="1.000" stop-color="#20B9A1"/></linearGradient><linearGradient id="cat-cow-dark" gradientUnits="userSpaceOnUse" x1="0" y1="35" x2="0" y2="488"><stop offset="0.000" stop-color="#4C566B"/><stop offset="1.000" stop-color="#3C4558"/></linearGradient><pattern id="cat-cow-pattern" patternUnits="userSpaceOnUse" width="512" height="512"><rect width="512" height="512" fill="url(#cat-cow-coat)"/><path d="M-20 -20 H215 L183 86 C151 108 105 135 69 152 H-20 Z" fill="url(#cat-cow-dark)"/><path d="M268 -20 H390 V180 C356 207 325 224 293 222
 C257 222 233 206 228 178 C223 149 234 125 247 105

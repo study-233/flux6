@@ -30,7 +30,7 @@ class _FreeV6PreviewState extends State<FreeV6Preview> {
   @override
   Widget build(BuildContext context) {
     return FreeV6Theme(
-      title: 'FreeV6 Flutter Preview',
+      title: 'Flux6 Flutter Preview',
       appearance: appearance,
       reduceMotion: reduceMotion,
       home: PreviewWindow(

@@ -59,7 +59,7 @@ public enum ServiceSetupError: Error, LocalizedError {
     case moveToApplications, cancelled, failed(String)
     public var errorDescription: String? {
         switch self {
-        case .moveToApplications: return "请先将 FreeV6.app 移入“应用程序”，重新打开后再安装网络服务。"
+        case .moveToApplications: return "请先将 Flux6.app 移入“应用程序”，重新打开后再安装网络服务。"
         case .cancelled: return "已取消管理员授权"
         case .failed(let message): return "服务操作未完成：\(message)"
         }

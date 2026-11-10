@@ -28,6 +28,7 @@ jobs:
           python3 scripts/check-icons.py
           python3 scripts/check-publisher.py
           node --experimental-vm-modules scripts/check-web-modules.mjs
+          node scripts/site/build.mjs
       - name: Detect shared Go changes
         id: scope
         env:

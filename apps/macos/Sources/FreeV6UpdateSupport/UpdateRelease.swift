@@ -6,7 +6,7 @@ public enum UpdateFailure: String, Error, LocalizedError, Codable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .unconfigured: return "此开发构建尚未配置正式更新通道，请使用最新 DMG。"
-        case .invalidHost: return "请从完整安装的 FreeV6 应用启动更新。"
+        case .invalidHost: return "请从完整安装的 Flux6 应用启动更新。"
         case .incompatible: return "此更新与当前架构、协议或配置格式不兼容。"
         case .invalidFeed: return "更新清单或安装包未通过验证。"
         case .transport: return "无法与更新助手通信，请重新检查更新。"

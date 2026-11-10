@@ -694,7 +694,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "Cliente FreeV6 para Android, basado en FlClash, con WARP sobre IPv6 y rutas del campus.",
+      "Cliente Flux6 para Android, basado en FlClash, con WARP sobre IPv6 y rutas del campus.",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("Destino"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage(
@@ -755,7 +755,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Cambios en esta declaración",
     ),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "Antes de usar FreeV6 («el Software»), lee atentamente esta declaración y asegúrate de entenderla. Tocar «Aceptar» significa que has leído y entendido lo que sigue. Si no quieres continuar, toca «Salir».",
+      "Antes de usar Flux6 («el Software»), lee atentamente esta declaración y asegúrate de entenderla. Tocar «Aceptar» significa que has leído y entendido lo que sigue. Si no quieres continuar, toca «Salir».",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "En la máxima medida permitida por la ley aplicable, ni los desarrolladores ni ningún colaborador serán responsables de ningún daño directo, indirecto, incidental, especial, punitivo o emergente derivado del uso o de la imposibilidad de usar el Software, incluidos, entre otros, la pérdida de datos, los daños al dispositivo, los fallos de red, la interrupción de la actividad, el lucro cesante o cualquier disputa legal resultante, incluso si se les hubiera advertido de la posibilidad de tales daños.",
@@ -1031,7 +1031,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Wi-Fi tiene una dirección IPv6, pero no una ruta predeterminada IPv6. Comprueba los anuncios de puerta de enlace IPv6 del router.",
     ),
     "freev6OpenHome": MessageLookupByLibrary.simpleMessage("Ir al inicio"),
-    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Preparar FreeV6"),
+    "freev6Prepare": MessageLookupByLibrary.simpleMessage("Preparar Flux6"),
     "freev6PrepareFailed": MessageLookupByLibrary.simpleMessage(
       "Error de preparación. Revise las direcciones y la red. Se conservan las credenciales guardadas.",
     ),
@@ -1050,7 +1050,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Una prueba TCP IPv6 tuvo éxito. Conecta WARP para probar su túnel UDP por separado.",
     ),
     "freev6SetupTitle": MessageLookupByLibrary.simpleMessage(
-      "Configuración de FreeV6",
+      "Configuración de Flux6",
     ),
     "freev6ShowDetails": MessageLookupByLibrary.simpleMessage("Ver detalles"),
     "freev6SkipSetup": MessageLookupByLibrary.simpleMessage(
@@ -1066,13 +1066,13 @@ class MessageLookup extends MessageLookupByLibrary {
       "Preparar la conexión",
     ),
     "freev6ToolsHint": MessageLookupByLibrary.simpleMessage(
-      "Más adelante podrás ajustar las exclusiones o comprobar la red en Herramientas → FreeV6.",
+      "Más adelante podrás ajustar las exclusiones o comprobar la red en Herramientas → Flux6.",
     ),
     "freev6WelcomeBody": MessageLookupByLibrary.simpleMessage(
       "Configura una vez y conéctate con un toque. Usa la red IPv6 de tu campus o router.",
     ),
     "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage(
-      "Bienvenido a FreeV6",
+      "Bienvenido a Flux6",
     ),
     "freev6WifiReady": MessageLookupByLibrary.simpleMessage("Wi-Fi está listo"),
     "freev6WifiUnverified": MessageLookupByLibrary.simpleMessage(
@@ -1231,7 +1231,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("Inicio"),
     "initFailed": MessageLookupByLibrary.simpleMessage("Error al iniciar"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 encontró un error al iniciarse y no puede continuar. Copia los detalles para informar del problema. Si sigue ocurriendo, borrar los datos suele permitir que la app vuelva a iniciarse.",
+      "Flux6 encontró un error al iniciarse y no puede continuar. Copia los detalles para informar del problema. Si sigue ocurriendo, borrar los datos suele permitir que la app vuelva a iniciarse.",
     ),
     "initiator": MessageLookupByLibrary.simpleMessage("Origen de la solicitud"),
     "initiatorShort": MessageLookupByLibrary.simpleMessage("De"),
@@ -2167,10 +2167,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "Enviado. Confirma la importación en el otro dispositivo.",
     ),
     "sendFromPhonePageTitle": MessageLookupByLibrary.simpleMessage(
-      "Enviar un enlace a FreeV6",
+      "Enviar un enlace a Flux6",
     ),
     "sendFromPhonePermissionDenied": MessageLookupByLibrary.simpleMessage(
-      "Para recibir un enlace desde el teléfono, FreeV6 necesita el permiso Dispositivos cercanos, que le da acceso a la red local. Actívalo en los ajustes de la aplicación.",
+      "Para recibir un enlace desde el teléfono, Flux6 necesita el permiso Dispositivos cercanos, que le da acceso a la red local. Actívalo en los ajustes de la aplicación.",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
       "Escanea el código con la cámara del teléfono y pega el enlace en la página que se abre. Ambos dispositivos deben estar en la misma red.",

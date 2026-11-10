@@ -198,7 +198,7 @@ class Bootstrap {
       await onboarding.complete();
     } catch (_) {
       commonPrint.log(
-        'FreeV6 onboarding unavailable',
+        'Flux6 onboarding unavailable',
         logLevel: LogLevel.warning,
       );
     }

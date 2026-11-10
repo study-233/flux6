@@ -30,7 +30,7 @@ func TestAutoStartRoundTrip(t *testing.T) {
 	}
 	requireElevated(t)
 	if autoStartEnabled() {
-		t.Skip("FreeV6 autostart task already present; refusing to overwrite")
+		t.Skip("Flux6 autostart task already present; refusing to overwrite")
 	}
 
 	root := t.TempDir()
@@ -100,7 +100,7 @@ func TestRemoveAutoStartIdempotent(t *testing.T) {
 		t.Skip("autostart is windows-only")
 	}
 	if autoStartEnabled() {
-		t.Skip("FreeV6 autostart task present; refusing to remove a real entry")
+		t.Skip("Flux6 autostart task present; refusing to remove a real entry")
 	}
 	if err := removeAutoStart(); err != nil {
 		t.Fatalf("remove on absent task should be nil, got: %v", err)

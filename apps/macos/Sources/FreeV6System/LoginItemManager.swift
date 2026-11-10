@@ -9,8 +9,8 @@ public enum LoginItemStatus: Sendable {
         case .absent: return "未安装登录项"
         case .nextLogin: return "已写入登录项，等待系统在下次登录时载入"
         case .enabled: return "系统已启用登录项"
-        case .needsApproval: return "请在系统设置的“登录项”中允许 FreeV6"
-        case .moved: return "登录项指向另一份 FreeV6，请重新登记"
+        case .needsApproval: return "请在系统设置的“登录项”中允许 Flux6"
+        case .moved: return "登录项指向另一份 Flux6，请重新登记"
         }
     }
 }
@@ -19,14 +19,14 @@ public enum LoginItemError: LocalizedError {
     case location, conflict
     public var errorDescription: String? {
         switch self {
-        case .location: return "请先把 FreeV6 拖到“应用程序”，再开启登录启动。"
-        case .conflict: return "登录项文件与 FreeV6 的登记内容不符，请检查已有文件。"
+        case .location: return "请先把 Flux6 拖到“应用程序”，再开启登录启动。"
+        case .conflict: return "登录项文件与 Flux6 的登记内容不符，请检查已有文件。"
         }
     }
 }
 
 /// The one-shot agent asks Launch Services to open the installed app. It never
-/// owns the GUI process or starts a second copy when FreeV6 is already open.
+/// owns the GUI process or starts a second copy when Flux6 is already open.
 public struct LoginItemManager: Sendable {
     static let label = "dev.freev6.desktop.login"
     private let folder: URL
@@ -39,13 +39,16 @@ public struct LoginItemManager: Sendable {
     }
     package init(home: URL, app: URL, authorization: @escaping @Sendable (URL) -> SMAppService.Status = { SMAppService.statusForLegacyPlist(at: $0) }) {
         folder = home.appendingPathComponent("Library/LaunchAgents")
-        userApp = home.appendingPathComponent("Applications/FreeV6.app")
+        userApp = home.appendingPathComponent("Applications/Flux6.app")
         self.app = app.standardizedFileURL
         self.authorization = authorization
     }
     private var file: String { Self.label + ".plist" }
     private func permitted(_ path: String) -> Bool {
-        path == "/Applications/FreeV6.app" || path == userApp.path
+        // Accept an existing FreeV6 registration so it can be migrated or removed.
+        path == "/Applications/Flux6.app" || path == userApp.path
+            || path == "/Applications/FreeV6.app"
+            || path == userApp.deletingLastPathComponent().appendingPathComponent("FreeV6.app").path
     }
     private func payload(for path: String) -> NSDictionary {
         ["Label": Self.label, "ProgramArguments": [path + "/Contents/Helpers/freev6-login-launcher"],

@@ -18,7 +18,7 @@ from worker_probe import call, read_exact
 
 ROOT = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser()
-parser.add_argument("--binary", type=Path, default=ROOT / "dist/macos/FreeV6.app/Contents/Helpers/freev6-worker")
+parser.add_argument("--binary", type=Path, default=ROOT / "dist/macos/Flux6.app/Contents/Helpers/freev6-worker")
 parser.add_argument("--download-runtime", action="store_true", help="download the pinned native core via production mirror selection")
 parser.add_argument("--prepare-geodata", action="store_true", help="download the pinned geodata set via production preparation")
 parser.add_argument("--refresh-notice", action="store_true", help="fetch the public maintainer bulletin using the packaged worker")

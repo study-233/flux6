@@ -43,7 +43,7 @@ class ReleaseLayoutTests(unittest.TestCase):
 
     def test_update_download_uses_the_shared_version_release(self):
         self.assertEqual(channel.download_base('0.1.0'),
-                         'https://github.com/study-233/free-v6/releases/download/v0.1.0')
+                         'https://github.com/study-233/flux6/releases/download/v0.1.0')
 
 
 class MaintenanceTests(unittest.TestCase):

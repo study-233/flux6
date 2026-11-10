@@ -73,7 +73,7 @@ try {
     New-Item -ItemType Directory -Force (Join-Path $bundle 'docs') | Out-Null
     Copy-Item (Join-Path $root 'docs/agreement.md'),(Join-Path $root 'docs/privacy.md') (Join-Path $bundle 'docs')
     Invoke-Checked $Python @('scripts/windows/package-source.py','prepare','--manifest',$manifest,'--bundle',$bundle)
-    $sources = Join-Path $destination "FreeV6_${version}_windows_flutter_source.zip"
+    $sources = Join-Path $destination "Flux6_${version}_windows_flutter_source.zip"
     Invoke-Checked $Python @('scripts/windows/package-source.py','archive','--bundle',$bundle,'--output',$sources)
     if (-not $NoInstaller) {
         $uninstall = Join-Path $work 'uninstall-files.nsh'
@@ -87,10 +87,10 @@ try {
             $lines.Add('RMDir "$INSTDIR\' + $relative + '"')
         }
         [IO.File]::WriteAllLines($uninstall,$lines,[Text.UTF8Encoding]::new($true))
-        $setup = Join-Path $destination "FreeV6_${version}_x64_flutter_setup.exe"
+        $setup = Join-Path $destination "Flux6_${version}_x64_flutter_setup.exe"
         Invoke-Checked $MakeNsis @('/INPUTCHARSET','UTF8',"/DVERSION=$version","/DREPO=$root","/DBUNDLE=$bundle","/DOUTPUT=$setup","/DUNINSTALL_FILES=$uninstall",(Join-Path $root 'apps/windows/installer/flutter.nsi'))
     }
-    Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $destination "FreeV6_${version}_x64_flutter_portable.zip")
+    Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $destination "Flux6_${version}_x64_flutter_portable.zip")
     $hashes = @(Get-ChildItem $destination -File | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name })
     [IO.File]::WriteAllLines((Join-Path $destination 'SHA256SUMS'),$hashes,[Text.UTF8Encoding]::new($false))
     Write-Output "Candidate ready: $destination"

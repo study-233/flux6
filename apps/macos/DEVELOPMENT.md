@@ -75,7 +75,7 @@ python3 scripts/macos/probe-runtime.py \
 
 “设置 → 通用”有三个独立开关，默认均关闭。
 
-- **登录时打开 FreeV6** 要求应用位于 `/Applications/FreeV6.app` 或当前用户的 `~/Applications/FreeV6.app`。FreeV6 写入用户级一次性 LaunchAgent。原生登录助手检查应用进程，已有实例时退出；否则通过 Launch Services 打开同一份 App。设置区分用户意愿、等待下次登录、系统允许和需要批准。安装、移除登录项均由用户显式操作。[Apple 登录项状态](https://developer.apple.com/documentation/servicemanagement/smappservice/statusforlegacyplist(at:))
+- **登录时打开 Flux6** 要求应用位于 `/Applications/Flux6.app` 或当前用户的 `~/Applications/Flux6.app`。Flux6 写入用户级一次性 LaunchAgent。原生登录助手检查应用进程，已有实例时退出；否则通过 Launch Services 打开同一份 App。设置区分用户意愿、等待下次登录、系统允许和需要批准。安装、移除登录项均由用户显式操作。[Apple 登录项状态](https://developer.apple.com/documentation/servicemanagement/smappservice/statusforlegacyplist(at:))
 - **启动时收起主窗口** 在当前文档已确认且菜单栏图标可用时生效；从 Dock 或状态菜单可重开主窗口。
 - **启动时自动连接** 每次启动最多尝试一次。先完成服务、配置与更新记录核对，再等待网络可用。自动流程复用已有凭据，确认缺失时自动注册并尝试无弹窗保存，仍执行普通连接路径的校园网络、版本、资源、会话和公告校验。手动操作、退出或升级会撤销尚未提交的自动连接。
 
@@ -258,11 +258,11 @@ python3 scripts/macos/probe-update.py --isolated-agent --invalid-signature
 
 ## Swift 更新助手与发布
 
-FreeV6 菜单的“检查更新…”打开原生检查流程。App 使用私有管道启动 bundle 内的普通用户更新助手。助手校验宿主与父进程，从经过代码签名验证的宿主读取通道和公钥。Sparkle 仅嵌入该助手。主 App 保留严格 Hardened Runtime，打包检查确认主可执行文件的依赖与助手的 entitlement 范围。
+Flux6 菜单的“检查更新…”打开原生检查流程。App 使用私有管道启动 bundle 内的普通用户更新助手。助手校验宿主与父进程，从经过代码签名验证的宿主读取通道和公钥。Sparkle 仅嵌入该助手。主 App 保留严格 Hardened Runtime，打包检查确认主可执行文件的依赖与助手的 entitlement 范围。
 
 更新清单和 ZIP 均要求 Ed25519 签名。清单包含构建号范围、架构、worker/服务协议、设置 schema、核心清单摘要和服务摘要。当前路径支持 worker v1、服务 v6、设置 schema v1；其他协议升级需先实现兼容逻辑。助手先验证清单，再由 Sparkle 校验下载和解压。主程序在安装前确认保存草稿与网络恢复，将升级意图写入用户私有目录，然后退出。新版本检查服务状态，按需引导管理员重新登记。自动安装和系统画像上传在通道配置中关闭。[Sparkle 签名设置](https://sparkle-project.org/documentation/customization/)
 
-Sparkle 的 applicationBundle 指向更新助手，安装目标为外层 FreeV6。助手收到取消后等待 Sparkle 完成撤销，再通知主程序结束，避免把退出误当作允许安装。开发测试覆盖实际升级、坏包签名、未签名清单、错误架构、取消下载、取消安装与安装许可前主进程消失。
+Sparkle 的 applicationBundle 指向更新助手，安装目标为外层 Flux6。助手收到取消后等待 Sparkle 完成撤销，再通知主程序结束，避免把退出误当作允许安装。开发测试覆盖实际升级、坏包签名、未签名清单、错误架构、取消下载、取消安装与安装许可前主进程消失。
 
 ```sh
 python3 scripts/macos/probe-native-update.py --scenario upgrade
@@ -281,7 +281,7 @@ python3 scripts/macos/probe-service.py --network-run --update-recovery \
   --runtime-fixtures build/macos-probes --geodata-fixtures build/macos-geodata
 ```
 
-Mac 的发布仓库为 `study-233/free-v6`。启用应用内更新时，签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `v0.1.0`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。同一版本只创建一个 Release，集中放置 macOS、Android 及其他已交付平台的附件；正式版使用 `prerelease=false`，最新正式版本设为 Latest。下载及 Homebrew Cask 均使用固定的 `v<版本>` 标签。Windows 采用本地构建与手动发布，当前不在首发范围。[首发准备](../../docs/releases/first-public-release.md) · [GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
+Mac 的发布仓库为 `study-233/flux6`。启用应用内更新时，签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `v0.1.0`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。同一版本只创建一个 Release，集中放置 macOS、Android 及其他已交付平台的附件；正式版使用 `prerelease=false`，最新正式版本设为 Latest。下载及 Homebrew Cask 均使用固定的 `v<版本>` 标签。Windows 采用本地构建与手动发布，当前不在首发范围。[首发准备](../../docs/releases/first-public-release.md) · [GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
 
 启用应用内更新需要保管和备份发布私钥，再从对应公钥生成通道 JSON。构建带更新能力的 DMG 时，通过 `FREEV6_UPDATE_CHANNEL_FILE` 指向该文件。首发仅覆盖 arm64；启用通道时另附 arm64 更新 ZIP 与 `appcast-arm64.xml`。未配置通道的构建仍显示通道待配置，不把 DMG 或 Homebrew 的可下载状态当作应用内更新已上线。本次不进行 Apple 公证，通道签名与代码签名校验仍须保留。
 

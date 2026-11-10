@@ -110,7 +110,7 @@ class FreeV6Plugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     else -> result.notImplemented()
                 }
             } catch (_: Exception) {
-                result.error("freev6_storage", "FreeV6 secure storage or network check failed", null)
+                result.error("freev6_storage", "Flux6 secure storage or network check failed", null)
             }
         }
     }

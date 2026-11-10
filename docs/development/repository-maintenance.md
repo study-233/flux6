@@ -332,11 +332,46 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 
 仅调整现有 GitHub 附件名称和发布展示，不重新构建、重签或修改安装包及源码内容；本地构建目录、校验文件和签名记录保留，Homebrew 使用实际 DMG 摘要。仓库结构、发行来源与 Cask 语法检查用于核验本次文档和链接变更，不重复应用构建、安装或真实网络测试。
 
+## 2026-11-10 Flux6 官网与品牌首页
+
+用户要求借鉴 FlClash 官网并更换项目名，最终选定英文名称 `Flux6`。在 `feat/project-website` 分支新增 `site/` 与 `scripts/site/`，仓库 README 同步使用 Flux6。网页从 FlClash 固定提交 `be84736605527034689c95bf27828ff27d912c5e` 改编，保留上游 GPL-3.0 许可证、各原始文件 Git blob 和本地改动记录；来源入口见 [网站说明](../../site/README.md)及 [来源清单](../../site/UPSTREAM.json)。
+
+沿用参考站的排版、暖灰配色、背景动效、双语与主题切换、下载标签页、更新日志搜索及键盘交互。改用仓库现有猫咪图标、macOS 隔离截图、Android 实机截图和实际功能介绍。公开下载只列 macOS Apple Silicon 与 Android ARM64，五个发行附件的名称、大小、SHA-256 按 GitHub v0.1.0 元数据核对。构建时嵌入发行数据与双语日志，无需浏览器访问 GitHub API；无 JavaScript 时仍保留安装链接及日志。网站构建无外部依赖，产物为 `dist/site/`，预览服务仅绑定 loopback。
+
+官网明确注明当前 0.1.0 安装包仍使用 FreeV6 名称；本轮未改变应用显示名、包 ID、安装路径、签名、配置目录、Homebrew Cask、仓库 URL 或已发布资产，也未重打包客户端。iOS/OpenWrt 继续仅占位，Windows 未列为已发行下载。
+
+验证：静态构建、JavaScript 语法、网站本地资源/链接、仓库结构、9 项维护测试、图标、发行来源、128 个既有 Web 模块和差异空白检查通过。内置及备用 CUA 浏览器连接超时后，用户明确授权 Playwright；在隔离 Chrome 中完成 320/390/768/1024/1440px 检查，无横向溢出、损坏图片或浏览器错误。验证下载 URL、命令/摘要复制、平台标签和键盘切换、搜索匹配/空态/Escape、双语与主题持久化、普通动画模式和禁用 JavaScript 的回退。视觉复查修复平台名在窗口改变后被旧像素宽度裁切的问题，改为字体相对宽度；最终桌面/手机截图与参考站联合对比通过。详见 [设计 QA](../../site/design-qa.md)，本地截图及检查结果位于 `build/site-qa/`。
+
+验证边界：仅网页与文档改动，未重复 Go、Swift、Flutter、Android 或 Windows 构建；未启动实际客户端、代理/VPN，未停止用户进程或修改系统服务。没有提交/推送、创建 PR、注册站点、调整 GitHub Pages 或进行线上发布。
+
+## 2026-11-10 Flux6 全平台品牌与 0.1.0 重打包
+
+用户明确授权统一项目名、重新打包替换 0.1.0、部署 GitHub Pages 并更新 About。界面、菜单、七种语言、安装包、构建脚本、当前文档和发行来源统一为 Flux6；仓库目标名称为 `study-233/flux6`。保留应用 ID、原签名、钥匙串标识、服务名称、加密缓存命名空间及 Windows 数据/注册表路径。历史记录、上游署名与技术内部标识不做破坏性重命名。macOS 登录项补充旧名称识别与迁移，使用安全临时目录完成回归。
+
+新正式包为 macOS 0.1.0 build 10、Android 0.1.0 build 2026111006。两端签名与已发布正式版一致；macOS DMG、应用 ZIP、源码 ZIP 与 Android APK、源码 tar.gz 均构建完成。668 个 macOS 源文件与包内清单及归档一致；2721 个 Android 输入构建前后及归档一致。原发布资产和元数据留存，不覆盖本地旧构建。
+
+共享 Go 与 Android 嵌套模块测试/vet 通过；Swift 199 项中 177 通过、22 按夹具条件跳过、0 失败；Android analyze 及 19 项相关测试、macOS Flutter analyze/31 项测试、Windows Flutter analyze/30 项测试通过。仓库结构、9 项维护测试、45 项图标、发行来源、128 个 Web 模块、2 项 Windows 打包工具测试通过。官网改名后的五档宽度、交互及无 JS 回退复验通过。日志与摘要保存在 `build/flux6-release/`，浏览器记录在 `build/site-qa/`。
+
+本轮仅构建、单元测试、隔离夹具及只读包验证，没有启动产品网络/VPN、执行管理员安装、停止用户进程或更换签名身份。Windows 源码品牌同步，但本机未进行 Windows 原生构建，也不发布 Windows 资产。Pages、Release 和 Tap 的线上结果在后续完成记录中补充。
+
+## 2026-11-10 Flux6 发布与官网部署完成
+
+[PR #10](https://github.com/study-233/flux6/pull/10) 已合入主线 `0a256d7bc28c68341c145318e76a03ad7b373f27`；PR 与主线 `checks` 均成功。仓库已改名为 [study-233/flux6](https://github.com/study-233/flux6)，本地 origin 同步更新。用户授权替换的 `v0.1.0` 标签现指向该合并提交；用原标签对象 `c1052ea3c0512a567f98e32f902d1a687ae71f3d` 的精确 lease 保护远端更新，原提交 `232f7b73ec6a3a7a9d120eddd4ad335b52358abf` 继续保留在历史记录和原平台标签中。
+
+[Flux6 0.1.0](https://github.com/study-233/flux6/releases/tag/v0.1.0) 保持正式版与 Latest，现包含五个 Flux6 名称的新附件。先上传全部新文件并逐项核对 GitHub 返回的大小、SHA-256，再移除旧名称附件。匿名下载 DMG 的实际摘要与本地及 Cask 一致。旧五个文件和发布元数据仍保存在本地旧发行目录及 `build/first-public-release/release-before-flux6.json`，本轮未将私钥或口令上传。
+
+[Homebrew Tap](https://github.com/study-233/homebrew-tap) 已更新至 `52d8f1c`，包含 Flux6 Cask、0.1.0/build 10、新 DMG 摘要、安装说明和 `freev6` → `flux6` 的迁移映射。Ruby 语法与 Homebrew 本地 DSL/离线审计通过；未安装 homebrew/core，排除依赖该目录的 token_conflicts 检查。线上 Cask 和迁移文件与本地逐字节一致，没有运行 brew install/upgrade 或更改用户安装。
+
+[GitHub Pages 部署](https://github.com/study-233/flux6/actions/runs/42836218561) 已成功，官网为 https://study-233.github.io/flux6/，启用 HTTPS。仓库 About 与 Tap 官网链接均指向该地址，主题中的旧品牌已替换为 flux6。线上页面在隔离 Playwright/Chrome 中完成 320、390、768、1024、1440px 验证：无横向溢出、损坏图片或控制台错误；下载链接、双语/主题持久化、复制、键盘操作、日志搜索与无 JS 回退通过，线上 release.json 与本地已验证附件元数据完全一致。截图和记录位于 `build/flux6-release/site-live/`。
+
+另外通过 Windows Go helper 的 amd64 交叉编译；这不等于 Windows 原生安装或运行验证。所有既有测试边界继续有效：本轮未执行实际 VPN/代理联网、管理员安装、真机覆盖安装、Apple 公证，也未停止用户进程。后续维护记录提交不改动签名产物、对应源码或发行标签。
 
 ## 2026-11-10 统一代理规范与仓库技能
 
-借鉴 FlClash v0.9.3 的 `AGENTS.md` 和五个技能，固定来源为 `be84736605527034689c95bf27828ff27d912c5e`。根入口增加按平台阅读导航、任务范围、生命周期归属、生成代码、隔离验证和检查结果报告要求，保留 FreeV6 原有分支、签名、联网、第三方来源及预留平台约束。来源文件映射、本地适配与 GPL-3.0 许可见 [代理规范来源](../../.agents/UPSTREAM.md)。
+借鉴 FlClash v0.9.3 的 `AGENTS.md` 和五个技能，固定来源为 `be84736605527034689c95bf27828ff27d912c5e`。根入口增加按平台阅读导航、任务范围、生命周期归属、生成代码、隔离验证和检查结果报告要求，保留 Flux6 原有分支、签名、联网、第三方来源及预留平台约束。来源文件映射、本地适配与 GPL-3.0 许可见 [代理规范来源](../../.agents/UPSTREAM.md)。
 
 按用户要求，删除 Android 内的五个技能及旧索引，在根 `.agents/skills/` 维护 `localization`、`ui-work`、`core-platform`、`ui-performance`、`pre-commit-quality-review`，名称不加前缀。Android 的架构、命令、设置归属、界面与编码参考保留，入口改为引用 [统一技能索引](../../.agents/skills.md)。根忽略规则仅开放这套技能、索引和来源许可，本地代理状态继续忽略。技能按 Mac Swift/XPC、Android ServiceState、Windows Go helper 和各端实际文案机制适配，未引入上游 hooks、子代理配置或发布流程。
 
 验证：五个技能通过 `skill-creator` 的 `quick_validate.py`；根仓库检查通过；新增及修改的代理文档本地链接、代码路径、技能名称唯一性、Android 技能目录移除、GPL 原文一致性、文案扫描命令和 Git 忽略边界均已核对；`git diff --check` 通过。校验依赖只安装到临时目录。此次为代理文档与配置整理，没有修改应用代码或构建/源码打包脚本，因此没有重复平台编译、安装、签名或真实联网验收；现有验证结论不因此扩大。
+
+用户随后要求提交全部本地遗漏改动，本轮将独立工作树中的该组改动提交，并与最新 Flux6 主线合并；保留完整的官网、重打包和发布记录。新增代理文档中的项目名同步为 Flux6。按 pre-commit-quality-review 的文档整理分流跳过结构审查；复核五个技能格式、71 个本地链接、许可一致性、忽略边界及仓库检查。当前已发布 0.1.0 安装包和对应源码归档保持原发布快照，不因代理文档更新而重打包。

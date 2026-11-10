@@ -28,7 +28,7 @@ using flutter::EncodableValue;
 constexpr UINT kTray = WM_APP + 10;
 constexpr UINT_PTR kPoll = 51;
 constexpr int kHotkey = 71;
-constexpr wchar_t kTitle[] = L"FreeV6";
+constexpr wchar_t kTitle[] = L"Flux6";
 std::string Utf8(const std::wstring& input) {
   if (input.empty()) return {};
   const int size = WideCharToMultiByte(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), nullptr, 0, nullptr, nullptr);
@@ -225,7 +225,7 @@ HostBridge::HostBridge(flutter::BinaryMessenger* messenger, HWND window, bool pr
       std::wstring command = L"\"" + path + L"\" /S /FREEV6REL";
       const BOOL launched = CreateProcessW(path.c_str(),command.data(),nullptr,nullptr,FALSE,0,nullptr,Root().c_str(),&startup,&process);
       CloseHandle(verified);
-      if (!launched) { result->Error("update","Installer could not start; FreeV6 remains open"); return; }
+      if (!launched) { result->Error("update","Installer could not start; Flux6 remains open"); return; }
       CloseHandle(process.hThread); CloseHandle(process.hProcess);
       exiting_ = true; result->Success(); PostMessageW(window_,WM_CLOSE,0,0);
     } else result->NotImplemented();
@@ -269,7 +269,7 @@ std::optional<LRESULT> HostBridge::HandleMessage(UINT message, WPARAM wparam, LP
     if (lparam == WM_LBUTTONUP || lparam == WM_LBUTTONDBLCLK) Show();
     if (lparam == WM_RBUTTONUP) {
       POINT cursor{}; GetCursorPos(&cursor); HMENU menu=CreatePopupMenu();
-      AppendMenuW(menu,MF_STRING,1,L"打开 FreeV6"); AppendMenuW(menu,MF_STRING,2,L"退出 FreeV6");
+      AppendMenuW(menu,MF_STRING,1,L"打开 Flux6"); AppendMenuW(menu,MF_STRING,2,L"退出 Flux6");
       SetForegroundWindow(window_);
       const UINT choice=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY|TPM_RIGHTBUTTON,cursor.x,cursor.y,0,window_,nullptr);
       DestroyMenu(menu); PostMessageW(window_,WM_NULL,0,0);

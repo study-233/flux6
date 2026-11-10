@@ -5,11 +5,11 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = FreeV6 Flutter Preview
+PRODUCT_NAME = Flux6 Flutter Preview
 PRODUCT_MODULE_NAME = Runner
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = dev.freev6.flutter-preview
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 FreeV6 contributors. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Flux6 contributors. All rights reserved.

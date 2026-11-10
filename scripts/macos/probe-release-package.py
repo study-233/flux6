@@ -27,7 +27,7 @@ try:
     subprocess.run(["python3", str(ROOT / "scripts/macos/github_channel.py"), "--public-key-file", str(public_file),
                     "--output", str(channel)], check=True)
     spec = json.loads(channel.read_text())
-    feed_base = "https://raw.githubusercontent.com/study-233/free-v6/macos-updates"
+    feed_base = "https://raw.githubusercontent.com/study-233/flux6/macos-updates"
     for arch in ("arm64", "x86_64"):
         assert spec["feeds"][arch] == f"{feed_base}/appcast-{arch}.xml"
     args = ["python3", str(ROOT / "scripts/macos/package-update.py"), "--output", str(work / "release"),
@@ -38,14 +38,14 @@ try:
     assets = sorted(p.name for p in (work / "release").iterdir())
     assert len(assets) == 3 and "SHA256SUMS" in assets
     arch = platform.machine()
-    archive = work / "release" / f"FreeV6_0.5.3_2_{arch}.zip"
+    archive = work / "release" / f"Flux6_0.5.3_2_{arch}.zip"
     item = ET.parse(work / "release" / f"appcast-{arch}.xml").find("./channel/item")
     minimum = item.findtext("{http://www.andymatuschak.org/xml-namespaces/sparkle}minimumSystemVersion")
     assert minimum == "14.0"
     enclosure = item.find("enclosure")
-    assert enclosure.get("url") == "https://github.com/study-233/free-v6/releases/download/v0.5.3/" + archive.name
+    assert enclosure.get("url") == "https://github.com/study-233/flux6/releases/download/v0.5.3/" + archive.name
     with zipfile.ZipFile(archive) as zipped:
-        settings = plistlib.loads(zipped.read("FreeV6.app/Contents/Info.plist"))
+        settings = plistlib.loads(zipped.read("Flux6.app/Contents/Info.plist"))
         assert settings["LSMinimumSystemVersion"] == minimum
         assert settings["SUFeedURL"] == spec["feeds"][arch] and settings["SUPublicEDKey"] == public
     args[args.index("--output") + 1] = str(work / "rejected")
@@ -58,7 +58,7 @@ try:
     assert bad.returncode != 0 and not (work / "rejected").exists()
     report = {"passed": True, "assets": assets, "checks": ["complete signed archive and signed appcast",
               "package and feed signatures independently verified", "per-architecture GitHub feed embedded in signed ZIP",
-              "enclosure uses the versioned release of study-233/free-v6", "wrong asset destination and key refused before output"],
+              "enclosure uses the versioned release of study-233/flux6", "wrong asset destination and key refused before output"],
               "scope": "local packaging with a disposable key; no branch, GitHub release or asset published"}
     (work / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     print("PASS " + str(work / "result.json"))

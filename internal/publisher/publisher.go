@@ -2,7 +2,7 @@
 package publisher
 
 const (
-	Repository    = "study-233/free-v6"
+	Repository    = "study-233/flux6"
 	Branch        = "main"
 	RepositoryURL = "https://github.com/" + Repository
 	RawBaseURL    = "https://raw.githubusercontent.com/" + Repository + "/" + Branch

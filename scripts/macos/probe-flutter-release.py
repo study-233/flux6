@@ -76,7 +76,7 @@ def runtime_identity(app):
     return {
         "version": info["CFBundleShortVersionString"], "build": info["CFBundleVersion"],
         "id": info["CFBundleIdentifier"], "minimumOS": info["LSMinimumSystemVersion"],
-        "runnerInstructions": text_digest(contents / "MacOS/FreeV6"),
+        "runnerInstructions": text_digest(contents / "MacOS/Flux6"),
         "dartAOTInstructions": text_digest(contents / "Frameworks/App.framework/Versions/A/App"),
         "engineInstructions": text_digest(contents / "Frameworks/FlutterMacOS.framework/Versions/A/FlutterMacOS"),
         "worker": digest(contents / "Helpers/freev6-worker"),
@@ -206,7 +206,7 @@ def audit(candidate, baseline, destination):
                 "--channel", channel, "--private-key", key, "--build", "2", "--version", "0.5.3",
                 "--minimum-source-build", "1", "--maximum-source-build", "1"]
         run(*sign)
-        archive, feed = release / f"FreeV6_0.5.3_2_{ARCH}.zip", release / f"appcast-{ARCH}.xml"
+        archive, feed = release / f"Flux6_0.5.3_2_{ARCH}.zip", release / f"appcast-{ARCH}.xml"
         expected_digests = dict(line.split("  ")[::-1] for line in (release / "SHA256SUMS").read_text().splitlines())
         assert expected_digests == {p.name: digest(p) for p in [archive, feed]}
         item = ET.parse(feed).find("./channel/item")
@@ -218,7 +218,7 @@ def audit(candidate, baseline, destination):
         assert (requirements["serviceProtocol"], requirements["workerProtocol"], requirements["settingsSchema"]) == (6, 1, 1)
         expanded = work / "unpacked"
         run("/usr/bin/ditto", "-x", "-k", archive, expanded)
-        packaged = expanded / "FreeV6.app"
+        packaged = expanded / "Flux6.app"
         run("/usr/bin/codesign", "--verify", "--deep", "--strict", packaged)
         assert runtime_identity(packaged) == identity
         assert json.loads((packaged / "Contents/Resources/update-compatibility.json").read_bytes()) == requirements
@@ -240,7 +240,7 @@ def audit(candidate, baseline, destination):
     target_result = runpy.run_path(str(ROOT / "scripts/macos/probe-native-update.py"))["exercise"]("upgrade", flutter_target=packaged)
     sparkle = json.loads(target_result.read_text())
     assert sparkle["passed"] and sparkle["flutter"]["freshProcess"]
-    installed = target_result.parent / "installed/FreeV6.app"
+    installed = target_result.parent / "installed/Flux6.app"
     assert runtime_identity(installed)["runnerInstructions"] == identity["runnerInstructions"]
     assert runtime_identity(installed)["dartAOTInstructions"] == identity["dartAOTInstructions"]
     with subscription() as source:

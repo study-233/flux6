@@ -167,7 +167,7 @@ public struct DesktopDiagnosticSnapshot {
             guard let value else { return "待检查" }
             return value ? "已校验" : "待准备"
         }
-        header = ["FreeV6 脱敏诊断", "应用版本  " + (validVersion ?? "未知"),
+        header = ["Flux6 脱敏诊断", "应用版本  " + (validVersion ?? "未知"),
                   "macOS  \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · " + arch,
                   "服务协议  \(ServiceProtocolVersion.current)", "服务状态  " + service.title,
                   "连接状态  " + network.title, "本机配置  " + (settingsLoaded ? "已载入" : "待载入"),

@@ -9,7 +9,7 @@ import (
 
 // TunDeviceName 必须与 internal/mihomo/config.go 渲染的 tun.device 一致：
 // ICS 切换/还原脚本按该显示名在 HNetShare 连接列表与 WinRT 连接配置里
-// 定位 FreeV6 的 TUN 虚拟网卡（不依赖本地化网卡名）。
+// 定位 Flux6 的 TUN 虚拟网卡（不依赖本地化网卡名）。
 // 一致性由 ics_test.go 的 TestTunDeviceNameMatchesMihomoConfig 守护。
 const TunDeviceName = "FreeV6TUN"
 

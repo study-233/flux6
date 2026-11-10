@@ -19,7 +19,7 @@ class ClientApplication extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: model,
     builder: (_, __) => FreeV6Theme(
-      title: 'FreeV6',
+      title: 'Flux6',
       appearance: switch (model.preference('freev6-theme')) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
@@ -62,7 +62,7 @@ class _ClientWindowState extends State<ClientWindow> {
   int page = 0;
   bool? expanded;
   final scroll = ScrollController();
-  final windowFocus = FocusNode(debugLabel: 'FreeV6 navigation');
+  final windowFocus = FocusNode(debugLabel: 'Flux6 navigation');
   StreamSubscription<String>? subscription;
   bool exitDialog = false;
   @override
@@ -83,20 +83,20 @@ class _ClientWindowState extends State<ClientWindow> {
     await showDialog<void>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('欢迎使用 FreeV6'),
+        title: const Text('欢迎使用 Flux6'),
         content: const Text(
           '连接校园网后，在仪表盘启动连接。首次使用会准备 WARP；缺少运行核心时，请在设置中下载。\n\n关闭窗口会保留在系统托盘，退出时会先停止连接。原 Windows 界面偏好可在设置中导入备份。',
         ),
         actions: [
           TextButton(
             onPressed: () => widget.model.act('external.open', {
-              'url': 'https://github.com/study-233/free-v6/blob/main/docs/agreement.md',
+              'url': 'https://github.com/study-233/flux6/blob/main/docs/agreement.md',
             }),
             child: const Text('用户协议'),
           ),
           TextButton(
             onPressed: () => widget.model.act('external.open', {
-              'url': 'https://github.com/study-233/free-v6/blob/main/docs/privacy.md',
+              'url': 'https://github.com/study-233/flux6/blob/main/docs/privacy.md',
             }),
             child: const Text('隐私政策'),
           ),

@@ -76,7 +76,7 @@ def main():
         cases.append("extra dylib and DYLD_INSERT_LIBRARIES injection rejected")
         run(probe, "payload", app, stage / "good", manifest["serviceSHA256"])
         cases.append("actual candidate accepted by unprivileged copy of the real installer staging path")
-        altered = stage / "FreeV6.app"
+        altered = stage / "Flux6.app"
         shutil.copytree(app, altered, symlinks=True)
         target = altered / "Contents/Frameworks/App.framework/Versions/A/App"
         shutil.copy2(evil, target)

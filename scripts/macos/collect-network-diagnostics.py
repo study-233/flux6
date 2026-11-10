@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline, read-only observer for an already installed FreeV6 connection attempt.
+"""Offline, read-only observer for an already installed Flux6 connection attempt.
 
 Does not start services, read credentials, or change proxy/DNS/routes. While a
 new tunnel exists, optionally repeats the product's fixed HTTPS check as the
@@ -166,7 +166,7 @@ class Collector:
                     interfaces_after=after, peer_route=route,
                     tunnel_present_through_route=still_present,
                     note="Independent logged-in-user probe, not the root service curl result")
-        print("已记录一次独立 HTTPS 检查；继续保留 FreeV6 的错误提示即可。", flush=True)
+        print("已记录一次独立 HTTPS 检查；继续保留 Flux6 的错误提示即可。", flush=True)
 
     def journal(self):
         root = Path.home() / "Library/Logs/dev.freev6.desktop/journal-v1"
@@ -191,7 +191,7 @@ class Collector:
         self.discover_service()
         if self.core_logs:
             self.start_core_logs()
-        print("\n采集已开始，可以断开聊天代理后测试 FreeV6。", flush=True)
+        print("\n采集已开始，可以断开聊天代理后测试 Flux6。", flush=True)
         print("测试出现错误后，恢复原代理，再回这里按回车结束采集。", flush=True)
         print(f"最多记录 {self.duration // 60} 分钟。结果目录：{self.output}\n", flush=True)
 
@@ -262,7 +262,7 @@ class Collector:
         (self.output / "system.log").write_text(result.get("stdout", "") + result.get("stderr", ""))
         self.record("finished", attempts=self.attempts, system_log_exit=result.get("exit"))
         (self.output / "READ-ME.txt").write_text(
-            f"FreeV6 offline capture: {self.output}\n"
+            f"Flux6 offline capture: {self.output}\n"
             "events.jsonl: timeline, routes/DNS, product curl/route lifecycle, independent HTTPS result.\n"
             "system.log: narrowly filtered system events.\n"
             "No credentials/configuration contents are collected. No settings or services are changed.\n"

@@ -22,7 +22,7 @@ def read(cmd):
 def bundle_hashes(app):
     contents = app / 'Contents'
     paths = [
-        'MacOS/FreeV6 Flutter Integration', 'Frameworks/App.framework/Versions/A/App',
+        'MacOS/Flux6 Flutter Integration', 'Frameworks/App.framework/Versions/A/App',
         'Helpers/freev6-worker', 'Helpers/freev6-session-fixture',
     ]
     return {name: hashlib.sha256((contents / name).read_bytes()).hexdigest() for name in paths}
@@ -40,7 +40,7 @@ def run_one(app, width, nodes, online, round_number, directory, steady, pointer,
     env = dict(os.environ, FREEV6_PERF_WIDTH=str(width), FREEV6_PERF_NODES=str(nodes), FREEV6_PERF_ONLINE=str(online),
                FREEV6_PERF_STEADY=str(steady), FREEV6_PERF_POINTER=str(int(pointer)),
                FREEV6_PERF_MANUAL=str(int(manual)))
-    exe = app / 'Contents/MacOS/FreeV6 Flutter Integration'
+    exe = app / 'Contents/MacOS/Flux6 Flutter Integration'
     rows = []
     stages = {}
     started = time.monotonic()
@@ -130,7 +130,7 @@ def main():
     cli.add_argument('--manual-pointer', action='store_true', help='Allow 45s for the tester to drag the QA title strip')
     args = cli.parse_args()
     app = Path((ROOT / 'build/flutter-perf/bundle.txt').read_text().strip())
-    if app.name != 'FreeV6 Flutter QA.app':
+    if app.name != 'Flux6 Flutter QA.app':
         raise SystemExit('Expected dedicated QA app')
     raw = args.out / 'raw'
     raw.mkdir(parents=True, exist_ok=True)

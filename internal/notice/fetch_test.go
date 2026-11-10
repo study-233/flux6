@@ -29,7 +29,7 @@ func TestOversizedValidPrefixFallsThroughToNextSource(t *testing.T) {
 }
 
 func TestPublishedNoticeOriginPolicy(t *testing.T) {
-	for _, raw := range append(Sources(MirrorPrefixes()), "https://raw.githubusercontent.com/study-233/free-v6/main/notice.json") {
+	for _, raw := range append(Sources(MirrorPrefixes()), "https://raw.githubusercontent.com/study-233/flux6/main/notice.json") {
 		if err := trustedURL(raw); err != nil {
 			t.Fatal("configured origin rejected", err)
 		}

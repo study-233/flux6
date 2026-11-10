@@ -215,7 +215,7 @@ func RenderWithOptions(w warp.Device, options RenderOptions) (string, error) {
 		fmt.Fprintf(&b, "secret: %q\n\n", options.ControllerSecret)
 	}
 	// device: 固定 TUN 适配器显示名，供 ICS 热点共享（internal/network/ics）
-	// 按名识别 FreeV6 的虚拟网卡，不依赖 mihomo 默认名。
+	// 按名识别 Flux6 的虚拟网卡，不依赖 mihomo 默认名。
 	deviceLine, strictRouteLine := "  device: FreeV6TUN\n", "  strict-route: true\n"
 	if options.Platform == PlatformDarwin {
 		// Let mihomo allocate an available utun. Windows strict-route behavior

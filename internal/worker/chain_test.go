@@ -33,7 +33,7 @@ func TestChainSubscriptionSnapshotAndRefresh(t *testing.T) {
 	}
 	var fail atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("token") != "test-private-token" || r.UserAgent() != "FreeV6" {
+		if r.URL.Query().Get("token") != "test-private-token" || r.UserAgent() != "Flux6" {
 			http.Error(w, "bad request", 400)
 			return
 		}

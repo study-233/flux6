@@ -66,7 +66,7 @@ def prepare(bundle, manifest):
     notices = bundle / 'NOTICES'
     notices.mkdir(parents=True, exist_ok=True)
     vendor = ROOT / 'apps/windows/flutter_ui/vendor'
-    for source, name in ((ROOT / 'LICENSE', 'FreeV6-LICENSE.txt'),
+    for source, name in ((ROOT / 'LICENSE', 'Flux6-LICENSE.txt'),
                          (ROOT / 'THIRD-PARTY.txt', 'THIRD-PARTY.txt'),
                          (vendor / 'flclash/LICENSE', 'FlClash-GPLv3.txt'),
                          (vendor / 'prism_ui/LICENSE', 'PrismUI-LICENSE.txt'),
@@ -84,9 +84,9 @@ def prepare(bundle, manifest):
     (notices / 'SOURCES.txt').write_text(
         'This distribution contains FlClash-derived GPLv3 visual components, Prism UI, Flutter and Go components.\n'
         'See the individual licenses in this directory. No single license replaces component terms.\n'
-        'Distribute the matching FreeV6 Windows corresponding-source ZIP alongside this binary.\n'
+        'Distribute the matching Flux6 Windows corresponding-source ZIP alongside this binary.\n'
         'The ZIP contains complete local modifications, build scripts, dependency locks and source revisions.\n'
-        'Source entry: https://github.com/study-233/free-v6\n', encoding='utf-8')
+        'Source entry: https://github.com/study-233/flux6\n', encoding='utf-8')
 
 
 def archive(bundle, output):
@@ -96,7 +96,7 @@ def archive(bundle, output):
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output.with_suffix('.tmp'), 'w', compression=zipfile.ZIP_DEFLATED) as dest:
         for name, data in [('windows-source-sha256.json', encoded(current))] + [(n, (ROOT / n).read_bytes()) for n in current]:
-            info = zipfile.ZipInfo('FreeV6-source/' + name)
+            info = zipfile.ZipInfo('Flux6-source/' + name)
             info.create_system = 3
             info.external_attr = 0o100644 << 16
             info.compress_type = zipfile.ZIP_DEFLATED

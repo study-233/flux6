@@ -435,7 +435,7 @@ const ERROR_ALREADY_EXISTS: u32 = 183;
 
 // Every launch spawns its own helper and mints its own bearer token, so a
 // second copy can never share :13335: its helper dies on the bind error (the
-// "FreeV6 组件异常" dialog) while its webview keeps hammering the first
+// "Flux6 组件异常" dialog) while its webview keeps hammering the first
 // helper's API with the wrong token (`helper 不可用: unauthorized`). Users hit
 // this by clicking the shortcut again while the window sits in the tray.
 // A named mutex makes the second copy a no-op before anything is spawned.
@@ -456,9 +456,9 @@ fn claim_single_instance() -> bool {
 }
 
 fn warn_already_running() {
-    let title: Vec<u16> = "FreeV6 已在运行".encode_utf16().chain(std::iter::once(0)).collect();
-    let body: Vec<u16> = "freev6 已经在运行，无需重复打开。\n\n\
-        窗口可能收在系统托盘里：单击任务栏右下角的 freev6 图标即可打开。"
+    let title: Vec<u16> = "Flux6 已在运行".encode_utf16().chain(std::iter::once(0)).collect();
+    let body: Vec<u16> = "Flux6 已经在运行，无需重复打开。\n\n\
+        窗口可能收在系统托盘里：单击任务栏右下角的 Flux6 图标即可打开。"
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();
@@ -520,7 +520,7 @@ fn main() {
                 settings_flag("hotkeyEnabled"),
                 HOTKEY_VK_F6,
             );
-            let show = MenuItem::with_id(app, "show", "打开 freev6", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "打开 Flux6", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
             TrayIconBuilder::with_id("main")
@@ -530,7 +530,7 @@ fn main() {
                         .expect("default window icon")
                         .clone(),
                 )
-                .tooltip("freev6")
+                .tooltip("Flux6")
                 // Left click opens the GUI directly; the context menu (打开/退出)
                 // stays available on right click.
                 .show_menu_on_left_click(false)
@@ -626,14 +626,14 @@ const MB_SETFOREGROUND: u32 = 0x0001_0000;
 // a native dialog explains the fix. Raw MessageBoxW — same no-extra-crate
 // FFI rationale as the hotkey block.
 fn warn_helper_blocked(detail: &str) {
-    let title: Vec<u16> = "FreeV6 组件异常"
+    let title: Vec<u16> = "Flux6 组件异常"
         .encode_utf16()
         .chain(std::iter::once(0))
         .collect();
     let body = format!(
-        "freev6 的核心组件（freev6-helper.exe）没有正常运行。\n\n\
+        "Flux6 的核心组件（freev6-helper.exe）没有正常运行。\n\n\
         常见原因：\n\
-        1. 已经有一个 freev6（或上次没退干净的 freev6-helper.exe）占着本地端口；\n\
+        1. 已经有一个 Flux6（或上次没退干净的 freev6-helper.exe）占着本地端口；\n\
         2. 杀毒软件把未签名的组件误判并隔离；\n\
         3. 安装目录被移动，组件文件缺失。\n\n\
         可以先试：任务管理器里结束所有 freev6-helper.exe，再重新打开软件。\n\

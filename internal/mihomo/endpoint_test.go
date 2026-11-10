@@ -17,7 +17,7 @@ func TestCloudProfileURLDerivation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CloudProfileURL: %v", err)
 	}
-	const want = "https://raw.githubusercontent.com/study-233/free-v6/main/profiles/68eb7f9411d22cfe.yaml"
+	const want = "https://raw.githubusercontent.com/study-233/flux6/main/profiles/68eb7f9411d22cfe.yaml"
 	if url != want {
 		t.Fatalf("url = %q, want %q", url, want)
 	}
@@ -80,7 +80,7 @@ func TestCloudProfileURLStaysInPublisherRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CloudProfileURL: %v", err)
 	}
-	if !strings.HasPrefix(url, "https://raw.githubusercontent.com/study-233/free-v6/main/profiles/") || !strings.HasSuffix(url, ".yaml") {
+	if !strings.HasPrefix(url, "https://raw.githubusercontent.com/study-233/flux6/main/profiles/") || !strings.HasSuffix(url, ".yaml") {
 		t.Fatalf("unexpected url %q", url)
 	}
 }

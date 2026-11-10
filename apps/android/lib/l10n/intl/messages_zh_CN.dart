@@ -514,7 +514,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "deleteMultipTip": m22,
     "deleteTip": m23,
     "desc": MessageLookupByLibrary.simpleMessage(
-      "基于 FlClash 的 FreeV6 Android 客户端，接入 IPv6 WARP 和校园分流。",
+      "基于 FlClash 的 Flux6 Android 客户端，接入 IPv6 WARP 和校园分流。",
     ),
     "destination": MessageLookupByLibrary.simpleMessage("目标地址"),
     "destinationGeoIP": MessageLookupByLibrary.simpleMessage("目标地理定位"),
@@ -555,7 +555,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "disclaimerChangesTitle": MessageLookupByLibrary.simpleMessage("声明变更"),
     "disclaimerDesc": MessageLookupByLibrary.simpleMessage(
-      "在使用 FreeV6（以下简称“本软件”）前，请仔细阅读并充分理解本声明。点击“同意”表示你已阅读并理解以下内容；如不想继续，可点击“退出”。",
+      "在使用 Flux6（以下简称“本软件”）前，请仔细阅读并充分理解本声明。点击“同意”表示你已阅读并理解以下内容；如不想继续，可点击“退出”。",
     ),
     "disclaimerLiabilityContent": MessageLookupByLibrary.simpleMessage(
       "在适用法律允许的最大范围内，开发者及所有贡献者均不对因使用或无法使用本软件而产生的任何直接、间接、偶然、特殊、惩罚性或后果性损害承担责任，包括但不限于数据丢失、设备损坏、网络异常、业务中断、利润损失或因此引起的任何法律纠纷，即使已被告知发生此类损害的可能性。",
@@ -755,7 +755,7 @@ class MessageLookup extends MessageLookupByLibrary {
       "Wi-Fi 已有 IPv6 地址，但缺少 IPv6 默认路由。请检查路由器的 IPv6 网关通告。",
     ),
     "freev6OpenHome": MessageLookupByLibrary.simpleMessage("进入首页"),
-    "freev6Prepare": MessageLookupByLibrary.simpleMessage("准备 FreeV6"),
+    "freev6Prepare": MessageLookupByLibrary.simpleMessage("准备 Flux6"),
     "freev6PrepareFailed": MessageLookupByLibrary.simpleMessage(
       "准备失败，请检查校园绕过条目和网络后重试。已有凭据会保留。",
     ),
@@ -771,7 +771,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6ProbePassed": MessageLookupByLibrary.simpleMessage(
       "IPv6 TCP 探测成功。WARP 的 UDP 隧道仍需连接后单独验证。",
     ),
-    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("FreeV6 设置"),
+    "freev6SetupTitle": MessageLookupByLibrary.simpleMessage("Flux6 设置"),
     "freev6ShowDetails": MessageLookupByLibrary.simpleMessage("查看详情"),
     "freev6SkipSetup": MessageLookupByLibrary.simpleMessage("稍后设置"),
     "freev6StartSetup": MessageLookupByLibrary.simpleMessage("开始设置"),
@@ -780,12 +780,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "freev6StepNetwork": MessageLookupByLibrary.simpleMessage("连接 Wi-Fi"),
     "freev6StepPrepare": MessageLookupByLibrary.simpleMessage("准备你的连接"),
     "freev6ToolsHint": MessageLookupByLibrary.simpleMessage(
-      "之后可在「工具 → FreeV6」调整校园分流或检测网络。",
+      "之后可在「工具 → Flux6」调整校园分流或检测网络。",
     ),
     "freev6WelcomeBody": MessageLookupByLibrary.simpleMessage(
       "完成一次设置，之后一键连接。使用校园或路由器提供的 IPv6 网络。",
     ),
-    "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage("欢迎使用 FreeV6"),
+    "freev6WelcomeTitle": MessageLookupByLibrary.simpleMessage("欢迎使用 Flux6"),
     "freev6WifiReady": MessageLookupByLibrary.simpleMessage("Wi-Fi 已就绪"),
     "freev6WifiUnverified": MessageLookupByLibrary.simpleMessage(
       "IPv6 已配置，外网尚未确认",
@@ -897,7 +897,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "init": MessageLookupByLibrary.simpleMessage("初始化"),
     "initFailed": MessageLookupByLibrary.simpleMessage("启动失败"),
     "initFailedTip": MessageLookupByLibrary.simpleMessage(
-      "FreeV6 启动时出错，无法继续运行。可以复制错误详情用于反馈；如果问题反复出现，清除数据后通常可以重新启动。",
+      "Flux6 启动时出错，无法继续运行。可以复制错误详情用于反馈；如果问题反复出现，清除数据后通常可以重新启动。",
     ),
     "initiator": MessageLookupByLibrary.simpleMessage("发起方"),
     "initiatorShort": MessageLookupByLibrary.simpleMessage("发起"),
@@ -1561,10 +1561,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "已发送，请在另一台设备上确认导入。",
     ),
     "sendFromPhonePageTitle": MessageLookupByLibrary.simpleMessage(
-      "把链接发送到 FreeV6",
+      "把链接发送到 Flux6",
     ),
     "sendFromPhonePermissionDenied": MessageLookupByLibrary.simpleMessage(
-      "从手机接收链接需要「附近的设备」权限，FreeV6 才能访问局域网。请在应用设置中开启。",
+      "从手机接收链接需要「附近的设备」权限，Flux6 才能访问局域网。请在应用设置中开启。",
     ),
     "sendFromPhoneTip": MessageLookupByLibrary.simpleMessage(
       "用手机相机扫描二维码，在打开的页面里粘贴链接。两台设备需要连在同一个网络。",

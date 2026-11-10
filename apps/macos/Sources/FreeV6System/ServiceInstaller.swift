@@ -39,10 +39,10 @@ public struct InstallationPayload {
         let binaries = try SecureDirectory(path: clientRoot + "/Contents/MacOS", owner: owner, create: true)
         let info = try readSource(app.appendingPathComponent("Contents/Info.plist"), limit: 64 * 1024)
         guard let dictionary = try PropertyListSerialization.propertyList(from: info, format: nil) as? [String: Any],
-              dictionary["CFBundleExecutable"] as? String == "FreeV6",
+              dictionary["CFBundleExecutable"] as? String == "Flux6",
               dictionary["CFBundleIdentifier"] as? String == expected.identifier else { throw InstallationError.invalidPayload }
         try contents.write("Info.plist", data: info, mode: 0o600)
-        try binaries.write("FreeV6", data: readSource(app.appendingPathComponent("Contents/MacOS/FreeV6"), limit: maximumBinaryBytes), mode: 0o700)
+        try binaries.write("Flux6", data: readSource(app.appendingPathComponent("Contents/MacOS/Flux6"), limit: maximumBinaryBytes), mode: 0o700)
         // Only executable identity/entitlements are enrolled. Resources are never
         // trusted to select root executables; the independent service hash does that.
         let recovery = try readSource(installer, limit: maximumBinaryBytes)

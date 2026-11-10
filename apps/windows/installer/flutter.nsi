@@ -11,14 +11,14 @@ SetCompressor /SOLID lzma
 !include x64.nsh
 !include WordFunc.nsh
 !define KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\FreeV6"
-Name "FreeV6"
+Name "Flux6"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\FreeV6"
 VIProductVersion "${VERSION}.0"
-VIAddVersionKey "ProductName" "FreeV6"
-VIAddVersionKey "FileDescription" "FreeV6 Flutter Windows Installer"
+VIAddVersionKey "ProductName" "Flux6"
+VIAddVersionKey "FileDescription" "Flux6 Flutter Windows Installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
-VIAddVersionKey "LegalCopyright" "FreeV6 contributors"
+VIAddVersionKey "LegalCopyright" "Flux6 contributors"
 !define MUI_ICON "${REPO}\assets\branding\icon.ico"
 !define MUI_UNICON "${REPO}\assets\branding\icon.ico"
 !insertmacro MUI_PAGE_WELCOME
@@ -97,7 +97,7 @@ Function Consent
   !insertmacro MUI_HEADER_TEXT "用户协议与隐私政策" "阅读并同意后继续"
   nsDialogs::Create 1018
   Pop $0
-  ${NSD_CreateLabel} 0 0 100% 54u "FreeV6 为免费开源软件。此版本包含 GPLv3 视觉组件及其他开源依赖；各组件许可证随安装包提供。对应源码包应与本安装包一起分发。"
+  ${NSD_CreateLabel} 0 0 100% 54u "Flux6 为免费开源软件。此版本包含 GPLv3 视觉组件及其他开源依赖；各组件许可证随安装包提供。对应源码包应与本安装包一起分发。"
   Pop $0
   ${NSD_CreateLink} 0 62u 85u 16u "用户协议"
   Pop $0
@@ -118,11 +118,11 @@ Function ConsentLeave
 FunctionEnd
 Function OpenAgreement
   Pop $0
-  ExecShell "open" "https://github.com/study-233/free-v6/blob/main/docs/agreement.md"
+  ExecShell "open" "https://github.com/study-233/flux6/blob/main/docs/agreement.md"
 FunctionEnd
 Function OpenPrivacy
   Pop $0
-  ExecShell "open" "https://github.com/study-233/free-v6/blob/main/docs/privacy.md"
+  ExecShell "open" "https://github.com/study-233/flux6/blob/main/docs/privacy.md"
 FunctionEnd
 
 !macro Guard PREFIX
@@ -149,14 +149,14 @@ Function ${PREFIX}Guard
       SetErrorLevel 10
       Quit
     ${EndIf}
-    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "FreeV6 或网络核心仍在运行，或无法检查进程。请从托盘退出并等待连接停止，然后重试。安装器不会强制结束进程。" /SD IDCANCEL IDRETRY retry
+    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Flux6 或网络核心仍在运行，或无法检查进程。请从托盘退出并等待连接停止，然后重试。安装器不会强制结束进程。" /SD IDCANCEL IDRETRY retry
     Abort
 FunctionEnd
 !macroend
 !insertmacro Guard ""
 !insertmacro Guard "un."
 
-Section "FreeV6"
+Section "Flux6"
   ${If} $Existing != ""
   ${AndIf} $INSTDIR != $Existing
     MessageBox MB_OK|MB_ICONSTOP "升级时请保持原安装目录，以保留配置和凭据。" /SD IDOK
@@ -176,19 +176,23 @@ Section "FreeV6"
   ${Else}
     SetRegView 32
   ${EndIf}
-  WriteRegStr HKCU "${KEY}" "DisplayName" "FreeV6"
+  WriteRegStr HKCU "${KEY}" "DisplayName" "Flux6"
   WriteRegStr HKCU "${KEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${KEY}" "DisplayIcon" '$\"$INSTDIR\freev6-desktop.exe$\"'
   WriteRegStr HKCU "${KEY}" "InstallLocation" '$\"$INSTDIR$\"'
   WriteRegStr HKCU "${KEY}" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
   WriteRegStr HKCU "${KEY}" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
   WriteRegStr HKCU "${KEY}" "MainBinaryName" "freev6-desktop.exe"
-  WriteRegStr HKCU "${KEY}" "Publisher" "FreeV6 contributors"
+  WriteRegStr HKCU "${KEY}" "Publisher" "Flux6 contributors"
   WriteRegDWORD HKCU "${KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${KEY}" "NoRepair" 1
-  CreateDirectory "$SMPROGRAMS\FreeV6"
-  CreateShortcut "$SMPROGRAMS\FreeV6\FreeV6.lnk" "$INSTDIR\freev6-desktop.exe"
-  CreateShortcut "$DESKTOP\FreeV6.lnk" "$INSTDIR\freev6-desktop.exe"
+  ; Remove only the previous product shortcuts; preserve its install and data paths.
+  Delete "$DESKTOP\FreeV6.lnk"
+  Delete "$SMPROGRAMS\FreeV6\FreeV6.lnk"
+  RMDir "$SMPROGRAMS\FreeV6"
+  CreateDirectory "$SMPROGRAMS\Flux6"
+  CreateShortcut "$SMPROGRAMS\Flux6\Flux6.lnk" "$INSTDIR\freev6-desktop.exe"
+  CreateShortcut "$DESKTOP\Flux6.lnk" "$INSTDIR\freev6-desktop.exe"
   ${If} ${Silent}
   ${AndIf} $Relaunch == 1
     Exec '"$INSTDIR\freev6-desktop.exe"'
@@ -232,9 +236,9 @@ Section "Uninstall"
     Abort "部分程序文件仍被占用。请关闭相关程序后重新卸载，应用数据已保留。"
   ${EndIf}
   Delete "$INSTDIR\uninstall.exe"
-  Delete "$DESKTOP\FreeV6.lnk"
-  Delete "$SMPROGRAMS\FreeV6\FreeV6.lnk"
-  RMDir "$SMPROGRAMS\FreeV6"
+  Delete "$DESKTOP\Flux6.lnk"
+  Delete "$SMPROGRAMS\Flux6\Flux6.lnk"
+  RMDir "$SMPROGRAMS\Flux6"
   SetRegView 32
   DeleteRegKey HKCU "${KEY}"
   SetRegView 64

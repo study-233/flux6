@@ -179,7 +179,7 @@ func resetUpdateRun() {
 }
 
 func TestParseVersionJSON(t *testing.T) {
-	valid := `{"version":"0.2.9","tag":"v0.2.9","notes":"## [0.2.9] - 2026-09-27\n- stuff","setup":"FreeV6_0.2.9_x64-setup.exe","download":"https://github.com/study-233/free-v6/releases/download/v0.2.9/FreeV6_0.2.9_x64-setup.exe","sha256":"` + strings.Repeat("ab", 32) + `"}`
+	valid := `{"version":"0.2.9","tag":"v0.2.9","notes":"## [0.2.9] - 2026-09-27\n- stuff","setup":"FreeV6_0.2.9_x64-setup.exe","download":"https://github.com/study-233/flux6/releases/download/v0.2.9/FreeV6_0.2.9_x64-setup.exe","sha256":"` + strings.Repeat("ab", 32) + `"}`
 	info, err := parseVersionJSON([]byte(valid))
 	if err != nil {
 		t.Fatalf("valid version.json rejected: %v", err)
@@ -234,7 +234,7 @@ func TestUpdateLatestHandlerFlow(t *testing.T) {
 	updateAllowedHosts = append(updateAllowedHosts, "127.0.0.1")
 	t.Cleanup(func() { updateAllowedHosts = origHosts })
 
-	payload := []byte(`{"version":"0.3.0","tag":"v0.3.0","notes":"## [0.3.0]","setup":"FreeV6_0.3.0_x64-setup.exe","download":"https://github.com/study-233/free-v6/releases/download/v0.3.0/FreeV6_0.3.0_x64-setup.exe","sha256":"` + strings.Repeat("cd", 32) + `"}`)
+	payload := []byte(`{"version":"0.3.0","tag":"v0.3.0","notes":"## [0.3.0]","setup":"FreeV6_0.3.0_x64-setup.exe","download":"https://github.com/study-233/flux6/releases/download/v0.3.0/FreeV6_0.3.0_x64-setup.exe","sha256":"` + strings.Repeat("cd", 32) + `"}`)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(payload)
 	}))
@@ -298,7 +298,7 @@ func TestUpdateDownloadCandidatesRewritesGitHubURL(t *testing.T) {
 	updateMirrorPrefixes = []string{"https://a.example/", "https://b.example/"}
 	t.Cleanup(func() { updateMirrorPrefixes = orig })
 
-	githubURL := "https://github.com/study-233/free-v6/releases/download/v9.9.9/setup.exe"
+	githubURL := "https://github.com/study-233/flux6/releases/download/v9.9.9/setup.exe"
 	got := updateDownloadCandidates(githubURL)
 	want := []string{"https://a.example/" + githubURL, "https://b.example/" + githubURL, githubURL}
 	if len(got) != len(want) {
@@ -331,7 +331,7 @@ func TestDownloadUpdateFileFallsBackToNextMirror(t *testing.T) {
 	defer good.Close()
 	withUpdateDownloadTest(t, bad.URL+"/", good.URL+"/")
 
-	githubURL := "https://github.com/study-233/free-v6/releases/download/v9.9.9/setup.exe"
+	githubURL := "https://github.com/study-233/flux6/releases/download/v9.9.9/setup.exe"
 	dest := filepath.Join(t.TempDir(), "setup.exe")
 	_, err := downloadUpdateFile(http.DefaultClient, githubURL, sha256Hex(payload), dest, []string{"127.0.0.1"}, &updateProgress{})
 	if err != nil {
@@ -355,7 +355,7 @@ func TestDownloadUpdateFileDigestMismatchFallsBack(t *testing.T) {
 	defer good.Close()
 	withUpdateDownloadTest(t, tampered.URL+"/", good.URL+"/")
 
-	githubURL := "https://github.com/study-233/free-v6/releases/download/v9.9.9/setup.exe"
+	githubURL := "https://github.com/study-233/flux6/releases/download/v9.9.9/setup.exe"
 	dest := filepath.Join(t.TempDir(), "setup.exe")
 	if _, err := downloadUpdateFile(http.DefaultClient, githubURL, sha256Hex(payload), dest, []string{"127.0.0.1"}, &updateProgress{}); err != nil {
 		t.Fatalf("mismatch must fall back: %v", err)
@@ -380,7 +380,7 @@ func TestDownloadUpdateFileStallFailover(t *testing.T) {
 	defer good.Close()
 	withUpdateDownloadTest(t, hungServer.URL+"/", good.URL+"/")
 
-	githubURL := "https://github.com/study-233/free-v6/releases/download/v9.9.9/setup.exe"
+	githubURL := "https://github.com/study-233/flux6/releases/download/v9.9.9/setup.exe"
 	dest := filepath.Join(t.TempDir(), "setup.exe")
 	start := time.Now()
 	if _, err := downloadUpdateFile(http.DefaultClient, githubURL, sha256Hex(payload), dest, []string{"127.0.0.1"}, &updateProgress{}); err != nil {
@@ -407,8 +407,8 @@ func TestUpdateLatestURLsDefaultIncludesMirrors(t *testing.T) {
 func TestUpdateManifestRejectsOtherPublishers(t *testing.T) {
 	for _, address := range []string{
 		"https://github.com/evansrrr/free-v6/releases/download/v1.0.0/setup.exe",
-		"https://github.com/study-233/free-v6-other/releases/download/v1.0.0/setup.exe",
-		"https://github.com@other.test/study-233/free-v6/releases/download/v1.0.0/setup.exe",
+		"https://github.com/study-233/flux6-other/releases/download/v1.0.0/setup.exe",
+		"https://github.com@other.test/study-233/flux6/releases/download/v1.0.0/setup.exe",
 	} {
 		body, _ := json.Marshal(map[string]string{"version": "1.0.0", "download": address})
 		if _, err := parseVersionJSON(body); err == nil {

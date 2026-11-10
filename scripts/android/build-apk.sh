@@ -6,7 +6,7 @@ cd "$FREEV6_ROOT"
 version="$(python3 scripts/version.py --platform android --field version)"
 build="$(python3 scripts/version.py --platform android --field build)"
 output="${FREEV6_OUTPUT_DIR:-$FREEV6_ROOT/dist/android/$version-b$build}"
-artifact="FreeV6-$version-b$build-arm64.apk"
+artifact="Flux6-$version-b$build-arm64.apk"
 if [[ -e "$output/$artifact" || -e "$output/APK-SHA256SUMS" ]]; then
   printf 'Release output already exists: %s\n' "$output" >&2
   exit 1

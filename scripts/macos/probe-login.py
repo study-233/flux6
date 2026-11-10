@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise FreeV6's login item in a disposable home and one temporary Aqua job."""
+"""Exercise Flux6's login item in a disposable home and one temporary Aqua job."""
 import json
 import os
 from pathlib import Path
@@ -29,16 +29,16 @@ def main():
     work = ROOT / "build/login-probes" / str(uuid.uuid4())
     home = work / "home"
     (home / "Library").mkdir(parents=True)
-    app = home / "Applications/FreeV6.app"
+    app = home / "Applications/Flux6.app"
     label = "dev.freev6.probe.login." + uuid.uuid4().hex
     macos = app / "Contents/MacOS"
     macos.mkdir(parents=True)
     events = work / "events.jsonl"
     (app / "Contents/Info.plist").write_bytes(plistlib.dumps({
-        "CFBundleIdentifier": label + ".observer", "CFBundleExecutable": "FreeV6", "CFBundlePackageType": "APPL",
-        "CFBundleName": "FreeV6 Login Fixture", "LSUIElement": True, "ProbeEvents": str(events),
+        "CFBundleIdentifier": label + ".observer", "CFBundleExecutable": "Flux6", "CFBundlePackageType": "APPL",
+        "CFBundleName": "Flux6 Login Fixture", "LSUIElement": True, "ProbeEvents": str(events),
     }))
-    run("/usr/bin/xcrun", "swiftc", "-parse-as-library", ROOT / "apps/macos/Probes/LoginObserver.swift", "-o", macos / "FreeV6")
+    run("/usr/bin/xcrun", "swiftc", "-parse-as-library", ROOT / "apps/macos/Probes/LoginObserver.swift", "-o", macos / "Flux6")
     helpers = app / "Contents/Helpers"
     helpers.mkdir()
     launcher = helpers / "freev6-login-launcher"
@@ -98,9 +98,9 @@ def main():
     # Wait for the observer's own bounded lifetime. No signal is sent to an
     # arbitrary PID and no running instance of the actual product is involved.
     deadline = time.monotonic() + 30
-    while time.monotonic() < deadline and run("/usr/bin/pgrep", "-f", str(macos / "FreeV6"), check=False).returncode == 0:
+    while time.monotonic() < deadline and run("/usr/bin/pgrep", "-f", str(macos / "Flux6"), check=False).returncode == 0:
         time.sleep(0.25)
-    if run("/usr/bin/pgrep", "-f", str(macos / "FreeV6"), check=False).returncode == 0:
+    if run("/usr/bin/pgrep", "-f", str(macos / "Flux6"), check=False).returncode == 0:
         raise RuntimeError("Fixture remained running")
     rows = history()
     assert [row["event"] for row in rows] == ["launched", "terminated"]

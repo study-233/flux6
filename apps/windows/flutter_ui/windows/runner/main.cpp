@@ -30,9 +30,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   HANDLE singleton = probe ? nullptr : CreateMutexW(nullptr, FALSE, L"Local\\freev6-desktop-single-instance");
   const DWORD singleton_error = GetLastError();
   if (!probe && (!singleton || singleton_error == ERROR_ALREADY_EXISTS)) {
-    HWND existing = FindWindowW(nullptr, L"FreeV6");
+    HWND existing = FindWindowW(nullptr, L"Flux6");
     if (existing) { ShowWindow(existing, SW_RESTORE); SetForegroundWindow(existing); }
-    else MessageBoxW(nullptr, L"FreeV6 已在运行。请从系统托盘打开；测试 Flutter 版本前请先退出旧版。", L"FreeV6", MB_OK | MB_ICONINFORMATION);
+    else MessageBoxW(nullptr, L"Flux6 已在运行。请从系统托盘打开；测试 Flutter 版本前请先退出旧版。", L"Flux6", MB_OK | MB_ICONINFORMATION);
     if (singleton) CloseHandle(singleton);
     CoUninitialize(); return EXIT_SUCCESS;
   }
@@ -42,7 +42,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project, probe);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(FREEV6_LIVE ? L"FreeV6" : L"FreeV6 Windows Preview", origin, size)) {
+  if (!window.Create(FREEV6_LIVE ? L"Flux6" : L"Flux6 Windows Preview", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
