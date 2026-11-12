@@ -73,8 +73,8 @@ python3 "$project_root/scripts/macos/release_rpaths.py" "$bundle/Contents/Helper
 cp "$project_root/internal/mihomo/runtime-assets.json" "$bundle/Contents/Resources/runtime-assets.json"
 sparkle="$(python3 "$project_root/scripts/macos/prepare-sparkle.py" --directory "$stage/SparkleSDK")"
 FREEV6_UPDATE_PROBE_BUILD=0 FREEV6_SPARKLE_FRAMEWORK_DIR="$sparkle" bash "$project_root/scripts/macos/swift.sh" build -c "$configuration" --product freev6-update-agent
-updater_args=("$bundle" "$binary_dir/freev6-update-agent" "$sparkle")
-if [ -n "${FREEV6_UPDATE_CHANNEL_FILE:-}" ]; then updater_args+=(--channel "$FREEV6_UPDATE_CHANNEL_FILE"); fi
+updater_args=("$bundle" "$binary_dir/freev6-update-agent" "$sparkle"
+    --channel "${FREEV6_UPDATE_CHANNEL_FILE:-$project_root/apps/macos/Resources/update-channel.json}")
 python3 "$project_root/scripts/macos/bundle-updater.py" "${updater_args[@]}"
 notices="$bundle/Contents/Resources/Notices"
 mkdir -p "$notices"

@@ -117,8 +117,8 @@ class Request {
   /// The release page redirect still answers once the hourly API quota is spent.
   Future<Map<String, dynamic>> latestRelease() async {
     try {
-      final response = await dio.get<Map<String, dynamic>>(
-        'https://api.github.com/repos/$repository/releases/latest',
+      final response = await releaseDio.get<Map<String, dynamic>>(
+        'https://api.github.com/repos/$updateRepository/releases/latest',
         options: Options(responseType: ResponseType.json),
       );
       return response.data!;
@@ -128,20 +128,24 @@ class Request {
         logLevel: LogLevel.warning,
       );
     }
-    final response = await dio.get<void>(
-      'https://github.com/$repository/releases/latest',
+    final response = await releaseDio.get<void>(
+      'https://github.com/$updateRepository/releases/latest',
       options: Options(
         followRedirects: false,
         validateStatus: (status) => status != null && status < 400,
       ),
     );
     final location = response.headers.value(HttpHeaders.locationHeader);
-    final segments = Uri.tryParse(location ?? '')?.pathSegments ?? const [];
-    final tagIndex = segments.indexOf('tag') + 1;
-    if (tagIndex == 0 || tagIndex >= segments.length) {
+    final uri = Uri.tryParse(location ?? '');
+    final segments = uri?.pathSegments ?? const <String>[];
+    if (uri?.scheme != 'https' ||
+        uri?.host != 'github.com' ||
+        segments.length != 5 ||
+        segments.take(4).join('/') != '$updateRepository/releases/tag' ||
+        !RegExp(r'^v\d+\.\d+\.\d+$').hasMatch(segments.last)) {
       throw FormatException('No release tag in the redirect', location);
     }
-    return {'tag_name': segments[tagIndex]};
+    return {'tag_name': segments.last};
   }
 
   Future<String> downloadVerifiedRelease({
