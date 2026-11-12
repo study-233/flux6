@@ -429,3 +429,11 @@ Windows helper 在恢复 DNS 前只读枚举网卡，按接口名、索引及协
 | Android | APK 的签名、应用 ID、版本、ARM64 架构及 2716 份对应源码核对通过。隔离 Android 15 模拟器从旧 0.1.1 APK 覆盖安装到新 build，首次安装时间一致。公开更新检查使用软件版本号，同为 0.1.1 的早期 APK 需手动覆盖安装。 |
 
 日志及截图位于本地 `build/release-validation/`。Windows 原生安装、真实 DNS 还原及性能数据、macOS 管理员服务升级、Apple 公证和 Android 实体手机仍待相应环境验证。独立修复分支 `fix/macos-missing-launchdaemon` 上的 `d30d15b` 不在该候选基线中。
+
+## 2026-11-12 Flux6 0.1.1 正式发布
+
+[发行 PR #15](https://github.com/study-233/flux6/pull/15) 合入主线 `1774308`，文件树与签名构建使用的 `40c58d0` 一致。标签 `v0.1.1` 指向合并提交。[PR 检查](https://github.com/study-233/flux6/actions/runs/43239351926)和[主线检查](https://github.com/study-233/flux6/actions/runs/43239610303)均通过。
+
+[Flux6 0.1.1](https://github.com/study-233/flux6/releases/tag/v0.1.1) 于新加坡时间 2026-11-12 22:47 公开并设为 Latest，面向 macOS Apple Silicon build 12 及 Android ARM64 build 2026111201。草稿中的旧 build 11 更新 ZIP 已移除。发布前逐项核对了七个附件的名称、大小与 SHA-256，包含 DMG、更新 ZIP、签名清单、APK、两端对应源码和统一校验文件。Windows 只更新源码。隔离升级、签名证书、安装与测试边界见[本轮候选记录](#2026-11-12-接入上游修复并重新准备-011)。
+
+匿名下载的 macOS DMG 和更新 ZIP 与签名发行包逐字节一致。[正式 Sparkle 清单](https://raw.githubusercontent.com/study-233/flux6/macos-updates/appcast-arm64.xml)（提交 `7d5600d`）和 [Homebrew Cask](https://github.com/study-233/homebrew-tap/blob/4050e6b9346c972b6cb40b86cd9ad5dcdf1b4b8c/Casks/flux6.rb) 均已从公开地址取回复核。官网使用同一 Release 的实际附件与发布时间，隔离浏览器验证了 macOS 与 Android 下载入口及校验文件链接。

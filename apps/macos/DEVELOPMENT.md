@@ -283,7 +283,7 @@ python3 scripts/macos/probe-service.py --network-run --update-recovery \
 
 Mac 的发布仓库为 `study-233/flux6`。启用应用内更新时，签名清单放在专用 `macos-updates` 分支根目录，客户端读取该分支对应架构的 `appcast-<架构>.xml`。每个 ZIP 放在固定标签的 Release 下，例如 `v0.1.0`。这样可以在更新清单前先验证 ZIP 已经能匿名下载，同时保留旧版本。同一版本只创建一个 Release，集中放置 macOS、Android 及其他已交付平台的附件；正式版使用 `prerelease=false`，最新正式版本设为 Latest。下载及 Homebrew Cask 均使用固定的 `v<版本>` 标签。Windows 采用本地构建与手动发布，当前不在首发范围。[首发准备](../../docs/releases/first-public-release.md) · [GitHub Release 参数](https://docs.github.com/en/rest/releases/releases#create-a-release)
 
-正式构建默认读取 `apps/macos/Resources/update-channel.json`，其中只有公开的 Ed25519 公钥和 HTTPS 更新源；`FREEV6_UPDATE_CHANNEL_FILE` 可覆盖为自己的通道文件。发布私钥必须保管和备份在仓库外，不能随源码分发。当前只交付 arm64 更新 ZIP 与 `appcast-arm64.xml`，不发布 Intel 空通道。0.1.1 候选已在本地配置，用户要求暂不发布，公开更新源尚未上线；0.1.0 用户需先手动安装一次新 DMG。见[应用内更新准备](../../docs/releases/in-app-updates.md)。本次不进行 Apple 公证，通道签名与代码签名校验仍须保留。
+正式构建默认读取 `apps/macos/Resources/update-channel.json`，其中只有公开的 Ed25519 公钥和 HTTPS 更新源；`FREEV6_UPDATE_CHANNEL_FILE` 可覆盖为自己的通道文件。发布私钥必须保管和备份在仓库外，不能随源码分发。当前只交付 arm64 更新 ZIP 与 `appcast-arm64.xml`，不发布 Intel 空通道。0.1.1 使用正式更新源。0.1.0 用户需先手动安装一次新 DMG。见[应用内更新](../../docs/releases/in-app-updates.md)。本次不进行 Apple 公证，通道签名与代码签名校验仍须保留。
 
 ```sh
 python3 scripts/macos/github_channel.py --public-key-file /secure/path/mac-public-key.txt \

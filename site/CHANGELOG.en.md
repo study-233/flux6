@@ -1,5 +1,12 @@
 # Flux6 releases
 
+## v0.1.1 (2026-11-12)
+
+**Features**
+- **macOS** Check for updates in the app menu or General settings. Flux6 verifies the signed feed and archive before installing and restarting.
+- **Android** Check for updates in About or enable checks at startup. Flux6 verifies the APK checksum before Android asks you to install it.
+- **Upgrading from 0.1.0** Install 0.1.1 manually once to enable future in-app updates.
+
 ## v0.1.0 (2026-11-10)
 
 **Features**

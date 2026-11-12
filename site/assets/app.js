@@ -102,11 +102,11 @@
 
   function buildsFor(platform) {
     if (platform === 'android') return [
-      { id: 'Android.apk', kind: 'APK', title: 'ARM64', note: 'noteAndroidArm64', rec: true },
+      { filename: /-(?:android-arm64|Android)\.apk$/, kind: 'APK', title: 'ARM64', note: 'noteAndroidArm64', rec: true },
     ];
     if (platform === 'macos') return [
-      { id: 'macOS.dmg', kind: 'DMG', title: 'Apple Silicon', note: 'noteMacArm', rec: true },
-      { id: 'macOS.zip', kind: 'ZIP', titleKey: 'macZip', note: 'noteMacZip' },
+      { filename: /-(?:macos-arm64|macOS)\.dmg$/, kind: 'DMG', title: 'Apple Silicon', note: 'noteMacArm', rec: true },
+      { filename: /(?:_arm64|-macOS)\.zip$/, kind: 'ZIP', titleKey: 'macZip', note: 'noteMacZip' },
     ];
     return [];
   }
@@ -116,16 +116,15 @@
     if (!release) return [];
     return buildsFor(platform, arch)
       .map((build) => {
-        const name = `Flux6-${release.version}-${build.id}`;
-        const asset = release.assets ? release.assets.get(name) : null;
-        if (release.assets && !asset) return null;
+        const asset = Array.from(release.assets.values()).find(({ name }) => build.filename.test(name));
+        if (!asset) return null;
         return {
           ...build,
-          name,
+          name: asset.name,
           title: build.titleKey ? t(build.titleKey) : build.title,
-          href: `${REPO}/releases/download/${release.tag}/${name}`,
-          size: asset ? asset.size : null,
-          digest: asset && asset.digest ? asset.digest.replace(/^sha256:/, '') : null,
+          href: asset.url,
+          size: asset.size,
+          digest: asset.digest.replace(/^sha256:/, ''),
         };
       })
       .filter(Boolean);
