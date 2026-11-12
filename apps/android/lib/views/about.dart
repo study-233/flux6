@@ -2,6 +2,7 @@ import 'package:fl_clash/common/cat_icon.dart';
 import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
@@ -65,6 +66,21 @@ class AboutView extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 8),
+          generateSection(
+            title: appLocalizations.update,
+            items: [
+              ListItem(
+                leading: const _LinkBadge(glyph: AppGlyphs.arrowDown),
+                title: Text(appLocalizations.checkUpdate),
+                trailing: ref.watch(loadingProvider(LoadingTag.checkUpdate))
+                    ? const ActivityIndicator(size: 24)
+                    : null,
+                onTap: () => unawaited(
+                  ref.read(commonActionProvider.notifier).checkUpdate(),
+                ),
+              ),
+            ],
+          ),
           generateSection(
             title: appLocalizations.more,
             items: [
@@ -176,11 +192,6 @@ class _AboutHero extends StatelessWidget {
               ),
               _Pill(
                 label: 'GPL-3.0',
-                color: context.raisedSurfaceLevel.colorOf(colorScheme),
-                foregroundColor: colorScheme.onSurfaceVariant,
-              ),
-              _Pill(
-                label: appLocalizations.freev6ManualUpdates,
                 color: context.raisedSurfaceLevel.colorOf(colorScheme),
                 foregroundColor: colorScheme.onSurfaceVariant,
               ),

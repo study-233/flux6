@@ -91,7 +91,7 @@ void main() {
 
   group('latestRelease', () {
     Request requestAnswering(Map<String, ResponseBody Function()> byHost) {
-      return Request()..dio.httpClientAdapter = _HostAdapter(byHost);
+      return Request()..releaseDio.httpClientAdapter = _HostAdapter(byHost);
     }
 
     test('reads the release from the API', () async {
@@ -121,7 +121,7 @@ void main() {
             302,
             headers: {
               HttpHeaders.locationHeader: [
-                'https://github.com/owner/repo/releases/tag/v1.2.4',
+                'https://github.com/$updateRepository/releases/tag/v1.2.4',
               ],
             },
           ),
@@ -139,10 +139,41 @@ void main() {
 
       await expectLater(request.latestRelease(), throwsA(isA<DioException>()));
     });
+
+    test('rejects a redirect to another publisher', () async {
+      final request = requestAnswering({
+        'api.github.com': () => ResponseBody.fromString('{}', 403),
+        'github.com': () => ResponseBody.fromString(
+          '',
+          302,
+          headers: {
+            HttpHeaders.locationHeader: [
+              'https://github.com/chen08209/FlClash/releases/tag/v9.0.0',
+            ],
+          },
+        ),
+      });
+      await expectLater(request.latestRelease(), throwsFormatException);
+    });
+
+    test('checks the Flux6 API path', () async {
+      final request = Request()
+        ..releaseDio.httpClientAdapter = _PathAdapter({
+          '/repos/study-233/flux6/releases/latest': () =>
+              ResponseBody.fromString(
+                '{"tag_name":"v0.1.1"}',
+                200,
+                headers: {
+                  Headers.contentTypeHeader: [Headers.jsonContentType],
+                },
+              ),
+        });
+      expect(await request.latestRelease(), {'tag_name': 'v0.1.1'});
+    });
   });
 
   group('downloadVerifiedRelease', () {
-    const name = 'FlClash-1.2.3-android-arm64-v8a.apk';
+    const name = 'Flux6-1.2.3-android-arm64.apk';
     final package = utf8.encode('package');
     final digest = sha256.convert(package).toString();
     late Directory directory;
@@ -156,9 +187,9 @@ void main() {
     Request requestServing(String sums, List<int> asset) {
       return Request()
         ..releaseDio.httpClientAdapter = _PathAdapter({
-          '/$repository/releases/download/v1.2.3/SHA256SUMS': () =>
+          '/$updateRepository/releases/download/v1.2.3/SHA256SUMS': () =>
               ResponseBody.fromString(sums, 200),
-          '/$repository/releases/download/v1.2.3/$name': () =>
+          '/$updateRepository/releases/download/v1.2.3/$name': () =>
               ResponseBody.fromBytes(asset, 200),
         });
     }

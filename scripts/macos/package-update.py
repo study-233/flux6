@@ -109,8 +109,10 @@ def main(resources):
         agent_info = plistlib.loads(agent_info_file.read_bytes())
         agent_info["CFBundleVersion"] = str(args.build)
         agent_info_file.write_bytes(plistlib.dumps(agent_info))
-        run("/usr/bin/codesign", "--force", "--sign", os.environ.get("FREEV6_CODESIGN_IDENTITY", "-"), "--options", "runtime", "--entitlements",
-            agent / "Contents/Resources/update-agent.entitlements", agent)
+        signing = ["/usr/bin/codesign", "--force", "--sign", os.environ.get("FREEV6_CODESIGN_IDENTITY", "-"), "--options", "runtime"]
+        if keychain := os.environ.get("FREEV6_CODESIGN_KEYCHAIN"):
+            signing += ["--keychain", keychain]
+        run(*signing, "--entitlements", agent / "Contents/Resources/update-agent.entitlements", agent)
         sign_flutter_host.sign_host(app, os.environ.get("FREEV6_CODESIGN_IDENTITY", "-"))
         verify_bundle(app, arch)
         package = products / ("Flux6_" + args.version + "_" + str(args.build) + "_" + arch + ".zip")

@@ -53,4 +53,4 @@ python3 scripts/macos/probe-distribution.py "/path/to/browser-downloaded.dmg" \
 
 ## Swift 更新助手与发布
 
-启用应用内更新通道需要签名清单、更新包和独立的发布密钥，与 DMG/Homebrew 分发分别准备。生成通道与更新包的命令见[发布手册](DEVELOPMENT.md#swift-更新助手与发布)。
+0.1.1 候选默认嵌入 [Flux6 正式更新通道](Resources/update-channel.json)，通过菜单或设置中的“检查更新”下载并验证签名更新。后台自动检查和自动安装保持关闭。通道接入及密钥已在本地准备，公开更新源尚未发布；0.1.0 用户需先手动安装一次带通道的新版本。见[应用内更新准备](../../docs/releases/in-app-updates.md)与[发布手册](DEVELOPMENT.md#swift-更新助手与发布)。

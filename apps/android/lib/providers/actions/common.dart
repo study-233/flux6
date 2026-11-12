@@ -85,18 +85,29 @@ class CommonAction extends _$CommonAction {
 
   Future<bool> autoCheckUpdate() async {
     if (!ref.read(appSettingProvider).autoCheckUpdate) return false;
-    final Map<String, dynamic>? res;
-    try {
-      res = await request.checkForUpdate();
-    } catch (error) {
-      commonPrint.log(
-        'checkForUpdate failed: ${compactError(error)}',
-        logLevel: LogLevel.warning,
-      );
+    return _checkForUpdate(isUser: false);
+  }
+
+  Future<void> checkUpdate() async {
+    await _checkForUpdate(isUser: true);
+  }
+
+  Future<bool> _checkForUpdate({required bool isUser}) async {
+    if (ref.read(loadingProvider(LoadingTag.checkUpdate)) ||
+        ref.read(updateDownloadStateProvider) != null) {
       return false;
     }
-    await checkUpdateResultHandle(data: res);
-    return res != null;
+    return await globalState.loadingRun(
+          () async {
+            final release = await request.checkForUpdate();
+            await checkUpdateResultHandle(data: release, isUser: isUser);
+            return release != null;
+          },
+          title: currentAppLocalizations.checkUpdate,
+          tag: LoadingTag.checkUpdate,
+          silence: !isUser,
+        ) ??
+        false;
   }
 
   TextSpan _releaseSpan(BuildContext context, String tagName, String? body) {
@@ -182,7 +193,9 @@ class CommonAction extends _$CommonAction {
 
   void _openReleasePage() {
     unawaited(
-      launchUrl(Uri.parse('https://github.com/$repository/releases/latest')),
+      launchUrl(
+        Uri.parse('https://github.com/$updateRepository/releases/latest'),
+      ),
     );
   }
 

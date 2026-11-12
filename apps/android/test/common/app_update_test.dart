@@ -11,15 +11,15 @@ void main() {
     test('names the APK built for the running ABI', () {
       expect(
         selfUpdateAssetSuffix(Abi.androidArm64, windowsInstalled: false),
-        'android-arm64-v8a.apk',
+        'android-arm64.apk',
       );
       expect(
         selfUpdateAssetSuffix(Abi.androidArm, windowsInstalled: false),
-        'android-armeabi-v7a.apk',
+        isNull,
       );
       expect(
         selfUpdateAssetSuffix(Abi.androidX64, windowsInstalled: false),
-        'android-x86_64.apk',
+        isNull,
       );
     });
 
@@ -52,8 +52,21 @@ void main() {
 
   test('releaseAssetName drops the tag prefix', () {
     expect(
-      releaseAssetName('v0.9.3', 'android-arm64-v8a.apk'),
-      'FlClash-0.9.3-android-arm64-v8a.apk',
+      releaseAssetName('v0.9.3', 'android-arm64.apk'),
+      'Flux6-0.9.3-android-arm64.apk',
+    );
+  });
+
+  test('ARM64 updates use the Flux6 release asset and checksum channel', () {
+    final suffix = selfUpdateAssetSuffix(
+      Abi.androidArm64,
+      windowsInstalled: false,
+    )!;
+    final name = releaseAssetName('v0.1.1', suffix);
+    expect(name, 'Flux6-0.1.1-android-arm64.apk');
+    expect(
+      releaseAssetUri('v0.1.1', name).toString(),
+      'https://github.com/study-233/flux6/releases/download/v0.1.1/$name',
     );
   });
 
@@ -63,13 +76,10 @@ void main() {
 
     test('reads the entry sha256sum wrote for a file', () {
       final sums =
-          '$digest  ./FlClash-0.9.2-android-arm64-v8a.apk\n'
-          '${'0' * 64}  ./FlClash-0.9.2-windows-amd64-setup.exe\n';
+          '$digest  ./Flux6-0.9.2-android-arm64.apk\n'
+          '${'0' * 64}  ./Flux6-0.9.2-windows-amd64-setup.exe\n';
 
-      expect(
-        releaseChecksum(sums, 'FlClash-0.9.2-android-arm64-v8a.apk'),
-        digest,
-      );
+      expect(releaseChecksum(sums, 'Flux6-0.9.2-android-arm64.apk'), digest);
     });
 
     test('accepts the binary marker, upper case and CRLF', () {
