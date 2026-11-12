@@ -85,3 +85,48 @@ test('a status response started before stop cannot restore running state', async
   assert.equal(state.proxyRunning, true);
   assert.deepEqual(transitions, [true]);
 });
+
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+for (const observer of ['pollStatus', 'refreshBackendState']) {
+  for (const operation of ['start', 'stop']) {
+    test(`${observer} discards a status read during ${operation}`, async () => {
+      const context = frontend();
+      const state = vm.runInContext('state', context);
+      const starting = operation === 'start';
+      Object.assign(state, { helperOnline: true, proxyRunning: !starting, runtimePresent: true, runtimeChecked: true, devMode: true });
+      const sent = deferred();
+      const command = deferred();
+      const stale = deferred();
+      context.api = async path => {
+        if (path === '/status') return stale.promise;
+        if (path === '/runtime') return { present: true };
+        assert.equal(path, '/proxy/' + operation);
+        sent.resolve();
+        return command.promise;
+      };
+      const renders = [];
+      context.setRunning = running => { renders.push(running); state.proxyRunning = running; };
+      for (const name of ['addLog', 'fabPhase', 'autoDelayTestAfterStart', 'setMode', 'ensureNoticeChecked',
+        'maybeAutoRegisterWarp', 'maybeArmAutoRun', 'refreshChainStatus', 'refreshCloudStatus', 'updateSettingsUI']) {
+        context[name] = () => {};
+      }
+      const action = starting ? context.startProxyFlow() : context.stopProxyApi();
+      await sent.promise;
+      const pending = context[observer]();
+      command.resolve({ controllerSecret: 'new-session' });
+      const result = await action;
+      if (starting) assert.equal(result.ok, true);
+      else context.setRunning(false);
+      stale.resolve({ proxy: { running: !starting }, settings: {}, controllerSecret: 'stale' });
+      await pending;
+      assert.equal(state.proxyRunning, starting);
+      if (starting) assert.equal(state.controllerSecret, 'new-session');
+      assert.deepEqual(renders, [starting]);
+    });
+  }
+}

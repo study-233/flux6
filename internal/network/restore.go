@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // ErrCorruptSnapshot marks a snapshot file that exists but cannot be decoded
@@ -77,15 +78,27 @@ func LoadSnapshot(path string) (Snapshot, error) {
 // buildDNSRestorePlans 按接口分组构建 DNS 还原命令：每个接口内部的命令序列
 // （set dnsservers 在前、add dnsservers 在后）有顺序依赖，但接口之间互不相干，
 // 可并行执行。停止免流时用它把串行的 netsh 还原并行化，缩短停止耗时。
-func buildDNSRestorePlans(snapshot Snapshot) [][]RestoreCommand {
+func buildDNSRestorePlans(snapshot, current Snapshot) [][]RestoreCommand {
+	live := make(map[string]InterfaceSnapshot, len(current.Interfaces))
+	for _, iface := range current.Interfaces {
+		live[iface.Alias] = iface
+	}
 	plans := make([][]RestoreCommand, 0, len(snapshot.Interfaces))
 	for _, interfaceSnapshot := range snapshot.Interfaces {
 		if interfaceSnapshot.Alias == "" {
 			continue
 		}
 		var commands []RestoreCommand
-		commands = append(commands, buildDNSRestoreCommand("ipv4", interfaceSnapshot.Alias, interfaceSnapshot.IPv4DNSServers)...)
-		commands = append(commands, buildDNSRestoreCommand("ipv6", interfaceSnapshot.Alias, interfaceSnapshot.IPv6DNSServers)...)
+		// A snapshot records effective addresses, including DHCP leases. Writing
+		// an unchanged list back as static would change the adapter's DNS mode.
+		now, found := live[interfaceSnapshot.Alias]
+		matched := found && now.Index == interfaceSnapshot.Index
+		if !matched || !slices.Equal(now.IPv4DNSServers, interfaceSnapshot.IPv4DNSServers) {
+			commands = append(commands, buildDNSRestoreCommand("ipv4", interfaceSnapshot.Alias, interfaceSnapshot.IPv4DNSServers)...)
+		}
+		if !matched || !slices.Equal(now.IPv6DNSServers, interfaceSnapshot.IPv6DNSServers) {
+			commands = append(commands, buildDNSRestoreCommand("ipv6", interfaceSnapshot.Alias, interfaceSnapshot.IPv6DNSServers)...)
+		}
 		if len(commands) > 0 {
 			plans = append(plans, commands)
 		}
