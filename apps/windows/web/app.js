@@ -184,8 +184,8 @@ async function api(path, options = {}) {
 // 停止免流。快照损坏/读不出来时 helper 仍会成功停止、只跳过网络状态还原
 // （restoreSkipped）——记进日志提示用户，不能静默吞掉。
 async function stopProxyApi() {
-  proxyOpGen += 1;
   const payload = await api('/proxy/stop', { method: 'POST' });
+  proxyOpGen += 1;
   if (payload.restoreSkipped) {
     addLog(`网络状态还原已跳过（快照不可用）: ${payload.restoreSkipped}`, true);
   }
@@ -339,17 +339,12 @@ function fabDone() {
 // auto=true
 let startFlowBusy = false;
 let startFlowSettled = Promise.resolve(); // 上一次启动流程结束的信号（手动接管等待用）
-// 启停操作代数。每次主动启动/停止（startProxyFlow / stopProxyApi）自增；
-// pollStatus 在发出 /status 前快照、响应回来后比对，代数变了说明期间发生过
-// 启停操作，其携带的 running 是操作前的陈旧值，丢弃——否则停止免流慢时，
-// 一个停止前发出、停止完成后才返回的 /status 会把 running=true 回灌，按钮
-// 短暂跳回「停止免流」又落回「启动免流」。
+// 启停成功后使此前发出的状态查询失效，包括在启停请求处理期间发出的查询。
 let proxyOpGen = 0;
 async function startProxyFlow(auto = false) {
   if (startFlowBusy) return { ok: false, reason: 'busy', message: '启动流程正在进行' };
   if (!state.helperOnline) return { ok: false, reason: 'helper', message: 'helper 未连接' };
   startFlowBusy = true;
-  proxyOpGen += 1;
   let release;
   startFlowSettled = new Promise((resolve) => { release = resolve; });
   try {
@@ -394,6 +389,7 @@ async function startProxyFlow(auto = false) {
     } catch (e) {
       return { ok: false, reason: 'api', message: e.message, code: e.code };
     }
+    proxyOpGen += 1;
     setRunning(true);
     // 启动响应携带本轮渲染所用的 controller secret，先于下一次 /status
     // 轮询就位，紧随其后的流量/节点请求即可带上 Bearer
@@ -1240,10 +1236,12 @@ function drawChart() {
 /* ── Stats Ring Chart ─────────────────────────────────────────── */
 
 function updateStatsRing() {
-  const total = state.totalUpload + state.totalDownload;
+  const uploadWeight = Math.log1p(state.totalUpload);
+  const downloadWeight = Math.log1p(state.totalDownload);
+  const total = uploadWeight + downloadWeight;
   const circumference = 2 * Math.PI * 13.5; // ≈ 84.8
-  const uploadLen = total > 0 ? (state.totalUpload / total) * circumference : 0;
-  const downloadLen = total > 0 ? (state.totalDownload / total) * circumference : 0;
+  const uploadLen = total > 0 ? (uploadWeight / total) * circumference : 0;
+  const downloadLen = total > 0 ? (downloadWeight / total) * circumference : 0;
 
   const uploadRing = $('#ringUpload');
   const downloadRing = $('#ringDownload');
@@ -1254,7 +1252,6 @@ function updateStatsRing() {
   }
   if (downloadRing) {
     // Download starts where upload ends
-    const offset = -uploadLen;
     downloadRing.setAttribute('stroke-dasharray', `${downloadLen} ${circumference - downloadLen}`);
     downloadRing.setAttribute('transform', `rotate(${-90 + (uploadLen / circumference) * 360} 18 18)`);
   }
@@ -1682,9 +1679,11 @@ function maybeAutoRegisterWarp() {
 /* ── Backend State Refresh ────────────────────────────────────── */
 
 async function refreshBackendState() {
+  const opGenAtStart = proxyOpGen;
   const genAtStart = settingsWriteGen;
   try {
     const status = await api('/status');
+    if (opGenAtStart !== proxyOpGen) return;
     state.helperOnline = true;
     // helper 刚就绪：公告还没查过的话补查一次（不阻塞后续状态同步）
     ensureNoticeChecked();
@@ -1723,6 +1722,7 @@ async function refreshBackendState() {
 
     addLog('已连接 freev6 helper');
   } catch (error) {
+    if (opGenAtStart !== proxyOpGen) return;
     state.helperOnline = false;
     state.runtimePresent = false;
     state.runtimeChecked = false;
@@ -1825,6 +1825,7 @@ async function pollStatus() {
         updateSettingsUI();
       }
     } catch (_) { /* 保持上次已知状态 */ }
+    if (opGenAtStart !== proxyOpGen) return;
     if (firstConnect) {
       addLog('已连接 freev6 helper');
       // Helper is up: retry a dynamic-color seed fetch that failed at load
@@ -1838,8 +1839,7 @@ async function pollStatus() {
     }
     const wasRunning = state.proxyRunning;
     const isRunning = Boolean(status.proxy?.running);
-    // 启停操作期间（opGen 变化）不回灌 running：见 proxyOpGen 声明处的说明。
-    if (opGenAtStart === proxyOpGen && wasRunning !== isRunning) {
+    if (wasRunning !== isRunning) {
       setRunning(isRunning);
       addLog(isRunning ? '免流模式已启动' : '免流模式已停止');
       if (isRunning) autoDelayTestAfterStart();
@@ -1878,6 +1878,7 @@ async function pollStatus() {
     // 状态已同步：helper 连上且设置开启时排队一次自动启动（幂等）
     maybeArmAutoRun();
   } catch (_) {
+    if (opGenAtStart !== proxyOpGen) return;
     if (state.helperOnline) {
       state.helperOnline = false;
       state.runtimePresent = false;
@@ -2080,11 +2081,16 @@ function wireEvents() {
   $('#scrim')?.addEventListener('click', closeLogs);
 
   // Refresh
-  $('#refreshButton')?.addEventListener('click', () => {
-    addLog('手动刷新');
-    refreshBackendState();
-    fetchProxies();
-    checkNotice();
+  $('#refreshButton')?.addEventListener('click', async () => {
+    const content = $('#mainContent');
+    if (content.ariaBusy === 'true') return;
+    content.ariaBusy = 'true';
+    try {
+      addLog('手动刷新');
+      await Promise.allSettled([refreshBackendState(), fetchProxies(), checkNotice()]);
+    } finally {
+      content.removeAttribute('aria-busy');
+    }
   });
 
   // 流量统计卡：点击 / 回车弹出「本月 + 累计」详情提示卡
