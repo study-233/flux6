@@ -1,36 +1,48 @@
 {
-  "tag": "v0.1.0",
-  "publishedAt": "2026-11-10T11:58:29Z",
+  "tag": "v0.1.1",
+  "publishedAt": "2026-11-12T14:47:09Z",
   "assets": [
     {
-      "name": "Flux6-0.1.0-macOS.dmg",
-      "size": 21329043,
-      "digest": "sha256:e60c6cabf100b7058d0f57b8a53df5646177c69b8056ec5518cff4750c7b4fda",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-macOS.dmg"
+      "name": "Flux6-0.1.1-android-arm64.apk",
+      "size": 61406013,
+      "digest": "sha256:dcad6a2afda1bb5fc12ee4a81daabb00e35a84e369b98cdb337f2731217fda34",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/Flux6-0.1.1-android-arm64.apk"
     },
     {
-      "name": "Flux6-0.1.0-macOS.zip",
-      "size": 18970978,
-      "digest": "sha256:46e3c5377b6310517650d0effe61f62bc17ec81dbf5446cdfde7e219db6de576",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-macOS.zip"
+      "name": "Flux6-0.1.1-android-source.tar.gz",
+      "size": 22682138,
+      "digest": "sha256:8300c136ba838769336f72777f6ffeef2a15b483e82158ccb50a0db2d663b849",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/Flux6-0.1.1-android-source.tar.gz"
     },
     {
-      "name": "Flux6-0.1.0-macOS-source.zip",
-      "size": 2228272,
-      "digest": "sha256:a132ea732b678e69bc1f0906f8c2ce30ef7e90588cc0d5bd5d6e936042c63451",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-macOS-source.zip"
+      "name": "Flux6-0.1.1-macos-arm64.dmg",
+      "size": 21306301,
+      "digest": "sha256:238d6b3411b34f9b006da083ba37e1a8f8e714cb796ab1854f5c7e1a4ceff934",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/Flux6-0.1.1-macos-arm64.dmg"
     },
     {
-      "name": "Flux6-0.1.0-Android.apk",
-      "size": 61388845,
-      "digest": "sha256:c4d53dff45de9984afd23e2f719393e24d8fb6aacc8f4d35c04cbf84e854476d",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-Android.apk"
+      "name": "Flux6-0.1.1-macos-source.zip",
+      "size": 2229419,
+      "digest": "sha256:078017c98a185f80cb6bcd2cd1c6f3113d3829c8d287537feb3b10330668a6f1",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/Flux6-0.1.1-macos-source.zip"
     },
     {
-      "name": "Flux6-0.1.0-Android-source.tar.gz",
-      "size": 22691629,
-      "digest": "sha256:5587590b87ec8b450bad4985e49350100ed1880ee903814139ea9f8c378da3cc",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.0/Flux6-0.1.0-Android-source.tar.gz"
+      "name": "Flux6_0.1.1_12_arm64.zip",
+      "size": 18972642,
+      "digest": "sha256:8754009252f7328e0a992da215b89a4715a3892df3c3484c87873d55c3703fe1",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/Flux6_0.1.1_12_arm64.zip"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 560,
+      "digest": "sha256:41e52897e3ba4a2da5fb8496d7942dd4a50ecc94d152aeada32e6e35f168eb56",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/SHA256SUMS"
+    },
+    {
+      "name": "appcast-arm64.xml",
+      "size": 1528,
+      "digest": "sha256:d42f9fe8363dd26d5a1c920b4e83e6d4565722e802c67c8dca5c21c162f5b031",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.1.1/appcast-arm64.xml"
     }
   ]
 }
