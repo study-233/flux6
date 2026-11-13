@@ -472,7 +472,18 @@ fn warn_already_running() {
     }
 }
 
+#[cfg(feature = "offline-preview")]
+mod preview;
+
 fn main() {
+    #[cfg(feature = "offline-preview")]
+    preview::run();
+    #[cfg(not(feature = "offline-preview"))]
+    run_client();
+}
+
+#[cfg_attr(feature = "offline-preview", allow(dead_code))]
+fn run_client() {
     let autostart = std::env::args().any(|arg| arg.as_str() == "--autostart");
     // Launched by the autostart logon task: honor Task Manager's Startup tab
     // toggle before any window or tray icon exists. Manual launches have no

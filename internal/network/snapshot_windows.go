@@ -109,6 +109,9 @@ func buildSnapshot(adapters *windows.IpAdapterAddresses) Snapshot {
 			Alias: alias,
 			Index: int(adapter.IfIndex),
 		}
+		if adapter.OperStatus == windows.IfOperStatusUp && (adapter.IfType == windows.IF_TYPE_ETHERNET_CSMACD || adapter.IfType == windows.IF_TYPE_IEEE80211) {
+			iface.NetworkID = adapter.NetworkGuid.String()
+		}
 		for dns := adapter.FirstDnsServerAddress; dns != nil; dns = dns.Next {
 			ip := dns.Address.IP()
 			if ip == nil {

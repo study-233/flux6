@@ -6,11 +6,11 @@
   "build": {
     "beforeDevCommand": {
       "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-helper.ps1",
-      "cwd": "../.."
+      "cwd": "../../.."
     },
     "beforeBuildCommand": {
       "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-helper.ps1",
-      "cwd": "../.."
+      "cwd": "../../.."
     },
     "frontendDist": "../web"
   },

@@ -3,11 +3,46 @@
 package main
 
 import (
+	"encoding/binary"
+	"net/netip"
 	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
+
+var getExtendedTCPTable = windows.NewLazySystemDLL("iphlpapi.dll").NewProc("GetExtendedTcpTable")
+
+// GetExtendedTcpTable(TCP_TABLE_OWNER_PID_LISTENER) returns a DWORD count
+// followed by IPv4 MIB_TCPROW_OWNER_PID records. Ports are in network byte order.
+func tcpListenerOwners() map[netip.AddrPort]int {
+	const listenerTable = 3
+	const rowSize = 24
+	buffer := make([]byte, 4096)
+	for {
+		size := uint32(len(buffer))
+		result, _, _ := getExtendedTCPTable.Call(uintptr(unsafe.Pointer(&buffer[0])), uintptr(unsafe.Pointer(&size)), 0, windows.AF_INET, listenerTable, 0)
+		if result == uintptr(windows.ERROR_INSUFFICIENT_BUFFER) && int(size) > len(buffer) {
+			buffer = make([]byte, size)
+			continue
+		}
+		if result != 0 || size < 4 {
+			return nil
+		}
+		count := int(binary.LittleEndian.Uint32(buffer))
+		if count > (int(size)-4)/rowSize {
+			return nil
+		}
+		owners := make(map[netip.AddrPort]int, count)
+		for i := 0; i < count; i++ {
+			row := buffer[4+i*rowSize:][:rowSize]
+			addr := netip.AddrFrom4([4]byte(row[4:8]))
+			port := binary.BigEndian.Uint16(row[8:10])
+			owners[netip.AddrPortFrom(addr, port)] = int(binary.LittleEndian.Uint32(row[20:24]))
+		}
+		return owners
+	}
+}
 
 // All process introspection here goes through Win32 directly. The previous
 // implementation shelled out to `powershell -Command Get-CimInstance` and
