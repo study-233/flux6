@@ -57,7 +57,7 @@ void main() {
     );
   });
 
-  test('ARM64 updates use the Flux6 release asset and checksum channel', () {
+  test('Android ARM64 updates use the Flux6 release APK', () {
     final suffix = selfUpdateAssetSuffix(
       Abi.androidArm64,
       windowsInstalled: false,

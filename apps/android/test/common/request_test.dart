@@ -172,8 +172,8 @@ void main() {
     });
   });
 
-  group('downloadVerifiedRelease', () {
-    const name = 'Flux6-1.2.3-android-arm64.apk';
+  group('Windows release download', () {
+    const name = 'Flux6-1.2.3-windows-amd64-setup.exe';
     final package = utf8.encode('package');
     final digest = sha256.convert(package).toString();
     late Directory directory;
@@ -195,10 +195,11 @@ void main() {
     }
 
     Future<String> download(Request request) {
-      return request.downloadVerifiedRelease(
+      return request.downloadRelease(
         tag: 'v1.2.3',
         name: name,
         directory: directory.path,
+        android: null,
       );
     }
 
