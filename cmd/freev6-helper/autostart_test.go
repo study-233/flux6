@@ -35,7 +35,7 @@ func TestAutoStartRoundTrip(t *testing.T) {
 
 	root := t.TempDir()
 	exe := filepath.Join(root, "freev6-desktop.exe")
-	helper := filepath.Join(root, "freev6-helper.exe")
+	helper := filepath.Join(root, "flux6-helper.exe")
 	for _, file := range []string{exe, helper} {
 		if err := os.WriteFile(file, []byte("dummy"), 0o755); err != nil {
 			t.Fatal(err)

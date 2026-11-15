@@ -131,7 +131,7 @@ Flutter 的 Windows 工程使用可定制的 C++ runner，可通过平台通道�
 
 ### 安装身份及 helper 数据
 
-首期保持 `freev6-desktop.exe`、`freev6-helper.exe`、安装根目录和现有 helper 数据布局。自启动代码直接拼接主程序文件名；改名会破坏任务调度。新旧主程序沿用 `Local\freev6-desktop-single-instance` 的互斥名称，避免同时管理同一份网络状态。
+Tauri 和 Flutter 均从安装根目录启动 `flux6-helper.exe`（Flux6 Helper）。升级会迁移旧 helper 的自启动路径并移除旧文件。主程序继续使用 `freev6-desktop.exe`，沿用安装根目录和现有 helper 数据布局。自启动代码直接拼接主程序文件名；改名会破坏任务调度。新旧主程序沿用 `Local\freev6-desktop-single-instance` 的互斥名称，避免同时管理同一份网络状态。
 
 保留根目录下的 `config/`、`state/` 和 `runtime/`，包括设置、WARP 凭据、链式/备用配置、控制器 secret、网络快照和 PID。新 Flutter 偏好文件使用单独命名，不覆盖 helper 文件。开发及演示使用独立身份与合成数据目录，真实运行配置不进入仓库或可清理的构建缓存。
 

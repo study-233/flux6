@@ -60,7 +60,7 @@ jobs:
           if (!$install.WaitForExit(120000) -or $install.ExitCode -ne 0) { throw 'Installer smoke test failed' }
           $desktop = Get-Item "$root/freev6-desktop.exe"
           if ($desktop.VersionInfo.ProductVersion -notmatch "^$([regex]::Escape($env:VERSION))([.+].*)?$") { throw 'Installed version mismatch' }
-          if (!(Test-Path "$root/freev6-helper.exe") -or (Get-FileHash "$root/GeoSite.dat").Hash -ne (Get-FileHash GeoSite.dat).Hash) { throw 'Installed payload mismatch' }
+          if (!(Test-Path "$root/flux6-helper.exe") -or (Get-FileHash "$root/GeoSite.dat").Hash -ne (Get-FileHash GeoSite.dat).Hash) { throw 'Installed payload mismatch' }
 
           $tag = "v$env:VERSION"
           $info = [ordered]@{
@@ -71,7 +71,7 @@ jobs:
           }
           $info | ConvertTo-Json | Set-Content "$stage/version.json" -Encoding utf8NoBOM
           $source = "Flux6-$env:VERSION-windows-source.zip"
-          git archive --format=zip --prefix=Flux6-source/ -o "$stage/$source" HEAD -- apps/windows/src-tauri apps/windows/web cmd internal scripts/windows scripts/version.py assets/branding third_party shared go.mod go.sum docs/agreement.md docs/privacy.md LICENSE README.md THIRD-PARTY.txt .github/workflows/windows-release.yml
+          git archive --format=zip --prefix=Flux6-source/ -o "$stage/$source" HEAD -- apps/windows/src-tauri apps/windows/installer/helper-upgrade.nsh apps/windows/web cmd internal scripts/windows scripts/version.py assets/branding third_party shared go.mod go.sum docs/agreement.md docs/privacy.md LICENSE README.md THIRD-PARTY.txt .github/workflows/windows-release.yml
           if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
           $sums = Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName).Hash.ToLowerInvariant() + '  ' + $_.Name }
           $sums | Set-Content "$stage/Windows-SHA256SUMS" -Encoding utf8NoBOM

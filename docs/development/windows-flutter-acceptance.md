@@ -36,7 +36,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\build-flut
 
 | 范围 | 验收内容 |
 | --- | --- |
-| 启动 | UAC 成功/取消，首次/已有配置启动，helper 缺失/提前退出可见错误，重复启动恢复已有窗口 |
+| 启动 | UAC 成功/取消，首次/已有配置启动，进程名 `flux6-helper.exe`、文件描述 `Flux6 Helper`，helper 缺失/提前退出可见错误，重复启动恢复已有窗口 |
 | 窗口 | 720×480、常用 DPI 与多屏；最小化/最大化/缩放；关闭隐藏托盘、托盘恢复/退出；Explorer 重启后托盘恢复 |
 | F6 | 显示隐藏窗口、占用冲突报错与开关回滚；退出后释放 |
 | 自启动 | 设置成功/失败回滚、重登录、静默开/关、Task Manager 禁用；只影响当前安装的任务和 Run 项 |
@@ -46,7 +46,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\build-flut
 | 外观 | 系统/浅/深、动态取色、纯黑、壁纸、玻璃、Mica/Acrylic 与 Windows 10 回退、减少动态效果、10/31 季节反馈 |
 | 数据 | 流量跨重启、界面 JSON 导出/导入、无效/过大备份拒绝、不携带 helper token、重置设置保留 WARP/UI 历史 |
 | 下载更新 | 核心下载错误/重试；更新版本/忽略、SHA256 错误、停止失败阻止安装、安装器无法启动保留窗口、静默成功重启 |
-| 安装 | 全新/同版覆盖/旧版升级/拒绝降级，HKCU 32/64 视图，路径带空格和中文；运行时阻止覆盖，不产生重复卸载项 |
+| 安装 | 全新/同版覆盖/旧版升级/拒绝降级，HKCU 32/64 视图，路径带空格和中文；旧 helper 退出后升级，确认旧文件移除、自启动路径更新且保留任务管理器禁用状态；运行时阻止覆盖，不产生重复卸载项 |
 | 卸载回退 | 默认保留数据、明确勾选才删除数据、自启撤销；用旧安装包恢复时 helper 数据仍可读取，旧 WebView 偏好仍在 |
 | 许可源码 | 包内 NOTICES、Flutter NOTICES、FlClash GPLv3、Prism/Go 许可、源码 ZIP 和清单一致；从源码 ZIP 可重新构建 |
 

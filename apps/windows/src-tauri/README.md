@@ -1,6 +1,6 @@
 # freev6 Tauri shell
 
-The initial Tauri 2 shell loads the Material You interface from `../web`, provides a Windows tray menu, and packages with the NSIS target. On Windows it requests administrator permission at launch; `freev6-helper` runs as a sidecar in the same elevated context and receives the installation root through `FREEV6_ROOT`. Test the latest NSIS package after installation so the embedded `requireAdministrator` manifest is present.
+The initial Tauri 2 shell loads the Material You interface from `../web`, provides a Windows tray menu, and packages with the NSIS target. On Windows it requests administrator permission at launch; `flux6-helper` runs as a sidecar in the same elevated context and receives the installation root through `FREEV6_ROOT`. Test the latest NSIS package after installation so the embedded `requireAdministrator` manifest is present.
 
 Run from the repository root in Windows PowerShell (Rust, Go and the Tauri CLI are required):
 

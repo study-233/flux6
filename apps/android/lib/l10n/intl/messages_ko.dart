@@ -242,7 +242,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(value) => "최고 ${value}";
 
-  static String m98(value) => "합계 ${value}";
+  static String m98(value) => "이번 연결 ${value}";
 
   static String m99(transport) => "${transport} 요청 헤더";
 
@@ -1844,8 +1844,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalUpload": MessageLookupByLibrary.simpleMessage("업로드량"),
     "tproxyPort": MessageLookupByLibrary.simpleMessage("TProxy 포트"),
     "traffic": MessageLookupByLibrary.simpleMessage("트래픽"),
+    "trafficAllTime": MessageLookupByLibrary.simpleMessage("누적"),
     "trafficPeak": m97,
-    "trafficTotal": m98,
+    "trafficSessionUsage": m98,
+    "trafficThisMonth": MessageLookupByLibrary.simpleMessage("이번 달"),
     "trafficUsage": MessageLookupByLibrary.simpleMessage("트래픽 사용량"),
     "transport": MessageLookupByLibrary.simpleMessage("전송"),
     "transportHeaders": m99,

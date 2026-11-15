@@ -265,7 +265,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(value) => "Пик ${value}";
 
-  static String m98(value) => "Всего ${value}";
+  static String m98(value) => "За сеанс ${value}";
 
   static String m99(transport) => "Заголовки ${transport}";
 
@@ -2291,8 +2291,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalUpload": MessageLookupByLibrary.simpleMessage("Отдано"),
     "tproxyPort": MessageLookupByLibrary.simpleMessage("Порт TProxy"),
     "traffic": MessageLookupByLibrary.simpleMessage("Трафик"),
+    "trafficAllTime": MessageLookupByLibrary.simpleMessage("За всё время"),
     "trafficPeak": m97,
-    "trafficTotal": m98,
+    "trafficSessionUsage": m98,
+    "trafficThisMonth": MessageLookupByLibrary.simpleMessage("За этот месяц"),
     "trafficUsage": MessageLookupByLibrary.simpleMessage("Статистика трафика"),
     "transport": MessageLookupByLibrary.simpleMessage("Транспорт"),
     "transportHeaders": m99,

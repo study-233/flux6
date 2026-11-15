@@ -66,8 +66,7 @@ try {
     Get-ChildItem $release -Filter '*.dll' -File | Copy-Item -Destination $bundle
     Copy-Item (Join-Path $release 'data') $bundle -Recurse
     $env:GOOS = 'windows'; $env:GOARCH = 'amd64'; $env:CGO_ENABLED = '0'
-    Invoke-Checked 'go' @('build','-trimpath','-buildvcs=false','-o',(Join-Path $bundle 'freev6-helper.exe'),'./cmd/freev6-helper')
-    Invoke-Checked 'go' @('run','./cmd/ensure-geodata')
+    & (Join-Path $PSScriptRoot 'build-helper.ps1') -BundleDirectory $bundle
     Copy-Item (Join-Path $root 'GeoSite.dat') $bundle
     Copy-Item (Join-Path $root 'README.md') $bundle
     New-Item -ItemType Directory -Force (Join-Path $bundle 'docs') | Out-Null

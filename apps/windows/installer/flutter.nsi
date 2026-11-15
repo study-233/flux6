@@ -156,6 +156,8 @@ FunctionEnd
 !insertmacro Guard ""
 !insertmacro Guard "un."
 
+!include "${REPO}\apps\windows\installer\helper-upgrade.nsh"
+
 Section "Flux6"
   ${If} $Existing != ""
   ${AndIf} $INSTDIR != $Existing
@@ -170,6 +172,7 @@ Section "Flux6"
     SetErrorLevel 20
     Abort "安装文件复制失败。请保留应用数据并重新运行安装器。"
   ${EndIf}
+  Call MigrateLegacyHelper
   WriteUninstaller "$INSTDIR\uninstall.exe"
   ${If} $RegistryView == 64
     SetRegView 64

@@ -29,8 +29,7 @@ const state = {
   trafficHistory: [],
   totalUpload: 0,
   totalDownload: 0,
-  lastUpload: 0,
-  lastDownload: 0,
+  trafficPid: 0,
 
   // Notice（公告板）：启动时由 helper /api/v1/notice 拉取一次
   notices: [],
@@ -41,11 +40,11 @@ const state = {
 
   // Proxy
   proxyGroup: null,       // { now, all: [] }
-  proxyDelays: {},
+  proxyDelays: Object.create(null),
   testingDelay: false,
   delaysReady: false,
-  // mihomo external-controller secret（helper /status 下发）：9090 直连
-  // 携带的 Bearer；为空（尚无 secret 文件）时不加头。
+  // 地址和凭据来自同一份启动或状态响应。
+  controllerPort: 0,
   controllerSecret: '',
   // 链式代理（设置 → 核心）：/chain-proxy 权威状态 + 接入点页当前分组页签
   chain: { enabled: false, count: 0, sourceType: '', sourceUrl: '', names: [], error: '' },
@@ -125,12 +124,19 @@ function formatSpeed(bytesPerSec) {
 
 /* ── API ── */
 
-// Headers for direct mihomo controller (:9090) calls. Empty secret → no
-// header, which pre-secret mihomo instances accept as-is.
-function controllerHeaders(extra = {}) {
-  return state.controllerSecret
-    ? { Authorization: `Bearer ${state.controllerSecret}`, ...extra }
-    : extra;
+function syncController(payload, running) {
+  // Only legacy helpers omit the field. An explicit zero means no verified listener.
+  const port = payload.controllerPort === undefined ? 9090 : payload.controllerPort;
+  state.controllerPort = running && Number.isInteger(port) && port > 0 && port <= 65535 ? port : 0;
+  state.controllerSecret = state.controllerPort && typeof payload.controllerSecret === 'string' ? payload.controllerSecret : '';
+}
+
+function controllerGet(path, signal) {
+  if (!state.controllerPort) throw new Error('核心控制端口尚未就绪');
+  return fetch(`http://127.0.0.1:${state.controllerPort}${path}`, {
+    headers: state.controllerSecret ? { Authorization: `Bearer ${state.controllerSecret}` } : {},
+    redirect: 'error', signal,
+  });
 }
 
 // Per-launch bearer token for the helper API, obtained from the Tauri shell
@@ -184,7 +190,12 @@ async function api(path, options = {}) {
 // 停止免流。快照损坏/读不出来时 helper 仍会成功停止、只跳过网络状态还原
 // （restoreSkipped）——记进日志提示用户，不能静默吞掉。
 async function stopProxyApi() {
+  cancelDownloadQueue();
+  if (state.proxyRunning && state.trafficPid) await pollTraffic();
   const payload = await api('/proxy/stop', { method: 'POST' });
+  trafficStats.cursor = null;
+  trafficStats.dirty = true;
+  flushTrafficStats(true);
   proxyOpGen += 1;
   if (payload.restoreSkipped) {
     addLog(`网络状态还原已跳过（快照不可用）: ${payload.restoreSkipped}`, true);
@@ -245,9 +256,7 @@ function showView(view) {
     newView.classList.add('active');
     state.activeView = view;
     $('#pageTitle').textContent = VIEW_TITLES[view] || view;
-    // FABs are window-anchored: proxy toggle on dashboard, delay test on proxies
     $('#proxyToggle')?.classList.toggle('visible', view === 'dashboard');
-    syncDelayFab();
     // 刚显示出来的 FAB 尺寸从 0 变成实际值，库只会重设 canvas 尺寸、不会重绘，
     // 必须主动标脏，否则要等鼠标悬停（button 模式）才会出现玻璃
     if (bgState.liquidGlass) kickGlassRefresh();
@@ -278,12 +287,7 @@ const ICON_RESTORE = '<svg viewBox="0 0 24 24" aria-hidden="true">'
 // 注意：给普通 button 赋 fab.label 属性是无效的——文案必须写进 span，
 // 否则「启动中…」结束后没有任何代码能把按钮文字恢复回来（卡死根因）。
 function setFabLabel(text) {
-  fabLabel($('#proxyToggle'), text);
-}
-
-// 通用 FAB 文案写入：任何带 .fab-label span 的按钮都走这里。
-function fabLabel(fab, text) {
-  const label = fab?.querySelector('.fab-label');
+  const label = $('#proxyToggle .fab-label');
   if (label) label.textContent = text;
 }
 
@@ -298,15 +302,11 @@ function setRunning(running) {
   fab?.classList.toggle('running', running);
   // 停止后 mihomo 已退出，接入点列表再无数据来源 → 立即清空回空态
   //（覆盖 FAB 停止、停止并退出、轮询检测到已停止、helper 断开四条路径）
-  if (!running) clearProxyList();
-  // 延迟测试只在运行时可点：停止后 :9090 已退出，无节点可测
-  syncDelayFab();
-}
-
-// 延迟测试 FAB 的可见性 = 接入点页 + 免流运行中。
-// 停止免流后隐藏，避免点了只得到「无节点可测」的空转。
-function syncDelayFab() {
-  $('#delayTestFab')?.classList.toggle('visible', state.activeView === 'proxies' && state.proxyRunning);
+  if (!running) {
+    syncController({}, false);
+    changeDownloadSession('');
+    clearProxyList();
+  }
 }
 
 // FAB 过渡态文案（检测中…/启动中…）。手动路径由点击处理器驱动，自动启动
@@ -385,15 +385,16 @@ async function startProxyFlow(auto = false) {
       // 在请求发出前先说明，用户看到热点掉线时不会误以为是故障。
       if (state.hotspotShare) addLog('热点共享：正在切换，移动热点将短暂重启');
       fabPhase('启动中…');
-      started = await api('/proxy/start', { method: 'POST', body: JSON.stringify({ mode: state.mode, campusCidrs: state.cidrs, devMode: state.devMode }) });
+      started = await api('/proxy/start', { method: 'POST', body: JSON.stringify({ mode: state.mode, campusCidrs: state.cidrs, devMode: state.devMode, dynamicControllerPort: true, adaptiveAccessPool: true }) });
     } catch (e) {
       return { ok: false, reason: 'api', message: e.message, code: e.code };
     }
     proxyOpGen += 1;
+    syncController(started, true);
+    changeDownloadSession(started.downloadSession || '');
+    state.trafficPid = started.pid || 0;
+    trafficStats.cursor = null;
     setRunning(true);
-    // 启动响应携带本轮渲染所用的 controller secret，先于下一次 /status
-    // 轮询就位，紧随其后的流量/节点请求即可带上 Bearer
-    if (typeof started.controllerSecret === 'string') state.controllerSecret = started.controllerSecret;
     reportHotspotResult(started?.hotspot, auto);
     addLog(auto ? '自动启动免流成功' : '免流模式已启动');
     autoDelayTestAfterStart();
@@ -1258,7 +1259,7 @@ function updateStatsRing() {
 const TRAFFIC_STATS_KEY = 'freev6-traffic-stats';
 const TRAFFIC_FLUSH_MS = 3000; // 每秒都有增量：合并写入，避免高频落盘
 
-const trafficStats = { total: { up: 0, down: 0 }, months: {}, dirty: false, lastFlush: 0 };
+const trafficStats = { total: { up: 0, down: 0 }, months: {}, cursor: null, dirty: false, lastFlush: 0 };
 
 function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1270,6 +1271,9 @@ function loadTrafficStats() {
     if (!raw) return;
     const data = JSON.parse(raw);
     const num = v => (typeof v === 'number' && isFinite(v) && v > 0 ? v : 0);
+    const cursor = data?.cursor;
+    if (cursor && Number.isSafeInteger(cursor.pid) && cursor.pid > 0 &&
+        validTrafficTotal(cursor.up) && validTrafficTotal(cursor.down)) trafficStats.cursor = cursor;
     if (data?.total) trafficStats.total = { up: num(data.total.up), down: num(data.total.down) };
     if (data?.months && typeof data.months === 'object') {
       const months = {};
@@ -1297,7 +1301,7 @@ function flushTrafficStats(force = false) {
   const now = Date.now();
   if (!force && now - trafficStats.lastFlush < TRAFFIC_FLUSH_MS) return;
   try {
-    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months }));
+    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months, cursor: trafficStats.cursor }));
     trafficStats.dirty = false;
     trafficStats.lastFlush = now;
   } catch (_) { /* 存储不可用：内存继续累计，下次再试 */ }
@@ -1689,9 +1693,10 @@ async function refreshBackendState() {
     }
 
     setMode(state.mode, false, true);
+    syncController(status, Boolean(status.proxy?.running));
+    changeDownloadSession(status.proxy?.running ? status.downloadSession || '' : '');
+    state.trafficPid = status.proxy?.pid || 0;
     setRunning(Boolean(status.proxy?.running));
-    // 9090 直连凭据：以 helper 的权威值为准（含文件被删后的空串降级）
-    state.controllerSecret = typeof status.controllerSecret === 'string' ? status.controllerSecret : '';
 
     // Runtime info — must complete before updating chip/settings UI
     try {
@@ -1711,10 +1716,11 @@ async function refreshBackendState() {
     // 设置开启时：软件被打开后自动尝试启动免流
     maybeArmAutoRun();
 
-    addLog('已连接 freev6 helper');
+    addLog('已连接 Flux6 Helper');
   } catch (error) {
     if (opGenAtStart !== proxyOpGen) return;
     state.helperOnline = false;
+    changeDownloadSession('');
     state.runtimePresent = false;
     state.runtimeChecked = false;
     updateSettingsUI();
@@ -1722,7 +1728,7 @@ async function refreshBackendState() {
     // （重复启动/上次遗留的进程，多见于固定端口的老版本壳）。
     if (error.message === 'unauthorized') {
       addLog(
-        'helper 不可用: unauthorized（端口被另一个 freev6 实例或遗留的 freev6-helper.exe 占用，请在任务管理器结束后重开）',
+        'helper 不可用: unauthorized（端口被另一个 Flux6 实例或遗留的 flux6-helper.exe 占用，请在任务管理器结束后重开）',
         true,
       );
     } else {
@@ -1733,64 +1739,68 @@ async function refreshBackendState() {
 
 /* ── Traffic Polling ──────────────────────────────────────────── */
 
+let trafficRequest = 0;
+let lastTrafficResponse = 0;
+let lastTrafficTime = null;
+
+function validTrafficTotal(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
 async function pollTraffic() {
-  if (!state.proxyRunning) {
-    // Stopped: zero the chart history, the totals baseline and the speed readout
-    resetTrafficDisplay(true);
+  if (!state.proxyRunning || !state.trafficPid) {
+    lastTrafficTime = null;
+    resetTrafficDisplay();
     return;
   }
-
+  const pid = state.trafficPid;
+  const generation = proxyOpGen;
+  const port = state.controllerPort;
+  const session = downloadSession;
+  const request = ++trafficRequest;
+  const current = () => state.proxyRunning && state.trafficPid === pid &&
+    port === state.controllerPort && session === downloadSession &&
+    generation === proxyOpGen && request > lastTrafficResponse;
   try {
-    // mihomo controller connections API
-    const resp = await fetch('http://127.0.0.1:9090/connections', { headers: controllerHeaders() });
+    const resp = await controllerGet('/connections', AbortSignal.timeout(1500));
     if (!resp.ok) return;
-    const data = await resp.json();
+    const { uploadTotal: up, downloadTotal: down } = await resp.json();
+    if (!current() || !validTrafficTotal(up) || !validTrafficTotal(down)) return;
+    lastTrafficResponse = request;
 
-    let upTotal = 0, downTotal = 0;
-    for (const conn of (data.connections || [])) {
-      upTotal += conn.upload || 0;
-      downTotal += conn.download || 0;
-    }
-
-    const deltaUp = Math.max(0, upTotal - state.lastUpload);
-    const deltaDown = Math.max(0, downTotal - state.lastDownload);
-
-    if (state.lastUpload > 0) {
-      state.trafficHistory.push({ t: Date.now(), up: deltaUp, down: deltaDown });
-      if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
-      state.totalUpload += deltaUp;
-      state.totalDownload += deltaDown;
-      // 同一份增量同时计入本月 / 累计（跨会话持久化）
-      addTrafficStats(deltaUp, deltaDown);
-    }
-
-    state.lastUpload = upTotal;
-    state.lastDownload = downTotal;
-
-    // Update speed display
-    $('#speedUp').textContent = formatSpeed(deltaUp);
-    $('#speedDown').textContent = formatSpeed(deltaDown);
-
-    // Update stats
-    updateStatsRing();
+    // The controller totals include connections that closed between two polls.
+    const previous = trafficStats.cursor;
+    const sameCore = previous?.pid === pid;
+    if (sameCore && (up < previous.up || down < previous.down)) return;
+    const deltaUp = sameCore ? up - previous.up : up;
+    const deltaDown = sameCore ? down - previous.down : down;
+    trafficStats.cursor = { pid, up, down };
+    if (!sameCore) trafficStats.dirty = true;
+    addTrafficStats(deltaUp, deltaDown);
+    state.totalUpload += deltaUp;
+    state.totalDownload += deltaDown;
     flushTrafficStats();
-    renderTrafficHint();
 
-    // Redraw chart
+    const now = Date.now();
+    const seconds = sameCore && lastTrafficTime !== null ? (now - lastTrafficTime) / 1000 : 0;
+    lastTrafficTime = now;
+    const upRate = seconds > 0 ? deltaUp / seconds : 0;
+    const downRate = seconds > 0 ? deltaDown / seconds : 0;
+    state.trafficHistory.push({ t: now, up: upRate, down: downRate });
+    if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
+    $('#speedUp').textContent = formatSpeed(upRate);
+    $('#speedDown').textContent = formatSpeed(downRate);
+    updateStatsRing();
+    renderTrafficHint();
     drawChart();
   } catch (_) {
-    // mihomo not reachable: show zeros but keep the totals baseline
-    resetTrafficDisplay(false);
+    if (current()) resetTrafficDisplay();
   }
 }
 
-function resetTrafficDisplay(clearCounters) {
+function resetTrafficDisplay() {
   state.trafficHistory.push({ t: Date.now(), up: 0, down: 0 });
   if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
-  if (clearCounters) {
-    state.lastUpload = 0;
-    state.lastDownload = 0;
-  }
   $('#speedUp').textContent = formatSpeed(0);
   $('#speedDown').textContent = formatSpeed(0);
   drawChart();
@@ -1818,7 +1828,7 @@ async function pollStatus() {
     } catch (_) { /* 保持上次已知状态 */ }
     if (opGenAtStart !== proxyOpGen) return;
     if (firstConnect) {
-      addLog('已连接 freev6 helper');
+      addLog('已连接 Flux6 Helper');
       // Helper is up: retry a dynamic-color seed fetch that failed at load
       if (state.dynamicColor && !state.dynamicSeed) refreshDynamicColor(true);
       // 首次连上：同步 WARP 注册状态，未注册则自动注册一次
@@ -1830,6 +1840,9 @@ async function pollStatus() {
     }
     const wasRunning = state.proxyRunning;
     const isRunning = Boolean(status.proxy?.running);
+    syncController(status, isRunning);
+    changeDownloadSession(isRunning ? status.downloadSession || '' : '');
+    state.trafficPid = status.proxy?.pid || 0;
     if (wasRunning !== isRunning) {
       setRunning(isRunning);
       addLog(isRunning ? '免流模式已启动' : '免流模式已停止');
@@ -2152,6 +2165,76 @@ function wireEvents() {
 const AUTO_SELECT_GROUP = '♻️ 自动选择';
 // 必须与 internal/mihomo 的 ChainGroup 逐字符一致（分组名进 mihomo API 路径）
 const CHAIN_GROUP = '🔗 链式代理';
+let downloadSession = '';
+let downloadQueue = null;
+let manualStreams = 1;
+let nodeQuality = null;
+let qualityError = '';
+let policyBusy = false;
+let qualityVersion = 0;
+const downloadResults = new Map();
+let nodeEpoch = 0;
+const nodeNames = new Intl.Collator('zh-CN', { numeric: true });
+
+function changeDownloadSession(next) {
+  if (next === downloadSession) return;
+  cancelDownloadQueue();
+  downloadSession = next;
+  nodeQuality = null;
+  qualityError = '';
+  qualityVersion++;
+  downloadResults.clear();
+  clearProxyList();
+}
+
+function cancelDownloadQueue() {
+  if (downloadQueue) downloadQueue.controller.abort();
+}
+
+async function measureNodes(names, wholeGroup = false) {
+  if (!downloadSession || downloadQueue || state.testingDelay || !state.proxyRunning || !names.length) return;
+  const group = activeProxyGroupKey();
+  const session = downloadSession;
+  const queue = { controller: new AbortController(), group, wholeGroup, connections: manualStreams, node: '', completed: 0, total: names.length };
+  downloadQueue = queue;
+  const resultKey = queue.connections === 1 ? group : group + '/4';
+  if (!downloadResults.has(resultKey)) downloadResults.set(resultKey, new Map());
+  const results = downloadResults.get(resultKey);
+  try {
+    for (const name of names) {
+      if (queue.controller.signal.aborted || session !== downloadSession) break;
+      queue.node = name;
+      renderNodeGrid();
+      try {
+        const options = {
+          method: 'POST', signal: queue.controller.signal, body: JSON.stringify({ session, group, profile: nodeQuality?.profile, node: name, connections: queue.connections })
+        };
+        let result;
+        for (let retry = 0; ; retry++) {
+          try { result = await api('/nodes/download', options); break; }
+          catch (error) {
+            if (error.code !== 'auto-probe-yield' || retry >= 8 || options.signal.aborted) throw error;
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+        }
+        if (!queue.controller.signal.aborted && session === downloadSession) results.set(name, result);
+      } catch (error) {
+        if (queue.controller.signal.aborted || session !== downloadSession) break;
+        if (['session-changed', 'download-busy', 'auto-probe-yield'].includes(error.code)) {
+          addLog(error.message, true);
+          break;
+        }
+        results.set(name, { error: error.message });
+      }
+      if (queue.controller.signal.aborted || session !== downloadSession) break;
+      queue.completed++;
+    }
+  } finally {
+    downloadQueue = null;
+    renderNodeGrid();
+    if (nodeQuality && session === downloadSession) fetchProxies();
+  }
+}
 
 // 当前页签对应读/写的 mihomo 分组：接入点沿用自动选择组，链式用导入分组。
 function activeProxyGroupKey() {
@@ -2160,7 +2243,11 @@ function activeProxyGroupKey() {
 
 // 页签切换：清掉上一分组的列表/延迟数据再拉当前分组，避免串数据。
 function setProxyTab(tab) {
+  if (tab !== state.activeProxyTab) cancelDownloadQueue();
   state.activeProxyTab = tab === 'chain' ? 'chain' : 'access';
+  nodeQuality = null;
+  qualityError = '';
+  qualityVersion++;
   $$('#proxiesTabs .setting-seg').forEach(chip => {
     chip.selected = chip.dataset.proxyTab === state.activeProxyTab;
   });
@@ -2172,29 +2259,87 @@ function setProxyTab(tab) {
 // setRunning(false) 统一触发：FAB 停止 / 停止并退出 / 轮询检测到已停止 /
 // helper 断开。函数声明提升，setRunning 早于本节定义也可安全调用。
 function clearProxyList() {
+  nodeEpoch++;
   state.proxyGroup = null;
-  state.proxyDelays = {};
+  state.proxyDelays = Object.create(null);
   state.delaysReady = false;
   state.testingDelay = false;
-  resetFab(); // 测试 FAB 若正停在「测试中…」一并复位
   renderNodeGrid();
 }
 
 async function fetchProxies() {
-  // 只在免流运行中拉取：停止后 :9090 已死，僵尸实例/时序竞态不得回填列表
+  // 停止或切换会话后，迟到的响应不能回填列表。
   if (!state.helperOnline || !state.proxyRunning) return;
+  const epoch = nodeEpoch;
+  const version = ++qualityVersion;
+  const group = activeProxyGroupKey();
   try {
-    const resp = await fetch('http://127.0.0.1:9090/proxies', { headers: controllerHeaders() });
+    const [resp, quality] = await Promise.all([
+      controllerGet('/proxies'),
+      loadNodeQuality(group, downloadSession),
+    ]);
     if (!resp.ok) return;
     const data = await resp.json();
-    const info = data.proxies?.[activeProxyGroupKey()];
+    if (epoch !== nodeEpoch || version !== qualityVersion || policyBusy) return;
+    const info = data.proxies?.[group];
     if (!info) return;
+    if (nodeQuality?.profile && quality.profile !== nodeQuality.profile) {
+      cancelDownloadQueue();
+      downloadResults.clear();
+      state.proxyDelays = Object.create(null);
+      state.testingDelay = false;
+      state.delaysReady = false;
+      nodeEpoch++;
+    }
+    nodeQuality = quality.quality ? quality : null;
+    qualityError = quality.problem || '';
+    const fallback = (info.all || []).find(n => n === quality.latencyGroup || n.startsWith('__Flux6_Latency_') && data.proxies[n]?.type === 'URLTest');
     state.proxyGroup = {
-      now: info.now || '',
-      all: info.all || [],
+      now: quality.activeNodes?.[0] || (fallback && info.now === fallback ? data.proxies[fallback]?.now || '' : info.now || ''),
+      all: quality.candidates || (info.all || []).filter(n => n !== fallback && !n.startsWith('__Flux6_Pool_')),
     };
     renderNodeGrid();
   } catch (_) { /* mihomo not reachable */ }
+}
+
+async function loadNodeQuality(group, session) {
+  try {
+    return await api('/nodes/quality?group=' + encodeURIComponent(group) + '&session=' + encodeURIComponent(session));
+  } catch (error) {
+    return { problem: session ? error.message : '暂时无法读取本机测速历史' };
+  }
+}
+
+function renderNodeHistory() {
+  const view = $('#nodeHistory');
+  if (!view?.open) return;
+  const samples = nodeQuality?.quality.samples || [];
+  const switches = nodeQuality?.quality.switches || [];
+  const switchList = $('#nodeSwitchList');
+  const switchRevision = JSON.stringify([nodeQuality?.group, switches.length, switches.at(-1)]);
+  if (switchList && switchList.dataset.revision !== switchRevision) {
+    switchList.dataset.revision = switchRevision;
+    switchList.innerHTML = switches.length ? switches.slice().reverse().map(s =>
+      `<li><time>${escapeHTML(new Date(s.at).toLocaleString('zh-CN'))}</time><strong>${escapeHTML(s.from)} → ${escapeHTML(s.to)}</strong><br>${escapeHTML(s.reason)}</li>`
+    ).join('') : '<li>还没有节点切换记录</li>';
+  }
+  $('#nodeHistoryStatus').textContent = qualityError || (samples.length
+    ? (downloadSession ? '当前网络' : '最近使用的网络') + ' · 最近 30 天，最新记录在前'
+    : '还没有测速记录');
+  const rows = $('#nodeHistoryRows');
+  const last = samples.at(-1);
+  const revision = [nodeQuality?.profile, samples.length, last?.at, last?.node, last?.kind].join('|');
+  if (rows.dataset.revision === revision) return;
+  rows.dataset.revision = revision;
+  rows.closest('table').hidden = !samples.length;
+  rows.innerHTML = samples.slice().reverse().map(s => {
+    const time = new Date(s.at).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const kind = s.kind === 'delay' ? '延迟' : s.source === 'auto' ? '自动复测' : s.connections === 4 ? '4 连接下载' : '单连接下载';
+    let result = s.failed ? '失败' : s.kind === 'delay' ? Number(s.delay) + ' ms' : (Number(s.rate)/1000000).toFixed(2) + ' MB/s';
+    if (s.kind === 'delay' && s.attempts > 1) result += ` · 超时 ${Number(s.timeouts) || 0}/${Number(s.attempts)}`;
+    if (s.inconclusive) result += ' · 未确认原因';
+    return `<tr><td>${escapeHTML(time)}</td><td>${escapeHTML(s.node)}</td><td>${kind}</td><td>${result}</td></tr>`;
+  }).join('');
 }
 
 function renderNodeGrid() {
@@ -2202,6 +2347,41 @@ function renderNodeGrid() {
   if (!el) return;
 
   const group = state.proxyGroup;
+  const policy = nodeQuality?.quality;
+  for (const [selector, fixed] of [['#nodeAuto', false], ['#nodeFixed', true]]) {
+    const button = $(selector);
+    if (!button) continue;
+    button.disabled = policyBusy || !policy || !downloadSession;
+    button.setAttribute('aria-pressed', String(Boolean(policy) && Boolean(policy.pinned) === fixed));
+  }
+  const names = group?.all || [];
+  const poolSize = $('#poolSize');
+  if (poolSize) {
+    poolSize.hidden = !nodeQuality?.poolSize;
+    poolSize.disabled = policyBusy || Boolean(policy?.pinned) || !downloadSession;
+    if (nodeQuality?.poolSize) poolSize.value = String(nodeQuality.poolSize);
+  }
+  const tools = $('#nodeTools');
+  if (tools) tools.hidden = !state.proxyRunning || !names.length;
+  const batch = $('#downloadGroup');
+  const streams = $('#downloadStreams');
+  if (streams) streams.disabled = Boolean(downloadQueue) || !downloadSession;
+  if (batch) {
+    const active = downloadQueue?.wholeGroup;
+    batch.disabled = !downloadSession || state.testingDelay || Boolean(downloadQueue && !active);
+    batch.querySelector('md-icon').textContent = active ? 'close' : 'download';
+    batch.querySelector('span').textContent = active ? `停止 ${downloadQueue.completed}/${downloadQueue.total}` : '测下载';
+    batch.title = active ? '停止整组下载测速' : '测试本组所有节点的下载速度';
+  }
+  const delayButton = $('#delayGroup');
+  if (delayButton) {
+    delayButton.disabled = state.testingDelay || Boolean(downloadQueue);
+    delayButton.querySelector('span').textContent = state.testingDelay
+      ? `测延迟 ${Object.keys(state.proxyDelays).length}/${names.length}` : '测延迟';
+  }
+  const hint = $('#downloadHint');
+  if (hint) hint.textContent = !downloadSession ? '请重新连接以启用测速与选点' : qualityError || (policy?.pinned ? '已固定 · ' + policy.pinned : nodeQuality?.activeNodes?.length ? '新连接分配至 ' + nodeQuality.activeNodes.join('、') : policy?.reason || '');
+  renderNodeHistory();
   if (!group || !group.all.length) {
     // 链式分组在「运行中却无链」（导入发生在启动之后）时给出重启提示，
     // 而不是笼统的“请先启动”。
@@ -2215,106 +2395,145 @@ function renderNodeGrid() {
     return;
   }
 
-  let nodes = [...group.all];
+  const nodes = [...names];
 
-  // Auto-sort by delay after test
-  if (state.delaysReady) {
-    nodes.sort((a, b) => {
-      const da = state.proxyDelays[a] ?? Infinity;
-      const db = state.proxyDelays[b] ?? Infinity;
-      return da - db;
-    });
+  const results = new Map(downloadResults.get(manualStreams === 1 ? activeProxyGroupKey() : activeProxyGroupKey() + '/4'));
+  const previousDelays = new Map();
+  for (const sample of policy?.samples || []) {
+    if (sample.kind === 'delay') { previousDelays.set(sample.node, sample.failed ? 5000 : sample.delay); continue; }
+    if ((sample.connections || 1) !== manualStreams) continue;
+    const measuredAt = results.get(sample.node)?.measuredAt;
+    if (measuredAt && new Date(measuredAt) > new Date(sample.at)) continue;
+    results.set(sample.node, { bytesPerSecond: sample.failed ? undefined : sample.rate, error: sample.failed ? '测速失败' : '', measuredAt: sample.at });
   }
+  const delayOf = name => state.proxyDelays[name] ?? previousDelays.get(name);
+  const sort = $('#nodeSort')?.value || 'delay';
+  const score = name => {
+    if (sort === 'download') return -(results?.get(name)?.bytesPerSecond ?? -Infinity);
+    if (sort === 'delay') return delayOf(name) < 5000 ? delayOf(name) : Infinity;
+    return 0;
+  };
+  if (sort !== 'delay' || state.delaysReady || previousDelays.size) {
+    nodes.sort((a, b) => (score(a) - score(b)) || nodeNames.compare(a, b));
+  }
+  const focus = document.activeElement;
+  const focusedName = el.contains(focus) ? focus.closest('.node-card')?.dataset.name : null;
 
   el.innerHTML = nodes.map(name => {
-    const selected = name === group.now;
-    const delay = state.proxyDelays[name];
+    const selected = nodeQuality?.activeNodes?.includes(name) || name === group.now;
+    const delay = state.testingDelay ? state.proxyDelays[name] : delayOf(name);
     const testing = state.testingDelay && delay === undefined;
     let latencyClass = 'unknown';
-    let latencyText = '未测试';
+    let latencyText = '延迟未测';
     if (testing) {
       latencyClass = 'testing';
-      latencyText = '<md-circular-progress class="node-spinner" indeterminate></md-circular-progress>测试中';
+      latencyText = '测延迟中';
     } else if (delay !== undefined) {
       if (delay < 100) { latencyClass = 'good'; latencyText = delay + ' ms'; }
       else if (delay < 500) { latencyClass = 'medium'; latencyText = delay + ' ms'; }
-      else { latencyClass = 'bad'; latencyText = delay >= 5000 ? 'Timeout' : delay + ' ms'; }
+      else { latencyClass = 'bad'; latencyText = delay >= 5000 ? '延迟超时' : delay + ' ms'; }
     }
 
-    return `<div class="node-card${selected ? ' selected' : ''}${testing ? ' testing' : ''}" data-name="${escapeHTML(name)}">
-      <div class="node-name" title="${escapeHTML(name)}">${escapeHTML(name)}</div>
-      <div class="node-latency ${latencyClass}">${latencyText}</div>
+    const result = results?.get(name);
+    const active = downloadQueue?.node === name && downloadQueue.group === activeProxyGroupKey();
+    const speed = result?.bytesPerSecond;
+    const measured = !active && Number.isFinite(speed);
+    const action = active ? (downloadQueue.wholeGroup ? '停止整组测速' : '取消测速') : result ? '重新测速' : '测试下载速度';
+    const icon = active ? 'close' : result ? 'refresh' : 'download';
+    const detail = measured ? `${manualStreams === 4 ? '4 连接合计' : '单连接'}平均下载速度 · ${new Date(result.measuredAt).toLocaleString()}` : active ? '正在测试下载速度' : result?.error || '尚未测试下载速度';
+    const readout = measured ? `<strong>${(speed / 1000000).toFixed(2)}</strong><small>MB/s</small>` : active ? '下载测速中…' : result?.error ? '下载测速失败' : '下载未测';
+    const safeName = escapeHTML(name);
+    return `<div class="node-card${selected ? ' selected' : ''}" data-name="${safeName}">
+      <button class="node-main" type="button" aria-label="${safeName}" aria-pressed="${selected}" title="固定节点 · ${safeName}" ${policyBusy ? 'disabled' : ''}>
+        <span class="node-name">${safeName}</span>${selected ? '<md-icon aria-hidden="true">check_circle</md-icon>' : ''}
+      </button>
+      <span class="node-latency ${latencyClass}" title="节点延迟">${latencyText}</span>
+      <div class="node-metrics">
+        <span class="node-speed" title="${escapeHTML(detail)}">${readout}</span>
+        <button class="node-download" type="button" aria-label="${safeName} · ${action}" title="${action}"
+          ${!downloadSession || state.testingDelay || (downloadQueue && !active) ? 'disabled' : ''}><md-icon aria-hidden="true">${icon}</md-icon></button>
+      </div>
     </div>`;
   }).join('');
 
   el.querySelectorAll('.node-card').forEach(card => {
-    card.addEventListener('click', () => switchProxy(card.dataset.name));
+    const name = card.dataset.name;
+    card.addEventListener('click', event => {
+      if (event.target.closest('.node-download')) {
+        if (downloadQueue) cancelDownloadQueue();
+        else measureNodes([name]);
+      } else if (event.target.closest('.node-main')) switchProxy(name);
+    });
+    if (name === focusedName) card.querySelector(focus.classList.contains('node-download') ? '.node-download' : '.node-main')?.focus({ preventScroll:true });
   });
 }
 
-async function switchProxy(name) {
-  if (!state.proxyRunning || !AUTO_SELECT_GROUP) return;
+async function switchProxy(name, poolSize) {
+  if (!state.proxyRunning || policyBusy) return;
+  if (!nodeQuality?.profile) { showToast(qualityError || '请重新连接后再选择节点', 'error'); return; }
+  const epoch = nodeEpoch;
+  policyBusy = true;
+  ++qualityVersion;
+  renderNodeGrid();
   try {
-    await fetch(`http://127.0.0.1:9090/proxies/${encodeURIComponent(activeProxyGroupKey())}`, {
+    const data = await api('/nodes/quality', {
       method: 'PUT',
-      headers: controllerHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ session: downloadSession, group: activeProxyGroupKey(), profile: nodeQuality.profile, mode: name ? 'fixed' : 'auto', node: name, poolSize }),
     });
-    if (state.proxyGroup) state.proxyGroup.now = name;
-    renderNodeGrid();
-    addLog(`切换接入点: ${name}`);
+    if (epoch !== nodeEpoch) return;
+    nodeQuality = data;
+    qualityError = '';
+    addLog(name ? '已固定节点 · ' + name : poolSize ? '已设为 ' + poolSize + ' 个并发接入点' : '已启用自动优选');
   } catch (e) {
-    addLog(`切换接入点失败: ${e.message}`, true);
+    if (epoch === nodeEpoch) showToast(e.message, 'error');
+  } finally {
+    policyBusy = false;
+    await fetchProxies();
+    renderNodeGrid();
   }
 }
 
 async function runDelayTest() {
-  if (state.testingDelay) return;
+  const group = state.proxyGroup;
+  if (!group?.all.length || !state.proxyRunning || state.testingDelay || downloadQueue) return;
+  const epoch = nodeEpoch;
+  const profile = nodeQuality?.profile;
+  const session = downloadSession;
+  const testGroup = activeProxyGroupKey();
   state.testingDelay = true;
-  state.proxyDelays = {};
+  state.proxyDelays = Object.create(null);
   state.delaysReady = false;
 
-  const fab = $('#delayTestFab');
-  const fabIcon = $('#fabIcon');
-  const fabProgress = $('#fabProgress');
-  if (fab) fab.classList.add('loading');
-  if (fabIcon) fabIcon.hidden = true;
-  if (fabProgress) fabProgress.hidden = false;
-  fabLabel(fab, '测试中…');
   renderNodeGrid();
 
-  const group = state.proxyGroup;
-  if (!group) {
-    // 停止后列表已清空：无节点可测，直接复位——testingDelay 必须拨回，
-    // 否则卡在 true 会让下次启动的自动延迟测试被 if (state.testingDelay) 跳过
-    state.testingDelay = false;
-    resetFab();
-    return;
-  }
-
   const nodes = group.all;
-  let completed = 0;
   const CONCURRENCY = 6;
   const queue = [...nodes];
+  const timeouts = Object.create(null);
 
   async function testNext() {
     // 停止免流会置 testingDelay=false 清空列表：在飞测试立即退出，
-    // 不再往已清空的状态里写过期延迟值、也不再改 FAB 文案
-    while (queue.length && state.testingDelay) {
+    // 不再往已清空的状态里写过期延迟值
+    while (queue.length && state.testingDelay && epoch === nodeEpoch) {
       const name = queue.shift();
-      let delay = 5000;
-      try {
-        const resp = await fetch(`http://127.0.0.1:9090/proxies/${encodeURIComponent(name)}/delay?timeout=5000&url=http://www.gstatic.com/generate_204`, { headers: controllerHeaders() });
-        if (resp.ok) {
-          const data = await resp.json();
-          delay = data.delay || 5000;
-        }
-      } catch (_) { /* 保持 5000 */ }
+      const timings = [];
+      for (let i = 0; i < 3; i++) {
+        if (!state.testingDelay || epoch !== nodeEpoch) return;
+        try {
+          const resp = await controllerGet(`/proxies/${encodeURIComponent(name)}/delay?timeout=5000&expected=204&url=https://www.gstatic.com/generate_204`);
+          if (resp.ok) {
+            const {delay} = await resp.json();
+            if (delay > 0 && delay < 5000) timings.push(delay);
+          }
+        } catch (_) { /* Count failed probes separately from successful latencies. */ }
+      }
+      timeouts[name] = 3 - timings.length;
+      timings.sort((a,b) => a-b);
+      const middle = Math.floor(timings.length / 2);
+      const delay = timings.length ? Math.round((timings[middle] + timings[Math.floor((timings.length - 1) / 2)]) / 2) : 5000;
       // await 期间免流可能已停止 → 迟到结果整条丢弃，不写已清空的状态
-      if (!state.testingDelay) return;
+      if (!state.testingDelay || epoch !== nodeEpoch) return;
       state.proxyDelays[name] = delay;
-      completed++;
-      fabLabel(fab, `测试中 ${completed}/${nodes.length}`);
       renderNodeGrid();
     }
   }
@@ -2325,29 +2544,50 @@ async function runDelayTest() {
   }
   await Promise.all(workers);
   // 免流已停止（clearProxyList 把 testingDelay 置 false）→ 收尾不再写入
-  if (!state.testingDelay) return;
+  if (!state.testingDelay || epoch !== nodeEpoch) return;
 
   state.testingDelay = false;
   state.delaysReady = true;
-  resetFab();
+  const historyProfile = profile || (session === downloadSession ? nodeQuality?.profile : '');
+  if (historyProfile) {
+    api('/nodes/delays', {method:'POST', body:JSON.stringify({session,group:testGroup,profile:historyProfile,delays:state.proxyDelays,attempts:3,timeouts})})
+      .then(() => { if (epoch === nodeEpoch) fetchProxies(); })
+      .catch(e => { if (epoch === nodeEpoch) addLog('延迟历史保存失败 · ' + e.message, true); });
+  }
   renderNodeGrid(); // re-render with auto-sort
   addLog(`延迟测试完成: ${nodes.length} 个接入点`);
 }
 
-function resetFab() {
-  const fab = $('#delayTestFab');
-  const fabIcon = $('#fabIcon');
-  const fabProgress = $('#fabProgress');
-  if (fab) {
-    fab.classList.remove('loading');
-    fabLabel(fab, '测试延迟');
-  }
-  if (fabIcon) fabIcon.hidden = false;
-  if (fabProgress) fabProgress.hidden = true;
-}
-
 function wireProxyEvents() {
-  $('#delayTestFab')?.addEventListener('click', runDelayTest);
+  $('#poolSize')?.addEventListener('change', event => switchProxy('', Number(event.currentTarget.value)));
+  $('#nodeAuto')?.addEventListener('click', () => switchProxy(''));
+  $('#nodeFixed')?.addEventListener('click', () => { if (state.proxyGroup?.now) switchProxy(state.proxyGroup.now); });
+  $('#nodeHistory')?.addEventListener('toggle', async event => {
+    if (!event.currentTarget.open) return;
+    if (!downloadSession) {
+      const epoch = nodeEpoch;
+      const data = await loadNodeQuality(activeProxyGroupKey(), '');
+      if (epoch !== nodeEpoch || downloadSession) return;
+      nodeQuality = data.quality ? data : null;
+      qualityError = data.problem || '';
+    }
+    renderNodeHistory();
+  });
+  $('#nodeSort')?.addEventListener('change', event => {
+    for (const option of event.currentTarget.options) {
+      option.querySelector('md-icon').hidden = !option.selected;
+    }
+    renderNodeGrid();
+  });
+  $('#downloadGroup')?.addEventListener('click', () => {
+    if (downloadQueue) cancelDownloadQueue();
+    else measureNodes([...(state.proxyGroup?.all || [])], true);
+  });
+  $('#downloadStreams')?.addEventListener('change', event => {
+    manualStreams = event.currentTarget.value === '4' ? 4 : 1;
+    renderNodeGrid();
+  });
+  $('#delayGroup')?.addEventListener('click', runDelayTest);
   // 接入点/链式代理分组页签（md-filter-chip 自身切换 selected，这里只换数据）
   $$('#proxiesTabs .setting-seg').forEach(chip => {
     chip.addEventListener('click', () => {
