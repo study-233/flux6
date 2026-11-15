@@ -324,11 +324,11 @@ bool HostBridge::StartHelper(std::string* error) {
   STARTUPINFOW startup{}; startup.cb=sizeof(startup); startup.dwFlags=STARTF_USESTDHANDLES;
   startup.hStdOutput=writer; startup.hStdError=writer; startup.hStdInput=input;
   PROCESS_INFORMATION process{};
-  const auto helper=Root()+L"\\freev6-helper.exe";
+  const auto helper=Root()+L"\\flux6-helper.exe";
   std::wstring command=L"\""+helper+L"\"";
   const BOOL launched=CreateProcessW(helper.c_str(),command.data(),nullptr,nullptr,TRUE,CREATE_NO_WINDOW|CREATE_UNICODE_ENVIRONMENT,env.data(),Root().c_str(),&startup,&process);
   const DWORD failure=GetLastError(); CloseHandle(writer); if(input!=INVALID_HANDLE_VALUE) CloseHandle(input);
-  if (!launched) { CloseHandle(output_); output_=nullptr; *error="Helper could not start (Windows error "+std::to_string(failure)+")"; return false; }
+  if (!launched) { CloseHandle(output_); output_=nullptr; *error="Flux6 Helper could not start (Windows error "+std::to_string(failure)+")"; return false; }
   CloseHandle(process.hThread); helper_=process.hProcess; return true;
 }
 void HostBridge::PollHelper() {

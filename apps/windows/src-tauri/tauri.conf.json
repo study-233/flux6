@@ -39,7 +39,7 @@
     "active": true,
     "targets": "nsis",
     "externalBin": [
-      "binaries/freev6-helper"
+      "binaries/flux6-helper"
     ],
     "resources": {
       "../../../third_party/licenses": "LICENSES",

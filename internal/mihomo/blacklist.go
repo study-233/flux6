@@ -7,7 +7,7 @@ import (
 )
 
 // blacklist/blacklist.txt holds the default external-domain blacklist. It is
-// embedded into freev6-helper at build time so installed copies ship with the
+// embedded into flux6-helper at build time so installed copies ship with the
 // blocking list out of the box. The file itself is gitignored: fresh clones
 // only carry README.md and build with an empty default (readiness is checked
 // per file below, the directory pattern always matches).

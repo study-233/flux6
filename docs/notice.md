@@ -77,7 +77,7 @@
 想看客户端拿到的到底是什么：自己起一个 helper（token 用你指定的值，端口 13335 空闲时可用）
 
 ```bash
-FREEV6_API_TOKEN=dev ./freev6-helper.exe
+FREEV6_API_TOKEN=dev ./flux6-helper.exe
 curl -H "Authorization: Bearer dev" http://127.0.0.1:13335/api/v1/notice
 ```
 

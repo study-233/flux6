@@ -50,16 +50,19 @@ const (
 )
 
 type helper struct {
-	root string
-	mu   sync.Mutex
+	root      string
+	mu        sync.Mutex
+	downloads nodeDownloads
 }
 
 type settings = app.Settings
 
 type proxyRequest struct {
-	Mode        string   `json:"mode"`
-	CampusCIDRs []string `json:"campusCidrs"`
-	DevMode     bool     `json:"devMode"`
+	Mode                  string   `json:"mode"`
+	CampusCIDRs           []string `json:"campusCidrs"`
+	DevMode               bool     `json:"devMode"`
+	DynamicControllerPort bool     `json:"dynamicControllerPort"`
+	AdaptiveAccessPool    bool     `json:"adaptiveAccessPool"`
 }
 
 type registerRequest struct {
@@ -103,6 +106,9 @@ func main() {
 	mux.HandleFunc("/api/v1/settings/reset", h.resetSettings)
 	mux.HandleFunc("/api/v1/proxy/start", h.startProxy)
 	mux.HandleFunc("/api/v1/proxy/stop", h.stopProxy)
+	mux.HandleFunc("/api/v1/nodes/download", h.measureNode)
+	mux.HandleFunc("/api/v1/nodes/quality", h.nodeQuality)
+	mux.HandleFunc("/api/v1/nodes/delays", h.recordNodeDelays)
 	mux.HandleFunc("/api/v1/warp/register", h.registerWarp)
 	mux.HandleFunc("/api/v1/update/download", h.updateDownload)
 	mux.HandleFunc("/api/v1/update/progress", h.updateProgress)
@@ -156,11 +162,16 @@ func (h *helper) status(writer http.ResponseWriter, request *http.Request) {
 		currentSettings = defaultSettings()
 	}
 	_, warpErr := os.Stat(filepath.Join(h.root, "state", "warp.json"))
-	// 外部控制器 secret（只读探测）：存在即回传给前端用于 9090 直连；
+	// 外部控制器 secret（只读探测）：存在即回传给前端用于本次连接；
 	// 读失败按空串降级——运行中的面板只是暂时取不到数据，不影响免流。
 	controllerSecret, secretErr := mihomo.ReadControllerSecret(filepath.Join(h.root, "state"))
 	if secretErr != nil {
 		controllerSecret = ""
+	}
+	session, controllerPort := h.downloads.connection(pid, running)
+	if running && controllerPort == 0 {
+		// A restarted helper may be observing a core launched before this process.
+		controllerPort = recoverControllerPort(filepath.Join(h.root, "state", "mihomo.yaml"), pid)
 	}
 	// 热点共享状态：仅免流运行中且本会话已切换时有意义。active 用本机
 	// 地址探测（无子进程，3s 轮询无压力）；前端观察 shared→断开 的下降沿
@@ -181,6 +192,8 @@ func (h *helper) status(writer http.ResponseWriter, request *http.Request) {
 		"settings":         currentSettings,
 		"hotspot":          hotspot,
 		"controllerSecret": controllerSecret,
+		"controllerPort":   controllerPort,
+		"downloadSession":  session,
 	})
 }
 
@@ -455,11 +468,18 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 		}
 		cloudNodes = profile.Nodes
 	}
-	if err := mihomo.CheckListenPorts(); err != nil {
+	if err := mihomo.CheckProxyListenPorts(); err != nil {
 		// code 供前端精准提示（toast），error 文本保留给日志排障。
 		writeJSON(writer, http.StatusConflict, map[string]string{"error": err.Error() + "; please close other proxy/DNS software first", "code": "port-conflict"})
 		return
 	}
+	reservation, err := reserveController(defaultController, input.DynamicControllerPort)
+	if err != nil {
+		writeJSON(writer, http.StatusConflict, map[string]string{"error": err.Error(), "code": "controller-unavailable"})
+		return
+	}
+	defer reservation.Close()
+	controller := reservation.Addr().(*net.TCPAddr).AddrPort()
 	if runtime.GOOS == "windows" {
 		adminCtx, cancel := context.WithTimeout(request.Context(), 5*time.Second)
 		defer cancel()
@@ -518,6 +538,12 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	configPath := filepath.Join(stateDir, "mihomo.yaml")
+	channel, withDownload, err := prepareDownloadChannel(config, controllerSecret, controller, input.AdaptiveAccessPool && len(cloudNodes) == 0)
+	if err != nil {
+		writeJSON(writer, http.StatusInternalServerError, map[string]string{"error": "无法准备节点测速通道"})
+		return
+	}
+	config = withDownload
 	pidPath := filepath.Join(stateDir, "mihomo.pid")
 	logPath := filepath.Join(stateDir, "mihomo.log")
 	snapshotPath := filepath.Join(stateDir, "network-snapshot.json")
@@ -584,6 +610,11 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
+	if err := reservation.Close(); err != nil {
+		restore()
+		writeJSON(writer, http.StatusInternalServerError, map[string]string{"error": "无法释放核心控制端口"})
+		return
+	}
 	pid, err := mihomo.Start(binaryPath, configPath, stateDir, pidPath, logPath)
 	if err != nil {
 		restore()
@@ -592,13 +623,19 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(request.Context(), 15*time.Second)
 	defer cancel()
-	if err := mihomo.WaitReady(ctx, "127.0.0.1:9090", 100*time.Millisecond); err != nil {
+	if err := mihomo.WaitReady(ctx, controller.String(), 100*time.Millisecond); err != nil {
 		_ = mihomo.Stop(pidPath)
 		restore()
 		writeJSON(writer, http.StatusBadGateway, map[string]string{"error": diagnosticError(err, logPath)})
 		return
 	}
-	if _, err := mihomo.CheckController(ctx, "127.0.0.1:9090", controllerSecret); err != nil {
+	if runtime.GOOS == "windows" && tcpListenerOwners()[controller] != pid {
+		_ = mihomo.Stop(pidPath)
+		restore()
+		writeJSON(writer, http.StatusConflict, map[string]string{"error": "核心控制端口归属未确认，请重试", "code": "controller-unavailable"})
+		return
+	}
+	if _, err := mihomo.CheckController(ctx, controller.String(), controllerSecret); err != nil {
 		_ = mihomo.Stop(pidPath)
 		restore()
 		writeJSON(writer, http.StatusBadGateway, map[string]string{"error": diagnosticError(err, logPath)})
@@ -615,7 +652,11 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 	// 热点共享（设置 → 通用，非阻断）：mihomo 就绪后才切 ICS，失败回滚
 	// 到启动前基线；结果随响应带回前端（成功记日志、失败弹日志界面）。
 	hotspotResult := applyHotspotShare(snapshot, snapshotPath, stored.HotspotShare)
-	writeJSON(writer, http.StatusOK, map[string]any{"running": true, "pid": pid, "hotspot": hotspotResult, "controllerSecret": controllerSecret})
+	channel.pid = pid
+	channel.network = qualityNetwork(snapshot)
+	channel.cloud = len(cloudNodes) > 0
+	h.startNodeQuality(channel)
+	writeJSON(writer, http.StatusOK, map[string]any{"running": true, "pid": pid, "hotspot": hotspotResult, "controllerSecret": controllerSecret, "controllerPort": controller.Port(), "downloadSession": channel.session})
 }
 
 // healLeftoverSnapshot 先按上次会话残留的快照还原，再让 startProxy 重新
@@ -723,6 +764,7 @@ func (h *helper) stopProxy(writer http.ResponseWriter, request *http.Request) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	h.downloads.activate(nil)
 	pidPath := filepath.Join(h.root, "state", "mihomo.pid")
 	snapshotPath := filepath.Join(h.root, "state", "network-snapshot.json")
 	// 阶段化还原：热点上游（ICS/WinRT）必须在 TUN 适配器仍在时还原——

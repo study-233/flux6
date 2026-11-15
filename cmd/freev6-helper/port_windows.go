@@ -3,11 +3,47 @@
 package main
 
 import (
+	"encoding/binary"
+	"net/netip"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
+
+var getExtendedTCPTable = windows.NewLazySystemDLL("iphlpapi.dll").NewProc("GetExtendedTcpTable")
+
+// GetExtendedTcpTable(TCP_TABLE_OWNER_PID_LISTENER) returns a DWORD count
+// followed by IPv4 MIB_TCPROW_OWNER_PID records. Ports are in network byte order.
+func tcpListenerOwners() map[netip.AddrPort]int {
+	const listenerTable = 3
+	const rowSize = 24
+	buffer := make([]byte, 4096)
+	for {
+		size := uint32(len(buffer))
+		result, _, _ := getExtendedTCPTable.Call(uintptr(unsafe.Pointer(&buffer[0])), uintptr(unsafe.Pointer(&size)), 0, windows.AF_INET, listenerTable, 0)
+		if result == uintptr(windows.ERROR_INSUFFICIENT_BUFFER) && int(size) > len(buffer) {
+			buffer = make([]byte, size)
+			continue
+		}
+		if result != 0 || size < 4 {
+			return nil
+		}
+		count := int(binary.LittleEndian.Uint32(buffer))
+		if count > (int(size)-4)/rowSize {
+			return nil
+		}
+		owners := make(map[netip.AddrPort]int, count)
+		for i := 0; i < count; i++ {
+			row := buffer[4+i*rowSize:][:rowSize]
+			addr := netip.AddrFrom4([4]byte(row[4:8]))
+			port := binary.BigEndian.Uint16(row[8:10])
+			owners[netip.AddrPortFrom(addr, port)] = int(binary.LittleEndian.Uint32(row[20:24]))
+		}
+		return owners
+	}
+}
 
 // All process introspection here goes through Win32 directly. The previous
 // implementation shelled out to `powershell -Command Get-CimInstance` and
@@ -35,14 +71,23 @@ func killProcess(pid int) error {
 // isHelperPID confirms the port holder is one of ours before killing it — never
 // terminate an unrelated process squatting the port. The image path comes from
 // the kernel, so unlike `tasklist` there is no localized column layout and no
-// stdout that another tool could poison. The substring covers the installed
-// (freev6-helper.exe) and dev sidecar (freev6-helper-<triple>.exe) names.
+// stdout that another tool could poison.
 func isHelperPID(pid int) bool {
 	path, err := processImagePath(uint32(pid))
 	if err != nil {
 		return false
 	}
-	return strings.Contains(strings.ToLower(path), "freev6-helper")
+	return isHelperImage(path)
+}
+
+func isHelperImage(path string) bool {
+	switch strings.ToLower(filepath.Base(path)) {
+	case "flux6-helper.exe", "flux6-helper-x86_64-pc-windows-msvc.exe",
+		"freev6-helper.exe", "freev6-helper-x86_64-pc-windows-msvc.exe":
+		return true
+	default:
+		return false
+	}
 }
 
 // isOrphaned reports whether the holder's desktop parent is gone (the Task

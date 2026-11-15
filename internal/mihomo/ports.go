@@ -19,7 +19,19 @@ var requiredListenPorts = []ListenPort{
 }
 
 func CheckListenPorts() error {
+	return checkListenPorts(true)
+}
+
+// The Windows helper reserves the controller socket separately until it starts the core.
+func CheckProxyListenPorts() error {
+	return checkListenPorts(false)
+}
+
+func checkListenPorts(includeController bool) error {
 	for _, port := range requiredListenPorts {
+		if !includeController && port.Name == "controller" {
+			continue
+		}
 		listener, err := listenPort(port)
 		if err != nil {
 			return fmt.Errorf("mihomo %s port %s is unavailable: %w", port.Name, port.Address, err)

@@ -228,12 +228,54 @@
           <md-filter-chip class="setting-seg" id="proxyTabAccess" data-proxy-tab="access" label="接入点" selected></md-filter-chip>
           <md-filter-chip class="setting-seg" id="proxyTabChain" data-proxy-tab="chain" label="链式代理"></md-filter-chip>
         </div>
+        <div class="node-tools" id="nodeTools" hidden>
+          <div class="node-policy" role="group" aria-label="选点方式">
+            <button type="button" id="nodeAuto" aria-pressed="false" title="根据本网络近期下载测速自动选择节点">自动优选</button>
+            <button type="button" id="nodeFixed" aria-pressed="false" title="固定当前节点，也可直接点击其他节点卡片">手动固定</button>
+          </div>
+          <md-outlined-select id="poolSize" aria-label="并发接入点数量" hidden>
+            <md-select-option value="2"><span slot="headline">2 个接入点</span></md-select-option>
+            <md-select-option value="4" selected><span slot="headline">4 个接入点</span></md-select-option>
+            <md-select-option value="8"><span slot="headline">8 个接入点</span></md-select-option>
+          </md-outlined-select>
+          <md-outlined-select id="nodeSort" aria-label="节点排序">
+            <md-select-option value="delay" display-text="按延迟 ↑" selected><span slot="headline">延迟从低到高</span><md-icon slot="end" aria-hidden="true">check_circle</md-icon></md-select-option>
+            <md-select-option value="download" display-text="按速度 ↓"><span slot="headline">下载速度从高到低</span><md-icon slot="end" aria-hidden="true" hidden>check_circle</md-icon></md-select-option>
+            <md-select-option value="name" display-text="按名称"><span slot="headline">按名称排序</span><md-icon slot="end" aria-hidden="true" hidden>check_circle</md-icon></md-select-option>
+          </md-outlined-select>
+          <md-outlined-select id="downloadStreams" aria-label="手动下载测速连接数">
+            <md-select-option value="1" selected><span slot="headline">单连接</span></md-select-option>
+            <md-select-option value="4"><span slot="headline">4 连接</span></md-select-option>
+          </md-outlined-select>
+          <div class="node-actions" role="group" aria-label="整组测速">
+            <button type="button" id="delayGroup" aria-labelledby="delayGroupLabel" title="测试本组所有节点的延迟">
+              <md-icon aria-hidden="true">bolt</md-icon><span id="delayGroupLabel">测延迟</span>
+            </button>
+            <button type="button" id="downloadGroup" aria-labelledby="downloadGroupLabel" title="测试本组所有节点的下载速度">
+              <md-icon aria-hidden="true">download</md-icon><span id="downloadGroupLabel">测下载</span>
+            </button>
+          </div>
+          <span id="downloadHint" role="status"></span>
+        </div>
         <div class="node-grid" id="nodeGrid">
           <div class="empty-state">
             <md-icon class="empty-state-icon">cloud_off</md-icon>
             <span>启动免流模式以加载接入点列表</span>
           </div>
         </div>
+        <details class="node-history" id="nodeHistory">
+          <summary>本机测速历史</summary>
+          <p id="nodeHistoryStatus"></p>
+          <details id="nodeSwitchHistory">
+            <summary>节点切换记录</summary>
+            <ol id="nodeSwitchList"></ol>
+          </details>
+          <div class="node-history-scroll" tabindex="0" aria-label="近期测速记录">
+            <table><thead><tr><th>时间</th><th>节点</th><th>测量</th><th>结果</th></tr></thead>
+              <tbody id="nodeHistoryRows"></tbody>
+            </table>
+          </div>
+        </details>
       </section>
 
       <!-- Settings -->
@@ -524,7 +566,7 @@
                 <md-icon>code</md-icon>
               </div>
               <div class="setting-text">
-                <div class="setting-label">Github</div>
+                <div class="setting-label">GitHub</div>
               </div>
               <span class="setting-value">@study-233/flux6</span>
               <md-icon class="setting-arrow">open_in_new</md-icon>
@@ -637,11 +679,6 @@
       <span class="fab-label">启动免流</span>
     </button>
 
-    <button id="delayTestFab" class="fab-item glass-fab delay-fab" aria-label="延迟测试">
-      <md-icon id="fabIcon">bolt</md-icon>
-      <md-circular-progress id="fabProgress" class="fab-progress" indeterminate hidden></md-circular-progress>
-      <span class="fab-label">测试延迟</span>
-    </button>
   </div>
 
   <div class="net-dialog-scrim" id="netDialogScrim">

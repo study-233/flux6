@@ -16,6 +16,8 @@ type Snapshot struct {
 }
 
 type InterfaceSnapshot struct {
+	// Used in memory to distinguish connected uplinks; never part of DNS restoration.
+	NetworkID           string   `json:"-"`
 	Alias               string   `json:"alias"`
 	Index               int      `json:"index"`
 	IPv4DefaultGateways []string `json:"ipv4DefaultGateways"`
