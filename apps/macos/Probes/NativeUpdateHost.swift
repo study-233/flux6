@@ -26,6 +26,9 @@ import AppKit
         if Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String == "2" { exit(0) }
         let child = Process()
         child.executableURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/Flux6UpdateAgent.app/Contents/MacOS/freev6-update-agent")
+        if Bundle.main.object(forInfoDictionaryKey: "ProbeBackgroundCheck") as? Bool == true {
+            child.arguments = [UpdatePipe.backgroundCheckArgument]
+        }
         let output = Pipe()
         child.standardInput = input
         child.standardOutput = output

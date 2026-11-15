@@ -3,12 +3,16 @@ import FreeV6UpdateSupport
 @testable import FreeV6Desktop
 
 final class DesktopUpdaterTests: XCTestCase {
-    @MainActor func testInstallApprovalNeedsAnAcknowledgementBeforeTermination() async throws {
+    private func fixtureRelease() throws -> UpdateRelease {
         let body: [String: Any] = ["format": 1, "build": 2, "minimumSourceBuild": 1, "maximumSourceBuild": 1,
                                    "architecture": UpdateRelease.architecture, "workerProtocol": 1, "serviceProtocol": 6,
                                    "settingsSchema": 1, "runtimeCatalogSHA256": String(repeating: "a", count: 64),
                                    "serviceSHA256": String(repeating: "b", count: 64)]
-        let release = try UpdateRelease.decode(JSONSerialization.data(withJSONObject: body), currentBuild: 1)
+        return try UpdateRelease.decode(JSONSerialization.data(withJSONObject: body), currentBuild: 1)
+    }
+
+    @MainActor func testInstallApprovalNeedsAnAcknowledgementBeforeTermination() async throws {
+        let release = try fixtureRelease()
         for next in [nil, UpdateEvent.Kind.finished, .installing] {
             let updater = DesktopUpdater()
             let operation = UUID()
@@ -36,6 +40,23 @@ final class DesktopUpdaterTests: XCTestCase {
             XCTAssertEqual(terminations, next == .installing ? 1 : 0)
             XCTAssertEqual(updater.installationAuthorized, next == .installing)
         }
+    }
+
+    @MainActor func testDecliningReadyUpdateNeverAuthorizesInstallation() async throws {
+        let release = try fixtureRelease()
+        let updater = DesktopUpdater()
+        let id = UUID()
+        let events = AsyncThrowingStream<UpdateEvent, Error> { stream in
+            stream.yield(UpdateEvent(.ready, operation: id, release: release))
+            stream.yield(UpdateEvent(.finished, operation: id))
+            stream.finish()
+        }
+        var replies: [Bool] = []
+        try await updater.follow(events, currentBuild: 1, answer: { replies.append($0.install) },
+                                 prepare: { _, _ in throw UpdateFailure.cancelled },
+                                 install: { XCTFail("Declining an update must keep the host running") })
+        XCTAssertEqual(replies, [false])
+        XCTAssertFalse(updater.installationAuthorized)
     }
 
     @MainActor func testUnconfiguredChannelExitsWithoutPreparingNetworkOrInstalling() async {

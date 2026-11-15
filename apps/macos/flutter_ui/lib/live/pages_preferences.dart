@@ -176,6 +176,7 @@ class _LiveSettingsState extends State<LiveSettingsPage> {
             _Action('打开系统登录项设置', () => model.platform('openLoginSettings')),
         ]),
         _Section('应用更新', [
+          _toggle(context, '启动时自动检查更新', 'checkUpdatesOnLaunch', preferences, set),
           _Hint(update['status']?.toString() ?? ''),
           _Action(
             '检查更新',
