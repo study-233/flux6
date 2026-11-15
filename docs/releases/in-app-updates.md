@@ -28,15 +28,15 @@ macOS 与 Android 从 Flux6 0.1.1 开始支持应用内更新。首次安装和�
 
 客户端通过 `https://api.github.com/repos/study-233/flux6/releases/latest` 查询正式版本；API 限流或失败时仅接受同一仓库的 HTTPS 最新版本跳转。检查与下载均使用强制验证 TLS 证书的客户端。上游来源链接继续指向 FlClash，更新地址单独定义。
 
-已发布的 0.1.1 客户端按 `v<版本>` 标签查找 `Flux6-<版本>-android-arm64.apk`，下载前从同一 Release 的 `SHA256SUMS` 读取该 APK 的摘要。后续 Release 省略校验附件时，0.1.1 的应用内下载会失败，手动升级需使用原签名 APK 覆盖安装。
+新版直接从 `v<版本>` 的 Release 下载 `Flux6-<版本>-android-arm64.apk`，无需校验文件。已发布的 0.1.1 仍会读取 `SHA256SUMS`，用户首次升级到新流程时需手动覆盖安装一次。
 
-安装复用现有 PackageInstaller 流程及 `dev.freev6.mobile` 应用 ID，并继续使用原 Android 签名身份。系统要求用户确认安装，校验失败不会进入安装。自动检查可在通用设置关闭；手动检查不受该偏好限制。下载进度、取消、待安装提示复用现有首页组件。
+下载完成后由用户确认安装。Android 的 PackageInstaller 将更新限定到已安装的 `dev.freev6.mobile`，并校验 APK 签名。自动检查可在通用设置关闭，手动检查始终可用。
 
 ## Windows Tauri x64
 
 Windows 客户端启动后读取本仓库 Latest Release 的 `version.json`，发现更高版本时弹窗。用户可以选择“稍后”或“跳过此版本”。点击“立即更新”后，helper 负责下载和校验 SHA256，Tauri 宿主在启动 NSIS 安装器前再次校验。首次安装及旧 0.5.x 开发版迁移需手动运行安装包。
 
-Windows 发行包与同版本的 macOS、Android 附件共用一个 Release。发布顺序与下次 Latest 的清单维护见 [Windows 构建与发布](../../apps/windows/README.md)。
+Windows 发行包与同版本的 macOS、Android 附件共用一个 Release。核对安装包后再上传 `version.json`。本次未发布 Windows 新包时，Latest 沿用最近一次 Windows 正式版的有效清单。详见 [Windows 构建与发布](../../apps/windows/README.md)。
 
 ## 后续版本的发布步骤
 

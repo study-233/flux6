@@ -173,8 +173,8 @@ void main() {
     expect(container.read(appSettingProvider).autoCheckUpdate, isFalse);
   });
 
-  group('a build that updates itself', () {
-    const asset = 'Flux6-0.8.96-android-arm64.apk';
+  group('an installed Windows build that updates itself', () {
+    const asset = 'Flux6-0.8.96-windows-amd64-setup.exe';
     final package = utf8.encode('package');
     final digest = sha256.convert(package).toString();
     late Directory home;
@@ -186,7 +186,7 @@ void main() {
       await useAppPaths(home);
       suffix = resolveSelfUpdateSuffix;
       adapter = request.releaseDio.httpClientAdapter;
-      resolveSelfUpdateSuffix = () => 'android-arm64.apk';
+      resolveSelfUpdateSuffix = () => 'windows-amd64-setup.exe';
     });
 
     tearDown(() async {

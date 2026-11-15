@@ -148,13 +148,28 @@ class Request {
     return {'tag_name': segments.last};
   }
 
-  Future<String> downloadVerifiedRelease({
+  Future<String> downloadRelease({
     required String tag,
     required String name,
     required String directory,
+    required App? android,
     ProgressCallback? onReceiveProgress,
     CancelToken? cancelToken,
   }) async {
+    final path = join(directory, name);
+    final uri = releaseAssetUri(tag, name);
+    if (android != null) {
+      // PackageInstaller enforces the installed app's identity and signing lineage.
+      await android.downloadFile(
+        uri,
+        path,
+        title: name,
+        onReceiveProgress: onReceiveProgress ?? (_, _) {},
+        cancelToken: cancelToken ?? CancelToken(),
+      );
+      return path;
+    }
+
     final sums = await releaseDio.getUri<String>(
       releaseAssetUri(tag, releaseChecksumsName),
       options: Options(responseType: ResponseType.plain),
@@ -164,24 +179,12 @@ class Request {
     if (expected == null) {
       throw ReleaseNotVerifiedException(name);
     }
-    final path = join(directory, name);
-    final uri = releaseAssetUri(tag, name);
-    if (app case final android?) {
-      await android.downloadFile(
-        uri,
-        path,
-        title: name,
-        onReceiveProgress: onReceiveProgress ?? (_, _) {},
-        cancelToken: cancelToken ?? CancelToken(),
-      );
-    } else {
-      await releaseDio.downloadUri(
-        uri,
-        path,
-        onReceiveProgress: onReceiveProgress,
-        cancelToken: cancelToken,
-      );
-    }
+    await releaseDio.downloadUri(
+      uri,
+      path,
+      onReceiveProgress: onReceiveProgress,
+      cancelToken: cancelToken,
+    );
     if (await fileSha256(path) != expected) {
       throw ReleaseNotVerifiedException(name);
     }

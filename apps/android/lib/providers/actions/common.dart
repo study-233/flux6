@@ -227,10 +227,11 @@ class CommonAction extends _$CommonAction {
       await clearUpdateDownloads();
       await Directory(directory).create(recursive: true);
       var shown = 0;
-      final path = await request.downloadVerifiedRelease(
+      final path = await request.downloadRelease(
         tag: tag,
         name: name,
         directory: directory,
+        android: app,
         cancelToken: cancelToken,
         onReceiveProgress: (received, total) {
           // Every chunk would otherwise rebuild the status on its own frame.

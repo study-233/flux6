@@ -5,9 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/boot_record.dart';
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/exception.dart';
+import 'package:fl_clash/common/request.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -242,6 +244,26 @@ void main() {
     }
 
     Iterable<String> methods() => calls.map((call) => call.method);
+
+    test('downloads the release APK without a checksum asset', () async {
+      const name = 'Flux6-1.2.3-android-arm64.apk';
+      answerQueries([state(8, 100)]);
+
+      final path = await Request().downloadRelease(
+        tag: 'v1.2.3',
+        name: name,
+        directory: '/files',
+        android: App(),
+      );
+
+      expect(methods(), ['enqueueDownload', 'queryDownload']);
+      expect(
+        calls.first.arguments['url'],
+        'https://github.com/study-233/flux6/releases/download/v1.2.3/$name',
+      );
+      expect(calls.first.arguments['path'], path);
+      expect(path, p.join('/files', name));
+    });
 
     test('follows the system download until it completes', () async {
       answerQueries([state(2, 50), state(8, 100)]);

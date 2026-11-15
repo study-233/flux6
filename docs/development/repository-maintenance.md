@@ -521,3 +521,9 @@ macOS 下一版在用户同意首次使用协议后默认每次启动检查一�
 旧 Windows FlClash 原型可从标签 `archive/windows-flclash-prototype-20261115` 恢复。macOS build 11 的旧分发草稿保存在 `archive/distribution-build11-20261115`，已发布的 0.1.1 使用 build 12。
 
 macOS 服务安装与修复的 25 项 Swift 测试通过。Windows 的 19 项 Web 与离线预览测试及 2 项源码打包测试通过。[Windows Actions](https://github.com/study-233/flux6/actions/runs/43691981527) 从整合提交构建了 x64 NSIS 安装包，在干净的 runner 上静默安装并核对了版本与 helper。旧版覆盖升级与真实网络仍属设备验收范围，本次没有发布新安装包。
+
+## 2026-11-15 Android 直接下载更新 APK
+
+Android 更新从正式 Release 直接下载 APK，由 PackageInstaller 核验包名与签名。已发布的 0.1.1 需手动覆盖安装一次才能使用新流程。发布技能精简为三步，保留简短文案和省略校验附件的规则。
+
+Flutter 分析和 6 个相关测试文件的 58 项测试通过，覆盖无校验附件的 APK 下载、失败、取消和保留的桌面校验。测试使用模拟下载服务，未执行真机安装或发布。
