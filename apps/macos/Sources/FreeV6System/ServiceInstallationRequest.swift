@@ -13,12 +13,12 @@ public struct ServiceInstallationRequest {
         }
         _ = try CodeIdentity(identifier: "dev.freev6.desktop", cdHash: clientHash)
         guard uid >= 500 else { throw InstallationError.invalidPayload }
+        // App-initiated maintenance must include the current installer's recovery fixes.
+        // The root-owned copy remains available for recovery after deleting the app.
+        executable = normalized.appendingPathComponent("Contents/Helpers/freev6-service-installer")
         if action == .install {
-            executable = normalized.appendingPathComponent("Contents/Helpers/freev6-service-installer")
             arguments = ["install", normalized.path, String(uid), clientHash]
         } else {
-            let recovery = URL(fileURLWithPath: "/Library/PrivilegedHelperTools/dev.freev6.service-installer")
-            executable = FileManager.default.fileExists(atPath: recovery.path) ? recovery : normalized.appendingPathComponent("Contents/Helpers/freev6-service-installer")
             arguments = [action.rawValue]
         }
     }
