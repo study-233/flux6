@@ -1,8 +1,8 @@
 cask "flux6" do
-  version "0.1.0,10"
-  sha256 "e60c6cabf100b7058d0f57b8a53df5646177c69b8056ec5518cff4750c7b4fda"
+  version "0.1.1,11"
+  sha256 "a539cde2480b462bcb59301537bf88234bc5f17f13ed0e7efdafff3d88fc6c7e"
 
-  url "https://github.com/study-233/flux6/releases/download/v#{version.csv.first}/Flux6-#{version.csv.first}-macOS.dmg"
+  url "https://github.com/study-233/flux6/releases/download/v#{version.csv.first}/Flux6-#{version.csv.first}-macos-arm64.dmg"
   name "Flux6"
   desc "IPv6 client for campus networks"
   homepage "https://study-233.github.io/flux6/"
