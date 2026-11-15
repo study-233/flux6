@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/branding/icon.svg" alt="Flux6" width="100" height="100" />
   <h1>Flux6</h1>
-  <p>教育网 IPv6 免流客户端 · macOS / Android</p>
+  <p>教育网 IPv6 免流客户端 · macOS / Android / Windows</p>
 
 [官网](https://study-233.github.io/flux6/) · [下载](https://github.com/study-233/flux6/releases) · [反馈](https://github.com/study-233/flux6/issues) · [开发文档](docs/development/README.md)
 
@@ -32,6 +32,10 @@ brew install --cask study-233/tap/flux6
 ### Android
 
 下载 [ARM64 APK](https://github.com/study-233/flux6/releases) 安装。连接支持 IPv6 的 Wi-Fi，按首次引导完成配置后连接。
+
+### Windows
+
+在[发行页](https://github.com/study-233/flux6/releases)下载文件名以 `windows-x64-setup.exe` 结尾的 Tauri 安装包。客户端启动时会检查新版，由你选择是否下载安装。
 
 ## 致谢
 

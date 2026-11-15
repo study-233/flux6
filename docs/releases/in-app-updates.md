@@ -6,10 +6,13 @@ macOS 与 Android 从 Flux6 0.1.1 开始支持应用内更新。首次安装和�
 | --- | --- | --- |
 | macOS arm64 | 0.1.1 / 12 | 手动检查 → 签名清单与 ZIP 验证 → 确认安装并重启 |
 | Android arm64 | 0.1.1 / 2026111201 | 关于页手动检查或启动后按偏好检查 → SHA256 校验 → 系统确认安装 |
+| Windows x64 | 0.1.1 | 启动检查 → 用户选择下载 → 校验 SHA256 → 确认安装 |
 
 0.1.0 两端都需先手动安装一次新包，之后才能使用应用内更新。macOS build 11 可通过应用内更新升至 build 12。Android 按发行标签的版本号检查更新，使用过同版本旧候选的用户需要手动覆盖安装新 APK。
 
 ## macOS 通道与密钥
+
+已发布的 build 12 需要手动检查。下一版在用户接受首次使用协议后默认每次启动检查一次，无新版时静默结束。在“设置 → 通用”可关闭启动检查。安装前选择“稍后”会继续运行当前版本。
 
 - 公共配置：[update-channel.json](../../apps/macos/Resources/update-channel.json)。构建脚本默认嵌入，也支持 `FREEV6_UPDATE_CHANNEL_FILE` 指定其他通道。
 - arm64 地址：`https://raw.githubusercontent.com/study-233/flux6/macos-updates/appcast-arm64.xml`。
@@ -42,6 +45,8 @@ Windows 发行包与同版本的 macOS、Android 附件共用一个 Release。�
 3. 核对草稿目标提交和七个附件。确认更新 ZIP 文件名中的版本与 build 和签名清单一致，并按本次 `SHA256SUMS` 核对六个附件的摘要。公开后再匿名下载核对。
 4. 验证 macOS ZIP 可公开下载后，一次提交部署已经签名的 `appcast-arm64.xml` 到 `macos-updates` 分支。签名后不能格式化或改动清单。
 5. 完成正式源检查及升级验收，再同步官网、Homebrew 和发行记录。官网从 GitHub 填入实际 `publishedAt` 和附件数据。复核公开 DMG 的摘要后更新 Tap。
+
+设为 Latest 前还需准备 Windows：按上节顺序上传 Windows 附件，或在此次发行中沿用上一个 Windows 版本的 `version.json`。从 Latest 的公开地址取回清单，检查其中安装包地址和摘要。
 
 ## 本地验证结果
 

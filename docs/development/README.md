@@ -46,7 +46,7 @@ macOS 与 Android 的首个公开正式版为 [0.1.0](../releases/first-public-r
 | Android | `apps/android/pubspec.yaml` 的 `version: 版本+build` | `v<版本>` |
 | Windows | `apps/windows/src-tauri/tauri.conf.json`；Cargo 版本须一致 | `v<版本>` |
 
-各平台均在本地构建和验收，推送标签不会自动打包或上传发行版。历史平台标签保留用于追溯，不再为同一版本创建多个平台 Release。仓库整理不更改产品版本，不自动触发产品发行。Mac Flutter 子工程的 pubspec 版本不是 Mac 发行版本来源。
+macOS 和 Android 在本地构建，Windows Tauri 发行包由 GitHub Actions 构建。推送版本标签不会自动发布附件。历史平台标签保留用于追溯。Mac Flutter 子工程的 pubspec 版本独立于 Mac 发行版本。
 
 Android 构建读取版本源，输出到 `dist/android/<版本>-b<build>/`，包名包含版本及 build。源码包和 APK 分别生成校验文件。Mac 本地应用保持 `dist/macos/Flux6.app`；DMG/更新包由对应打包脚本生成。已发布版本的产物不可覆盖，新发行应先提升版本或 build。旧本地产物确认不再用于回归或回滚后删除，不再默认长期堆放在 `dist/archive/`；保留的安装包必须配对保存对应源码和校验文件。Git 只保存源码、锁文件和必要的验收结论。
 
@@ -109,7 +109,7 @@ Windows 正式构建在 GitHub Actions 的 Windows x64 主机完成，也可在�
 
 只改文档、UI 或平台文件时不安装 Go 工具链、不跑 Go 编译；共享业务变更才增加 Go 验证。使用单一稳定的 `checks` 门禁，避免按路径跳过整个工作流使合并永远等待。
 
-Mac Swift/Flutter/App、Android 嵌套 Go/Flutter/Kotlin/APK/源码包、Windows Go/Rust/NSIS 按改动范围执行；Windows 专用发行工作流另行构建 Tauri 安装包。已删除远端客户端工作流和 Windows 标签自动打包工作流，不安装 Flutter、Xcode、Android SDK/NDK 或 Rust 工具链，不上传新的 CI 安装包。Android 本地完整命令见 [构建说明](../../apps/android/FREEV6.md)，Mac 见 [开发说明](../../apps/macos/DEVELOPMENT.md)，Windows 见 [本地验证与发布](../../apps/windows/README.md)。
+Mac Swift/Flutter/App、Android 嵌套 Go/Flutter/Kotlin/APK/源码包、Windows Go/Rust/NSIS 按改动范围验证。日常 PR 运行轻量仓库检查。Windows 发行工作流另行构建 Tauri 安装包，并在 Windows runner 验证安装。Android 本地完整命令见 [构建说明](../../apps/android/FREEV6.md)，Mac 见 [开发说明](../../apps/macos/DEVELOPMENT.md)，Windows 见 [本地验证与发布](../../apps/windows/README.md)。
 
 远端 `checks` 通过仅表示轻量门禁通过；平台改动的 PR 应记录对应本地测试与构建结果。正式发布前仍要完成所涉及平台的打包、签名与安装验收。Actions 日志保留 30 天，已有 Android CI 附件按原 14 天周期到期；不再持续生成这些附件。未接入自有文档站前不保留 Vercel 发布 Hook。
 
