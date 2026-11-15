@@ -1,16 +1,17 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Flux6",
-  "version": "0.5.3",
+  "version": "0.1.1",
   "identifier": "dev.freev6.desktop",
   "build": {
     "beforeDevCommand": {
       "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-helper.ps1",
-      "cwd": "../.."
+      "cwd": "../../..",
+      "wait": true
     },
     "beforeBuildCommand": {
       "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-helper.ps1",
-      "cwd": "../.."
+      "cwd": "../../.."
     },
     "frontendDist": "../web"
   },

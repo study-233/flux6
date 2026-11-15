@@ -29,6 +29,7 @@ public struct StartupNotices {
     private let defaults: UserDefaults
     private let login = LoginItemManager()
     private var loginRead = UUID()
+    private var updateCheckPending = true
     private var autoPending: Bool
     public private(set) var currentAttempt: UUID?
     public let notices: StartupNotices?
@@ -44,6 +45,17 @@ public struct StartupNotices {
             if !automatic { cancelAutomatic() }
         }
     }
+    public var checkUpdatesOnLaunch: Bool {
+        get { defaults.object(forKey: "checkUpdatesOnLaunch") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "checkUpdatesOnLaunch") }
+    }
+
+    public func takeStartupUpdateCheck() -> Bool {
+        guard accepted, updateCheckPending else { return false }
+        updateCheckPending = false
+        return checkUpdatesOnLaunch
+    }
+
     @Published public var automaticStatus: String?
     public var shouldStartHidden: Bool {
         accepted && silent && (defaults.object(forKey: "showMenuBarExtra") as? Bool ?? true)

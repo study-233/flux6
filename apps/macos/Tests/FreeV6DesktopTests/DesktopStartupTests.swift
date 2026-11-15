@@ -29,11 +29,19 @@ import XCTest
         let first = DesktopStartup(defaults: defaults, notices: documents)
         XCTAssertFalse(first.accepted)
         XCTAssertFalse(first.shouldStartHidden)
+        XCTAssertFalse(first.takeStartupUpdateCheck())
         first.acceptNotices()
+        XCTAssertTrue(first.takeStartupUpdateCheck())
+        XCTAssertFalse(first.takeStartupUpdateCheck())
+        first.checkUpdatesOnLaunch = false
         XCTAssertNil(first.takeAutomaticAttempt())
 
         let launch = DesktopStartup(defaults: defaults, notices: documents)
         XCTAssertTrue(launch.accepted)
+        XCTAssertFalse(launch.takeStartupUpdateCheck())
+        launch.checkUpdatesOnLaunch = true
+        XCTAssertFalse(launch.takeStartupUpdateCheck())
+        XCTAssertTrue(DesktopStartup(defaults: defaults, notices: documents).takeStartupUpdateCheck())
         XCTAssertTrue(launch.shouldStartHidden)
         XCTAssertFalse(launch.loginRequested)
         defaults.set(false, forKey: "showMenuBarExtra")

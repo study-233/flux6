@@ -11,11 +11,12 @@ private final class UpdateAgentProcess: @unchecked Sendable {
     private let output = Pipe()
     private let writer = DispatchQueue(label: "dev.freev6.update.reply")
 
-    init(host: Bundle) throws {
+    init(host: Bundle, background: Bool) throws {
         var continuation: AsyncThrowingStream<UpdateEvent, Error>.Continuation!
         events = AsyncThrowingStream(bufferingPolicy: .bufferingOldest(16)) { continuation = $0 }
         let executable = host.bundleURL.appendingPathComponent("Contents/Helpers/Flux6UpdateAgent.app/Contents/MacOS/freev6-update-agent")
         process.executableURL = executable
+        process.arguments = background ? [UpdatePipe.backgroundCheckArgument] : []
         process.standardInput = input
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
@@ -53,7 +54,7 @@ private final class UpdateAgentProcess: @unchecked Sendable {
     @Published public private(set) var busy = false
     @Published public private(set) var preparingInstallation = false
     @Published public private(set) var installationAuthorized = false
-    @Published public private(set) var status = "手动检查更新"
+    @Published public private(set) var status = "通过签名更新通道检查新版本。"
     @Published public private(set) var error: String?
     private var agent: UpdateAgentProcess?
     private var task: Task<Void, Never>?
@@ -63,7 +64,7 @@ private final class UpdateAgentProcess: @unchecked Sendable {
 
     public init() {}
 
-    public func check(host: Bundle = .main, prepare: @escaping (UpdateRelease, UInt64) async throws -> Void,
+    public func check(host: Bundle = .main, background: Bool = false, prepare: @escaping (UpdateRelease, UInt64) async throws -> Void,
                       install: @escaping () -> Void) {
         guard !busy else { return }
         busy = true
@@ -82,7 +83,8 @@ private final class UpdateAgentProcess: @unchecked Sendable {
                     guard try !ApplicationLocation.requiresInstallation(at: root) else { throw UpdateFailure.invalidHost }
                     guard try CodeIdentity.protectedFile(at: root) == runningIdentity else { throw UpdateFailure.invalidHost }
                 }.value
-                let child = try UpdateAgentProcess(host: host)
+                guard !cancelRequested else { throw UpdateFailure.cancelled }
+                let child = try UpdateAgentProcess(host: host, background: background)
                 agent = child
                 try await follow(child.events, currentBuild: channel.build, answer: child.answer, prepare: prepare, install: install)
             } catch {
