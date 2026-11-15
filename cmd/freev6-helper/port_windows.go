@@ -3,6 +3,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"unsafe"
 
@@ -35,14 +36,23 @@ func killProcess(pid int) error {
 // isHelperPID confirms the port holder is one of ours before killing it — never
 // terminate an unrelated process squatting the port. The image path comes from
 // the kernel, so unlike `tasklist` there is no localized column layout and no
-// stdout that another tool could poison. The substring covers the installed
-// (freev6-helper.exe) and dev sidecar (freev6-helper-<triple>.exe) names.
+// stdout that another tool could poison.
 func isHelperPID(pid int) bool {
 	path, err := processImagePath(uint32(pid))
 	if err != nil {
 		return false
 	}
-	return strings.Contains(strings.ToLower(path), "freev6-helper")
+	return isHelperImage(path)
+}
+
+func isHelperImage(path string) bool {
+	switch strings.ToLower(filepath.Base(path)) {
+	case "flux6-helper.exe", "flux6-helper-x86_64-pc-windows-msvc.exe",
+		"freev6-helper.exe", "freev6-helper-x86_64-pc-windows-msvc.exe":
+		return true
+	default:
+		return false
+	}
 }
 
 // isOrphaned reports whether the holder's desktop parent is gone (the Task

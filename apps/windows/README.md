@@ -24,6 +24,6 @@ cd apps/windows
 cargo tauri build
 ```
 
-产物位于 `apps/windows/src-tauri/target/release/bundle/nsis/`。发布前核对 Tauri/Cargo 版本一致、CHANGELOG 对应版本说明、安装升级和应用行为；需要嵌入 helper 版本资源时，先在 `cmd/freev6-helper/` 执行 `go-winres make --in winres/winres.json --arch amd64 --product-version <版本>.0 --file-version <版本>.0`（`go-winres` 固定为 `v0.3.3`），再构建安装包。
+产物位于 `apps/windows/src-tauri/target/release/bundle/nsis/`。发布前核对 Tauri/Cargo 版本一致、CHANGELOG 对应版本说明、安装升级和应用行为。两套构建都会校验 `flux6-helper.exe` 的文件描述为 `Flux6 Helper`。更新 helper 版本资源时，先在 `cmd/freev6-helper/` 执行 `go-winres make --in winres/winres.json --arch amd64 --product-version <版本>.0 --file-version <版本>.0`（`go-winres` 固定为 `v0.3.3`），再构建安装包。
 
 推送 `windows-v<版本>` 或历史 `v*` 标签均不会自动构建/发布。后续发布任务使用本地验收过的安装包，计算 SHA256，准备 Release 草稿和 `version.json`，核验后发布。`version.json` 保留 `version`、`tag`、`notes`、`setup`、`download`、`sha256` 字段，下载地址指向本仓库该标签的同名附件，摘要必须与实际安装包一致。不要将本地产物标成 GitHub Actions 构建或附上不存在的构建证明。

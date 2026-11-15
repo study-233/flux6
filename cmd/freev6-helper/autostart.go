@@ -57,7 +57,7 @@ func applyAutoStart(root string) error {
 	if _, err := os.Stat(exe); err != nil {
 		return fmt.Errorf("desktop executable not found: %s", exe)
 	}
-	helper := filepath.Join(root, "freev6-helper.exe")
+	helper := filepath.Join(root, "flux6-helper.exe")
 	if _, err := os.Stat(helper); err != nil {
 		return fmt.Errorf("helper executable not found: %s", helper)
 	}

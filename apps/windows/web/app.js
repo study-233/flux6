@@ -1720,7 +1720,7 @@ async function refreshBackendState() {
     // 设置开启时：软件被打开后自动尝试启动免流
     maybeArmAutoRun();
 
-    addLog('已连接 freev6 helper');
+    addLog('已连接 Flux6 Helper');
   } catch (error) {
     if (opGenAtStart !== proxyOpGen) return;
     state.helperOnline = false;
@@ -1731,7 +1731,7 @@ async function refreshBackendState() {
     // （重复启动/上次遗留的进程，多见于固定端口的老版本壳）。
     if (error.message === 'unauthorized') {
       addLog(
-        'helper 不可用: unauthorized（端口被另一个 freev6 实例或遗留的 freev6-helper.exe 占用，请在任务管理器结束后重开）',
+        'helper 不可用: unauthorized（端口被另一个 Flux6 实例或遗留的 flux6-helper.exe 占用，请在任务管理器结束后重开）',
         true,
       );
     } else {
@@ -1827,7 +1827,7 @@ async function pollStatus() {
     } catch (_) { /* 保持上次已知状态 */ }
     if (opGenAtStart !== proxyOpGen) return;
     if (firstConnect) {
-      addLog('已连接 freev6 helper');
+      addLog('已连接 Flux6 Helper');
       // Helper is up: retry a dynamic-color seed fetch that failed at load
       if (state.dynamicColor && !state.dynamicSeed) refreshDynamicColor(true);
       // 首次连上：同步 WARP 注册状态，未注册则自动注册一次

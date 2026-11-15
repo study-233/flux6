@@ -4,7 +4,8 @@ $ErrorActionPreference = 'Stop'
 try {
     $root = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
     $desktop = Join-Path $root 'freev6-desktop.exe'
-    $helper = Join-Path $root 'freev6-helper.exe'
+    $helper = Join-Path $root 'flux6-helper.exe'
+    $legacyHelper = Join-Path $root 'freev6-helper.exe'
     $owned = $false
     $task = Get-ScheduledTask -TaskName 'FreeV6 Autostart' -ErrorAction SilentlyContinue
     if ($task) {
@@ -17,6 +18,7 @@ try {
     $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
     $entry = Get-ItemPropertyValue -Path $key -Name 'FreeV6' -ErrorAction SilentlyContinue
     if ($entry -and ($entry.StartsWith('"' + $helper + '"', [StringComparison]::OrdinalIgnoreCase) -or
+                    $entry.StartsWith('"' + $legacyHelper + '"', [StringComparison]::OrdinalIgnoreCase) -or
                     $entry.StartsWith('"' + $desktop + '"', [StringComparison]::OrdinalIgnoreCase))) {
         Remove-ItemProperty -Path $key -Name 'FreeV6'
         $owned = $true

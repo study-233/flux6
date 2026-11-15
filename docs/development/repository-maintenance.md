@@ -437,3 +437,9 @@ Windows helper 在恢复 DNS 前只读枚举网卡，按接口名、索引及协
 [Flux6 0.1.1](https://github.com/study-233/flux6/releases/tag/v0.1.1) 于新加坡时间 2026-11-12 22:47 公开并设为 Latest，面向 macOS Apple Silicon build 12 及 Android ARM64 build 2026111201。草稿中的旧 build 11 更新 ZIP 已移除。发布前逐项核对了七个附件的名称、大小与 SHA-256，包含 DMG、更新 ZIP、签名清单、APK、两端对应源码和统一校验文件。Windows 只更新源码。隔离升级、签名证书、安装与测试边界见[本轮候选记录](#2026-11-12-接入上游修复并重新准备-011)。
 
 匿名下载的 macOS DMG 和更新 ZIP 与签名发行包逐字节一致。[正式 Sparkle 清单](https://raw.githubusercontent.com/study-233/flux6/macos-updates/appcast-arm64.xml)（提交 `7d5600d`）和 [Homebrew Cask](https://github.com/study-233/homebrew-tap/blob/4050e6b9346c972b6cb40b86cd9ad5dcdf1b4b8c/Casks/flux6.rb) 均已从公开地址取回复核。官网使用同一 Release 的实际附件与发布时间，隔离浏览器验证了 macOS 与 Android 下载入口及校验文件链接。
+
+## 2026-11-15 Windows helper 改名
+
+Tauri 和 Flutter 均打包并启动 `flux6-helper.exe`。共用构建脚本校验产物的文件描述 `Flux6 Helper` 和原始文件名。两套 NSIS 安装器在新文件就位后迁移指向本安装目录的旧 helper 自启动项，再清理旧文件。任务管理器的自启动开关沿用原有注册表值。
+
+macOS 上已通过根 Go 测试和 vet、Windows x64 helper 和测试包交叉编译、Windows helper vet、11 项 Web 测试、Flutter 分析和 30 项测试，以及源码打包检查。从 x64 EXE 提取的文件描述和原始文件名均符合预期，从对应源码包重新生成的资源对象与入库版本逐字节一致。NSIS 3.13 使用合成负载编译了 Flutter 安装脚本，并在测试模板中编译了 Tauri 的安装与卸载钩子。完整 Windows 客户端构建、安装升级与卸载、注册表迁移和任务管理器显示仍待 Windows 实机验证。
