@@ -513,3 +513,11 @@ macOS 下一版在用户同意首次使用协议后默认每次启动检查一�
 新增 [release](../../.agents/skills/release/SKILL.md)，统一发行说明、公开附件和更新通道的发布顺序。新 Release 只写用户可见变化和必要的升级操作，省略 SHA-256 校验附件。已对照 `v0.1.1` 源码记录 Android 旧版应用内升级对该附件的依赖。
 
 技能格式、索引与链接、Git 忽略规则、仓库检查、发行来源和 9 项维护测试通过。本次仅修改技能及仓库指引，未构建客户端或执行发布。
+
+## 2026-11-15 远端分支整理
+
+[桌面更新渠道 #17](https://github.com/study-233/flux6/pull/17)、[流量统计与 Android 图表 #18](https://github.com/study-233/flux6/pull/18)、[macOS 服务恢复 #13](https://github.com/study-233/flux6/pull/13) 和 [Windows Tauri 整合 #19](https://github.com/study-233/flux6/pull/19) 已合入主线。Windows 使用会话的动态控制端口获取内核累计流量，安装器可迁移旧 helper。macOS 的签名更新清单继续由 `macos-updates` 分支提供。
+
+旧 Windows FlClash 原型可从标签 `archive/windows-flclash-prototype-20261115` 恢复。macOS build 11 的旧分发草稿保存在 `archive/distribution-build11-20261115`，已发布的 0.1.1 使用 build 12。
+
+macOS 服务安装与修复的 25 项 Swift 测试通过。Windows 的 19 项 Web 与离线预览测试及 2 项源码打包测试通过。[Windows Actions](https://github.com/study-233/flux6/actions/runs/43691981527) 从整合提交构建了 x64 NSIS 安装包，在干净的 runner 上静默安装并核对了版本与 helper。旧版覆盖升级与真实网络仍属设备验收范围，本次没有发布新安装包。
