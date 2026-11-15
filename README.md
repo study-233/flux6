@@ -54,4 +54,9 @@ brew install --cask study-233/tap/flux6
 
 ## Star History
 
-[![Flux6 星标数随时间的变化](https://my-starchart.vercel.app/study-233/flux6.svg?variant=adaptive)](https://my-starchart.vercel.app/study-233/flux6)
+<a href="https://www.star-history.com/?repos=study-233%2Fflux6&amp;type=date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=study-233%2Fflux6&amp;type=date&amp;theme=dark" />
+    <img alt="Flux6 星标数随时间的变化" src="https://api.star-history.com/chart?repos=study-233%2Fflux6&amp;type=date" />
+  </picture>
+</a>
