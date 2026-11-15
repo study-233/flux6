@@ -111,8 +111,8 @@
       "reason": "Record the local FreeV6 path dependency without upgrading upstream locked packages."
     },
     "pubspec.yaml": {
-      "sha256": "6f86a4d7f0f7b4eac68db6d5dbb6726aab8ae9f0a7b31b4f5b5a978d9f967910",
-      "reason": "Reuse the existing FreeV6 model by path, pin Prism locally and disable core build hooks."
+      "sha256": "1be3e1533a691e3947a1e0e6d382b79dbadefe72b40be75c8d7cebc432e7d934",
+      "reason": "Reuse the existing FreeV6 model by path, pin Prism locally and disable core build hooks. Set the Flux6 Windows release version."
     },
     "test/lint/dynamic_message_key_test.dart": {
       "sha256": "dbb4b7085d366a8c3d179b626af97709ebaaf66b0d350b52f6b0aa2be280ef07",

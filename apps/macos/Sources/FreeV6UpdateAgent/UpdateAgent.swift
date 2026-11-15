@@ -4,6 +4,7 @@ import FreeV6UpdateSupport
 
 @MainActor final class UpdateAgent: NSObject, NSApplicationDelegate, SPUUpdaterDelegate, SPUUserDriver {
     private let operation = UUID()
+    private let background = CommandLine.arguments.contains(UpdatePipe.backgroundCheckArgument)
     private var host: Bundle!
     private var channel: UpdateChannel!
     private var updater: SPUUpdater!
@@ -31,7 +32,12 @@ import FreeV6UpdateSupport
             updater = SPUUpdater(hostBundle: host, applicationBundle: .main, userDriver: self, delegate: self)
             listen()
             try updater.start()
-            updater.checkForUpdates()
+            if background {
+                send(.checking)
+                updater.checkForUpdatesInBackground()
+            } else {
+                updater.checkForUpdates()
+            }
         } catch { fail(error as? UpdateFailure ?? .invalidHost) }
     }
 
@@ -74,7 +80,8 @@ import FreeV6UpdateSupport
             installationReply = nil
             reply(.skip)
         } else {
-            cancellation?()
+            if let cancellation { cancellation() }
+            else if background { fail(.cancelled) }
         }
     }
 
@@ -195,7 +202,12 @@ import FreeV6UpdateSupport
 
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
         if cancelling { send(.failed, failure: .cancelled); stop() }
-        else if !approved { send(error == nil ? .finished : .failed, failure: error == nil ? nil : .invalidFeed); stop() }
+        else if !approved {
+            let reason = error as NSError?
+            let noUpdate = reason?.domain == SUSparkleErrorDomain && reason?.code == Int(SUError.noUpdateError.rawValue)
+            if error == nil || noUpdate { send(.finished); stop() }
+            else { fail(.invalidFeed) }
+        }
     }
 }
 

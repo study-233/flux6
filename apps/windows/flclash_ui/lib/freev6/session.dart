@@ -105,7 +105,7 @@ class FreeV6Session {
     globalState.packageInfo = PackageInfo(
       appName: 'FreeV6',
       packageName: 'dev.freev6.windows.offline',
-      version: model.runtime['appVersion']?.toString() ?? '0.5.3',
+      version: model.runtime['appVersion']?.toString() ?? '',
       buildNumber: '0',
     );
     _hold = container.listen(configProvider, (_, _) {});

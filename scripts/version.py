@@ -14,18 +14,15 @@ def versions(root=ROOT, platform=None):
     if platform in (None, 'macos'):
         manifest = plistlib.loads((root / 'apps/macos/Resources/Info.plist').read_bytes())
         data['macos'] = {'version': manifest['CFBundleShortVersionString'], 'build': manifest['CFBundleVersion']}
-    if platform in (None, 'android'):
-        android = re.search(r'^version:\s*(\S+)\s*$', (root / 'apps/android/pubspec.yaml').read_text(), re.M)
-        if android is None or '+' not in android[1]:
-            raise ValueError('Android requires a version and build number')
-        version, build = android[1].split('+', 1)
-        data['android'] = {'version': version, 'build': build}
-    if platform in (None, 'windows'):
-        windows = json.loads((root / 'apps/windows/src-tauri/tauri.conf.json').read_text())['version']
-        cargo = re.search(r'^version\s*=\s*"([^"]+)"', (root / 'apps/windows/src-tauri/Cargo.toml').read_text(), re.M)
-        if cargo is None or cargo[1] != windows:
-            raise ValueError('Windows Tauri and Cargo versions differ')
-        data['windows'] = {'version': windows, 'build': None}
+    for name, manifest_path in [('android', 'apps/android/pubspec.yaml'),
+                                ('windows', 'apps/windows/flclash_ui/pubspec.yaml')]:
+        if platform is not None and platform != name:
+            continue
+        match = re.search(r'^version:\s*(\S+)\s*$', (root / manifest_path).read_text(), re.M)
+        if match is None or '+' not in match[1]:
+            raise ValueError(f'{name} requires a version and build number')
+        version, build = match[1].split('+', 1)
+        data[name] = {'version': version, 'build': build}
     for platform, item in data.items():
         if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[\w.-]+)?', item['version']):
             raise ValueError(f'Invalid {platform} version')

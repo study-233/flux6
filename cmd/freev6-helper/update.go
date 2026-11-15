@@ -311,29 +311,11 @@ func (h *helper) updateProgress(writer http.ResponseWriter, request *http.Reques
 
 // ── Latest-release check (version.json — no GitHub API) ──────────────
 //
-// Every release publishes a version.json asset; the stable URL
-// releases/latest/download/version.json redirects to the newest STABLE
-// release only (prereleases excluded) and is a web/CDN endpoint, so no API
-// quota is involved. The helper fetches it proxy-first (gh-proxy mirror)
-// with a direct fallback and a cache-buster, so the frontend never talks to
-// GitHub directly: no CORS exposure, no shared-pool403s.
+// Fetch the expected digest directly from the publisher. Mirrors may serve
+// installer bytes, which are checked against this manifest before installation.
+var updateLatestURL = publisher.RepositoryURL + "/releases/latest/download/version.json"
 
-const updateRepoSlug = publisher.Repository
-
-// updateLatestURLs is a var so tests can point it at a local server.
-// 缓存穿透参数拼在每条 URL 上；镜像顺序与安装包下载一致。
-var updateLatestURLs = func() []string {
-	direct := fmt.Sprintf("https://github.com/%s/releases/latest/download/version.json", updateRepoSlug)
-	urls := make([]string, 0, len(updateMirrorPrefixes)+1)
-	for _, prefix := range updateMirrorPrefixes {
-		urls = append(urls, prefix+direct)
-	}
-	return append(urls, direct)
-}
-
-// stableVersionPattern accepts a plain x.y.z base (any suffix allowed for
-// forward compatibility; /releases/latest never returns prereleases anyway).
-var stableVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+var stableVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 type latestVersionInfo struct {
 	Version  string `json:"version"`
@@ -356,13 +338,16 @@ func parseVersionJSON(data []byte) (*latestVersionInfo, error) {
 	if !stableVersionPattern.MatchString(info.Version) {
 		return nil, fmt.Errorf("invalid version: %q", info.Version)
 	}
-	if strings.TrimSpace(info.Download) == "" {
-		return nil, fmt.Errorf("version.json missing download url")
+	if info.Tag != "v"+info.Version || !strings.HasSuffix(info.Setup, ".exe") ||
+		strings.ContainsAny(info.Setup, `/\?#%`) {
+		return nil, fmt.Errorf("invalid update tag or installer name")
 	}
-	u, err := url.Parse(info.Download)
-	if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil ||
-		!strings.HasPrefix(u.Path, "/"+publisher.Repository+"/releases/download/") {
-		return nil, fmt.Errorf("version.json download must belong to %s", publisher.Repository)
+	expected := publisher.RepositoryURL + "/releases/download/" + info.Tag + "/" + url.PathEscape(info.Setup)
+	if info.Download != expected {
+		return nil, fmt.Errorf("installer URL does not match the release asset")
+	}
+	if digest, err := hex.DecodeString(info.SHA256); err != nil || len(digest) != sha256.Size {
+		return nil, fmt.Errorf("invalid update SHA256")
 	}
 	return &info, nil
 }
@@ -395,27 +380,14 @@ func (h *helper) updateLatest(writer http.ResponseWriter, request *http.Request)
 		return
 	}
 	client := &http.Client{Timeout: 8 * time.Second}
+	address := updateLatestURL + "?ts=" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	body, err := fetchVersionJSON(client, address, []string{"github.com"})
 	var info *latestVersionInfo
-	var lastErr error
-	for _, rawURL := range updateLatestURLs() {
-		// Cache-bust so the mirror's edge cache can't pin an old "latest".
-		u := rawURL + "?ts=" + strconv.FormatInt(time.Now().UnixNano(), 10)
-		body, err := fetchVersionJSON(client, u, updateAllowedHosts)
-		if err != nil {
-			lastErr = err
-			continue
-		}
+	if err == nil {
 		info, err = parseVersionJSON(body)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		break
 	}
-	if info == nil {
-		writeJSON(writer, http.StatusOK, map[string]any{
-			"ok": true, "update": false, "error": errorText(lastErr),
-		})
+	if err != nil {
+		writeJSON(writer, http.StatusOK, map[string]any{"ok": true, "update": false, "error": errorText(err)})
 		return
 	}
 	writeJSON(writer, http.StatusOK, map[string]any{

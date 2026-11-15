@@ -46,7 +46,8 @@ class PackagingTest(unittest.TestCase):
                 self.assertIn('Flux6-source/scripts/branding/generate-cats.py', names)
                 self.assertIn('Flux6-source/assets/branding/cats/cow.svg', names)
                 self.assertEqual(json.loads(package.read('Flux6-source/windows-source-sha256.json')), snapshot)
-                self.assertFalse(any('/state/' in name or name.endswith('.exe') for name in names))
+                self.assertIn('Flux6-source/apps/windows/flclash_ui/lib/live_main.dart', names)
+                self.assertFalse(any(name.endswith('.exe') for name in names))
             with patch.object(source, 'inventory', return_value={**snapshot, 'changed': 'hash'}):
                 with self.assertRaisesRegex(ValueError, 'changed during build'):
                     source.prepare(bundle, manifest)

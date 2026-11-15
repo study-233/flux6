@@ -45,7 +45,7 @@ try {
         $running = Get-Process -Name 'freev6-flclash-preview' -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and ([IO.Path]::GetFullPath($_.Path) -ieq $exe) }
         if ($running) { throw 'Close the preview from this build directory before rebuilding it' }
-        $releaseVersion = (Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
+        $releaseVersion = (python (Join-Path $root 'scripts/version.py') --platform windows --field version)
         Invoke-Flutter build windows --release --no-pub --target lib/main.dart @flags --build-name=$releaseVersion --build-number=0
         if (-not (Test-Path -LiteralPath $exe)) { throw 'Offline preview executable missing' }
         $binaries = @(Get-ChildItem -LiteralPath (Split-Path $exe) -Filter '*.exe' -Recurse)

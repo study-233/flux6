@@ -243,7 +243,7 @@ class FreeV6SettingsView extends ConsumerWidget {
             ),
             ListItem(
               title: const Text('FreeV6'),
-              subtitle: Text('${model.runtime['appVersion'] ?? '0.5.3'}'),
+              subtitle: Text('${model.runtime['appVersion'] ?? '—'}'),
               trailing: const Text('FlClash 0.9.3'),
             ),
           ],

@@ -15,7 +15,7 @@ TREES = ('apps/windows/', 'scripts/windows/', 'scripts/branding/', 'cmd/', 'inte
 FILES = {'LICENSE', 'README.md', 'THIRD-PARTY.txt', 'go.mod', 'go.sum', 'notice.json',
          'docs/agreement.md', 'docs/privacy.md', 'docs/development/windows-flutter-refactor.md',
          'docs/development/windows-flutter-acceptance.md', 'docs/development/repository-maintenance.md',
-         'docs/development/windows-flclash-evaluation.md',
+         'docs/development/windows-flclash-evaluation.md', '.github/workflows/windows-release.yml',
          'docs/development/README.md', 'scripts/version.py', 'AGENTS.md', '.gitattributes', '.gitignore'}
 FORBIDDEN = {'build', 'dist', '.dart_tool', 'ephemeral', 'target', 'state', 'runtime', '.git'}
 PRIVATE = {'.key', '.pem', '.p12', '.p8', '.jks', '.keystore', '.exe', '.dll', '.syso'}
@@ -79,7 +79,7 @@ def prepare(bundle, manifest):
                          (vendor / 'MACOS-SOURCE.json', 'MACOS-SOURCE.json'),
                          (vendor / 'WINDOWS-PATCHES.json', 'WINDOWS-PATCHES.json')):
         shutil.copyfile(source, notices / name)
-    if any((bundle / name).is_file() for name in ('freev6-flclash-preview.exe', 'freev6-flclash-offline.exe')):
+    if (ROOT / 'apps/windows/flclash_ui').is_dir():
         prototype = ROOT / 'apps/windows/flclash_ui'
         for source, name in ((prototype / 'LICENSE', 'FlClash-Application-GPLv3.txt'),
                              (prototype / 'plugins/prism_ui/LICENSE', 'PrismUI-Application-LICENSE.txt'),

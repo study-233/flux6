@@ -1,0 +1,84 @@
+name: Build Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['release/windows-*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      PYTHONUTF8: '1'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+      - name: Install pinned Flutter SDK
+        shell: pwsh
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter'
+          git clone --depth 1 --branch 3.47.6 https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter checkout failed' }
+          if ((git -C $sdk rev-parse HEAD) -ne '5fc346839b5d0eef006ed8404392afb4dfae428d') { throw 'Unexpected Flutter revision' }
+          "$sdk/bin" >> $env:GITHUB_PATH
+          "FREEV6_FLUTTER_SDK=$sdk" >> $env:GITHUB_ENV
+      - name: Restore locked dependencies
+        shell: pwsh
+        run: |
+          flutter precache --windows
+          if ($LASTEXITCODE -ne 0) { throw 'Engine preparation failed' }
+          foreach ($project in 'flutter_ui','flclash_ui') {
+            Push-Location "apps/windows/$project"
+            try {
+              flutter pub get --enforce-lockfile
+              if ($LASTEXITCODE -ne 0) { throw "Dependency restore failed for $project" }
+            } finally { Pop-Location }
+          }
+      - name: Prepare pinned GeoSite
+        shell: pwsh
+        run: |
+          $catalog = Get-Content internal/mihomo/geodata-assets.json -Raw | ConvertFrom-Json
+          $asset = $catalog.assets | Where-Object name -eq 'GeoSite.dat'
+          Invoke-WebRequest "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/$($catalog.revision)/$($asset.sourceName)" -OutFile GeoSite.dat
+          if ((Get-FileHash GeoSite.dat).Hash -ne $asset.sha256) { throw 'Unexpected GeoSite digest' }
+      - name: Build and test FlClash live x64
+        shell: pwsh
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}/NSIS/makensis.exe"
+          if (!(Test-Path $nsis)) {
+            choco install nsis --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
+          }
+          ./scripts/windows/build-flutter.ps1 -MakeNsis $nsis
+      - name: Verify installer on the disposable runner
+        shell: pwsh
+        run: |
+          $version = python scripts/version.py --platform windows --field version
+          $dir = Resolve-Path "dist/windows/$version-flclash"
+          $manifest = Get-Content "$dir/version.json" -Raw | ConvertFrom-Json
+          $exe = Join-Path $dir $manifest.setup
+          if ($manifest.version -ne $version -or $manifest.tag -ne "v$version" -or
+              $manifest.sha256 -ne (Get-FileHash $exe).Hash -or
+              $manifest.download -ne "https://github.com/study-233/flux6/releases/download/v$version/$($manifest.setup)") { throw 'Invalid update manifest' }
+          $root = Join-Path $env:RUNNER_TEMP 'Flux6 Install'
+          $setup = Start-Process $exe -ArgumentList "/S /D=$root" -PassThru
+          if (!$setup.WaitForExit(120000) -or $setup.ExitCode -ne 0) { throw 'Silent installation failed' }
+          foreach ($file in 'freev6-desktop.exe','freev6-helper.exe','data/app.so','NOTICES/FlClash-Application-GPLv3.txt') {
+            if (!(Test-Path "$root/$file" -PathType Leaf)) { throw "Missing installed file $file" }
+          }
+          if ((Get-Item "$root/freev6-desktop.exe").VersionInfo.ProductVersion -notmatch "^$([regex]::Escape($version))([+.].*)?$") { throw 'Installed version mismatch' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flux6-windows-x64
+          path: dist/windows/*-flclash/*
+          if-no-files-found: error

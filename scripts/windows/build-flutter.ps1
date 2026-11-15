@@ -8,7 +8,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-$ui = Join-Path $root 'apps/windows/flutter_ui'
+$ui = Join-Path $root 'apps/windows/flclash_ui'
 $flutter = if ($FlutterSdk) { Join-Path $FlutterSdk 'bin/flutter.bat' } else { 'flutter' }
 $nativeArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 if ($env:OS -ne 'Windows_NT' -or $nativeArch -ne 'AMD64') { throw 'This build script targets Windows x64. ARM64 is not yet an accepted target.' }
@@ -24,9 +24,11 @@ $env:FLUTTER_SUPPRESS_ANALYTICS = 'true'
 $env:DART_SUPPRESS_ANALYTICS = 'true'
 $found = (& $flutter --version --machine | Out-String | ConvertFrom-Json).frameworkVersion
 if ($LASTEXITCODE -ne 0 -or $found -ne '3.47.6') { throw "Expected Flutter 3.47.6; found $found" }
-$version = (Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
+$releaseInfo = & $Python (Join-Path $root 'scripts/version.py') --platform windows | ConvertFrom-Json
+$version = $releaseInfo.version
+$build = $releaseInfo.build
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Windows release version must be numeric x.y.z' }
-$destination = Join-Path $root "dist/windows/$version-flutter"
+$destination = Join-Path $root "dist/windows/$version-flclash"
 if (Test-Path $destination) {
     if (-not $Rebuild) { throw "Candidate already exists: $destination. Use -Rebuild for a local unpublished candidate." }
     # Never erase data created by a user who launched an old unpacked candidate.
@@ -51,7 +53,7 @@ try {
     Invoke-Checked $Python @('scripts/windows/check-sources.py')
     Invoke-Checked $Python @('scripts/windows/package-source.py','snapshot','--manifest',$manifest)
     if (-not $SkipChecks) {
-        & (Join-Path $PSScriptRoot 'check-flutter.ps1') -FlutterSdk $FlutterSdk -SkipBuild
+        & (Join-Path $PSScriptRoot 'check-flclash-backend.ps1') -FlutterSdk $FlutterSdk -SkipBuild
         # These integration tests write autostart or DNS state on the host.
         # Keep package checks isolated; run them separately during native acceptance.
         Invoke-Checked 'go' @('test','-timeout=180s','-skip','^(TestAutoStartRoundTrip|TestRemoveAutoStartIdempotent|TestRestoreSnapshotDNSFailureIsNonFatal)$','./cmd/freev6-helper','./internal/...')
@@ -60,7 +62,7 @@ try {
     Push-Location $ui
     try {
         Invoke-Checked $flutter @('pub','get','--enforce-lockfile')
-        Invoke-Checked $flutter @('build','windows','--release','--no-pub','--flavor','live','--target','lib/live_main.dart',"--build-name=$version",'--build-number=0')
+        Invoke-Checked $flutter @('build','windows','--release','--no-pub','--flavor','live','--target','lib/live_main.dart','--dart-define=FREEV6_BACKEND=true',"--build-name=$version","--build-number=$build")
     } finally { Pop-Location }
     $release = Join-Path $ui 'build/windows/x64/live/runner/Release'
     # Explicit payload selection excludes any runtime data beside a test build.
@@ -75,7 +77,7 @@ try {
     New-Item -ItemType Directory -Force (Join-Path $bundle 'docs') | Out-Null
     Copy-Item (Join-Path $root 'docs/agreement.md'),(Join-Path $root 'docs/privacy.md') (Join-Path $bundle 'docs')
     Invoke-Checked $Python @('scripts/windows/package-source.py','prepare','--manifest',$manifest,'--bundle',$bundle)
-    $sources = Join-Path $destination "Flux6_${version}_windows_flutter_source.zip"
+    $sources = Join-Path $destination "Flux6-${version}-windows-source.zip"
     Invoke-Checked $Python @('scripts/windows/package-source.py','archive','--bundle',$bundle,'--output',$sources)
     if (-not $NoInstaller) {
         $uninstall = Join-Path $work 'uninstall-files.nsh'
@@ -89,10 +91,19 @@ try {
             $lines.Add('RMDir "$INSTDIR\' + $relative + '"')
         }
         [IO.File]::WriteAllLines($uninstall,$lines,[Text.UTF8Encoding]::new($true))
-        $setup = Join-Path $destination "Flux6_${version}_x64_flutter_setup.exe"
+        $setup = Join-Path $destination "Flux6-${version}-windows-x64-setup.exe"
         Invoke-Checked $MakeNsis @('/INPUTCHARSET','UTF8',"/DVERSION=$version","/DREPO=$root","/DBUNDLE=$bundle","/DOUTPUT=$setup","/DUNINSTALL_FILES=$uninstall",(Join-Path $root 'apps/windows/installer/flutter.nsi'))
+        $update = [ordered]@{
+            version = $version
+            tag = $releaseInfo.tag
+            setup = [IO.Path]::GetFileName($setup)
+            download = "https://github.com/study-233/flux6/releases/download/$($releaseInfo.tag)/$([IO.Path]::GetFileName($setup))"
+            sha256 = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+            notes = "Flux6 Windows $version"
+        }
+        [IO.File]::WriteAllText((Join-Path $destination 'version.json'), ($update | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     }
-    Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $destination "Flux6_${version}_x64_flutter_portable.zip")
+    Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $destination "Flux6-${version}-windows-x64-portable.zip")
     $hashes = @(Get-ChildItem $destination -File | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name })
     [IO.File]::WriteAllLines((Join-Path $destination 'SHA256SUMS'),$hashes,[Text.UTF8Encoding]::new($false))
     Write-Output "Candidate ready: $destination"

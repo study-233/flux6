@@ -18,7 +18,7 @@ try {
 Push-Location $app
 try {
     if(-not $SkipBuild){
-        $version=(Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw|ConvertFrom-Json).version
+        $version=(python (Join-Path $root 'scripts/version.py') --platform windows --field version)
         Invoke-Flutter build windows --release --no-pub --flavor fixture --target lib/fixture_main.dart --dart-define=SAFE_MODE=true --dart-define=FREEV6_OFFLINE=true --build-name=$version --build-number=0
         $exe=Join-Path $app 'build/windows/x64/fixture/runner/Release/freev6-flclash-offline.exe'
         if(-not(Test-Path -LiteralPath $exe)){throw 'Offline backend fixture executable missing'}
