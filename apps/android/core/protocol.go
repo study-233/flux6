@@ -56,6 +56,7 @@ const (
 
 	trafficCurrentMethod     CoreMethod = "traffic.current"
 	trafficTotalMethod       CoreMethod = "traffic.total"
+	trafficUsageMethod       CoreMethod = "traffic.usage"
 	trafficResetMethod       CoreMethod = "traffic.reset"
 	connectionListMethod     CoreMethod = "connection.list"
 	connectionCountMethod    CoreMethod = "connection.count"

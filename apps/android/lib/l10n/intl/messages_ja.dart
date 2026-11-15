@@ -238,7 +238,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(value) => "ピーク ${value}";
 
-  static String m98(value) => "累計 ${value}";
+  static String m98(value) => "今回 ${value}";
 
   static String m99(transport) => "${transport} リクエストヘッダー";
 
@@ -1870,8 +1870,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalUpload": MessageLookupByLibrary.simpleMessage("アップロード量"),
     "tproxyPort": MessageLookupByLibrary.simpleMessage("TProxyポート"),
     "traffic": MessageLookupByLibrary.simpleMessage("通信量"),
+    "trafficAllTime": MessageLookupByLibrary.simpleMessage("累計"),
     "trafficPeak": m97,
-    "trafficTotal": m98,
+    "trafficSessionUsage": m98,
+    "trafficThisMonth": MessageLookupByLibrary.simpleMessage("今月"),
     "trafficUsage": MessageLookupByLibrary.simpleMessage("トラフィック統計"),
     "transport": MessageLookupByLibrary.simpleMessage("トランスポート"),
     "transportHeaders": m99,

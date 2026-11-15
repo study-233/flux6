@@ -29,8 +29,7 @@ const state = {
   trafficHistory: [],
   totalUpload: 0,
   totalDownload: 0,
-  lastUpload: 0,
-  lastDownload: 0,
+  trafficPid: 0,
 
   // Notice（公告板）：启动时由 helper /api/v1/notice 拉取一次
   notices: [],
@@ -184,7 +183,11 @@ async function api(path, options = {}) {
 // 停止免流。快照损坏/读不出来时 helper 仍会成功停止、只跳过网络状态还原
 // （restoreSkipped）——记进日志提示用户，不能静默吞掉。
 async function stopProxyApi() {
+  if (state.proxyRunning && state.trafficPid) await pollTraffic();
   const payload = await api('/proxy/stop', { method: 'POST' });
+  trafficStats.cursor = null;
+  trafficStats.dirty = true;
+  flushTrafficStats(true);
   proxyOpGen += 1;
   if (payload.restoreSkipped) {
     addLog(`网络状态还原已跳过（快照不可用）: ${payload.restoreSkipped}`, true);
@@ -390,6 +393,8 @@ async function startProxyFlow(auto = false) {
       return { ok: false, reason: 'api', message: e.message, code: e.code };
     }
     proxyOpGen += 1;
+    state.trafficPid = started.pid || 0;
+    trafficStats.cursor = null;
     setRunning(true);
     // 启动响应携带本轮渲染所用的 controller secret，先于下一次 /status
     // 轮询就位，紧随其后的流量/节点请求即可带上 Bearer
@@ -1258,7 +1263,7 @@ function updateStatsRing() {
 const TRAFFIC_STATS_KEY = 'freev6-traffic-stats';
 const TRAFFIC_FLUSH_MS = 3000; // 每秒都有增量：合并写入，避免高频落盘
 
-const trafficStats = { total: { up: 0, down: 0 }, months: {}, dirty: false, lastFlush: 0 };
+const trafficStats = { total: { up: 0, down: 0 }, months: {}, cursor: null, dirty: false, lastFlush: 0 };
 
 function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1270,6 +1275,9 @@ function loadTrafficStats() {
     if (!raw) return;
     const data = JSON.parse(raw);
     const num = v => (typeof v === 'number' && isFinite(v) && v > 0 ? v : 0);
+    const cursor = data?.cursor;
+    if (cursor && Number.isSafeInteger(cursor.pid) && cursor.pid > 0 &&
+        validTrafficTotal(cursor.up) && validTrafficTotal(cursor.down)) trafficStats.cursor = cursor;
     if (data?.total) trafficStats.total = { up: num(data.total.up), down: num(data.total.down) };
     if (data?.months && typeof data.months === 'object') {
       const months = {};
@@ -1297,7 +1305,7 @@ function flushTrafficStats(force = false) {
   const now = Date.now();
   if (!force && now - trafficStats.lastFlush < TRAFFIC_FLUSH_MS) return;
   try {
-    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months }));
+    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months, cursor: trafficStats.cursor }));
     trafficStats.dirty = false;
     trafficStats.lastFlush = now;
   } catch (_) { /* 存储不可用：内存继续累计，下次再试 */ }
@@ -1689,6 +1697,7 @@ async function refreshBackendState() {
     }
 
     setMode(state.mode, false, true);
+    state.trafficPid = status.proxy?.pid || 0;
     setRunning(Boolean(status.proxy?.running));
     // 9090 直连凭据：以 helper 的权威值为准（含文件被删后的空串降级）
     state.controllerSecret = typeof status.controllerSecret === 'string' ? status.controllerSecret : '';
@@ -1733,64 +1742,67 @@ async function refreshBackendState() {
 
 /* ── Traffic Polling ──────────────────────────────────────────── */
 
+let trafficRequest = 0;
+let lastTrafficResponse = 0;
+let lastTrafficTime = null;
+
+function validTrafficTotal(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
 async function pollTraffic() {
-  if (!state.proxyRunning) {
-    // Stopped: zero the chart history, the totals baseline and the speed readout
-    resetTrafficDisplay(true);
+  if (!state.proxyRunning || !state.trafficPid) {
+    lastTrafficTime = null;
+    resetTrafficDisplay();
     return;
   }
-
+  const pid = state.trafficPid;
+  const generation = proxyOpGen;
+  const request = ++trafficRequest;
+  const current = () => state.proxyRunning && state.trafficPid === pid &&
+    generation === proxyOpGen && request > lastTrafficResponse;
   try {
-    // mihomo controller connections API
-    const resp = await fetch('http://127.0.0.1:9090/connections', { headers: controllerHeaders() });
+    const resp = await fetch('http://127.0.0.1:9090/connections', {
+      headers: controllerHeaders(), signal: AbortSignal.timeout(1500),
+    });
     if (!resp.ok) return;
-    const data = await resp.json();
+    const { uploadTotal: up, downloadTotal: down } = await resp.json();
+    if (!current() || !validTrafficTotal(up) || !validTrafficTotal(down)) return;
+    lastTrafficResponse = request;
 
-    let upTotal = 0, downTotal = 0;
-    for (const conn of (data.connections || [])) {
-      upTotal += conn.upload || 0;
-      downTotal += conn.download || 0;
-    }
-
-    const deltaUp = Math.max(0, upTotal - state.lastUpload);
-    const deltaDown = Math.max(0, downTotal - state.lastDownload);
-
-    if (state.lastUpload > 0) {
-      state.trafficHistory.push({ t: Date.now(), up: deltaUp, down: deltaDown });
-      if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
-      state.totalUpload += deltaUp;
-      state.totalDownload += deltaDown;
-      // 同一份增量同时计入本月 / 累计（跨会话持久化）
-      addTrafficStats(deltaUp, deltaDown);
-    }
-
-    state.lastUpload = upTotal;
-    state.lastDownload = downTotal;
-
-    // Update speed display
-    $('#speedUp').textContent = formatSpeed(deltaUp);
-    $('#speedDown').textContent = formatSpeed(deltaDown);
-
-    // Update stats
-    updateStatsRing();
+    // The controller totals include connections that closed between two polls.
+    const previous = trafficStats.cursor;
+    const sameCore = previous?.pid === pid;
+    if (sameCore && (up < previous.up || down < previous.down)) return;
+    const deltaUp = sameCore ? up - previous.up : up;
+    const deltaDown = sameCore ? down - previous.down : down;
+    trafficStats.cursor = { pid, up, down };
+    if (!sameCore) trafficStats.dirty = true;
+    addTrafficStats(deltaUp, deltaDown);
+    state.totalUpload += deltaUp;
+    state.totalDownload += deltaDown;
     flushTrafficStats();
-    renderTrafficHint();
 
-    // Redraw chart
+    const now = Date.now();
+    const seconds = sameCore && lastTrafficTime !== null ? (now - lastTrafficTime) / 1000 : 0;
+    lastTrafficTime = now;
+    const upRate = seconds > 0 ? deltaUp / seconds : 0;
+    const downRate = seconds > 0 ? deltaDown / seconds : 0;
+    state.trafficHistory.push({ t: now, up: upRate, down: downRate });
+    if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
+    $('#speedUp').textContent = formatSpeed(upRate);
+    $('#speedDown').textContent = formatSpeed(downRate);
+    updateStatsRing();
+    renderTrafficHint();
     drawChart();
   } catch (_) {
-    // mihomo not reachable: show zeros but keep the totals baseline
-    resetTrafficDisplay(false);
+    if (current()) resetTrafficDisplay();
   }
 }
 
-function resetTrafficDisplay(clearCounters) {
+function resetTrafficDisplay() {
   state.trafficHistory.push({ t: Date.now(), up: 0, down: 0 });
   if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
-  if (clearCounters) {
-    state.lastUpload = 0;
-    state.lastDownload = 0;
-  }
   $('#speedUp').textContent = formatSpeed(0);
   $('#speedDown').textContent = formatSpeed(0);
   drawChart();
@@ -1830,6 +1842,7 @@ async function pollStatus() {
     }
     const wasRunning = state.proxyRunning;
     const isRunning = Boolean(status.proxy?.running);
+    state.trafficPid = status.proxy?.pid || 0;
     if (wasRunning !== isRunning) {
       setRunning(isRunning);
       addLog(isRunning ? '免流模式已启动' : '免流模式已停止');
