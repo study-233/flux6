@@ -186,8 +186,9 @@
       heroText.textContent = t('heroRelease', release.tag);
       $('#hero-release').href = `#${release.tag}`;
       $('#dl-meta').textContent = t('dlMeta', release.version, formatDate(release.date, state.lang));
-      $('#sums-link').href = `${REPO}/releases/download/${release.tag}/SHA256SUMS`;
-      $('#sums-link').hidden = !release.assets || !release.assets.has('SHA256SUMS');
+      const windowsInstaller = release.assets.get(`Flux6-${release.version}-windows-x64-setup.exe`);
+      $('#windows-installer').hidden = !windowsInstaller;
+      if (windowsInstaller) $('#windows-installer').href = windowsInstaller.url;
     } else {
       heroText.textContent = t('heroReleaseLoading');
     }

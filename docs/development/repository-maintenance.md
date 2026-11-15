@@ -533,3 +533,7 @@ Flutter 分析和 6 个相关测试文件的 58 项测试通过，覆盖无校�
 已合并上游 `68d93c3..e5b5b64` 的两笔文档更新，补全上游赞助者致谢并删除重复的更新记录。三端统一准备 0.1.2，macOS build 为 13，Android build 为 2026111501，Windows 继续使用 Tauri x64。正式更新清单在发布时切换。升级操作见[发行说明](../releases/v0.1.2.md)。
 
 候选源码为 [0906f3e](https://github.com/study-233/flux6/commit/0906f3eb34dd59a7f88e987fdcc50ba785e4e1b8)。macOS 更新 ZIP 和清单通过 Sparkle 验签，DMG 从同一份已签名 App 打包并通过只读挂载和复制检查。Android APK 沿用原签名，安装包内的应用 ID、版本和 arm64 架构均与发布配置一致。[Windows x64 构建与静默安装记录](https://github.com/study-233/flux6/actions/runs/43694197279)对应同一提交。本轮未做 Android 真机覆盖安装、Windows 旧版覆盖升级或 macOS 公证。
+
+## 2026-11-15 正式发布 Flux6 0.1.2
+
+[Flux6 0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2) 已设为 Latest，标签指向候选构建提交 `0906f3e`。三端共九项附件。Windows 的公开 Latest 地址已返回本次 x64 安装器清单。匿名下载的 macOS ZIP 与候选包一致，随后将[原签名清单](https://github.com/study-233/flux6/commit/8dfe09117dfbdf1875448d2bc7d46bab20772b47)部署至 `macos-updates`。已从客户端的公开地址取回同一份清单，版本为 0.1.2、build 13。本轮验证覆盖公开分发链路，设备安装范围见上节候选验收记录。
