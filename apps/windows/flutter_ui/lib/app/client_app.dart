@@ -2,15 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:prism_ui/prism_ui.dart' as prism;
-import 'package:prism_ui/sidebar.dart' as sidebar;
 
 import '../app_theme.dart';
-import '../components/flclash.dart';
 import '../dashboard.dart';
 import '../features/pages.dart';
 import '../features/window_background.dart';
 import 'client_model.dart';
+import 'desktop_chrome.dart';
 
 class ClientApplication extends StatelessWidget {
   const ClientApplication({super.key, required this.model});
@@ -53,12 +51,6 @@ class ClientWindow extends StatefulWidget {
 }
 
 class _ClientWindowState extends State<ClientWindow> {
-  static const destinations = [
-    sidebar.SidebarDestination(glyph: AppGlyphs.dashboard, label: '仪表盘'),
-    sidebar.SidebarDestination(glyph: AppGlyphs.proxies, label: '节点'),
-    sidebar.SidebarDestination(glyph: AppGlyphs.profiles, label: '配置'),
-    sidebar.SidebarDestination(glyph: AppGlyphs.logs, label: '日志'),
-  ];
   int page = 0;
   bool? expanded;
   final scroll = ScrollController();
@@ -153,7 +145,6 @@ class _ClientWindowState extends State<ClientWindow> {
   @override
   Widget build(BuildContext context) {
     final model = widget.model;
-    final colors = prism.Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: WindowBackground(
@@ -175,94 +166,56 @@ class _ClientWindowState extends State<ClientWindow> {
             autofocus: true,
             child: LayoutBuilder(
               builder: (context, room) {
-                final wide = expanded ?? room.maxWidth >= 1080;
+                final wide = room.maxWidth >= 1080 && (expanded ?? true);
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.chromeSurface,
-                        border: Border(
-                          right: BorderSide(
-                            color: colors.onSurface.withValues(alpha: .08),
-                          ),
-                        ),
-                      ),
-                      child: sidebar.NavigationSidebar(
-                        destinations: destinations,
-                        selectedIndex: page,
-                        expanded: wide,
-                        onSelected: navigate,
-                        windowControls: Size.zero,
-                        onToggle: () => setState(() => expanded = !wide),
-                      ),
+                    DesktopSidebar(
+                      expanded: wide,
+                      page: page,
+                      model: model,
+                      onSelected: navigate,
+                      onSettings: settings,
+                      onToggle: () {
+                        if (room.maxWidth >= 1080) {
+                          setState(() => expanded = !wide);
+                        } else {
+                          showDialog<void>(
+                            context: context,
+                            barrierColor: Colors.black26,
+                            builder: (dialog) => Align(
+                              alignment: Alignment.centerLeft,
+                              child: Material(
+                                child: DesktopSidebar(
+                                  expanded: true,
+                                  page: page,
+                                  model: model,
+                                  onSelected: (index) {
+                                    Navigator.pop(dialog);
+                                    navigate(index);
+                                  },
+                                  onToggle: () => Navigator.pop(dialog),
+                                  onSettings: () {
+                                    Navigator.pop(dialog);
+                                    settings();
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Semantics(
-                                    header: true,
-                                    child: Text(
-                                      destinations[page].label,
-                                      style: TextStyle(
-                                        fontSize: 23,
-                                        fontWeight: FontWeight.w700,
-                                        color: colors.onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (model.preview && room.maxWidth > 850)
-                                  const Text('演示模式 · 不连接网络'),
-                                SeasonalButton(model: model),
-                                IconButton(
-                                  tooltip: model.connected ? '断开连接' : '连接',
-                                  onPressed: model.canConnectAction
-                                      ? model.toggleConnection
-                                      : null,
-                                  icon: Icon(
-                                    model.connected
-                                        ? Icons.stop_circle_outlined
-                                        : Icons.play_circle_outline,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: '刷新状态',
-                                  onPressed: model.pending('refresh')
-                                      ? null
-                                      : () => model.act('refresh'),
-                                  icon: const Icon(Icons.refresh_rounded),
-                                ),
-                                IconButton(
-                                  tooltip: '公告',
-                                  onPressed: () => showNotices(context, model),
-                                  icon: Badge(
-                                    isLabelVisible: model.unreadNotices > 0,
-                                    label: Text('${model.unreadNotices}'),
-                                    child: const Icon(
-                                      Icons.notifications_none_rounded,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: '设置',
-                                  onPressed: settings,
-                                  icon: const Icon(Icons.settings_outlined),
-                                ),
-                              ],
-                            ),
+                          DesktopHeader(
+                            page: page,
+                            model: model,
+                            onNotices: () => showNotices(context, model),
+                            seasonal: SeasonalButton(model: model),
                           ),
-                          if (model.preview && room.maxWidth <= 850)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 20, bottom: 4),
-                              child: Text('演示模式 · 不连接网络'),
-                            ),
                           if (model.message case final String message)
                             MaterialBanner(
                               content: Text(

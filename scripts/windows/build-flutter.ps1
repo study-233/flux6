@@ -52,7 +52,9 @@ try {
     Invoke-Checked $Python @('scripts/windows/package-source.py','snapshot','--manifest',$manifest)
     if (-not $SkipChecks) {
         & (Join-Path $PSScriptRoot 'check-flutter.ps1') -FlutterSdk $FlutterSdk -SkipBuild
-        Invoke-Checked 'go' @('test','-timeout=180s','./cmd/freev6-helper','./internal/...')
+        # These integration tests write autostart or DNS state on the host.
+        # Keep package checks isolated; run them separately during native acceptance.
+        Invoke-Checked 'go' @('test','-timeout=180s','-skip','^(TestAutoStartRoundTrip|TestRemoveAutoStartIdempotent|TestRestoreSnapshotDNSFailureIsNonFatal)$','./cmd/freev6-helper','./internal/...')
         Invoke-Checked 'go' @('vet','./cmd/freev6-helper','./internal/...')
     }
     Push-Location $ui

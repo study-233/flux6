@@ -1,6 +1,6 @@
 # Windows Flutter 编译与验收
 
-源码已在 Mac 实现；Windows C++、PowerShell、NSIS、安装升级和真实网络尚未在此工作区执行。请在 Windows 上拉取包含 `refactor/windows-flutter` 提交的代码后验证。不要把 Dart 测试通过等同于原生验收。
+本手册区分源码测试、Windows 本机编译与系统/网络验收；各轮实际结果和限制见[维护记录](repository-maintenance.md)。Dart 测试与 C++ 桥接探针不能代替安装升级或真实网络验收。
 
 ## 1. 工具与构建
 
@@ -17,7 +17,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\build-flut
 
 `check-flutter.ps1` 执行 Dart 分析/测试、构建独立预览和隐藏宿主探针。探针不启动 helper，且只结束自己超时的测试进程。`build-flutter.ps1` 执行 Flutter/Go 检查、正式 `live` flavor 构建、helper/GeoSite 准备、许可证与对应源码、NSIS 和 SHA256 打包；不启动应用或代理。依赖和 GeoSite 首次准备需要下载。
 
+打包时 Go 检查排除 `TestAutoStartRoundTrip`、`TestRemoveAutoStartIdempotent` 和 `TestRestoreSnapshotDNSFailureIsNonFatal`：这些集成项会调用系统自启动或 DNS 写入接口，应在后续隔离验收环境单独运行。其余 Go 测试使用临时数据与回环夹具；Mac 专用、外部资源夹具和符号链接权限导致的跳过须如实记录。
+
 产物目录为 `dist/windows/0.5.3-flutter/`（版本从现有 Windows 版本源读取），包含安装包、portable ZIP、对应源码 ZIP 和 SHA256SUMS。没有 NSIS 时可加 `-NoInstaller` 先生成 portable ZIP；解压到稳定测试目录，保留全部 DLL 和 data/。不要直接在可清理的 build 缓存中长期使用，运行配置和 WARP 凭据会放在程序旁的 config/state/runtime。
+
+若 CMake 报找不到 C++ 编译器，先看构建目录的 `CMakeFiles/CMakeConfigureLog.yaml`。本轮 Windows 主机的 64 位 SDK 注册项指向缺少 UCRT 的目录，实际库在 `C:\Program Files (x86)\Windows Kits\10\`；仅在当前 PowerShell 设置 `$env:UCRTContentRoot = 'C:\Program Files (x86)\Windows Kits\10\'` 后恢复编译，无需修改系统注册表。修正环境后，首次失败配置遗留的 `CMakeCache.txt` 也须删除再生成，否则可能保留 `Program Files` 的默认安装前缀。此处只清理对应 Flutter 构建目录中的缓存文件。
 
 重复构建未发布候选可加 `-Rebuild`；脚本遇到运行数据会停止，不能用此选项删除用户数据。`-SkipChecks` 仅用于排查构建，结果不算完成验收。发布仍须版本升级、签名/发行检查及人工授权，脚本不会自动推送或发布。
 

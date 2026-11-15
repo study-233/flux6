@@ -30,16 +30,26 @@ void main() {
       }
     }
   });
-  for (final dark in [false, true]) {
-    testWidgets(
-      'all pages and settings fit ${dark ? 'dark compact' : 'light wide'} window',
-      (tester) async {
-        tester.view.physicalSize = dark
-            ? const Size(720, 600)
+  for (final (dark, compact) in [
+    (false, false),
+    (true, false),
+    (false, true),
+    (true, true),
+  ]) {
+    final variant =
+        '${dark ? 'dark' : 'light'}-${compact ? 'compact' : 'wide'}';
+    testWidgets('all pages and settings fit $variant window', (tester) async {
+      final previousShadows = debugDisableShadows;
+      debugDisableShadows = false;
+      try {
+        tester.view.physicalSize = compact
+            ? Size(720, dark ? 600 : 480)
             : const Size(1280, 800);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        tester.platformDispatcher.textScaleFactorTestValue = dark ? 1.3 : 1;
+        tester.platformDispatcher.textScaleFactorTestValue = dark && compact
+            ? 1.3
+            : 1;
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         final m = PreviewModel();
         m.preferences['freev6-theme'] = dark ? 'dark' : 'light';
@@ -63,7 +73,7 @@ void main() {
                     .toImage();
             final data = await image.toByteData(format: ui.ImageByteFormat.png);
             await Directory(output).create(recursive: true);
-            await File('$output/${dark ? 'dark' : 'light'}-$name.png')
+            await File('$output/$variant-$name.png')
                 .writeAsBytes(data!.buffer.asUint8List());
             image.dispose();
           });
@@ -96,7 +106,9 @@ void main() {
         await tester.tap(find.byTooltip('关闭设置'));
         await tester.pumpAndSettle();
         await tester.pumpWidget(const SizedBox());
-      },
-    );
+      } finally {
+        debugDisableShadows = previousShadows;
+      }
+    });
   }
 }

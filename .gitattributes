@@ -2,3 +2,7 @@
 
 # Pinned Flutter source hashes must be identical on Windows and macOS.
 apps/windows/flutter_ui/** text=auto eol=lf
+# Keep the complete upstream export byte-for-byte, including CRLF sources.
+apps/windows/flclash_ui/** -text
+apps/macos/flutter_ui/vendor/** text=auto eol=lf
+apps/android/plugins/prism_ui/** text=auto eol=lf

@@ -1,0 +1,184 @@
+{
+  "revision": "be84736605527034689c95bf27828ff27d912c5e",
+  "prototypeOnly": false,
+  "files": {
+    "arb/intl_en.arb": {
+      "sha256": "cbd866814d3d20172b6fd645797409e54912e13d2fae1b4dc628a131bc91fe63",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "arb/intl_es.arb": {
+      "sha256": "1fed6231660781b7d65de91912e635a5ca72e73cd43d82d60d48998f928c40f2",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "arb/intl_fr.arb": {
+      "sha256": "6363891a470dc4615c7349d00cf34094552ebfe28309b4752c3a974d28863555",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "arb/intl_ja.arb": {
+      "sha256": "3d421b18bef42a7f48a1d3c769c9f428098860291e884ac003de099319148459",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "arb/intl_ko.arb": {
+      "sha256": "0367d3c70c19a3f9a90a4f880c104f05b108c9f30b5c132b1fd627e814de73b2",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "arb/intl_ru.arb": {
+      "sha256": "61c5db3d314dfe212833ba789761594099296e1d20b9fa2870f94fa690a52e4f",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "arb/intl_zh_CN.arb": {
+      "sha256": "b88add0280a4a9928323af1ca751ee591e1a5abd64a5ba67ba05b42798d2ef63",
+      "reason": "Add FreeV6 localization keys; Chinese and English authoring, English fallback in other locales."
+    },
+    "assets/images/icon.png": {
+      "sha256": "f80027eeb95fc1522819336733b988f1624f298e0df65bd4182833cdc6441082",
+      "reason": "Use the repository FreeV6 cow-cat branding."
+    },
+    "lib/common/constant.dart": {
+      "sha256": "e6971e48d2466715b1276e5975cd0fe41ce2797b4ace801f20b9806e7d65b6ac",
+      "reason": "Set the displayed application name to FreeV6."
+    },
+    "lib/common/l10n_labels.dart": {
+      "sha256": "32958c345b1cf0abd47f31df643e0c5ce3967788c61b7d3638a490e61594644c",
+      "reason": "Map the original navigation labels to FreeV6 nodes and settings."
+    },
+    "lib/core/controller.dart": {
+      "sha256": "159fd38ab603acee2b459093d5b215963df3ff2802908b22fee143b94556fd03",
+      "reason": "Expose the existing interface adapter for explicit offline dependency injection."
+    },
+    "lib/l10n/intl/messages_en.dart": {
+      "sha256": "98d29fb276127431cea2923ee127771794cb3f040587d42d71b65a6e31c55294",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/intl/messages_es.dart": {
+      "sha256": "fb7673ee16bba4253b5941e8e4b1a708546805c7b9b8dbcdab5351dd263e8ce9",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/intl/messages_fr.dart": {
+      "sha256": "1d3bd6b4f1f1f3845dd53b78ee85aa33c167724ededc653fd20390e60982c882",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/intl/messages_ja.dart": {
+      "sha256": "a3a8c44d3c3bdcc2a6afba633c605e5976b813d612545f640985a11c897c437f",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/intl/messages_ko.dart": {
+      "sha256": "3e96ab92589c0aa810e2b45eb1d618afa1216a9b4e1b1e06fcce5fe85e55646b",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/intl/messages_ru.dart": {
+      "sha256": "272339ae1d6c46f3268421bda63b5f54370e4df4196a2f2b10b4076325cabd2d",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/intl/messages_zh_CN.dart": {
+      "sha256": "974b704de0a14e5dc9cec4c695501adf8a21d0e40980cac6c15592b14991800e",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/l10n/l10n.dart": {
+      "sha256": "27152194a16b935295c34fb7dddc5e48467ee1e1d0362aa0ee48d5577417fd8e",
+      "reason": "Regenerate from ARB using dart run intl_utils:generate; no manual generated-code edits."
+    },
+    "lib/main.dart": {
+      "sha256": "668936ae658efa92add15ddc7e2d34645f552c0147d26fb3c0f28ad3ff2d24da",
+      "reason": "Make the guarded offline entry the only default entry."
+    },
+    "lib/views/dashboard/dashboard.dart": {
+      "sha256": "7dc19e5cac99cc05f5193b3517c6b0b88ea00ca2c90f5ffd4db490ea85e108a2",
+      "reason": "Keep the full upstream layout and bind its business cards to FreeV6."
+    },
+    "lib/views/dashboard/widget_registry.dart": {
+      "sha256": "196426cca427cd76f176a160a87759b5351f1d754fc46c852f983ddc5b9bc337",
+      "reason": "Bind FreeV6 cards and constrain their compact dashboard height."
+    },
+    "lib/views/dashboard/widgets/current_outbound.dart": {
+      "sha256": "b59207b2c301846c195f267820e6f71ef8bb58a376910152559fadd55b4433e8",
+      "reason": "Bind FreeV6 node, mode and backend action availability in both offline and live compositions; no upstream IP probe."
+    },
+    "lib/views/dashboard/widgets/outbound_mode.dart": {
+      "sha256": "fbd330962163aa712fd60a263abc443d63cc2c6eab59008829e5b99128ae8e9a",
+      "reason": "Respect the existing FreeV6 developer-only direct-mode gate."
+    },
+    "lib/views/proxies/card.dart": {
+      "sha256": "3b83ac73d889eb5e427594ebb76939bb3ac339aa118a16ab3f5e0488a0d15d7d",
+      "reason": "Suppress upstream local-profile mutations for both FreeV6 offline and backend builds."
+    },
+    "lib/views/proxies/proxies.dart": {
+      "sha256": "a916b502ae17b8bfa99f50e6eb979b80d7b2a7a0c096f5330269a65d27740d80",
+      "reason": "Use the localized FreeV6 nodes title."
+    },
+    "pubspec.lock": {
+      "sha256": "3e136ec9605d76b0d1dde9a16c0b5f8795e4f904b8a3992e316a63e95fc6c05a",
+      "reason": "Record the local FreeV6 path dependency without upgrading upstream locked packages."
+    },
+    "pubspec.yaml": {
+      "sha256": "6f86a4d7f0f7b4eac68db6d5dbb6726aab8ae9f0a7b31b4f5b5a978d9f967910",
+      "reason": "Reuse the existing FreeV6 model by path, pin Prism locally and disable core build hooks."
+    },
+    "test/lint/dynamic_message_key_test.dart": {
+      "sha256": "dbb4b7085d366a8c3d179b626af97709ebaaf66b0d350b52f6b0aa2be280ef07",
+      "reason": "Normalize Windows path separators before excluding generated localization files."
+    },
+    "windows/CMakeLists.txt": {
+      "sha256": "73c6cda0a2949f65d47bfeb61e68838f06975bc95b9cbb5dcfb13785c54f72a9",
+      "reason": "Explicit preview/fixture/live output identities; never build/copy FlClash core, helper or loopback utilities."
+    },
+    "windows/runner/Runner.rc": {
+      "sha256": "1f7ba082f5774f551cae58d2645cff5c21ced6afe56917b9b8491bcfd8c6d59f",
+      "reason": "Identify the independent preview in Windows version resources, retaining upstream copyright."
+    },
+    "windows/runner/main.cpp": {
+      "sha256": "46e5c595b0935a881f3c2e96dfcb8dfa6e3945358236fab454000a3d9449c723",
+      "reason": "Keep scoped activation, shared FreeV6 autostart/single-instance contracts and owned offline probe; remove stale-proxy mutation."
+    },
+    "windows/runner/resources/app_icon.ico": {
+      "sha256": "5354ffe7a862622b551caaff746b43150d62c9a483150d8341ebd7f6670da25b",
+      "reason": "Use the existing FreeV6 Windows cow-cat icon."
+    },
+    "windows/runner/runner.exe.manifest": {
+      "sha256": "e271d886f861d53d74dc4a5bd2b4f354df653f81a4b77c976153f0285644204e",
+      "reason": "Explicitly keep the offline preview at asInvoker privilege; no UAC request."
+    },
+    "windows/runner/CMakeLists.txt": {
+      "sha256": "f677553864c996e13f4ed3ba502b1af0a9ed4f3b73dba73f0588e99e94648d63",
+      "reason": "Reuse the existing FreeV6 native host source and privilege manifest by explicit Flutter build flavor; no helper is launched during build."
+    },
+    "windows/runner/flutter_window.cpp": {
+      "sha256": "e230cd754b747d6084b77f577d87d6676742e342c60620f8f68ac0beacf75f38",
+      "reason": "Attach the existing FreeV6 host bridge, preserve window event ownership and support an offline-only host probe."
+    },
+    "windows/runner/flutter_window.h": {
+      "sha256": "32ab8a80eba94ca65150dac65955413b120677ab382bd79c835a1e52f49c9dc3",
+      "reason": "Store the shared FreeV6 native host bridge and owned probe result."
+    },
+    "windows/runner/utils.cpp": {
+      "sha256": "0a2db699905ff5121f6161de9a8362de9a5cd27dc6d793639505c07eb449fb48",
+      "reason": "Include Shell API explicitly under the shared host WIN32_LEAN_AND_MEAN build configuration."
+    },
+    "plugins/tray/windows/tray_plugin.cpp": {
+      "sha256": "a0a3dc65789bcfc7465d387dcad2e10470b55219a64fc91d8c223d2a585e62bb",
+      "reason": "During plugin teardown use the saved notification HWND instead of dereferencing a destroyed Flutter view; offline native probe regression reproduces this without creating a tray icon."
+    }
+  },
+  "addedSources": [
+    "DEVELOPMENT.md",
+    "README.md",
+    "assets/legal/FreeV6-LICENSE.txt",
+    "lib/fixture_main.dart",
+    "lib/freev6/application.dart",
+    "lib/freev6/background.dart",
+    "lib/freev6/forms.dart",
+    "lib/freev6/licenses.dart",
+    "lib/freev6/lifecycle.dart",
+    "lib/freev6/navigation.dart",
+    "lib/freev6/offline_fixture.dart",
+    "lib/freev6/offline_main.dart",
+    "lib/freev6/pages.dart",
+    "lib/freev6/session.dart",
+    "lib/freev6/updates.dart",
+    "lib/live_main.dart",
+    "test/freev6/backend_integration_test.dart",
+    "test/freev6/prototype_test.dart"
+  ],
+  "notes": "All exported upstream files remain present. Unbuilt upstream core/service sources are retained for provenance. Existing FreeV6 backend files are reused by local package dependency.",
+  "stage": "FreeV6 backend composition added; real networking and installation are not part of offline verification."
+}

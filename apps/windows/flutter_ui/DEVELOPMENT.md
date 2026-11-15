@@ -23,6 +23,8 @@ $env:FREEV6_FLUTTER_SDK = 'C:\tools\flutter'
 
 `--host-probe` 仅验证原生桥接，不表示 helper、权限、安装或网络已经验收。可用 `-SkipBuild` 仅执行 Dart 检查。旧安装兼容信息通过仓库的 `scripts/windows/inspect-legacy.ps1` 只读收集；不读取配置、WARP 私钥或 WebView 存储内容。
 
+准备好锁定的 pub 依赖与 `flutter precache --windows` 引擎缓存后，可加 `-Offline` 使用本地依赖解析并执行同样的分析、测试、预览编译和隐藏探针。缺少缓存时明确失败，不自动下载依赖。
+
 视觉组件从 Mac 基线机械复制，原始来源在 `vendor/UPSTREAM.json`，Mac 提交和 SHA256 在 `vendor/MACOS-SOURCE.json`；本端改动登记在 `vendor/WINDOWS-PATCHES.json`。`check-sources.py` 防止未登记修改。Flutter runner 来自 SDK 提交 `5fc346839b5d0eef006ed8404392afb4dfae428d` 的 Windows 模板，保留 `vendor/Flutter-LICENSE`；本地改动包括品牌资源、预览身份及原生桥接。
 
 后续阶段以 [实施方案](../../../docs/development/windows-flutter-refactor.md) 为准。用户将源码推送 GitHub 后，在 Windows 拉取并编译验证；本机结果和 Windows 待验项分开记录。

@@ -12,7 +12,7 @@ void main() {
       await tester.pumpWidget(const PreviewApplication());
       await tester.pump();
       expect(find.text('仪表盘'), findsWidgets);
-      expect(find.text('演示模式 · 不连接网络'), findsOneWidget);
+      expect(find.byTooltip('演示模式 · 不连接网络'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });

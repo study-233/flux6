@@ -15,6 +15,7 @@ TREES = ('apps/windows/', 'scripts/windows/', 'scripts/branding/', 'cmd/', 'inte
 FILES = {'LICENSE', 'README.md', 'THIRD-PARTY.txt', 'go.mod', 'go.sum', 'notice.json',
          'docs/agreement.md', 'docs/privacy.md', 'docs/development/windows-flutter-refactor.md',
          'docs/development/windows-flutter-acceptance.md', 'docs/development/repository-maintenance.md',
+         'docs/development/windows-flclash-evaluation.md',
          'docs/development/README.md', 'scripts/version.py', 'AGENTS.md', '.gitattributes', '.gitignore'}
 FORBIDDEN = {'build', 'dist', '.dart_tool', 'ephemeral', 'target', 'state', 'runtime', '.git'}
 PRIVATE = {'.key', '.pem', '.p12', '.p8', '.jks', '.keystore', '.exe', '.dll', '.syso'}
@@ -22,8 +23,10 @@ PRIVATE = {'.key', '.pem', '.p12', '.p8', '.jks', '.keystore', '.exe', '.dll', '
 
 def permitted(name):
     path = PurePosixPath(name)
+    # FlClash's state/ directory contains Dart providers, not runtime data.
+    forbidden = FORBIDDEN - {'state'} if name.startswith('apps/windows/flclash_ui/lib/providers/state/') else FORBIDDEN
     return (name in FILES or name.startswith(TREES)) and not (
-        FORBIDDEN.intersection(path.parts) or path.suffix.lower() in PRIVATE or
+        forbidden.intersection(path.parts) or path.suffix.lower() in PRIVATE or
         path.name.startswith('.env') or path.name.endswith('.local.json'))
 
 
@@ -76,6 +79,14 @@ def prepare(bundle, manifest):
                          (vendor / 'MACOS-SOURCE.json', 'MACOS-SOURCE.json'),
                          (vendor / 'WINDOWS-PATCHES.json', 'WINDOWS-PATCHES.json')):
         shutil.copyfile(source, notices / name)
+    if any((bundle / name).is_file() for name in ('freev6-flclash-preview.exe', 'freev6-flclash-offline.exe')):
+        prototype = ROOT / 'apps/windows/flclash_ui'
+        for source, name in ((prototype / 'LICENSE', 'FlClash-Application-GPLv3.txt'),
+                             (prototype / 'plugins/prism_ui/LICENSE', 'PrismUI-Application-LICENSE.txt'),
+                             (prototype / 'plugins/prism_ui/NOTICE', 'PrismUI-Application-NOTICE.txt'),
+                             (prototype / 'vendor/UPSTREAM.json', 'FlClash-Application-UPSTREAM.json'),
+                             (prototype / 'vendor/FREEV6-PATCHES.json', 'FlClash-Application-PATCHES.json')):
+            shutil.copyfile(source, notices / name)
     shutil.copytree(ROOT / 'third_party/licenses', notices / 'licenses', dirs_exist_ok=True)
     compressed = bundle / 'data/flutter_assets/NOTICES.Z'
     with gzip.open(compressed, 'rb') as source:
