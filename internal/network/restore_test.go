@@ -93,7 +93,7 @@ func TestBuildDNSRestorePlans(t *testing.T) {
 	plans := buildDNSRestorePlans(Snapshot{Interfaces: []InterfaceSnapshot{
 		{Alias: "Wi-Fi", IPv4DNSServers: []string{"192.0.2.53"}, IPv6DNSServers: []string{"2001:db8::1", "2001:db8::2"}},
 		{Alias: "Ethernet"},
-	}})
+	}}, Snapshot{})
 	// 每个接口一个 plan：接口内串行、接口间可并行。
 	if len(plans) != 2 {
 		t.Fatalf("expected 2 plans, got %d", len(plans))
@@ -117,5 +117,28 @@ func TestBuildDNSRestorePlans(t *testing.T) {
 	}
 	if eth[0].Args[5] != "source=dhcp" || eth[1].Args[5] != "source=dhcp" {
 		t.Fatalf("expected DHCP restore commands: %+v", eth)
+	}
+}
+
+func TestDNSRestoreOnlyWritesChangedProtocols(t *testing.T) {
+	target := Snapshot{Interfaces: []InterfaceSnapshot{
+		{Alias: "Empty", Index: 1},
+		{Alias: "Wi-Fi", Index: 2, IPv4DNSServers: []string{"192.0.2.1"}, IPv6DNSServers: []string{"2001:db8::1", "2001:db8::2"}},
+		{Alias: "Ethernet", Index: 3},
+	}}
+	current := Snapshot{Interfaces: []InterfaceSnapshot{
+		{Alias: "Empty", Index: 1},
+		{Alias: "Wi-Fi", Index: 2, IPv4DNSServers: []string{"192.0.2.1"}, IPv6DNSServers: []string{"2001:db8::2", "2001:db8::1"}},
+		{Alias: "Ethernet", Index: 3, IPv4DNSServers: []string{"198.51.100.1"}},
+	}}
+	want := [][]RestoreCommand{
+		buildDNSRestoreCommand("ipv6", "Wi-Fi", target.Interfaces[1].IPv6DNSServers),
+		buildDNSRestoreCommand("ipv4", "Ethernet", nil),
+	}
+	if got := buildDNSRestorePlans(target, current); !reflect.DeepEqual(got, want) {
+		t.Fatalf("restore plans = %+v, want %+v", got, want)
+	}
+	if got := buildDNSRestorePlans(target, target); len(got) != 0 {
+		t.Fatalf("unchanged DNS scheduled commands: %+v", got)
 	}
 }

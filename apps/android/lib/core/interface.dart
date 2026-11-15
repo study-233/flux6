@@ -298,6 +298,16 @@ abstract class CoreHandlerInterface {
     );
   }
 
+  Future<({Traffic month, Traffic total})> getTrafficUsage(bool onlyProxy) {
+    return _query(CoreMethod.trafficUsage, (data) {
+      final map = _json(data);
+      return (
+        month: Traffic.fromJson(_json(map['month'])),
+        total: Traffic.fromJson(_json(map['total'])),
+      );
+    }, arguments: {'only-proxy': onlyProxy});
+  }
+
   Future<void> resetTraffic() => _commandUnobserved(CoreMethod.trafficReset);
 
   Future<List<TrackerInfo>> getConnections() {

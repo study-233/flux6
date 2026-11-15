@@ -178,7 +178,12 @@ class Bootstrap {
     unawaited(_container.read(mitmModulesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
     unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
-    if (system.isAndroid) unawaited(_showFreeV6Onboarding());
+    if (system.isAndroid) unawaited(_finishAndroidStartup());
+  }
+
+  Future<void> _finishAndroidStartup() async {
+    await _showFreeV6Onboarding();
+    await _container.read(commonActionProvider.notifier).autoCheckUpdate();
   }
 
   Future<void> _showFreeV6Onboarding() async {

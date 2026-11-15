@@ -10,6 +10,12 @@
 | P3 删除旧内容 | 完成 | 删除旧 SwiftUI 入口、无效平台包装与上游工具；合并当前文档。 |
 | P4 完善管理 | 完成 | 统一分支、版本、构建与 CI；干净源码验证；本地主线收敛。 |
 
+## 三端流量统计对齐（2026-11-15）
+
+macOS 现有的本月与累计用量作为对照。Android 在核心中采集全部及仅代理的上下行字节，按本地月份保存；从网络速度卡进入详情。Windows Tauri 使用 mihomo 的全局计数器，并将最近一次采到的计数与对应进程编号、月用量和累计用量一起保存。旧版已保存的统计继续使用，此前未记录的用量无法回填。
+
+Android 跨月、重启、仅代理统计和界面入口的回归通过；Flutter 分析、Android arm64 核心编译以及 Windows x64 helper 交叉编译通过。Windows Web 回归覆盖采样间已关闭的连接、纯下载和重开界面。本轮仅验收源码与隔离数据，没有发布安装包或做真机联网验收。
+
 ## P0 基线
 
 起点为 `mac` 分支的 `2b5a1c0`。现有未提交业务修改一并保留，分别按公共业务、Mac、Android、Windows 与文档形成基线提交。该快照表示可恢复的开发状态，不表示所有平台已经完成实机验收。
@@ -385,3 +391,70 @@ Cask 的版本、固定标签 URL 与新 DMG 实际 SHA256 已同步，继续进
 验证：三项故障回归先在原实现上复现失败；新增八项安装器测试和一项维护工具选择测试，并扩展多用户登记回归。完整 Swift 共 208 项，186 项通过、22 项因未提供额外集成夹具跳过，0 失败。受限环境内的既有进程、Unix socket 及 ACL 夹具失败后，在普通用户环境复验通过。独立 Release App 构建、签名与打包校验通过；首次打包因 PATH 缺少 Go 停止，指定现有 Go 工具链后完成。真实签名安装载荷的五项非管理员探针通过，包括错误摘要、放宽保护客户端及非 root 安装拒绝。仓库结构和差异空白检查通过，日志位于本地 `build/macos-service-repair/`。按 pre-commit-quality-review 的局部修复分流跳过结构审查，已核对实际改动、身份边界与回滚路径。
 
 验证边界：源码修复使用隔离目录和模拟服务控制器验证，独立签名产物未执行管理员安装、系统重启、卸载或真实 VPN 联网；不把此前本机单次恢复记为新实现的实机验收。此次只提交修复源码和文档，不覆盖已发布附件、移动发行标签或改变 Apple 公证状态。Flutter、共享 Go、Android 和 Windows 源码未改动，未重复其专属测试。
+
+## 2026-11-11 macOS 与 Android 应用内更新本地准备
+
+按用户要求接入两端正式更新通道，随后明确要求“先不要发布”。使用独立 `feat/app-updates` 工作目录，保留原目录中另一项 macOS 服务修复。候选版本为 macOS 0.1.1 / build 11、Android 0.1.1 / build 2026111101；没有提交、推送、创建标签或 Release，没有部署 `macos-updates` 分支，也没有更改官网、Homebrew 或已发布的 0.1.0。
+
+macOS 构建默认嵌入 Flux6 的 HTTPS 更新地址和公开 Ed25519 公钥，支持已有环境变量覆盖；正式更新身份由 Sparkle 工具生成，私钥位于仓库外私有目录、专用钥匙串及私有备份中。更新包重新签名时显式使用原代码签名钥匙串。DMG 从已经签名的更新 ZIP 解包产物制作，确保两种安装方式提供同一 App。
+
+Android 恢复关于页“检查更新”和首次引导结束后的自动检查，沿用现有偏好、下载进度、SHA256 校验及系统安装确认。查询和下载使用强制 TLS 验证的 Flux6 自有源，GitHub API 限流时只接受同一仓库的正式版本跳转。ARM64 APK 名称与准备的发布附件一致；未发布的 Android 架构使用网页下载回退。上游来源和贡献者链接保留。手动检查增加重复请求保护，复用已有七种语言文案，没有修改 ARB 或手工修改生成文件。
+
+验证：Swift 199 项中 177 通过、22 因外部夹具条件跳过、0 失败；六项隔离原生更新探针通过，覆盖实际升级、坏包签名、未签名清单、取消安装、取消下载和安装许可前宿主退出。macOS Release 构建、签名清单与 ZIP 验签、DMG 只读挂载和拖放副本检查通过，669 个归档源码与 App 内清单及当前文件一致。Android analyze、42 项更新相关测试及 27 项 UI 规范测试通过；含 390/900 dp、明暗主题的关于页交互检查。Android Release APK 构建和 2716 个源码归档文件核对通过。两端公开证书摘要均与 0.1.0 一致；仓库链接/版本/来源检查、9 项维护测试及差异空白检查通过。
+
+本地交付物位于该工作目录的 `dist/release/0.1.1/`：macOS DMG、签名更新 ZIP、签名 appcast、Android APK、两端对应源码和统一 `SHA256SUMS`。验证报告位于 `build/app-updates-validation/validation.json`，发布步骤和密钥保管见[应用内更新准备](../releases/in-app-updates.md)。0.1.0 两端均需手动安装一次带通道的新版本。
+
+验证边界：没有部署公开更新源、替换已安装应用、执行管理员系统服务升级、启动真实代理/VPN、进行 Android 真机覆盖安装或 Apple 公证。隔离升级通过不等同于以上验收完成。macOS 正式清单尚未上线，候选当前访问该公开地址会失败，不能把本地准备描述为线上更新已开放。
+
+## 2026-11-12 0.1.1 提交与发布准备
+
+macOS 与 Android 的更新候选基于主线 `83b212f`。已整理[用户发行说明](../releases/v0.1.1.md)，核对两个平台对应源码、六份候选文件的 SHA256 和签名清单引用的 ZIP 名称与大小。发布来源检查覆盖 Android 更新仓库、macOS 公钥及清单地址，仍支持仅检出 Windows 的工作目录。
+
+应用源代码与上一轮签名构建一致，沿用上述本地构建和测试结果。Android 真机覆盖安装与 macOS 公开源升级仍待验收。
+
+## 2026-11-12 上游更新准备
+
+本地准备分支 `chore/sync-upstream-20261112` 基于 Flux6 远端主线 `be1bef5`。上次同步点 `bcf3819` 到上游主线 `68d93c3` 共 7 个提交、12 个文件。源码标签 `v0.5.4` 位于 `8e99541`，之后一个提交只改上游说明和公告。核查时 GitHub 的最新正式 Release 为 `v0.5.3`，按 `v0.5.4` 查询公开 Release 返回 404。动态 helper 端口和残留进程处理已在上次同步中纳入。本轮差异没有修改跨平台协议、依赖版本或许可证。[上游提交差异](https://github.com/evansrrr/free-v6/compare/bcf3819...68d93c3) · [上游源码标签](https://github.com/evansrrr/free-v6/tree/v0.5.4)
+
+| 上游提交 | Flux6 接入建议 | 验证要点 |
+| --- | --- | --- |
+| `822e507` 启停按钮 | 优先移植到 Windows Web。启动成功或停止返回时使在途状态查询失效。Windows Flutter 候选已有忙碌标志和操作完成时的代数校验。 | 在现有 Web 回归里补上“发出停止 → 发出轮询 → 停止完成 → 旧轮询返回”，以及启动时的对称时序。后续轮询应能反映真实变化。 |
+| `73193fa` 停止时恢复 DNS | 分开评估减少 `netsh` 命令和异步恢复。当前快照只记录服务器地址，无法区分静态配置与 DHCP 下发的地址。上游在后台恢复期间可删除快照并返回成功，新启动可能与旧恢复并行，退出 helper 也可能中断恢复。首轮建议保留 helper 等待恢复结束的顺序。 | 用空地址、单协议、双协议和旧快照验证命令及顺序。Windows 上核对 DHCP/静态配置、快速重启和停止后立即退出，再评估耗时。 |
+| `e2d49c7`、`96482c2` 刷新 | 上游最终实现会重载 WebView。Flux6 的 `autoRun.startupHandled` 只存于页面内存，重载可再次触发启动时自动连接。建议保留当前数据刷新，增加可见的刷新反馈。 | 开启自动连接、手动停止、点击刷新后仍应停止。核对节点和公告确实更新。 |
+| `870875a` 流量环 | 可独立移植对数绘制，图例和详情继续展示实际字节数。 | 验证零流量、单方向流量和上下行差距悬殊的样例。 |
+| `8e99541`、`68d93c3` 版本与文案 | 保留 Flux6 的 README、公告源及版本策略。上游版本作为来源记录，Windows 是否升版留到其发行准备时决定。 | Flux6 基线为 Windows 0.5.3、macOS/Android 0.1.1。 |
+
+`git merge-tree` 预演得到 5 个冲突路径。根 `README.md` 与 `notice.json` 沿用本项目内容。Windows 的 `apps/windows/src-tauri/Cargo.toml` 与 `apps/windows/web/index.html` 涉及版本和品牌，旧根路径 `src-tauri/tauri.conf.json` 涉及删除与修改冲突。当前配置位于 `apps/windows/src-tauri/`，选取修复时需同时核对自动合并的 `Cargo.lock`、`CHANGELOG.md` 与配置中的版本。
+
+现有主线的 4 项 Windows Web 测试、128 个本地 JS 模块、9 项维护测试、仓库检查和 macOS 主机上的 `go test ./internal/network ./cmd/freev6-helper` 通过。helper 的回环测试夹具在沙箱中被拒绝绑定端口，在普通用户环境重跑通过。额外的 Node VM 探针模拟了停止期间发起的轮询：主线收到过期响应后回到运行中，相同输入下预演树的 Web 代码保持已停止。另一组内存夹具验证了自动连接开关打开时的手动停止场景：在原页面刷新状态排队 0 次，重新创建页面后排队启动 1 次。此次仅完成差异评估与基线验证；Windows 原生构建、系统 DNS 恢复和停止耗时仍待实际接入后验证。
+
+## 2026-11-12 接入上游修复并重新准备 0.1.1
+
+从 Flux6 主线 `be1bef5` 接入上游至 `68d93c3`。Windows Web 在启停成功后丢弃旧状态响应，覆盖定时轮询和手动刷新。刷新保留当前页面、自动连接会话及焦点，在数据请求结束后解除忙碌状态。流量环对上传、下载使用对数权重，图例保留实际字节数。
+
+Windows helper 在恢复 DNS 前只读枚举网卡，按接口名、索引及协议族比对有序服务器列表。相同配置跳过 `netsh`，列表变化、接口缺失或枚举失败时沿用已有恢复命令和顺序。停止路径在 helper 的原有锁内等待恢复结束。Windows 工程保留独立版本 0.5.3，生产入口仍为 Tauri。
+
+本地 0.1.1 发行候选重新签名构建为 macOS build 12、Android build 2026111201。两端沿用原证书。六份附件及统一校验文件位于本工作树的 `dist/release/0.1.1/`。清单文件自身的 SHA-256 为 `41e52897e3ba4a2da5fb8496d7942dd4a50ecc94d152aeada32e6e35f168eb56`。安装和早期试用者升级步骤见[发行说明](../releases/v0.1.1.md)。
+
+| 验证范围 | 本轮结果 |
+| --- | --- |
+| Windows 与共享 Go | 根模块和 Android 嵌套核心的 test/vet 通过。Windows/amd64 的根模块测试包交叉编译、vet 和 helper 构建通过。DNS 夹具覆盖地址相同、单协议变化、地址优先级变化、恢复 DHCP 与无当前快照时的回退。 |
+| Windows Web | 8 项运行时回归通过。隔离 Chrome 用浅色 720×520 和深色 1080×760 验证流量环、字节图例、连续点击刷新、忙碌状态和减少动画。 |
+| macOS | DMG 只读挂载和拖放副本、Sparkle 更新 ZIP 与清单验签、原代码签名证书、669 项源码与 App 内清单均通过。带独立身份的 build 11 测试宿主通过本地签名清单安装并重启 build 12 候选副本，确认新进程加载 Flutter 和 App 框架。 |
+| Android | APK 的签名、应用 ID、版本、ARM64 架构及 2716 份对应源码核对通过。隔离 Android 15 模拟器从旧 0.1.1 APK 覆盖安装到新 build，首次安装时间一致。公开更新检查使用软件版本号，同为 0.1.1 的早期 APK 需手动覆盖安装。 |
+
+日志及截图位于本地 `build/release-validation/`。Windows 原生安装、真实 DNS 还原及性能数据、macOS 管理员服务升级、Apple 公证和 Android 实体手机仍待相应环境验证。独立修复分支 `fix/macos-missing-launchdaemon` 上的 `d30d15b` 不在该候选基线中。
+
+## 2026-11-12 Flux6 0.1.1 正式发布
+
+[发行 PR #15](https://github.com/study-233/flux6/pull/15) 合入主线 `1774308`，文件树与签名构建使用的 `40c58d0` 一致。标签 `v0.1.1` 指向合并提交。[PR 检查](https://github.com/study-233/flux6/actions/runs/43239351926)和[主线检查](https://github.com/study-233/flux6/actions/runs/43239610303)均通过。
+
+[Flux6 0.1.1](https://github.com/study-233/flux6/releases/tag/v0.1.1) 于新加坡时间 2026-11-12 22:47 公开并设为 Latest，面向 macOS Apple Silicon build 12 及 Android ARM64 build 2026111201。草稿中的旧 build 11 更新 ZIP 已移除。发布前逐项核对了七个附件的名称、大小与 SHA-256，包含 DMG、更新 ZIP、签名清单、APK、两端对应源码和统一校验文件。Windows 只更新源码。隔离升级、签名证书、安装与测试边界见[本轮候选记录](#2026-11-12-接入上游修复并重新准备-011)。
+
+匿名下载的 macOS DMG 和更新 ZIP 与签名发行包逐字节一致。[正式 Sparkle 清单](https://raw.githubusercontent.com/study-233/flux6/macos-updates/appcast-arm64.xml)（提交 `7d5600d`）和 [Homebrew Cask](https://github.com/study-233/homebrew-tap/blob/4050e6b9346c972b6cb40b86cd9ad5dcdf1b4b8c/Casks/flux6.rb) 均已从公开地址取回复核。官网使用同一 Release 的实际附件与发布时间，隔离浏览器验证了 macOS 与 Android 下载入口及校验文件链接。
+
+## 2026-11-15 Windows Tauri 0.1.1 补发与 macOS 启动检查
+
+Windows x64 与 macOS、Android 共用正式版本号 0.1.1。Windows 安装包从 `911f28d` 构建，已追加到 [v0.1.1](https://github.com/study-233/flux6/releases/tag/v0.1.1)。Windows runner 运行 Web 和 Go 更新回归、构建 Tauri NSIS 安装器并静默安装，核对主程序版本、helper 与 GeoSite 文件。源码归档记录了构建提交。已匿名取回 [Latest 清单](https://github.com/study-233/flux6/releases/latest/download/version.json) 和其中的安装包，核对安装包 SHA256 为 `c2620aac25299b1d2ba3d156b9828813bd46110af49bad7bfb2413dc2f74a9da`。本次 Windows 验证覆盖全新安装，旧开发版迁移和真实代理连接尚未经实机验证。[Windows 构建记录](https://github.com/study-233/flux6/actions/runs/43686886905)
+
+macOS 下一版在用户同意首次使用协议后默认每次启动检查一次，可在设置中关闭。安装仍需用户确认。三项独立签名包测试覆盖无新版、拒绝安装后保留旧版、同意安装后重启进入新 build。Swift 共 200 项，178 项通过，22 项因缺少可选集成夹具跳过。Flutter 分析、31 项测试、本地 Release 构建及临时签名的完整性检查通过。公开的 macOS 0.1.1 build 12 仍使用手动检查。

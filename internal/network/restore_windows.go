@@ -48,7 +48,12 @@ func RestoreHotspot(ctx context.Context, snapshot Snapshot) error {
 // 只记警告不阻断：网卡改名/删除、旧版 GBK 乱码快照都会让 netsh 找不到
 // 名字，若当致命错误，故障机上损坏的旧快照会在每次启动自愈里永久卡死。
 func RestoreDNS(ctx context.Context, snapshot Snapshot) {
-	plans := buildDNSRestorePlans(snapshot)
+	// On an enumeration failure the existing restore plan still runs in full.
+	var current Snapshot
+	if adapters, err := getAdaptersAddresses(); err == nil {
+		current = buildSnapshot(adapters)
+	}
+	plans := buildDNSRestorePlans(snapshot, current)
 	if len(plans) == 0 {
 		return
 	}

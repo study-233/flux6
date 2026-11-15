@@ -1,0 +1,8 @@
+{
+  "format": 1,
+  "publicKey": "HjIE2zuPCS/3+prhzZNhvfpSomLfSWCUKJV4Q1r0Cnk=",
+  "feeds": {
+    "arm64": "https://raw.githubusercontent.com/study-233/flux6/macos-updates/appcast-arm64.xml",
+    "x86_64": "https://raw.githubusercontent.com/study-233/flux6/macos-updates/appcast-x86_64.xml"
+  }
+}

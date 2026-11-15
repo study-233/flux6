@@ -1,4 +1,5 @@
 """Check that shipped links and update channels belong to this distribution."""
+import base64
 import json
 from pathlib import Path
 import re
@@ -13,6 +14,20 @@ expected = {
     "apps/windows/src-tauri/nsis-hooks.nsh": f"https://github.com/{repository}/blob/main/docs/agreement.md",
 }
 errors = []
+if (root / "apps/android").is_dir():
+    expected["apps/android/lib/common/constant.dart"] = f"const updateRepository = '{repository}';"
+if (root / "apps/macos").is_dir():
+    try:
+        channel = json.loads((root / "apps/macos/Resources/update-channel.json").read_text())
+        if channel["format"] != 1 or len(base64.b64decode(channel["publicKey"], validate=True)) != 32:
+            errors.append("macOS update channel requires a valid Ed25519 public key")
+        if channel["feeds"] != {
+            arch: f"https://raw.githubusercontent.com/{repository}/macos-updates/appcast-{arch}.xml"
+            for arch in ("arm64", "x86_64")
+        }:
+            errors.append("macOS update channel does not match the publisher")
+    except (OSError, KeyError, TypeError, ValueError):
+        errors.append("Invalid macOS update channel configuration")
 for path, text in expected.items():
     # Windows-only checkouts may not yet contain the Mac release tools.
     if path.startswith("scripts/macos/") and not (root / path).exists():

@@ -42,12 +42,10 @@ String? Function() resolveSelfUpdateSuffix = () => selfUpdateAssetSuffix(
 
 String? get selfUpdateSuffix => resolveSelfUpdateSuffix();
 
-// The names follow the release matrix in .github/workflows/build.yaml.
+// Flux6 currently ships Android for ARM64 only.
 String? selfUpdateAssetSuffix(Abi abi, {required bool windowsInstalled}) {
   return switch (abi) {
-    Abi.androidArm64 => 'android-arm64-v8a.apk',
-    Abi.androidArm => 'android-armeabi-v7a.apk',
-    Abi.androidX64 => 'android-x86_64.apk',
+    Abi.androidArm64 => 'android-arm64.apk',
     Abi.windowsX64 when windowsInstalled => 'windows-amd64-setup.exe',
     Abi.windowsArm64 when windowsInstalled => 'windows-arm64-setup.exe',
     _ => null,
@@ -60,7 +58,10 @@ String releaseAssetName(String tag, String suffix) {
 }
 
 Uri releaseAssetUri(String tag, String name) {
-  return Uri.https('github.com', '/$repository/releases/download/$tag/$name');
+  return Uri.https(
+    'github.com',
+    '/$updateRepository/releases/download/$tag/$name',
+  );
 }
 
 final _checksumLine = RegExp(r'^([0-9a-fA-F]{64}) [ *](?:\./)?(.+)$');

@@ -85,3 +85,81 @@ test('a status response started before stop cannot restore running state', async
   assert.equal(state.proxyRunning, true);
   assert.deepEqual(transitions, [true]);
 });
+
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+for (const observer of ['pollStatus', 'refreshBackendState']) {
+  for (const operation of ['start', 'stop']) {
+    test(`${observer} discards a status read during ${operation}`, async () => {
+      const context = frontend();
+      const state = vm.runInContext('state', context);
+      const starting = operation === 'start';
+      Object.assign(state, { helperOnline: true, proxyRunning: !starting, runtimePresent: true, runtimeChecked: true, devMode: true });
+      const sent = deferred();
+      const command = deferred();
+      const stale = deferred();
+      context.api = async path => {
+        if (path === '/status') return stale.promise;
+        if (path === '/runtime') return { present: true };
+        assert.equal(path, '/proxy/' + operation);
+        sent.resolve();
+        return command.promise;
+      };
+      const renders = [];
+      context.setRunning = running => { renders.push(running); state.proxyRunning = running; };
+      for (const name of ['addLog', 'fabPhase', 'autoDelayTestAfterStart', 'setMode', 'ensureNoticeChecked',
+        'maybeAutoRegisterWarp', 'maybeArmAutoRun', 'refreshChainStatus', 'refreshCloudStatus', 'updateSettingsUI']) {
+        context[name] = () => {};
+      }
+      const action = starting ? context.startProxyFlow() : context.stopProxyApi();
+      await sent.promise;
+      const pending = context[observer]();
+      command.resolve({ controllerSecret: 'new-session' });
+      const result = await action;
+      if (starting) assert.equal(result.ok, true);
+      else context.setRunning(false);
+      stale.resolve({ proxy: { running: !starting }, settings: {}, controllerSecret: 'stale' });
+      await pending;
+      assert.equal(state.proxyRunning, starting);
+      if (starting) assert.equal(state.controllerSecret, 'new-session');
+      assert.deepEqual(renders, [starting]);
+    });
+  }
+}
+
+test('traffic includes closed and download-only connections and resumes from saved totals', async () => {
+  let saved = JSON.stringify({ total: { up: 100, down: 200 }, months: {} });
+  let sample = { uploadTotal: 0, downloadTotal: 500, connections: [] };
+  const load = () => {
+    const context = frontend(undefined, async () => ({ ok: true, json: async () => sample }));
+    context.AbortSignal = AbortSignal;
+    context.localStorage = { getItem: () => saved, setItem: (_, value) => { saved = value; } };
+    context.document.querySelector = () => ({});
+    for (const name of ['updateStatsRing', 'renderTrafficHint', 'drawChart']) context[name] = () => {};
+    Object.assign(vm.runInContext('state', context), { proxyRunning: true, trafficPid: 7 });
+    context.loadTrafficStats();
+    return context;
+  };
+  let context = load();
+  await context.pollTraffic();
+  sample = { uploadTotal: 0, downloadTotal: 900, connections: [] };
+  await context.pollTraffic();
+  context.flushTrafficStats(true);
+  assert.deepEqual(JSON.parse(saved).total, { up: 100, down: 1100 });
+  context = load();
+  await context.pollTraffic();
+  sample = { uploadTotal: 50, downloadTotal: 1200, connections: [] };
+  await context.pollTraffic();
+  context.flushTrafficStats(true);
+  assert.deepEqual(JSON.parse(saved).total, { up: 150, down: 1400 });
+  sample = { uploadTotal: 0, downloadTotal: 100, connections: [] };
+  await context.pollTraffic(); // Late snapshot from the same core.
+  vm.runInContext('state', context).trafficPid = 8;
+  await context.pollTraffic(); // First snapshot after restarting the core.
+  context.flushTrafficStats(true);
+  assert.deepEqual(JSON.parse(saved).total, { up: 150, down: 1500 });
+});

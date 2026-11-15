@@ -1,18 +1,9 @@
 # Changelog
 
-<!--
-发布流程（.github/workflows/release.yml）
-1. 递增 tauri.conf.json 与 Cargo.toml 的版本号
-2. 对应版本号新建 `## [x.y.z] - YYYY-MM-DD` 小节
-3. tag 并推送：
-     git tag vX.Y.Z
-     git push origin vX.Y.Z
-   （带 -beta / -alpha 后缀的 tag 会自动标记为 Pre-release）
-工作流按 tag 提取对应小节作为 Release 描述：
-先匹配完整版本（如 0.3.0-beta.1），再匹配基础版本（0.3.0）
-两者都没有会构建失败
-Release 先建为草稿，需要手动发布
--->
+## Flux6 [0.1.1] Windows x64 - 2026-11-15
+
+Tauri 客户端首次采用 Flux6 的多端正式版本号。启动时检查更新，用户确认后安装。旧 0.5.x 开发版需手动迁移，见[发行说明](docs/releases/v0.1.1.md)。
+
 ## [0.5.3] - 2026-11-05
 
 kfc yes!
