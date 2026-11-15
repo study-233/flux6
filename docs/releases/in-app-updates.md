@@ -29,6 +29,12 @@ macOS 与 Android 从 Flux6 0.1.1 开始支持应用内更新。首次安装和�
 
 安装复用现有 PackageInstaller 流程及 `dev.freev6.mobile` 应用 ID，并继续使用原 Android 签名身份。系统要求用户确认安装，校验失败不会进入安装。自动检查可在通用设置关闭；手动检查不受该偏好限制。下载进度、取消、待安装提示复用现有首页组件。
 
+## Windows Tauri x64
+
+Windows 客户端启动后读取本仓库 Latest Release 的 `version.json`，发现更高版本时弹窗，用户可跳过此次更新或选择下载安装。helper 校验 SHA256，用户选择安装后由 Tauri 宿主再次核验，再启动 NSIS 安装器。新旧版本来自同一 Flux6 版本序列时可以直接比较。首次安装及旧 0.5.x 开发版迁移需手动运行安装包。
+
+Windows 发行包与同版本的 macOS、Android 附件共用一个 Release。发布顺序与下次 Latest 的清单维护见 [Windows 构建与发布](../../apps/windows/README.md)。
+
 ## 后续版本的发布步骤
 
 1. 复核本地候选、对应源码和校验文件，完成所需的设备安装验收。

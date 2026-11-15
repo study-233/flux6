@@ -228,8 +228,8 @@ func TestFetchVersionJSON(t *testing.T) {
 // Handler flow: proxy→direct URL list is overridable; success maps the JSON,
 // an unreachable list degrades to {update:false} instead of an error.
 func TestUpdateLatestHandlerFlow(t *testing.T) {
-	orig := updateLatestURLs
-	t.Cleanup(func() { updateLatestURLs = orig })
+	orig := updateLatestURL
+	t.Cleanup(func() { updateLatestURL = orig })
 	origHosts := append([]string(nil), updateAllowedHosts...)
 	updateAllowedHosts = append(updateAllowedHosts, "127.0.0.1")
 	t.Cleanup(func() { updateAllowedHosts = origHosts })
@@ -239,7 +239,7 @@ func TestUpdateLatestHandlerFlow(t *testing.T) {
 		_, _ = w.Write(payload)
 	}))
 	defer server.Close()
-	updateLatestURLs = func() []string { return []string{server.URL + "/version.json"} }
+	updateLatestURL = server.URL + "/version.json"
 
 	h := &helper{root: t.TempDir()}
 	rec := httptest.NewRecorder()
@@ -260,7 +260,7 @@ func TestUpdateLatestHandlerFlow(t *testing.T) {
 	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	deadURL := dead.URL
 	dead.Close()
-	updateLatestURLs = func() []string { return []string{deadURL + "/version.json"} }
+	updateLatestURL = deadURL + "/version.json"
 	rec2 := httptest.NewRecorder()
 	h.updateLatest(rec2, httptest.NewRequest(http.MethodGet, "/api/v1/update/latest", nil))
 	var noResp struct {
@@ -391,16 +391,22 @@ func TestDownloadUpdateFileStallFailover(t *testing.T) {
 	}
 }
 
-func TestUpdateLatestURLsDefaultIncludesMirrors(t *testing.T) {
-	urls := updateLatestURLs()
-	if len(urls) != len(updateMirrorPrefixes)+1 {
-		t.Fatalf("expected %d urls (mirrors + direct), got %d", len(updateMirrorPrefixes)+1, len(urls))
-	}
-	if !strings.HasPrefix(urls[0], "https://v6.gh-proxy.org/") {
-		t.Fatalf("first url should be the fastest mirror, got %s", urls[0])
-	}
-	if urls[len(urls)-1] != "https://github.com/"+updateRepoSlug+"/releases/latest/download/version.json" {
-		t.Fatalf("last url must be the direct fallback, got %s", urls[len(urls)-1])
+func TestUpdateManifestBindsVersionAssetAndDigest(t *testing.T) {
+	base := latestVersionInfo{Version: "1.2.3", Tag: "v1.2.3", Setup: "Flux6-1.2.3-windows-x64-setup.exe",
+		Download: "https://github.com/study-233/flux6/releases/download/v1.2.3/Flux6-1.2.3-windows-x64-setup.exe",
+		SHA256:   strings.Repeat("ab", 32)}
+	for _, change := range []func(*latestVersionInfo){
+		func(i *latestVersionInfo) { i.Tag = "v4.5.6" },
+		func(i *latestVersionInfo) { i.Setup = "other.exe" },
+		func(i *latestVersionInfo) { i.SHA256 = "" },
+		func(i *latestVersionInfo) { i.SHA256 = strings.Repeat("xx", 32) },
+	} {
+		info := base
+		change(&info)
+		body, _ := json.Marshal(info)
+		if _, err := parseVersionJSON(body); err == nil {
+			t.Errorf("accepted inconsistent manifest: %s", body)
+		}
 	}
 }
 
