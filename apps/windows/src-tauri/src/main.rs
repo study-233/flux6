@@ -155,7 +155,7 @@ fn reserve_helper_port() -> u16 {
 // In-app update: spawn the downloaded NSIS package detached (/S = silent,
 // /FREEV6REL = our POSTINSTALL hook relaunched the new build with the token
 // this elevated process passes on — no UAC, single instance), then kill the
-// helper so freev6-helper.exe is unlocked long before NSIS reaches its File
+// helper so flux6-helper.exe is unlocked long before NSIS reaches its File
 // copies, then exit (the desktop exe lock drops within ms; the stock silent
 // check force-kills it as a last resort). Spawn happens first: if it fails
 // the app and its helper stay alive so the UI can show the error.
@@ -488,7 +488,18 @@ fn warn_already_running() {
     }
 }
 
+#[cfg(feature = "offline-preview")]
+mod preview;
+
 fn main() {
+    #[cfg(feature = "offline-preview")]
+    preview::run();
+    #[cfg(not(feature = "offline-preview"))]
+    run_client();
+}
+
+#[cfg_attr(feature = "offline-preview", allow(dead_code))]
+fn run_client() {
     let autostart = std::env::args().any(|arg| arg.as_str() == "--autostart");
     // Launched by the autostart logon task: honor Task Manager's Startup tab
     // toggle before any window or tray icon exists. Manual launches have no
@@ -523,7 +534,7 @@ fn main() {
             // 不能 `?`：那会一路传播成 panic（release panic=abort，用户只
             // 看到"打不开"）。return Ok(()) 跳过后续热键/托盘初始化。
             if let Err(err) = start_helper(app, &api_token, helper_port) {
-                warn_helper_blocked(&format!("启动 freev6-helper 失败: {err}"));
+                warn_helper_blocked(&format!("启动 Flux6 Helper 失败: {err}"));
                 app.handle().exit(1);
                 return Ok(());
             }
@@ -647,12 +658,12 @@ fn warn_helper_blocked(detail: &str) {
         .chain(std::iter::once(0))
         .collect();
     let body = format!(
-        "Flux6 的核心组件（freev6-helper.exe）没有正常运行。\n\n\
+        "Flux6 的核心组件（flux6-helper.exe）没有正常运行。\n\n\
         常见原因：\n\
-        1. 已经有一个 Flux6（或上次没退干净的 freev6-helper.exe）占着本地端口；\n\
+        1. 已经有一个 Flux6（或上次没退干净的 flux6-helper.exe）占着本地端口；\n\
         2. 杀毒软件把未签名的组件误判并隔离；\n\
         3. 安装目录被移动，组件文件缺失。\n\n\
-        可以先试：任务管理器里结束所有 freev6-helper.exe，再重新打开软件。\n\
+        可以先试：任务管理器里结束所有 flux6-helper.exe，再重新打开软件。\n\
         仍不行就把下面的详细信息发给我们。\n\n\
         详细信息：{detail}"
     );
@@ -675,7 +686,7 @@ fn start_helper(
     let log_path = root.join("state").join("helper.log");
     let mut command = app
         .shell()
-        .sidecar("freev6-helper")?
+        .sidecar("flux6-helper")?
         .env("FREEV6_ROOT", root.clone())
         .env("FREEV6_API_TOKEN", api_token);
     // 0 = 预留失败，helper 自己回落到默认端口。
@@ -696,7 +707,7 @@ fn start_helper(
             match event {
                 CommandEvent::Stderr(line) => {
                     let text = String::from_utf8_lossy(&line).trim_end().to_string();
-                    eprintln!("[freev6-helper] {text}");
+                    eprintln!("[flux6-helper] {text}");
                     if !text.is_empty() {
                         append_helper_log(&log_path, &text);
                         if recent.len() == 20 {
@@ -706,7 +717,7 @@ fn start_helper(
                     }
                 }
                 CommandEvent::Terminated(status) => {
-                    eprintln!("freev6-helper exited: {status:?}");
+                    eprintln!("flux6-helper exited: {status:?}");
                     if !stopping.load(Ordering::Acquire) {
                         // 非主动停止：helper 自己退出了。端口被占、被 WFP/杀软
                         // 拦、组件缺失三种情况都落到这里，文案不再"一律归因
@@ -717,7 +728,7 @@ fn start_helper(
                             recent.iter().cloned().collect::<Vec<_>>().join("\n")
                         };
                         warn_helper_blocked(&format!(
-                            "freev6-helper 已退出（{status:?}）。\n日志：{}\n最近输出：\n{tail}",
+                            "Flux6 Helper 已退出（{status:?}）。\n日志：{}\n最近输出：\n{tail}",
                             log_path.display()
                         ));
                         app_handle.exit(1);

@@ -120,6 +120,21 @@ class AppLocalizations {
     );
   }
 
+  /// `This month`
+  String get trafficThisMonth {
+    return Intl.message(
+      'This month',
+      name: 'trafficThisMonth',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `All time`
+  String get trafficAllTime {
+    return Intl.message('All time', name: 'trafficAllTime', desc: '', args: []);
+  }
+
   /// `Network speed`
   String get networkSpeed {
     return Intl.message(
@@ -7393,11 +7408,11 @@ class AppLocalizations {
     );
   }
 
-  /// `Total {value}`
-  String trafficTotal(Object value) {
+  /// `This session {value}`
+  String trafficSessionUsage(Object value) {
     return Intl.message(
-      'Total $value',
-      name: 'trafficTotal',
+      'This session $value',
+      name: 'trafficSessionUsage',
       desc: '',
       args: [value],
     );

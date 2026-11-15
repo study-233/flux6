@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outbound"
@@ -54,4 +55,28 @@ func TestProxyOnlyTrafficLeavesOutADirectProxyOfAnyName(t *testing.T) {
 		}
 	}
 	statistic.DefaultManager.ResetStatistic()
+}
+
+func TestUsageSurvivesSessionCounterReset(t *testing.T) {
+	statistic.DefaultManager.ResetStatistic()
+	var ledger usageLedger
+	ledger.init(t.TempDir())
+	statistic.DefaultManager.PushDownloaded(true, 30)
+	statistic.DefaultManager.PushDownloaded(false, 70)
+	ledger.resetSession()
+	statistic.DefaultManager.PushUploaded(false, 12)
+	t.Cleanup(statistic.DefaultManager.ResetStatistic)
+	now := time.Now()
+	ledger.observe(now, readUsageCounters())
+	for _, tc := range []struct {
+		onlyProxy bool
+		want      Traffic
+	}{
+		{false, Traffic{12, 100}}, {true, Traffic{12, 70}},
+	} {
+		got, err := ledger.report(now.Format("2006-01"), tc.onlyProxy)
+		if err != nil || got.Total != tc.want {
+			t.Fatalf("proxy only %t after reset: got %+v (%v), want %+v", tc.onlyProxy, got, err, tc.want)
+		}
+	}
 }
