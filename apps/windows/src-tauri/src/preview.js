@@ -26,7 +26,7 @@
         sample++;
         upload += Math.round(130000 + 64000 * Math.sin(sample * 0.8));
         download += Math.round(1600000 + 970000 * Math.sin(sample * 0.45));
-        return json({ connections: [{ upload, download }] });
+        return json({ uploadTotal: upload, downloadTotal: download, connections: [{ upload, download }] });
       }
       if (url.pathname === '/proxies') return json({ proxies: { [group]: { now: selected, all: names } } });
       if (method === 'PUT' && decodeURIComponent(url.pathname) === '/proxies/' + group) {
@@ -41,7 +41,7 @@
     }
     if (url.origin !== 'http://127.0.0.1:13335') return unavailable();
     switch (method + ' ' + url.pathname) {
-      case 'GET /api/v1/status': return json({ settings, proxy: { running }, warp: { registered: true }, controllerPort: running ? 49190 : 0, downloadSession: running ? session : '' });
+      case 'GET /api/v1/status': return json({ settings, proxy: { running, pid: running ? generation : 0 }, warp: { registered: true }, controllerPort: running ? 49190 : 0, downloadSession: running ? session : '' });
       case 'GET /api/v1/nodes/quality': return json(qualityResponse());
       case 'PUT /api/v1/nodes/quality': {
         const input = JSON.parse(options.body);
@@ -88,7 +88,11 @@
         id: 'offline-preview', title: 'Windows 原版界面预览',
         body: '节点和流量使用演示数据，可以切换页面和外观。', published: new Date().toISOString()
       }] });
-      case 'POST /api/v1/proxy/start': running = true; session = 'preview-' + (++generation); return json({ downloadSession: session, controllerPort:49190 });
+      case 'POST /api/v1/proxy/start':
+        running = true;
+        upload = download = 0;
+        session = 'preview-' + (++generation);
+        return json({ pid: generation, downloadSession: session, controllerPort:49190 });
       case 'POST /api/v1/proxy/stop': running = false; return json({});
       case 'PUT /api/v1/settings': settings = JSON.parse(options.body); return json(settings);
       default: return unavailable();

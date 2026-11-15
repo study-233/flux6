@@ -10,6 +10,12 @@
 | P3 删除旧内容 | 完成 | 删除旧 SwiftUI 入口、无效平台包装与上游工具；合并当前文档。 |
 | P4 完善管理 | 完成 | 统一分支、版本、构建与 CI；干净源码验证；本地主线收敛。 |
 
+## 三端流量统计对齐（2026-11-15）
+
+macOS 现有的本月与累计用量作为对照。Android 在核心中采集全部及仅代理的上下行字节，按本地月份保存；从网络速度卡进入详情。Windows Tauri 使用 mihomo 的全局计数器，并将最近一次采到的计数与对应进程编号、月用量和累计用量一起保存。旧版已保存的统计继续使用，此前未记录的用量无法回填。
+
+Android 跨月、重启、仅代理统计和界面入口的回归通过；Flutter 分析、Android arm64 核心编译以及 Windows x64 helper 交叉编译通过。Windows Web 回归覆盖采样间已关闭的连接、纯下载和重开界面。本轮仅验收源码与隔离数据，没有发布安装包或做真机联网验收。
+
 ## P0 基线
 
 起点为 `mac` 分支的 `2b5a1c0`。现有未提交业务修改一并保留，分别按公共业务、Mac、Android、Windows 与文档形成基线提交。该快照表示可恢复的开发状态，不表示所有平台已经完成实机验收。
@@ -486,3 +492,9 @@ Windows Web/Tauri 客户端启用内置 WARP 接入点并发分流。28 个接�
 Tauri 和 Flutter 均打包并启动 `flux6-helper.exe`。共用构建脚本校验产物的文件描述 `Flux6 Helper` 和原始文件名。两套 NSIS 安装器在新文件就位后迁移指向本安装目录的旧 helper 自启动项，再清理旧文件。任务管理器的自启动开关沿用原有注册表值。
 
 macOS 上已通过根 Go 测试和 vet、Windows x64 helper 和测试包交叉编译、Windows helper vet、11 项 Web 测试、Flutter 分析和 30 项测试，以及源码打包检查。从 x64 EXE 提取的文件描述和原始文件名均符合预期，从对应源码包重新生成的资源对象与入库版本逐字节一致。NSIS 3.13 使用合成负载编译了 Flutter 安装脚本，并在测试模板中编译了 Tauri 的安装与卸载钩子。完整 Windows 客户端构建、安装升级与卸载、注册表迁移和任务管理器显示仍待 Windows 实机验证。
+
+## 2026-11-15 Windows Tauri 0.1.1 补发与 macOS 启动检查
+
+Windows x64 与 macOS、Android 共用正式版本号 0.1.1。Windows 安装包从 `911f28d` 构建，已追加到 [v0.1.1](https://github.com/study-233/flux6/releases/tag/v0.1.1)。Windows runner 运行 Web 和 Go 更新回归、构建 Tauri NSIS 安装器并静默安装，核对主程序版本、helper 与 GeoSite 文件。源码归档记录了构建提交。已匿名取回 [Latest 清单](https://github.com/study-233/flux6/releases/latest/download/version.json) 和其中的安装包，核对安装包 SHA256 为 `c2620aac25299b1d2ba3d156b9828813bd46110af49bad7bfb2413dc2f74a9da`。本次 Windows 验证覆盖全新安装，旧开发版迁移和真实代理连接尚未经实机验证。[Windows 构建记录](https://github.com/study-233/flux6/actions/runs/43686886905)
+
+macOS 下一版在用户同意首次使用协议后默认每次启动检查一次，可在设置中关闭。安装仍需用户确认。三项独立签名包测试覆盖无新版、拒绝安装后保留旧版、同意安装后重启进入新 build。Swift 共 200 项，178 项通过，22 项因缺少可选集成夹具跳过。Flutter 分析、31 项测试、本地 Release 构建及临时签名的完整性检查通过。公开的 macOS 0.1.1 build 12 仍使用手动检查。

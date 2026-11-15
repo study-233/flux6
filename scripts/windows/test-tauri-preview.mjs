@@ -36,6 +36,8 @@ test('node list, traffic and delay share the controller advertised by the helper
   const base = 'http://127.0.0.1:13335/api/v1';
   const started = await (await fetch(base + '/proxy/start', {method:'POST'})).json();
   const status = await (await fetch(base + '/status')).json();
+  assert.ok(started.pid > 0);
+  assert.equal(started.pid, status.proxy.pid);
   assert.equal(started.controllerPort, status.controllerPort);
   assert.notEqual(status.controllerPort, 9090);
   const controller = 'http://127.0.0.1:' + status.controllerPort;
@@ -43,7 +45,8 @@ test('node list, traffic and delay share the controller advertised by the helper
   const node = proxies['♻️ 自动选择'].now;
   const measured = await (await fetch(controller + '/proxies/' + encodeURIComponent(node) + '/delay')).json();
   assert.ok(measured.delay > 0);
-  assert.ok((await (await fetch(controller + '/connections')).json()).connections.length);
+  const totals = await (await fetch(controller + '/connections')).json();
+  assert.ok(totals.uploadTotal > 0 && totals.downloadTotal > 0);
   assert.equal((await fetch('http://127.0.0.1:9090/proxies')).status, 503);
   assert.deepEqual(forwarded, []);
 });

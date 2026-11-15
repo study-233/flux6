@@ -29,8 +29,7 @@ const state = {
   trafficHistory: [],
   totalUpload: 0,
   totalDownload: 0,
-  lastUpload: 0,
-  lastDownload: 0,
+  trafficPid: 0,
 
   // Notice（公告板）：启动时由 helper /api/v1/notice 拉取一次
   notices: [],
@@ -132,11 +131,11 @@ function syncController(payload, running) {
   state.controllerSecret = state.controllerPort && typeof payload.controllerSecret === 'string' ? payload.controllerSecret : '';
 }
 
-function controllerGet(path) {
+function controllerGet(path, signal) {
   if (!state.controllerPort) throw new Error('核心控制端口尚未就绪');
   return fetch(`http://127.0.0.1:${state.controllerPort}${path}`, {
     headers: state.controllerSecret ? { Authorization: `Bearer ${state.controllerSecret}` } : {},
-    redirect: 'error',
+    redirect: 'error', signal,
   });
 }
 
@@ -192,7 +191,11 @@ async function api(path, options = {}) {
 // （restoreSkipped）——记进日志提示用户，不能静默吞掉。
 async function stopProxyApi() {
   cancelDownloadQueue();
+  if (state.proxyRunning && state.trafficPid) await pollTraffic();
   const payload = await api('/proxy/stop', { method: 'POST' });
+  trafficStats.cursor = null;
+  trafficStats.dirty = true;
+  flushTrafficStats(true);
   proxyOpGen += 1;
   if (payload.restoreSkipped) {
     addLog(`网络状态还原已跳过（快照不可用）: ${payload.restoreSkipped}`, true);
@@ -389,6 +392,8 @@ async function startProxyFlow(auto = false) {
     proxyOpGen += 1;
     syncController(started, true);
     changeDownloadSession(started.downloadSession || '');
+    state.trafficPid = started.pid || 0;
+    trafficStats.cursor = null;
     setRunning(true);
     reportHotspotResult(started?.hotspot, auto);
     addLog(auto ? '自动启动免流成功' : '免流模式已启动');
@@ -876,12 +881,6 @@ function guideForced() {
 
 const UPDATE_OWNER_REPO = 'study-233/flux6';
 const SKIP_VERSION_KEY = 'freev6-skip-version';
-const GITHUB_PROXY = 'https://gh-proxy.com/';
-
-// 大陆访问加速：请求前部拼接代理前缀；已是代理地址则不重复拼接。
-function proxiedGitHub(url) {
-  return url.startsWith(GITHUB_PROXY) ? url : GITHUB_PROXY + url;
-}
 
 // Version source: the 关于 row (kept in sync with tauri.conf.json / Cargo.toml
 // by the release workflow's tag-version guard).
@@ -912,10 +911,7 @@ function renderUpdateBadge() {
   }
 }
 
-// 版本信息来自 release 里的 version.json（稳定地址 releases/latest/download，
-// 只命中正式版），由 helper 代理获取——完全绕开 api.github.com（共享配额会
-// 间歇403），且 helper 侧无 CORS 问题。所有失败静默：离线、私有仓库(404)、
-// 代理/直连都不可用都不阻塞启动。
+// The helper reads the release manifest over HTTPS directly from GitHub.
 async function checkForUpdate(autoOpen = true) {
   try {
     const res = await api('/update/latest');
@@ -1029,12 +1025,12 @@ async function startUpdate() {
     return;
   }
   setUpdatePhase('downloading');
-  setUpdateStatus(info.sha ? '正在下载安装包…' : '正在下载安装包…（未附 SHA256，跳过校验）');
+  setUpdateStatus('正在下载并校验安装包…');
   let prog;
   try {
     const ack = await api('/update/download', {
       method: 'PUT',
-      body: JSON.stringify({ url: proxiedGitHub(info.url), sha256: info.sha }),
+      body: JSON.stringify({ url: info.url, sha256: info.sha }),
     });
     if (!ack?.ok) throw new Error(ack?.error || '下载任务创建失败');
     prog = await pollUpdateProgress();
@@ -1061,7 +1057,7 @@ async function startUpdate() {
   setUpdateStatus('正在安装新版本并重启…');
   let applied;
   try {
-    applied = await tauriInvoke('update_apply', { installer: prog.path });
+    applied = await tauriInvoke('update_apply', { sha256: info.sha });
   } catch (e) {
     updateFailed(`启动安装器失败: ${e.message}`);
     return;
@@ -1263,7 +1259,7 @@ function updateStatsRing() {
 const TRAFFIC_STATS_KEY = 'freev6-traffic-stats';
 const TRAFFIC_FLUSH_MS = 3000; // 每秒都有增量：合并写入，避免高频落盘
 
-const trafficStats = { total: { up: 0, down: 0 }, months: {}, dirty: false, lastFlush: 0 };
+const trafficStats = { total: { up: 0, down: 0 }, months: {}, cursor: null, dirty: false, lastFlush: 0 };
 
 function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1275,6 +1271,9 @@ function loadTrafficStats() {
     if (!raw) return;
     const data = JSON.parse(raw);
     const num = v => (typeof v === 'number' && isFinite(v) && v > 0 ? v : 0);
+    const cursor = data?.cursor;
+    if (cursor && Number.isSafeInteger(cursor.pid) && cursor.pid > 0 &&
+        validTrafficTotal(cursor.up) && validTrafficTotal(cursor.down)) trafficStats.cursor = cursor;
     if (data?.total) trafficStats.total = { up: num(data.total.up), down: num(data.total.down) };
     if (data?.months && typeof data.months === 'object') {
       const months = {};
@@ -1302,7 +1301,7 @@ function flushTrafficStats(force = false) {
   const now = Date.now();
   if (!force && now - trafficStats.lastFlush < TRAFFIC_FLUSH_MS) return;
   try {
-    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months }));
+    localStorage.setItem(TRAFFIC_STATS_KEY, JSON.stringify({ total: trafficStats.total, months: trafficStats.months, cursor: trafficStats.cursor }));
     trafficStats.dirty = false;
     trafficStats.lastFlush = now;
   } catch (_) { /* 存储不可用：内存继续累计，下次再试 */ }
@@ -1696,6 +1695,7 @@ async function refreshBackendState() {
     setMode(state.mode, false, true);
     syncController(status, Boolean(status.proxy?.running));
     changeDownloadSession(status.proxy?.running ? status.downloadSession || '' : '');
+    state.trafficPid = status.proxy?.pid || 0;
     setRunning(Boolean(status.proxy?.running));
 
     // Runtime info — must complete before updating chip/settings UI
@@ -1739,66 +1739,68 @@ async function refreshBackendState() {
 
 /* ── Traffic Polling ──────────────────────────────────────────── */
 
+let trafficRequest = 0;
+let lastTrafficResponse = 0;
+let lastTrafficTime = null;
+
+function validTrafficTotal(value) {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
 async function pollTraffic() {
-  if (!state.proxyRunning) {
-    // Stopped: zero the chart history, the totals baseline and the speed readout
-    resetTrafficDisplay(true);
+  if (!state.proxyRunning || !state.trafficPid) {
+    lastTrafficTime = null;
+    resetTrafficDisplay();
     return;
   }
-
+  const pid = state.trafficPid;
+  const generation = proxyOpGen;
+  const port = state.controllerPort;
+  const session = downloadSession;
+  const request = ++trafficRequest;
+  const current = () => state.proxyRunning && state.trafficPid === pid &&
+    port === state.controllerPort && session === downloadSession &&
+    generation === proxyOpGen && request > lastTrafficResponse;
   try {
-    // mihomo controller connections API
-    const port = state.controllerPort;
-    const session = downloadSession;
-    const resp = await controllerGet('/connections');
+    const resp = await controllerGet('/connections', AbortSignal.timeout(1500));
     if (!resp.ok) return;
-    const data = await resp.json();
-    if (port !== state.controllerPort || session !== downloadSession || !state.proxyRunning) return;
-    let upTotal = 0, downTotal = 0;
-    for (const conn of (data.connections || [])) {
-      upTotal += conn.upload || 0;
-      downTotal += conn.download || 0;
-    }
+    const { uploadTotal: up, downloadTotal: down } = await resp.json();
+    if (!current() || !validTrafficTotal(up) || !validTrafficTotal(down)) return;
+    lastTrafficResponse = request;
 
-    const deltaUp = Math.max(0, upTotal - state.lastUpload);
-    const deltaDown = Math.max(0, downTotal - state.lastDownload);
-
-    if (state.lastUpload > 0) {
-      state.trafficHistory.push({ t: Date.now(), up: deltaUp, down: deltaDown });
-      if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
-      state.totalUpload += deltaUp;
-      state.totalDownload += deltaDown;
-      // 同一份增量同时计入本月 / 累计（跨会话持久化）
-      addTrafficStats(deltaUp, deltaDown);
-    }
-
-    state.lastUpload = upTotal;
-    state.lastDownload = downTotal;
-
-    // Update speed display
-    $('#speedUp').textContent = formatSpeed(deltaUp);
-    $('#speedDown').textContent = formatSpeed(deltaDown);
-
-    // Update stats
-    updateStatsRing();
+    // The controller totals include connections that closed between two polls.
+    const previous = trafficStats.cursor;
+    const sameCore = previous?.pid === pid;
+    if (sameCore && (up < previous.up || down < previous.down)) return;
+    const deltaUp = sameCore ? up - previous.up : up;
+    const deltaDown = sameCore ? down - previous.down : down;
+    trafficStats.cursor = { pid, up, down };
+    if (!sameCore) trafficStats.dirty = true;
+    addTrafficStats(deltaUp, deltaDown);
+    state.totalUpload += deltaUp;
+    state.totalDownload += deltaDown;
     flushTrafficStats();
-    renderTrafficHint();
 
-    // Redraw chart
+    const now = Date.now();
+    const seconds = sameCore && lastTrafficTime !== null ? (now - lastTrafficTime) / 1000 : 0;
+    lastTrafficTime = now;
+    const upRate = seconds > 0 ? deltaUp / seconds : 0;
+    const downRate = seconds > 0 ? deltaDown / seconds : 0;
+    state.trafficHistory.push({ t: now, up: upRate, down: downRate });
+    if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
+    $('#speedUp').textContent = formatSpeed(upRate);
+    $('#speedDown').textContent = formatSpeed(downRate);
+    updateStatsRing();
+    renderTrafficHint();
     drawChart();
   } catch (_) {
-    // mihomo not reachable: show zeros but keep the totals baseline
-    resetTrafficDisplay(false);
+    if (current()) resetTrafficDisplay();
   }
 }
 
-function resetTrafficDisplay(clearCounters) {
+function resetTrafficDisplay() {
   state.trafficHistory.push({ t: Date.now(), up: 0, down: 0 });
   if (state.trafficHistory.length > TRAFFIC_POINTS) state.trafficHistory.shift();
-  if (clearCounters) {
-    state.lastUpload = 0;
-    state.lastDownload = 0;
-  }
   $('#speedUp').textContent = formatSpeed(0);
   $('#speedDown').textContent = formatSpeed(0);
   drawChart();
@@ -1840,6 +1842,7 @@ async function pollStatus() {
     const isRunning = Boolean(status.proxy?.running);
     syncController(status, isRunning);
     changeDownloadSession(isRunning ? status.downloadSession || '' : '');
+    state.trafficPid = status.proxy?.pid || 0;
     if (wasRunning !== isRunning) {
       setRunning(isRunning);
       addLog(isRunning ? '免流模式已启动' : '免流模式已停止');

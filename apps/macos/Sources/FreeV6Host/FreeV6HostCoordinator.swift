@@ -198,6 +198,8 @@ import FreeV6System
         return auto.attempt
     }
 
+    public func takeStartupUpdateCheck() -> Bool { settings.startup.takeStartupUpdateCheck() }
+
     public func snapshot() async -> [String: Any] {
         await bootstrap()
         return makeSnapshot()

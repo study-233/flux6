@@ -297,3 +297,41 @@ for (const observer of ['pollStatus', 'refreshBackendState']) {
     });
   }
 }
+
+test('traffic includes closed and download-only connections and resumes from saved totals', async () => {
+  let saved = JSON.stringify({ total: { up: 100, down: 200 }, months: {} });
+  let sample = { uploadTotal: 0, downloadTotal: 500, connections: [] };
+  const load = () => {
+    const context = frontend(undefined, async (url, options) => {
+      assert.equal(url, 'http://127.0.0.1:49190/connections');
+      assert.equal(options.headers.Authorization, 'Bearer fixture');
+      return { ok: true, json: async () => sample };
+    });
+    context.syncController({controllerPort: 49190, controllerSecret: 'fixture'}, true);
+    context.AbortSignal = AbortSignal;
+    context.localStorage = { getItem: () => saved, setItem: (_, value) => { saved = value; } };
+    context.document.querySelector = () => ({});
+    for (const name of ['updateStatsRing', 'renderTrafficHint', 'drawChart']) context[name] = () => {};
+    Object.assign(vm.runInContext('state', context), { proxyRunning: true, trafficPid: 7 });
+    context.loadTrafficStats();
+    return context;
+  };
+  let context = load();
+  await context.pollTraffic();
+  sample = { uploadTotal: 0, downloadTotal: 900, connections: [] };
+  await context.pollTraffic();
+  context.flushTrafficStats(true);
+  assert.deepEqual(JSON.parse(saved).total, { up: 100, down: 1100 });
+  context = load();
+  await context.pollTraffic();
+  sample = { uploadTotal: 50, downloadTotal: 1200, connections: [] };
+  await context.pollTraffic();
+  context.flushTrafficStats(true);
+  assert.deepEqual(JSON.parse(saved).total, { up: 150, down: 1400 });
+  sample = { uploadTotal: 0, downloadTotal: 100, connections: [] };
+  await context.pollTraffic(); // Late snapshot from the same core.
+  vm.runInContext('state', context).trafficPid = 8;
+  await context.pollTraffic(); // First snapshot after restarting the core.
+  context.flushTrafficStats(true);
+  assert.deepEqual(JSON.parse(saved).total, { up: 150, down: 1500 });
+});

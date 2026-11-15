@@ -656,7 +656,7 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 	channel.network = qualityNetwork(snapshot)
 	channel.cloud = len(cloudNodes) > 0
 	h.startNodeQuality(channel)
-	writeJSON(writer, http.StatusOK, map[string]any{"running": true, "hotspot": hotspotResult, "controllerSecret": controllerSecret, "controllerPort": controller.Port(), "downloadSession": channel.session})
+	writeJSON(writer, http.StatusOK, map[string]any{"running": true, "pid": pid, "hotspot": hotspotResult, "controllerSecret": controllerSecret, "controllerPort": controller.Port(), "downloadSession": channel.session})
 }
 
 // healLeftoverSnapshot 先按上次会话残留的快照还原，再让 startProxy 重新

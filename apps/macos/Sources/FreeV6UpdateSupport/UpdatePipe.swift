@@ -23,6 +23,7 @@ public struct UpdateReply: Codable, Sendable {
 }
 
 public enum UpdatePipe {
+    public static let backgroundCheckArgument = "--check-in-background"
     private static let maximum = 16_384
 
     public static func write<T: Encodable>(_ value: T, to handle: FileHandle) throws {
