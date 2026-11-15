@@ -37,15 +37,16 @@ class FeedHandler(SimpleHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--scenario", choices=["upgrade", "keychain-upgrade", "bad-archive", "unsigned-feed", "wrong-arch", "cancel", "cancel-download", "lost-host"], default="upgrade")
+    parser.add_argument("--scenario", choices=["upgrade", "no-update", "keychain-upgrade", "bad-archive", "unsigned-feed", "wrong-arch", "cancel", "cancel-download", "lost-host"], default="upgrade")
     parser.add_argument("--flutter-target", type=Path, help="Use a QA-identified copy of the signed Flutter build-2 application as the actual Sparkle update target.")
+    parser.add_argument("--background", action="store_true", help="Exercise the launch-time check.")
     args = parser.parse_args()
     if args.flutter_target and args.scenario != "upgrade":
         parser.error("--flutter-target is supported for upgrade only")
-    exercise(args.scenario, flutter_target=args.flutter_target)
+    exercise(args.scenario, flutter_target=args.flutter_target, background=args.background)
 
 
-def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_target=None):
+def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_target=None, background=False):
     assert os.geteuid() != 0
     work = ROOT / "build/native-update-probes" / str(uuid.uuid4())
     work.mkdir(parents=True, mode=0o700)
@@ -86,7 +87,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
         shutil.copy2(host_binary, app / "Contents/MacOS/Flux6")
         info = {"CFBundleIdentifier": identifier, "CFBundleExecutable": "Flux6", "CFBundlePackageType": "APPL",
                 "CFBundleName": "Flux6 Update Fixture", "CFBundleVersion": str(version), "CFBundleShortVersionString": str(version),
-                "LSMinimumSystemVersion": "14.0", "LSUIElement": True,
+                "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "ProbeBackgroundCheck": background,
                 "SUFeedURL": base + "/appcast-" + ARCH + ".xml", "SUPublicEDKey": public,
                 "SURequireSignedFeed": True, "SUVerifyUpdateBeforeExtraction": True, "SUSignedFeedFailureExpirationInterval": 0,
                 "SUEnableAutomaticChecks": False, "SUAutomaticallyUpdate": False, "SUAllowsAutomaticUpdates": False,
@@ -152,6 +153,8 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
                f'length="{package.stat().st_size}" type="application/octet-stream" freev6:requirements={quoteattr(encoded)}/>'
                '</item></channel></rss>')
         appcast = feed / ("appcast-" + ARCH + ".xml")
+        if scenario == "no-update":
+            xml = xml[:xml.index("<item>")] + "</channel></rss>"
         appcast.write_text(xml)
         if scenario != "unsigned-feed":
             run([sdk / "bin/sign_update", "--ed-key-file", key, appcast])
@@ -179,7 +182,8 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
                         target_pid = int(observed.stdout)
                         success = True
                 failure = any(e["event"] == "failed" for e in history)
-                if success or failure:
+                checked = scenario == "no-update" and any(e["event"] == "finished" for e in history)
+                if success or failure or checked:
                     break
                 if child.poll() is not None and child.returncode != 0:
                     break
@@ -189,8 +193,12 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
         installed = plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleVersion"]
         expected = "2" if scenario in ("upgrade", "service-upgrade", "keychain-upgrade") else "1"
         lost_host = scenario == "lost-host" and child.poll() == 19 and any(e["event"] == "ready" for e in history)
-        passed = installed == expected and (success if expected == "2" else failure or lost_host)
-        if expected == "2":
+        passed = installed == expected and (success if expected == "2" else checked or failure or lost_host)
+        if scenario == "no-update":
+            passed = checked and installed == "1" and all(e["event"] not in ("found", "downloading", "ready", "installing", "failed") for e in history)
+        elif scenario == "cancel":
+            passed = passed and any(e["event"] == "installation-cancelled" for e in history)
+        elif expected == "2":
             passed = passed and any(e["event"] == "network-confirmed" for e in history)
         elif scenario not in ("cancel", "lost-host", "service-recovery-failure"):
             passed = passed and not any(e["event"] == "ready" for e in history)
@@ -202,7 +210,7 @@ def exercise(scenario, *, before_check=None, confirm_installation=None, flutter_
             else:
                 passed = passed and "installation-cancelled" in observed and "installing" not in observed
         run(["/usr/bin/codesign", "--verify", "--deep", "--strict", app])
-        result = {"passed": passed, "scenario": scenario, "installedVersion": installed, "events": history,
+        result = {"passed": passed, "scenario": scenario, "background": background, "installedVersion": installed, "events": history,
                   "scope": ("signed fixture with the product update helper, native desktop disconnect, user-domain XPC and isolated DNS"
                             if confirm_installation else "ordinary-user signed fixture using product Swift helper; synthetic network preparation")}
         if flutter_target and passed:

@@ -160,11 +160,27 @@ fn reserve_helper_port() -> u16 {
 // check force-kills it as a last resort). Spawn happens first: if it fails
 // the app and its helper stay alive so the UI can show the error.
 #[tauri::command]
-fn update_apply(app: tauri::AppHandle, installer: String) -> Result<String, String> {
-    use std::os::windows::process::CommandExt;
+fn update_apply(app: tauri::AppHandle, sha256: String) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    use std::fs::OpenOptions;
+    use std::os::windows::{fs::OpenOptionsExt, process::CommandExt};
+    use std::path::PathBuf;
 
-    if !std::path::Path::new(&installer).is_file() {
-        return Err(format!("安装包不存在: {installer}"));
+    let installer = std::env::var_os("LOCALAPPDATA")
+        .filter(|value| !value.is_empty())
+        .map(|dir| PathBuf::from(dir).join("FreeV6"))
+        .unwrap_or_else(std::env::temp_dir)
+        .join("freev6-update-setup.exe");
+    // Deny write/delete sharing until CreateProcess has opened the verified image.
+    let mut file = OpenOptions::new()
+        .read(true)
+        .share_mode(1)
+        .open(&installer)
+        .map_err(|e| format!("无法打开更新包: {e}"))?;
+    let mut digest = Sha256::new();
+    std::io::copy(&mut file, &mut digest).map_err(|e| format!("无法校验更新包: {e}"))?;
+    if !format!("{:x}", digest.finalize()).eq_ignore_ascii_case(&sha256) {
+        return Err("更新包校验失败，请重新下载。".into());
     }
     std::process::Command::new(&installer)
         .args(["/S", "/FREEV6REL"])

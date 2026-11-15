@@ -25,7 +25,7 @@ extension HostSettings {
     var preferencesMap: [String: Any] {
         ["appIcon": appIcon, "appearance": defaults.string(forKey: "appearance") ?? "system",
          "reduceMotion": defaults.bool(forKey: "reduceMotion"), "showMenuBar": defaults.object(forKey: "showMenuBarExtra") as? Bool ?? true,
-         "hideOnStart": startup.silent, "autoConnect": startup.automatic,
+         "checkUpdatesOnLaunch": startup.checkUpdatesOnLaunch, "hideOnStart": startup.silent, "autoConnect": startup.automatic,
          "login": preview ? defaults.bool(forKey: "loginRequested") : startup.loginRequested,
          "loginStatus": preview ? "隔离登录偏好，系统登录项保持独立。" : (startup.loginError ?? startup.loginStatus?.description ?? ""),
          "needsLoginApproval": !preview && startup.loginStatus == .needsApproval]
@@ -106,6 +106,7 @@ extension HostSettings {
         switch field {
         case "reduceMotion": defaults.set(value, forKey: "reduceMotion")
         case "showMenuBar": defaults.set(value, forKey: "showMenuBarExtra")
+        case "checkUpdatesOnLaunch": startup.checkUpdatesOnLaunch = value
         case "autoConnect": startup.automatic = value
         case "hideOnStart": startup.silent = value
         case "login":

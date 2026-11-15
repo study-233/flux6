@@ -880,12 +880,6 @@ function guideForced() {
 
 const UPDATE_OWNER_REPO = 'study-233/flux6';
 const SKIP_VERSION_KEY = 'freev6-skip-version';
-const GITHUB_PROXY = 'https://gh-proxy.com/';
-
-// 大陆访问加速：请求前部拼接代理前缀；已是代理地址则不重复拼接。
-function proxiedGitHub(url) {
-  return url.startsWith(GITHUB_PROXY) ? url : GITHUB_PROXY + url;
-}
 
 // Version source: the 关于 row (kept in sync with tauri.conf.json / Cargo.toml
 // by the release workflow's tag-version guard).
@@ -916,10 +910,7 @@ function renderUpdateBadge() {
   }
 }
 
-// 版本信息来自 release 里的 version.json（稳定地址 releases/latest/download，
-// 只命中正式版），由 helper 代理获取——完全绕开 api.github.com（共享配额会
-// 间歇403），且 helper 侧无 CORS 问题。所有失败静默：离线、私有仓库(404)、
-// 代理/直连都不可用都不阻塞启动。
+// The helper reads the release manifest over HTTPS directly from GitHub.
 async function checkForUpdate(autoOpen = true) {
   try {
     const res = await api('/update/latest');
@@ -1033,12 +1024,12 @@ async function startUpdate() {
     return;
   }
   setUpdatePhase('downloading');
-  setUpdateStatus(info.sha ? '正在下载安装包…' : '正在下载安装包…（未附 SHA256，跳过校验）');
+  setUpdateStatus('正在下载并校验安装包…');
   let prog;
   try {
     const ack = await api('/update/download', {
       method: 'PUT',
-      body: JSON.stringify({ url: proxiedGitHub(info.url), sha256: info.sha }),
+      body: JSON.stringify({ url: info.url, sha256: info.sha }),
     });
     if (!ack?.ok) throw new Error(ack?.error || '下载任务创建失败');
     prog = await pollUpdateProgress();
@@ -1065,7 +1056,7 @@ async function startUpdate() {
   setUpdateStatus('正在安装新版本并重启…');
   let applied;
   try {
-    applied = await tauriInvoke('update_apply', { installer: prog.path });
+    applied = await tauriInvoke('update_apply', { sha256: info.sha });
   } catch (e) {
     updateFailed(`启动安装器失败: ${e.message}`);
     return;

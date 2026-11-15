@@ -79,6 +79,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
                 guard event["kind"] as? String != "traffic", let snapshot = event["snapshot"] as? [String: Any] else { return }
                 self?.menus.apply(snapshot)
                 self?.applyIcon(snapshot)
+                self?.checkUpdatesOnLaunch()
             }
             Task {
                 let snapshot = await service.snapshot()
@@ -92,6 +93,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
                     main?.window?.orderOut(nil)
                 }
                 main?.window?.alphaValue = 1
+                checkUpdatesOnLaunch()
             }
         } else {
             main?.window?.alphaValue = 1
@@ -289,10 +291,15 @@ final class HostApplication: NSObject, NSWindowDelegate {
         return .terminateLater
     }
 
-    func checkUpdates() throws {
+    private func checkUpdatesOnLaunch() {
+        guard Self.isOfficial, !terminating, let service = try? coordinator.get(), service.takeStartupUpdateCheck() else { return }
+        try? checkUpdates(background: true)
+    }
+
+    func checkUpdates(background: Bool = false) throws {
         let service = try coordinator.get()
         guard !terminating, !confirmingClose else { throw HostActionError.panelInUse }
-        updater.check(prepare: { [weak self] release, source in
+        updater.check(background: background, prepare: { [weak self] release, source in
             guard let self, !self.terminating else { throw UpdateFailure.cancelled }
             let prompt = NSAlert()
             prompt.messageText = "安装更新并重新打开 Flux6？"
