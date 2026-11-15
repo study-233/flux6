@@ -22,7 +22,7 @@
 
 ## AI 代理规范与技能
 
-[根 AGENTS.md](../../AGENTS.md) 是统一入口；[技能索引](../../.agents/skills.md) 提供 `localization`、`ui-work`、`core-platform`、`ui-performance`、`pre-commit-quality-review` 五个无前缀技能，覆盖各平台及共享 Go。Android 不再保留重复的技能文件，其架构、命令和编码细则仍由 `apps/android/.agents/` 维护。来源提交、许可和适配范围见 [借鉴记录](../../.agents/UPSTREAM.md)。
+[根 AGENTS.md](../../AGENTS.md) 是统一入口。[技能索引](../../.agents/skills.md) 收录各平台、共享 Go、提交审查和项目发布技能。Android 的架构、命令和编码细则由 `apps/android/.agents/` 维护。来源提交、许可和适配范围见 [借鉴记录](../../.agents/UPSTREAM.md)。
 
 ## 分支与提交
 

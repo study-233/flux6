@@ -26,6 +26,7 @@ mihomo.yaml
 !/.agents/skills/core-platform/
 !/.agents/skills/ui-performance/
 !/.agents/skills/pre-commit-quality-review/
+!/.agents/skills/release/
 /.agents/skills/*/*
 !/.agents/skills/*/SKILL.md
 docs/agent/

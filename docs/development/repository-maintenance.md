@@ -443,3 +443,9 @@ Windows helper 在恢复 DNS 前只读枚举网卡，按接口名、索引及协
 Windows x64 与 macOS、Android 共用正式版本号 0.1.1。Windows 安装包从 `911f28d` 构建，已追加到 [v0.1.1](https://github.com/study-233/flux6/releases/tag/v0.1.1)。Windows runner 运行 Web 和 Go 更新回归、构建 Tauri NSIS 安装器并静默安装，核对主程序版本、helper 与 GeoSite 文件。源码归档记录了构建提交。已匿名取回 [Latest 清单](https://github.com/study-233/flux6/releases/latest/download/version.json) 和其中的安装包，核对安装包 SHA256 为 `c2620aac25299b1d2ba3d156b9828813bd46110af49bad7bfb2413dc2f74a9da`。本次 Windows 验证覆盖全新安装，旧开发版迁移和真实代理连接尚未经实机验证。[Windows 构建记录](https://github.com/study-233/flux6/actions/runs/43686886905)
 
 macOS 下一版在用户同意首次使用协议后默认每次启动检查一次，可在设置中关闭。安装仍需用户确认。三项独立签名包测试覆盖无新版、拒绝安装后保留旧版、同意安装后重启进入新 build。Swift 共 200 项，178 项通过，22 项因缺少可选集成夹具跳过。Flutter 分析、31 项测试、本地 Release 构建及临时签名的完整性检查通过。公开的 macOS 0.1.1 build 12 仍使用手动检查。
+
+## 2026-11-15 项目发布技能
+
+新增 [release](../../.agents/skills/release/SKILL.md)，统一发行说明、公开附件和更新通道的发布顺序。新 Release 只写用户可见变化和必要的升级操作，省略 SHA-256 校验附件。已对照 `v0.1.1` 源码记录 Android 旧版应用内升级对该附件的依赖。
+
+技能格式、索引与链接、Git 忽略规则、仓库检查、发行来源和 9 项维护测试通过。本次仅修改技能及仓库指引，未构建客户端或执行发布。

@@ -28,4 +28,4 @@ cargo tauri build
 
 维护者可手动运行工作流，或推送 `release/windows-*` 分支触发构建。工作流核对 Tauri、Cargo 和界面版本，运行 helper 与 Web 回归，在临时目录执行静默安装，输出 NSIS 安装包、对应源码、`Windows-SHA256SUMS` 和 `version.json`。
 
-版本号跟随 Flux6 多端发行序列。首次 Windows 正式版为 0.1.1；旧 0.5.x 开发版按数值判断版本，需要手动迁移。发布时先把安装包、源码和摘要追加到同版本 Release，核实公开安装包的 SHA256，最后上传 `version.json`。客户端启动时读取本仓库 Latest Release 的清单；今后晋升 Latest 时须一并提供 Windows 清单，可继续指向最近一次已发布的 Windows 安装包。
+版本号跟随 Flux6 多端发行序列。首次 Windows 正式版为 0.1.1；旧 0.5.x 开发版按数值判断版本，需要手动迁移。发布时按[项目发布技能](../../.agents/skills/release/SKILL.md)选取安装包、对应源码和 `version.json`。`Windows-SHA256SUMS` 留作构建核验。客户端启动时读取本仓库 Latest Release 的清单；今后晋升 Latest 时须一并提供 Windows 清单，可继续指向最近一次已发布的 Windows 安装包。

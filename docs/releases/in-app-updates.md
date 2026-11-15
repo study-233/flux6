@@ -28,7 +28,7 @@ macOS 与 Android 从 Flux6 0.1.1 开始支持应用内更新。首次安装和�
 
 客户端通过 `https://api.github.com/repos/study-233/flux6/releases/latest` 查询正式版本；API 限流或失败时仅接受同一仓库的 HTTPS 最新版本跳转。检查与下载均使用强制验证 TLS 证书的客户端。上游来源链接继续指向 FlClash，更新地址单独定义。
 
-发布附件必须命名为 `Flux6-<版本>-android-arm64.apk`，并在同一 Release 的 `SHA256SUMS` 中提供该文件的 SHA256。版本标签为 `v<版本>`。目前只提供 ARM64；不要将未交付架构指向错误的 APK。
+已发布的 0.1.1 客户端按 `v<版本>` 标签查找 `Flux6-<版本>-android-arm64.apk`，下载前从同一 Release 的 `SHA256SUMS` 读取该 APK 的摘要。后续 Release 省略校验附件时，0.1.1 的应用内下载会失败，手动升级需使用原签名 APK 覆盖安装。
 
 安装复用现有 PackageInstaller 流程及 `dev.freev6.mobile` 应用 ID，并继续使用原 Android 签名身份。系统要求用户确认安装，校验失败不会进入安装。自动检查可在通用设置关闭；手动检查不受该偏好限制。下载进度、取消、待安装提示复用现有首页组件。
 
@@ -40,13 +40,7 @@ Windows 发行包与同版本的 macOS、Android 附件共用一个 Release。�
 
 ## 后续版本的发布步骤
 
-1. 复核本地候选、对应源码和校验文件，完成所需的设备安装验收。
-2. 为同一版本准备一个 Release，上传 macOS DMG、签名更新 ZIP、签名清单 `appcast-arm64.xml`、两端对应源码、Android APK 和统一的 `SHA256SUMS`。校验文件中的六个文件名须与附件一致。
-3. 核对草稿目标提交和七个附件。确认更新 ZIP 文件名中的版本与 build 和签名清单一致，并按本次 `SHA256SUMS` 核对六个附件的摘要。公开后再匿名下载核对。
-4. 验证 macOS ZIP 可公开下载后，一次提交部署已经签名的 `appcast-arm64.xml` 到 `macos-updates` 分支。签名后不能格式化或改动清单。
-5. 完成正式源检查及升级验收，再同步官网、Homebrew 和发行记录。官网从 GitHub 填入实际 `publishedAt` 和附件数据。复核公开 DMG 的摘要后更新 Tap。
-
-设为 Latest 前还需准备 Windows：按上节顺序上传 Windows 附件，或在此次发行中沿用上一个 Windows 版本的 `version.json`。从 Latest 的公开地址取回清单，检查其中安装包地址和摘要。
+按[项目发布技能](../../.agents/skills/release/SKILL.md)准备公开附件、确认旧客户端的升级路径并切换更新通道。
 
 ## 本地验证结果
 
