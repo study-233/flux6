@@ -537,3 +537,7 @@ Flutter 分析和 6 个相关测试文件的 58 项测试通过，覆盖无校�
 ## 2026-11-15 正式发布 Flux6 0.1.2
 
 [Flux6 0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2) 已设为 Latest，标签指向候选构建提交 `0906f3e`。三端共九项附件。Windows 的公开 Latest 地址已返回本次 x64 安装器清单。匿名下载的 macOS ZIP 与候选包一致，随后将[原签名清单](https://github.com/study-233/flux6/commit/8dfe09117dfbdf1875448d2bc7d46bab20772b47)部署至 `macos-updates`。已从客户端的公开地址取回同一份清单，版本为 0.1.2、build 13。本轮验证覆盖公开分发链路，设备安装范围见上节候选验收记录。
+
+## 2026-11-15 Homebrew 发布 Flux6 0.1.2
+
+[正式 Tap](https://github.com/study-233/homebrew-tap/commit/609aa8613149b211a448c14b6d7a3fbfc84a166c) 的 Cask 使用 0.1.2 build 13 的 Apple Silicon DMG，摘要取自已发布的 GitHub 附件。刷新该 Tap 后，本机 Homebrew 的 `brew upgrade --cask --dry-run study-233/tap/flux6` 列出 `0.1.1,12 -> 0.1.2,13`。本次验证覆盖升级识别，未执行应用替换。
