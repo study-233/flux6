@@ -584,7 +584,8 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
-	if _, err := mihomo.Start(binaryPath, configPath, stateDir, pidPath, logPath); err != nil {
+	pid, err := mihomo.Start(binaryPath, configPath, stateDir, pidPath, logPath)
+	if err != nil {
 		restore()
 		writeJSON(writer, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
@@ -614,7 +615,7 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 	// 热点共享（设置 → 通用，非阻断）：mihomo 就绪后才切 ICS，失败回滚
 	// 到启动前基线；结果随响应带回前端（成功记日志、失败弹日志界面）。
 	hotspotResult := applyHotspotShare(snapshot, snapshotPath, stored.HotspotShare)
-	writeJSON(writer, http.StatusOK, map[string]any{"running": true, "hotspot": hotspotResult, "controllerSecret": controllerSecret})
+	writeJSON(writer, http.StatusOK, map[string]any{"running": true, "pid": pid, "hotspot": hotspotResult, "controllerSecret": controllerSecret})
 }
 
 // healLeftoverSnapshot 先按上次会话残留的快照还原，再让 startProxy 重新

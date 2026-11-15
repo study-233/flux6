@@ -122,6 +122,7 @@ class SpeedCard extends ConsumerWidget {
     return DashboardCard(
       padding: EdgeInsets.zero,
       semanticLabel: direction.labelOf(context),
+      onTap: () => _showTrafficUsage(context),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
@@ -179,7 +180,7 @@ class SpeedCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  appLocalizations.trafficTotal(dashboardTraffic(total)),
+                  appLocalizations.trafficSessionUsage(dashboardTraffic(total)),
                   maxLines: 1,
                   style: DashboardText.label(context),
                 ),
@@ -203,11 +204,13 @@ class NetworkSpeedCard extends ConsumerWidget {
     final latest = traffics.list.safeLast(const Traffic());
     return DashboardCard(
       semanticLabel: context.appLocalizations.networkSpeed,
+      onTap: () => _showTrafficUsage(context),
       child: Column(
         children: [
           DashboardCardHeader(
             glyph: AppGlyphs.speed,
             title: context.appLocalizations.networkSpeed,
+            chevron: true,
           ),
           const SizedBox(height: 12),
           Row(
@@ -310,7 +313,7 @@ class _SpeedTile extends StatelessWidget {
                       unitStyle: AppTextStyle.footnote,
                     ),
                     Text(
-                      context.appLocalizations.trafficTotal(
+                      context.appLocalizations.trafficSessionUsage(
                         dashboardTraffic(total),
                       ),
                       maxLines: 1,
@@ -324,6 +327,73 @@ class _SpeedTile extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+void _showTrafficUsage(BuildContext context) {
+  showSheet<void>(context: context, builder: (_) => const _TrafficUsageSheet());
+}
+
+class _TrafficUsageSheet extends ConsumerStatefulWidget {
+  const _TrafficUsageSheet();
+
+  @override
+  ConsumerState<_TrafficUsageSheet> createState() => _TrafficUsageSheetState();
+}
+
+class _TrafficUsageSheetState extends ConsumerState<_TrafficUsageSheet>
+    with WidgetsBindingObserver, ActivePollingMixin<_TrafficUsageSheet> {
+  ({Traffic month, Traffic total})? _usage;
+
+  @override
+  Duration get pollInterval => const Duration(seconds: 2);
+
+  @override
+  Future<void> poll(PollGuard isCurrent) async {
+    final onlyProxy = ref.read(appSettingProvider).onlyStatisticsProxy;
+    final usage = await ref
+        .read(coreHandlerProvider)
+        .getTrafficUsage(onlyProxy);
+    if (isCurrent() && usage != _usage) setState(() => _usage = usage);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = context.appLocalizations;
+    Widget section(String title, Traffic? traffic) {
+      final bytes = traffic == null ? null : traffic.up + traffic.down;
+      return generateSection(
+        title: title,
+        items: [
+          for (final (label, value) in [
+            (labels.upload, traffic?.up),
+            (labels.download, traffic?.down),
+            (labels.total, bytes),
+          ])
+            ListItem(
+              title: Text(label),
+              trailing: Text(value == null ? '—' : dashboardTraffic(value)),
+            ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      title: labels.trafficUsage,
+      body: ListView(
+        shrinkWrap: true,
+        padding: EdgeInsets.fromLTRB(
+          16,
+          context.contentTopPadding,
+          16,
+          context.bottomInset + 16,
+        ),
+        children: [
+          section(labels.trafficThisMonth, _usage?.month),
+          section(labels.trafficAllTime, _usage?.total),
+        ],
+      ),
     );
   }
 }

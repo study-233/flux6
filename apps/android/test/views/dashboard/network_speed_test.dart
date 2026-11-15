@@ -90,11 +90,30 @@ void main() {
     Finder inTile(Finder tile, String text) =>
         find.descendant(of: tile, matching: find.textContaining(text));
     expect(inTile(upload, '${_traffic(1024)}/s'), findsOneWidget);
-    expect(inTile(upload, 'Total ${_traffic(5120)}'), findsOneWidget);
+    expect(inTile(upload, 'This session ${_traffic(5120)}'), findsOneWidget);
     expect(inTile(download, '${_traffic(3072)}/s'), findsOneWidget);
-    expect(inTile(download, 'Total ${_traffic(6144)}'), findsOneWidget);
+    expect(inTile(download, 'This session ${_traffic(6144)}'), findsOneWidget);
     expect(find.textContaining(_traffic(4096)), findsNothing);
 
+    await teardownCard(tester);
+  });
+
+  testWidgets('opens monthly and all-time usage from the network speed card', (
+    tester,
+  ) async {
+    when(() => core.getTrafficUsage(false)).thenAnswer(
+      (_) async => (
+        month: const Traffic(up: 1024, down: 2048),
+        total: const Traffic(up: 4096, down: 8192),
+      ),
+    );
+    await pumpCard(tester, const NetworkSpeedCard());
+    await tester.tap(find.text('Network speed'));
+    await tester.pumpAndSettle();
+    expect(find.text('This month'), findsOneWidget);
+    expect(find.text('All time'), findsOneWidget);
+    expect(find.text(_traffic(3072)), findsOneWidget);
+    expect(find.text(_traffic(12288)), findsOneWidget);
     await teardownCard(tester);
   });
 
@@ -131,7 +150,7 @@ void main() {
 
     final rect = tester.getRect(tileOf('Upload'));
     expect(rect.height, greaterThan(rect.width / 1.45 + 1));
-    final total = tester.getRect(find.textContaining('Total').first);
+    final total = tester.getRect(find.textContaining('This session').first);
     expect(total.bottom, lessThanOrEqualTo(rect.bottom));
     expect(tester.takeException(), isNull);
 

@@ -31,6 +31,7 @@ func handleInit(params *InitParams) error {
 	sdkVersion.Store(int32(params.Version))
 	constant.SetHomeDir(params.HomeDir)
 	initOwnership(params.HomeDir)
+	trafficUsage.init(params.HomeDir)
 	clearSpilledResponses()
 	isInit.Store(true)
 	return nil
@@ -42,6 +43,7 @@ func handleInitialized() bool {
 
 func setRunning(running bool) {
 	isRunning.Store(running)
+	trafficUsage.syncWithCore()
 }
 
 func handleStartListener() {

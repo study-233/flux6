@@ -39,6 +39,10 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
       CoreMethod.coreInitialized => true,
       CoreMethod.trafficCurrent ||
       CoreMethod.trafficTotal => {'up': 12, 'down': 34},
+      CoreMethod.trafficUsage => {
+        'month': {'up': 3, 'down': 8},
+        'total': {'up': 12, 'down': 34},
+      },
       CoreMethod.proxyTestDelay => {
         'name': 'DIRECT',
         'url': 'https://example.com',
@@ -520,6 +524,11 @@ void main() {
   test('core interface converts structured method results', () async {
     final handler = _RecordingCoreHandler();
 
+    expect(await handler.getTrafficUsage(true), (
+      month: const Traffic(up: 3, down: 8),
+      total: const Traffic(up: 12, down: 34),
+    ));
+    expect(handler.calls[CoreMethod.trafficUsage], {'only-proxy': true});
     expect(await handler.getTraffic(false), const Traffic(up: 12, down: 34));
     expect(
       await handler.getTotalTraffic(false),

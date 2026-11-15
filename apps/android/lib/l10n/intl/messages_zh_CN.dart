@@ -234,7 +234,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(value) => "峰值 ${value}";
 
-  static String m98(value) => "累计 ${value}";
+  static String m98(value) => "本次 ${value}";
 
   static String m99(transport) => "${transport} 请求头";
 
@@ -1690,8 +1690,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalUpload": MessageLookupByLibrary.simpleMessage("上传总量"),
     "tproxyPort": MessageLookupByLibrary.simpleMessage("Tproxy端口"),
     "traffic": MessageLookupByLibrary.simpleMessage("流量"),
+    "trafficAllTime": MessageLookupByLibrary.simpleMessage("累计"),
     "trafficPeak": m97,
-    "trafficTotal": m98,
+    "trafficSessionUsage": m98,
+    "trafficThisMonth": MessageLookupByLibrary.simpleMessage("本月"),
     "trafficUsage": MessageLookupByLibrary.simpleMessage("流量统计"),
     "transport": MessageLookupByLibrary.simpleMessage("传输协议"),
     "transportHeaders": m99,

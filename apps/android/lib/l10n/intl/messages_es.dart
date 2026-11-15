@@ -272,7 +272,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m97(value) => "Pico: ${value}";
 
-  static String m98(value) => "Total: ${value}";
+  static String m98(value) => "Esta sesión ${value}";
 
   static String m99(transport) => "Encabezados ${transport}";
 
@@ -2352,8 +2352,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "totalUpload": MessageLookupByLibrary.simpleMessage("Subido"),
     "tproxyPort": MessageLookupByLibrary.simpleMessage("Puerto TProxy"),
     "traffic": MessageLookupByLibrary.simpleMessage("Tráfico"),
+    "trafficAllTime": MessageLookupByLibrary.simpleMessage("Total histórico"),
     "trafficPeak": m97,
-    "trafficTotal": m98,
+    "trafficSessionUsage": m98,
+    "trafficThisMonth": MessageLookupByLibrary.simpleMessage("Este mes"),
     "trafficUsage": MessageLookupByLibrary.simpleMessage("Uso de tráfico"),
     "transport": MessageLookupByLibrary.simpleMessage("Transporte"),
     "transportHeaders": m99,
