@@ -2,7 +2,12 @@
 
 package main
 
-import "errors"
+import (
+	"errors"
+	"net/netip"
+)
+
+func tcpListenerOwners() map[netip.AddrPort]int { return nil }
 
 // Stubs for non-Windows builds: listenOrTakeOver bails out on runtime.GOOS
 // before reaching any of these, but the file still has to compile so that

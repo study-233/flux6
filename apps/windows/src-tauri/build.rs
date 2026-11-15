@@ -4,7 +4,7 @@ fn main() {
     // FREEV6_TEST_MANIFEST=1 swaps in asInvoker for that build only; every
     // normal build (tauri dev/build) leaves it unset and keeps the UAC prompt.
     println!("cargo:rerun-if-env-changed=FREEV6_TEST_MANIFEST");
-    let manifest = if std::env::var_os("FREEV6_TEST_MANIFEST").is_some() {
+    let manifest = if cfg!(feature = "offline-preview") || std::env::var_os("FREEV6_TEST_MANIFEST").is_some() {
         include_str!("windows-app-manifest.xml").replace("requireAdministrator", "asInvoker")
     } else {
         include_str!("windows-app-manifest.xml").to_string()

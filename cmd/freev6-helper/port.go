@@ -1,14 +1,61 @@
 package main
 
 import (
+	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
+
+var defaultController = netip.MustParseAddrPort("127.0.0.1:9090")
+
+// Older clients always dial 9090. Only a client that reads controllerPort may
+// ask Windows to allocate an alternative. Keep the reservation until core launch.
+func reserveController(preferred netip.AddrPort, allowFallback bool) (*net.TCPListener, error) {
+	listener, err := net.ListenTCP("tcp4", net.TCPAddrFromAddrPort(preferred))
+	if err == nil {
+		return listener, nil
+	}
+	if !allowFallback {
+		return nil, fmt.Errorf("mihomo controller port %s is unavailable: %w", preferred, err)
+	}
+	listener, err = net.ListenTCP("tcp4", &net.TCPAddr{IP: preferred.Addr().AsSlice()})
+	if err != nil {
+		return nil, fmt.Errorf("无法分配本机控制端口: %w", err)
+	}
+	return listener, nil
+}
+
+func recoverControllerPort(configPath string, pid int) uint16 {
+	if pid <= 0 {
+		return 0
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return 0
+	}
+	var config struct {
+		Controller string `yaml:"external-controller"`
+	}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return 0
+	}
+	address, err := netip.ParseAddrPort(config.Controller)
+	if err != nil || address.Addr() != defaultController.Addr() || address.Port() == 0 {
+		return 0
+	}
+	if tcpListenerOwners()[address] != pid {
+		return 0
+	}
+	return address.Port()
+}
 
 // listenOrTakeOver binds the helper API port, reclaiming it from an orphaned
 // previous helper: killing the desktop via Task Manager leaves its helper

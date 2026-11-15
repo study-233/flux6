@@ -1,4 +1,4 @@
-﻿; freev6 installer hooks — wired in via tauri.conf.json:
+; freev6 installer hooks — wired in via tauri.conf.json:
 ;   bundle.windows.nsis.installerHooks
 ;
 ; NSIS_HOOK_PREINSTALL runs at the top of Section Install, BEFORE the
@@ -52,11 +52,11 @@
 
     ; Native Windows MessageBox — buttons are localized by the OS
     ; (重试/取消 on Chinese Windows).
-    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "检测到 freev6 仍在运行，无法继续安装。$\n$\n请先退出软件：右键任务栏托盘图标 → 退出。$\n若托盘中没有图标，请先在任务管理器中结束 freev6 进程。$\n退出后点击“重试”继续安装。" /SD IDCANCEL IDRETRY freev6_hook_retry_${FreeV6HookID} IDCANCEL freev6_hook_cancel_${FreeV6HookID}
+    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "检测到 Flux6 仍在运行，无法继续安装。$\n$\n请先退出软件：右键任务栏托盘图标 → 退出。$\n若托盘中没有图标，请先在任务管理器中结束 freev6-desktop.exe 进程。$\n退出后点击“重试”继续安装。" /SD IDCANCEL IDRETRY freev6_hook_retry_${FreeV6HookID} IDCANCEL freev6_hook_cancel_${FreeV6HookID}
     Goto freev6_hook_cancel_${FreeV6HookID}
 
   freev6_hook_cancel_${FreeV6HookID}:
-    Abort "已取消安装：请先退出 freev6 后再运行安装程序。"
+    Abort "已取消安装：请先退出 Flux6 后再运行安装程序。"
 
   freev6_hook_done_${FreeV6HookID}:
   !undef FreeV6HookID
@@ -192,11 +192,11 @@ FunctionEnd
       Goto freev6_unhook_done_${FreeV6UnHookID}
     ${EndIf}
 
-    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "检测到 freev6 相关进程仍在运行，无法彻底卸载。$\n$\n请先退出软件：右键任务栏托盘图标 → 退出（会自动停止免流）。$\n若托盘没有图标，请在任务管理器中结束 freev6 相关进程。$\n退出后点击“重试”继续卸载。" /SD IDCANCEL IDRETRY freev6_unhook_retry_${FreeV6UnHookID} IDCANCEL freev6_unhook_cancel_${FreeV6UnHookID}
+    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "检测到 Flux6 相关进程仍在运行，无法彻底卸载。$\n$\n请先退出软件：右键任务栏托盘图标 → 退出（会自动停止免流）。$\n若托盘没有图标，请在任务管理器中结束 Flux6 相关进程。$\n退出后点击“重试”继续卸载。" /SD IDCANCEL IDRETRY freev6_unhook_retry_${FreeV6UnHookID} IDCANCEL freev6_unhook_cancel_${FreeV6UnHookID}
     Goto freev6_unhook_cancel_${FreeV6UnHookID}
 
   freev6_unhook_cancel_${FreeV6UnHookID}:
-    Abort "已取消卸载：请先退出 freev6 后再运行卸载程序。"
+    Abort "已取消卸载：请先退出 Flux6 后再运行卸载程序。"
 
   freev6_unhook_done_${FreeV6UnHookID}:
   !undef FreeV6UnHookID
