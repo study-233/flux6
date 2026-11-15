@@ -1,5 +1,18 @@
 # Flux6 releases
 
+## v0.1.2 (2026-11-15)
+
+**Features**
+- **Android** The network speed card charts live uploads and downloads. Tap it to see monthly and lifetime usage.
+- **Windows** Choose a node automatically using speed measurements on the current network, pin one manually, or test latency and download speed for a group.
+- **macOS** Flux6 checks for updates at startup by default and asks before installing and reopening. You can turn off startup checks in General settings.
+- **Android** Download updates directly from the release. Android verifies the signature and asks before installing.
+- **Upgrading from Android 0.1.1** Install the new APK over the existing app once to enable future in-app updates.
+
+**Bug Fixes**
+- **Windows** Monthly and lifetime usage now include short connections that open and close between samples.
+- **macOS** Flux6 can restore the network service when its launch configuration is missing.
+
 ## v0.1.1 (2026-11-12)
 
 **Features**
