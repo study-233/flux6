@@ -41,7 +41,7 @@ brew install --cask study-233/tap/flux6
 
 感谢上游项目及开发者：
 
-- [evansrrr / FreeV6](https://github.com/evansrrr/free-v6)
+- [evansrrr / FreeV6](https://github.com/evansrrr/free-v6)，以及支持上游项目的仍需妙手、别说了，困、星汉灿烂和匿名赞助者
 - [chen08209 / FlClash](https://github.com/chen08209/FlClash)
 - [chen08209 / Prism UI](https://github.com/chen08209/prism_ui)
 - [MetaCubeX / mihomo](https://github.com/MetaCubeX/mihomo)
