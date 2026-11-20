@@ -49,16 +49,29 @@ export PATH="$sdk/bin:$PATH"
 flutter --version --machine | python3 -c \
     'import json, sys; current=json.load(sys.stdin)["frameworkVersion"]; expected=sys.argv[1]; sys.exit(0 if current == expected else f"Expected Flutter {expected}, found {current}")' "$version"
 if [ -n "$installed_archive" ]; then rm -f "$installed_archive"; fi
+unified=false
 case "${1:-}" in
     --prepare) printf '%s\n' "$sdk"; exit 0 ;;
     --host) integration=true ;;
+    --unified-host)
+        integration=true
+        unified=true
+        source "$project_root/scripts/android/env.sh"
+        if [ -n "${2:-}" ]; then
+            app_dir="$(cd "$2" && pwd)"
+            test -f "$app_dir/lib/mac_navigation.dart"
+        else
+            app_dir="$(python3 "$project_root/scripts/unified/prepare.py" --client)"
+        fi
+        export FLUTTER_SWIFT_PACKAGE_MANAGER=true
+        ;;
     '') integration=false ;;
-    *) echo "usage: $0 [--prepare|--host]" >&2; exit 2 ;;
+    *) echo "usage: $0 [--prepare|--host|--unified-host]" >&2; exit 2 ;;
 esac
 
 cd "$app_dir"
 if [ -f pubspec.lock ]; then
-    flutter pub get --enforce-lockfile
+    flutter pub get --offline --enforce-lockfile || flutter pub get --enforce-lockfile
 else
     flutter pub get
 fi
@@ -66,6 +79,10 @@ preview_name="Flux6 Flutter Preview"
 if $integration; then
     product="Flux6 Flutter Integration"
     target="lib/live_main.dart"
+    if $unified; then
+        product="Flux6 Unified Integration"
+        target="lib/main.dart"
+    fi
     # Both embedded helpers target this host architecture.
     if [ "$(uname -m)" = arm64 ]; then export FLUTTER_MACOS_ARM64_ONLY=true; fi
 else
@@ -89,7 +106,9 @@ entitlements="$app_dir/macos/Runner/Release.entitlements"
 if $integration; then
     contents="$bundle/Contents"
     plist="$contents/Info.plist"
-    /usr/bin/plutil -replace CFBundleIdentifier -string dev.freev6.flutter-host "$plist"
+    identifier=dev.freev6.flutter-host
+    if $unified; then identifier=dev.freev6.flutter-host.unified; fi
+    /usr/bin/plutil -replace CFBundleIdentifier -string "$identifier" "$plist"
     /usr/bin/plutil -replace CFBundleName -string "$product" "$plist"
     /usr/bin/plutil -replace CFBundleExecutable -string "$product" "$plist"
     mv "$contents/MacOS/$preview_name" "$contents/MacOS/$product"

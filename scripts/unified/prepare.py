@@ -2,46 +2,77 @@
 import argparse
 import json
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
+
+from source_inputs import files
 
 ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / 'apps/android'
 CANDIDATE = ROOT / 'apps/flux6'
 
 
-def prepare(android_client=False):
+def copy_tracked(source_dir, output, exclude=()):
+    for name in files(source_dir.relative_to(ROOT).as_posix()):
+        source = ROOT / name
+        relative = source.relative_to(source_dir)
+        if relative.parts[0] in {'.agents', 'AGENTS.md', *exclude}:
+            continue
+        destination = output / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+
+
+def prepare(target):
     build = ROOT / 'build'
     build.mkdir(exist_ok=True)
     # core/go.mod imports the root Go module via ../../.. on all three targets.
-    prefix = 'unified-android-client-' if android_client else 'unified-preview-'
+    prefix = f'unified-{target}-'
     output = Path(tempfile.mkdtemp(prefix=prefix, dir=build))
     try:
-        tracked = subprocess.check_output(
-            ['git', 'ls-files', '-z', '--', 'apps/android'], cwd=ROOT
-        ).decode().split('\0')
-        for name in filter(None, tracked):
-            source = ROOT / name
-            relative = source.relative_to(APP)
-            if relative.parts[0] in {'.agents', 'AGENTS.md'}:
-                continue
-            target = output / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+        copy_tracked(APP, output)
         gradle = output / 'android/app/build.gradle.kts'
         original = gradle.read_text()
         production_id = 'applicationId = "dev.freev6.mobile"'
         if original.count(production_id) != 1:
             raise ValueError('Android application ID changed; check preview isolation')
-        package = 'dev.flux6.unified.client' if android_client else 'dev.flux6.unified.preview'
-        gradle.write_text(original.replace(production_id, f'applicationId = "{package}"'))
-        if not android_client:
+        package = 'dev.flux6.unified.preview' if target == 'preview' else 'dev.flux6.unified.client'
+        if target != 'upgrade-client':
+            gradle.write_text(original.replace(production_id, f'applicationId = "{package}"'))
+        if target == 'preview':
             add_preview(output)
+        elif target in {'client', 'upgrade-client'}:
+            add_client(output)
     except BaseException:
         shutil.rmtree(output)
         raise
     return output
+
+
+def add_client(output):
+    host = ROOT / 'apps/macos/flutter_ui'
+    copy_tracked(host / 'macos', output / 'macos')
+    copy_tracked(host / 'lib', output / 'lib/mac_host', exclude=('preview', 'main.dart'))
+    shutil.copy2(host / 'analysis_options.yaml', output / 'lib/mac_host/analysis_options.yaml')
+    copy_tracked(host / 'assets', output / 'assets')
+    # Apply the recorded Mac accessibility label fix to the common Prism sidebar.
+    shutil.copy2(host / 'vendor/prism_ui/lib/sidebar.dart', output / 'plugins/prism_ui/lib/sidebar.dart')
+    project = output / 'macos/Runner.xcodeproj/project.pbxproj'
+    content = project.read_text()
+    package = 'relativePath = "../..";'
+    if content.count(package) != 1:
+        raise ValueError('Cannot locate the native Flux6 Swift package')
+    project.write_text(content.replace(package, 'relativePath = "../../../apps/macos";'))
+    manifest = output / 'pubspec.yaml'
+    content = manifest.read_text()
+    assets = 'flutter:\n  assets:\n'
+    if content.count(assets) != 1:
+        raise ValueError('Cannot locate Flutter assets')
+    manifest.write_text(content.replace(assets, 'flutter:\n  uses-material-design: true\n  assets:\n    - assets/branding/cats/\n'))
+    (output / 'lib/main.dart').rename(output / 'lib/android_main.dart')
+    for name in ('main.dart', 'mac_navigation.dart'):
+        shutil.copy2(CANDIDATE / 'client' / name, output / 'lib' / name)
+    shutil.copy2(CANDIDATE / 'client/mac_navigation_test.dart', output / 'test/unified_mac_navigation_test.dart')
 
 
 def add_preview(output):
@@ -61,6 +92,12 @@ def add_preview(output):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--android-client', action='store_true',
-                        help='assemble the full Flutter app with Android VPN and isolated app ID')
-    print(prepare(parser.parse_args().android_client))
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--android-client', dest='target', action='store_const', const='android-client',
+                       help='assemble the Android-only compatibility candidate')
+    modes.add_argument('--client', dest='target', action='store_const', const='client',
+                       help='assemble one Flutter application with Android and macOS hosts')
+    modes.add_argument('--upgrade-client', dest='target', action='store_const', const='upgrade-client',
+                       help='assemble the same client using the existing Android application ID')
+    parser.set_defaults(target='preview')
+    print(prepare(parser.parse_args().target))

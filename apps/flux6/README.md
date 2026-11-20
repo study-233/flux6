@@ -59,3 +59,14 @@ macOS 和 Windows runner 来自 [FlClash v0.9.3 的固定提交](https://github.
 - Mac 调整应用标识、窗口与退出行为，移除上游 URL 注册及登录项接入。保留 SwiftPM 插件注册和构建核心的流程。
 - Windows 使用独立文件名、窗口类与标题，首帧显示窗口；预览省略代理清理、单实例激活以及核心和 helper 安装步骤。
 - Android 只在组装出的工程内使用候选包名和预览清单。正式 APK 构建继续使用原工程。
+
+## Android 和 macOS 完整客户端
+
+从仓库根执行 `python3 scripts/unified/prepare.py --client` 得到同一个 Flutter 工程。两端从 `lib/main.dart` 启动，Android 使用 FlClash 原有应用、设置引导和 VPN 服务，Mac 主窗口使用同一份 FlClash HomePage 和节点分组控件。Mac 的 WARP 设置、节点测量、配置编辑、日志和独立设置窗口沿用原有宿主页面。Swift/AppKit 负责窗口与菜单，网络操作交给原有 worker 和 XPC 服务。
+
+- Android 隔离包在组装目录运行 `flutter pub get --enforce-lockfile` 和 `flutter build apk --debug --target-platform android-arm64 --no-pub`。包名为 `dev.flux6.unified.client.dev`。
+- Mac 隔离包从仓库根运行 `bash scripts/macos/build-flutter-preview.sh --unified-host`。也可把已组装的工程路径作为第二个参数，供两端复用。产物为 `build/macos-ui/Flux6 Unified Integration.app`，标识为 `dev.freev6.flutter-host.unified`。该宿主使用专用目录与隔离会话子进程。`bash scripts/macos/probe-flutter-host.sh --unified` 可验证命令、菜单和重启。
+- Android 升级候选使用 `FREEV6_OUTPUT_DIR="$PWD/build/unified-android-upgrade" bash scripts/android/build-apk.sh --unified`。配套源码包使用 `python3 scripts/android/package-source.py --unified --output-dir build/unified-android-upgrade`。
+- Mac 升级候选使用 `FREEV6_UNIFIED_CLIENT=1 FREEV6_APP_OUTPUT="$PWD/build/unified-macos-upgrade/Flux6.app" bash scripts/macos/build-app.sh`。构建使用原签名、钥匙串身份、服务标识、worker 和更新助手。源码档案工具从候选的 Info.plist 识别统一构建，核对包内源码清单后输出 ZIP。
+
+升级候选沿用 0.1.2 的版本号，供覆盖安装与回退验收。公开更新另行提升版本并签署清单。

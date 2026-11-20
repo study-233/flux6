@@ -37,6 +37,7 @@ def main():
     destination = ROOT / 'dist/android' / f"{version['version']}-b{version['build']}"
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', type=Path, default=destination)
+    parser.add_argument('--unified', action='store_true', help='include the unified Flutter app and Mac host sources')
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     output = args.output_dir / f"Flux6-{version['version']}-b{version['build']}-source.tar.gz"
@@ -46,7 +47,22 @@ def main():
     count = 0
     try:
         with tarfile.open(temporary, 'w:gz') as archive:
-            for path in sources():
+            if args.unified:
+                import io
+                import json
+                inputs = runpy.run_path(str(ROOT / 'scripts/unified/source_inputs.py'))
+                paths = {ROOT / name for name in inputs['files'](
+                    *inputs['TREES'], 'go.mod', 'go.sum', 'LICENSE', 'THIRD-PARTY.txt', 'README.md',
+                    'AGENTS.md', 'scripts/version.py', 'assets/branding', 'scripts/branding',
+                )}
+                names = sorted(path.relative_to(ROOT).as_posix() for path in paths)
+                payload = json.dumps(names, ensure_ascii=False).encode()
+                index = tarfile.TarInfo('flux6-android-source/' + inputs['MANIFEST'])
+                index.size = len(payload)
+                archive.addfile(index, io.BytesIO(payload))
+            else:
+                paths = set(sources())
+            for path in sorted(paths):
                 archive.add(path, arcname=Path('flux6-android-source') / path.relative_to(ROOT), recursive=False)
                 count += 1
         temporary.replace(output)

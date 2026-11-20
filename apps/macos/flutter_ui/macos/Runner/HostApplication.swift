@@ -22,7 +22,7 @@ final class HostApplication: NSObject, NSWindowDelegate {
         guard let id = Bundle.main.bundleIdentifier, id.hasPrefix(prefix) else { return false }
         return UUID(uuidString: String(id.dropFirst(prefix.count))) != nil
     }
-    static var enabled: Bool { (isOfficial && !needsInstallation) || isQA || Bundle.main.bundleIdentifier == "dev.freev6.flutter-host" }
+    static var enabled: Bool { (isOfficial && !needsInstallation) || isQA || ["dev.freev6.flutter-host", "dev.freev6.flutter-host.unified"].contains(Bundle.main.bundleIdentifier ?? "") }
     lazy var coordinator: Result<FreeV6HostCoordinator, Error> = Result {
         if Self.isOfficial { return try FreeV6HostCoordinator.live() }
         if Self.isQA, let seed = Bundle.main.object(forInfoDictionaryKey: "FreeV6QAStartupNotices") as? String {

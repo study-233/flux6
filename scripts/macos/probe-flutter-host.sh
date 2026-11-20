@@ -11,7 +11,12 @@ export FLUTTER_SUPPRESS_ANALYTICS=true DART_SUPPRESS_ANALYTICS=true CI=true
 if [ "$(uname -m)" = arm64 ]; then export FLUTTER_MACOS_ARM64_ONLY=true; fi
 
 bash "$root/scripts/macos/build-flutter-preview.sh" --prepare >/dev/null
-qa="$(bash "$root/scripts/macos/build-flutter-host.sh" --qa-clone)"
+case "${1:-}" in
+    --unified) clone=--unified-qa-clone ;;
+    '') clone=--qa-clone ;;
+    *) echo "usage: $0 [--unified]" >&2; exit 2 ;;
+esac
+qa="$(bash "$root/scripts/macos/build-flutter-host.sh" "$clone")"
 qa_stage="$(dirname "$qa")"
 case "$qa" in
     "$root"/build/macos-ui/host-qa.*/"Flux6 Flutter QA.app") ;;
@@ -21,7 +26,7 @@ esac
 cd "$project"
 mkdir -p .dart_tool/freev6-probes
 cp "$root/apps/macos/Probes/FlutterHostSmoke.dart" .dart_tool/freev6-probes/host_smoke.dart
-"$sdk/bin/flutter" pub get --enforce-lockfile
+"$sdk/bin/flutter" pub get --offline --enforce-lockfile || "$sdk/bin/flutter" pub get --enforce-lockfile
 "$sdk/bin/flutter" build macos --release --no-pub --target .dart_tool/freev6-probes/host_smoke.dart
 
 built="$project/build/macos/Build/Products/Release/Flux6 Flutter Preview.app"
@@ -46,7 +51,9 @@ import time
 
 qa = Path(sys.argv[1])
 log = Path(sys.argv[2])
-exe = qa / "Contents/MacOS/Flux6 Flutter Integration"
+import plistlib
+info = plistlib.loads((qa / 'Contents/Info.plist').read_bytes())
+exe = qa / 'Contents/MacOS' / info['CFBundleExecutable']
 with log.open("wb") as output:
     for round_name, marker in [("first", "HOST-SMOKE PASS"), ("reopen", "HOST-SMOKE REOPEN PASS")]:
         start = time.monotonic()
