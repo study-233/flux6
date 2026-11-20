@@ -46,7 +46,6 @@ class TrayPlugin : public flutter::Plugin {
                                           UINT message,
                                           WPARAM wparam,
                                           LPARAM lparam);
-  HWND MainWindow();
 
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel_;

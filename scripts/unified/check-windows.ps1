@@ -25,16 +25,44 @@ function Initialize-PluginJunctions {
 }
 
 function Test-WindowExit($executable) {
-    $process = Start-Process -FilePath $executable.FullName -WorkingDirectory $executable.DirectoryName -PassThru
+    if (-not ('Flux6.PreviewWindow' -as [type])) {
+        Add-Type -Namespace Flux6 -Name PreviewWindow -MemberDefinition @'
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string title);
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr window);
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
+
+        public static bool CloseVisibleWindow(uint pid) {
+            var window = IntPtr.Zero;
+            while ((window = FindWindowEx(IntPtr.Zero, window, "FLUX6_UNIFIED_PREVIEW_WINDOW", null)) != IntPtr.Zero) {
+                uint owner;
+                GetWindowThreadProcessId(window, out owner);
+                if (owner != pid || !IsWindowVisible(window)) continue;
+                if (!PostMessageW(window, 0x0010 /* WM_CLOSE */, UIntPtr.Zero, IntPtr.Zero)) {
+                    throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+                }
+                return true;
+            }
+            return false;
+        }
+'@
+    }
+    $start = [Diagnostics.ProcessStartInfo]::new($executable.FullName)
+    $start.WorkingDirectory = $executable.DirectoryName
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $process = [Diagnostics.Process]::Start($start)
     try {
         $deadline = [DateTime]::UtcNow.AddSeconds(45)
-        do {
-            $process.Refresh()
+        while (-not [Flux6.PreviewWindow]::CloseVisibleWindow($process.Id)) {
             if ($process.HasExited) { throw "Preview exited before showing a window ($($process.ExitCode))" }
-            if ($process.MainWindowHandle -ne 0) { break }
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'Timed out waiting for the visible preview window' }
             Start-Sleep -Milliseconds 200
-        } while ([DateTime]::UtcNow -lt $deadline)
-        if (-not $process.CloseMainWindow()) { throw 'No preview window accepted WM_CLOSE' }
+        }
         if (-not $process.WaitForExit(15000)) { throw 'Timed out closing the preview window' }
         if ($process.ExitCode -ne 0) { throw "Preview close failed ($($process.ExitCode))" }
     } finally {

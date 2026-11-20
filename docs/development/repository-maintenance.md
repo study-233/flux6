@@ -575,3 +575,21 @@ Windows 关闭故障的候选修复将离线预览引擎的销毁移到消息循
 [Android 完整客户端候选](../../apps/flux6/README.md)沿用既有 Flutter 设置页和 Android 服务。arm64 调试构建通过，APK 清单含 `com.follow.clash.service.VpnService`，包名为 `dev.flux6.unified.client.dev`，版本为 0.1.2（2026111501）。候选 Flutter 分析通过，Android app 与 service 共 100 项 JVM 测试通过。尚待真机安装、VPN 授权和连接验证。
 
 Mac 上通过 22 项 Flutter 测试，覆盖配置准备、设置页、核心服务及预览。新增测试用隔离的桌面进程和本机 IPC 生成 WARP 配置，检查校园规则及 28 个代理的解析与顺序，再关闭该核心。注册接口复用共享 Go 的设备校验，保留 Android 原有设备名和凭据格式。根项目指定包和 Android 嵌套核心的 Go 测试及 vet 均通过。Windows 验证脚本已包含同一 IPC 测试，原生结果待验。本次使用合成凭据，未注册账户或接管设备流量。
+
+## 2026-11-20 Windows 统一预览退出与配置复测
+
+同一台 Windows 11 25H2 x64 开发机拉取至 `5a7bb61`，包含退出修复 `2d35a3b`。执行 `scripts/unified/check-windows.ps1 -CheckWindowExit`，脚本自动为 17 个插件建立目录联接并离线复核依赖锁。Flutter 分析、节点分组组件测试和 x64 Release 构建均通过。已核对 PE 架构为 AMD64，包内 7 个分组的名称及成员顺序与合成夹具一致。
+
+窗口退出仍失败。脚本调用 `CloseMainWindow()` 后等待 15 秒超时。另行启动两次预览，按本次 PID、窗口类 `FLUX6_UNIFIED_PREVIEW_WINDOW` 和标题 `Flux6 Preview` 找到可见首屏窗口，再发送 `WM_CLOSE`，两次均以 `0xC0000005` 退出。上一版同机结果为 `0xC000041D`。具体故障模块尚未定位。
+
+脚本因关闭超时而中断后，在同一候选目录执行 `flutter test --no-pub test/unified_desktop_profile_test.dart`，使用本次构建的 Rust DLL 和 Go 核心，通过 Windows 命名管道验证合成凭据配置准备、28 个节点的解析和顺序、校园绕过规则以及停止后返回空闲状态。安装升级与真实网络连接未测。
+
+根 Go 模块指定包的测试和 vet 均通过。Android 嵌套 Go 模块在 Windows 上的 vet 和 28 节点专项通过，全套测试有两项失败。配置测试清理临时目录时 `cache.db` 仍被占用，代理校验测试期望错误路径包含 `/outside` 而 Windows 返回反斜杠。已在旧提交 `7eb2e9b` 和本次提交单独复现这两项。
+
+## 2026-11-20 Windows 托盘插件退出修复
+
+同机原生调用栈显示，Flutter 销毁视图控制器时进入 `tray_plugin.dll`，随后在 `FlutterDesktopViewGetHWND` 发生访问冲突。托盘插件析构时调用 `Hide()`，即使从未显示图标，也会为取消恢复定时器去查询已失效的 Flutter 视图。插件现在在显示图标时保存所属窗口句柄，使用该句柄管理定时器、图标和菜单。隐藏后到达的旧定时器消息会被忽略。
+
+关闭探针按本次启动的 PID 和独立窗口类等待可见窗口，发送 `WM_CLOSE` 并检查退出码。全新候选的 `check-windows.ps1 -CheckWindowExit` 从锁定依赖、分析、节点测试和 x64 Release 构建，到关闭窗口和后续命名管道配置测试均通过。另行连续关闭三次普通预览，退出码均为 0。临时夹具实际调用原生托盘显示接口后，分别保持图标和先隐藏图标再关闭，两次退出码也均为 0。PowerShell 5.1 和 7 的关闭探针均通过。
+
+Windows 托盘、菜单、管理器及生命周期相关的 31 项 Flutter 回归通过。全插件测试额外暴露了三项旧的宿主兼容问题：两个 Linux 图标测试使用正斜杠断言，一个 macOS 源码断言依赖 LF 换行；这三项均在未修复的 `7eb2e9b` 候选上复现。安装升级和真实联网未测。
