@@ -551,3 +551,11 @@ Flutter 分析和 6 个相关测试文件的 58 项测试通过，覆盖无校�
 维护脚本清理了 68.8 MiB 安装测试产物和 12.80 GiB 编译缓存，复查两组清单均为空。README 分支 `chore/readme-badges` 和 `fix/readme-star-history` 已分别随 PR #28、#29 合入主线，本地分支和失效的远端跟踪引用已移除。仓库检查和 9 项维护测试通过。本次验证未涉及客户端构建或设备安装。
 
 Windows FlClash 原型保存在本地分支 `feat/desktop-update-channels` 和归档标签 `archive/windows-flclash-prototype-20261115`，两者均指向 `9290f22`。旧发行草稿分支 `release/0.1.1-distribution` 已在本地删除，其末端提交 `d4d6426` 可从标签 `archive/distribution-build11-20261115` 恢复。
+
+## 2026-11-20 统一客户端基线盘点
+
+已将 FlClash v0.9.3 标签检出并核对为 `be847366`，对照主线 Android 和归档 Windows 原型的 Git 文件对象，记录[来源、功能映射和迁移进度](unified-client.md)。远端分支与开放 PR 已核对，维护者确认以 GitHub 可见代码为准，选定固定上游与主线 Android 派生源码作为共同基线。
+
+本机使用已有合成夹具运行了根 Go 配置与移动接口专项、Android 嵌套 Go 核心的 MASQUE 解析测试，以及 Mac 的 3 项 DesktopNodeCatalogTests，均通过。覆盖业务配置、28 个接入点的嵌入核心解析和 Mac 节点目录；统一工程构建、Windows 本机编译、安装升级和真实连接仍待验收。
+
+阶段二已建立[三端候选工程的组装与构建入口](../../apps/flux6/README.md)。Flutter 固定锁依赖解析、全工程分析和节点分组切换组件测试通过。Mac 已构建 arm64 独立预览并核对应用标识和深度签名；Android 调试 APK 已核对 arm64 ABI、独立包名和启动 Activity，并检查清单没有 VPN/代理服务。Windows x64 的测试与编译脚本已落地，原生结果待验。以上范围为隔离预览，未安装正式客户端或启动网络核心。

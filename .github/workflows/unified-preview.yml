@@ -1,0 +1,30 @@
+name: Unified client Windows preview
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/unified-preview.yml'
+      - 'apps/flux6/**'
+      - 'scripts/unified/**'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/android/core/go.mod
+          cache-dependency-path: apps/android/core/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+      - name: Prepare Rust toolchain
+        run: rustup default 1.99.0
+      - name: Build shared node preview
+        run: ./scripts/unified/check-windows.ps1
