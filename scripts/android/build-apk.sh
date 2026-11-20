@@ -48,11 +48,16 @@ if [[ ! -f "$FREEV6_KEYSTORE" ]]; then
   exit 1
 fi
 
-cd apps/android
-flutter pub get --enforce-lockfile
+project="$FREEV6_ROOT/apps/android"
+if [[ "${1:-}" == --unified ]]; then
+  shift
+  project="$(python3 scripts/unified/prepare.py --upgrade-client)"
+fi
+cd "$project"
+flutter pub get --offline --enforce-lockfile || flutter pub get --enforce-lockfile
 flutter build apk --release --target-platform android-arm64 --dart-define=APP_ENV=stable "$@"
 cd "$FREEV6_ROOT"
 mkdir -p "$output"
-cp apps/android/build/app/outputs/flutter-apk/app-release.apk "$output/$artifact"
+cp "$project/build/app/outputs/flutter-apk/app-release.apk" "$output/$artifact"
 (cd "$output" && shasum -a 256 "$artifact" > APK-SHA256SUMS)
 printf 'APK: %s\n' "$output/$artifact"

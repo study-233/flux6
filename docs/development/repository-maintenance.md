@@ -597,3 +597,13 @@ Windows 托盘、菜单、管理器及生命周期相关的 31 项 Flutter 回�
 ## Windows 完整界面开发交接
 
 本分支在当前 Android 派生的 FlClash 源码上恢复归档 Windows 业务接入，复用现有 Windows LiveModel、Go helper 和原生 HostBridge。完整候选的入口、语言生成与验证命令见[候选工程](../../apps/flux6/README.md)。Windows 原生编译和真实会话验收由 Windows 开发分支继续。
+
+## 2026-11-21 Android 与 macOS 统一应用
+
+Windows 完整候选已在单独的 `feat/unified-windows-client` 分支交接，Mac 上的 28 项 Windows 离线回归通过。Android 与 macOS 的[统一工程](../../apps/flux6/README.md)在同一入口选择平台宿主。Android 沿用 FlClash 的设置与 VPN 服务。Mac 使用共享的 FlClash 导航和节点分组控件，保留现有账户、设置与网络宿主。从已记录的 Mac Prism 来源复用侧栏按钮的无障碍标签。签名升级候选显式校验五个预期框架并固定相应签名散列。
+
+Mac 隔离宿主的命令探针验证选点、连接、过期会话请求拒绝、断开、退出与重新打开。它替换 QA 副本的 Dart 驱动；公共界面另由组件测试验证。用已发布的 Mac 0.1.2 build 13 与候选在专用目录测试设置、六个加密链式节点和流量历史，回退后旧 worker 能读取候选写入的变更。Android 在 API 35 arm64 专用模拟器的飞行模式下完成正式 0.1.2、同签名统一候选、正式 0.1.2 的三次启动及合成文件保留检查。
+
+统一工程的 23 项 Flutter 回归覆盖 WARP 准备、节点分组、菜单导航和节点页的原生设置入口。Mac 原有 Flutter 测试 31 项通过。使用临时钥匙串和本地 Sparkle 更新夹具验证了合成凭据的升级访问。Android 与 Mac 的对应源码包均已在无 Git 元数据的目录重新组装。
+
+验证覆盖隔离会话、安装兼容性和本地签名包。实际设备的 Android VPN 授权与撤销、锁屏重连，Mac 的钥匙串首次授权、特权服务升级与真实路由恢复，以及公开更新仍待验收。

@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import json
 import os
+import plistlib
 from pathlib import Path
 import shutil
 import zipfile
@@ -33,8 +34,14 @@ def sources():
     return sorted(paths)
 
 
-def inventory():
-    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sources()}
+def inventory(contents):
+    unified = plistlib.loads((contents / 'Info.plist').read_bytes()).get('Flux6UnifiedClient') is True
+    paths = set(sources())
+    if unified:
+        import runpy
+        inputs = runpy.run_path(str(ROOT / 'scripts/unified/source_inputs.py'))
+        paths.update(inputs['files'](*inputs['TREES']))
+    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in sorted(paths)}
 
 
 def encoded(value):
@@ -68,11 +75,13 @@ def notices(contents):
         shutil.copyfile(src, out / name)
     with gzip.open(framework / "NOTICES.Z", "rb") as stream, (out / "Flutter-Package-Notices.txt").open("wb") as dest:
         shutil.copyfileobj(stream, dest)
-    (out / "macOS-source-sha256.json").write_bytes(encoded(inventory()))
+    if plistlib.loads((contents / 'Info.plist').read_bytes()).get('Flux6UnifiedClient') is True:
+        shutil.copyfile(ROOT / 'apps/android/FREEV6.md', out / 'Unified-FlClash-sources.md')
+    (out / "macOS-source-sha256.json").write_bytes(encoded(inventory(contents)))
 
 
 def archive(destination, contents):
-    manifest = inventory()
+    manifest = inventory(contents)
     data = encoded(manifest)
     if data != (contents / "Resources/Notices/macOS-source-sha256.json").read_bytes():
         raise SystemExit("Sources changed after candidate signing. Rebuild the candidate before making its source archive.")

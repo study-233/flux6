@@ -141,6 +141,9 @@ def compatible_data(baseline, candidate, installed, folder, source):
         assert saved["chain"]["names"] and saved["settings"]["mode"] == "global" and usage["total"]["upload"] > 0
         return saved, usage["total"]
 
+    def build_of(app):
+        return int(plistlib.loads((app / "Contents/Info.plist").read_bytes())["CFBundleVersion"])
+    candidate_build = build_of(candidate)
     old_settings, old_totals = worker_roundtrip(baseline, folder, seed)
 
     def edit_new(request):
@@ -168,15 +171,15 @@ def compatible_data(baseline, candidate, installed, folder, source):
         replaced.rename(installed)
         raise
     run("/usr/bin/codesign", "--verify", "--deep", "--strict", installed)
-    assert plistlib.loads((installed / "Contents/Info.plist").read_bytes())["CFBundleVersion"] == "1"
+    assert cdhash(installed) == cdhash(baseline), "Rollback did not restore the baseline signature"
     def read_rollback(request):
         assert request("settings.get") == next_settings and request("traffic.get")["total"] == next_totals
         # The saved encrypted chain can still be used with its isolated key on rollback.
         response = request("chain.preview", {"expectedRevision": next_settings["revision"], "key": key, "refresh": True})
         assert [node["name"] for node in response["nodes"]] == next_settings["chain"]["names"]
     worker_roundtrip(installed, folder, read_rollback)
-    return {"workerProtocol": 1, "schema": next_settings["schemaVersion"], "baselineBuild": 1, "candidateBuild": 2,
-            "rollbackBuild": 1, "oldReadsNew": True, "newReadsOld": True, "chainMembers": len(next_settings["chain"]["names"]),
+    return {"workerProtocol": 1, "schema": next_settings["schemaVersion"], "baselineBuild": build_of(baseline), "candidateBuild": candidate_build,
+            "rollbackBuild": build_of(installed), "oldReadsNew": True, "newReadsOld": True, "chainMembers": len(next_settings["chain"]["names"]),
             "oldMode": old_settings["settings"]["mode"], "finalMode": next_settings["settings"]["mode"],
             "oldRevision": old_settings["revision"], "finalRevision": next_settings["revision"],
             "ledgerUploadBefore": old_totals["upload"], "ledgerUploadAfterRollback": next_totals["upload"]}

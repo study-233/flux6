@@ -41,15 +41,24 @@ Future<void> openLiveNodePicker(BuildContext context, LiveModel model) =>
       ),
     );
 
+typedef NodeGroupBuilder =
+    Widget Function(
+      List<String> labels,
+      int selected,
+      ValueChanged<int> onSelect,
+    );
+
 class LiveNodesPage extends StatefulWidget {
   const LiveNodesPage({
     super.key,
     required this.model,
     this.picker = false,
     this.active = true,
+    this.groupBuilder,
   });
   final LiveModel model;
   final bool picker, active;
+  final NodeGroupBuilder? groupBuilder;
   @override
   State<LiveNodesPage> createState() => _LiveNodesPageState();
 }
@@ -155,6 +164,36 @@ class _LiveNodesPageState extends State<LiveNodesPage> {
     }
   }
 
+  Widget _groupSelector() {
+    final groups = model.groups;
+    final labels = [
+      for (final item in groups) item['id'] == 'access' ? '接入节点' : '链式代理',
+    ];
+    final selected = groups.indexWhere((item) => item['id'] == group);
+    void select(int index) {
+      setState(() {
+        group = groups[index]['id'] as String;
+        highlighted = 0;
+        previousOptions = [];
+        search.clear();
+        query = '';
+      });
+    }
+
+    return widget.groupBuilder?.call(labels, selected, select) ??
+        Wrap(
+          spacing: 6,
+          children: [
+            for (var i = 0; i < labels.length; i++)
+              ChoiceChip(
+                label: Text(labels[i]),
+                selected: selected == i,
+                onSelected: (_) => select(i),
+              ),
+          ],
+        );
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: model,
@@ -205,23 +244,7 @@ class _LiveNodesPageState extends State<LiveNodesPage> {
             if (!widget.picker && model.groups.length > 1)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Wrap(
-                  spacing: 6,
-                  children: [
-                    for (final item in model.groups)
-                      ChoiceChip(
-                        label: Text(item['id'] == 'access' ? '接入节点' : '链式代理'),
-                        selected: group == item['id'],
-                        onSelected: (_) => setState(() {
-                          group = item['id'];
-                          highlighted = 0;
-                          previousOptions = [];
-                          search.clear();
-                          query = '';
-                        }),
-                      ),
-                  ],
-                ),
+                child: _groupSelector(),
               ),
             Semantics(
               container: true,

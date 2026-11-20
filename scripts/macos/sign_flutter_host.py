@@ -1,4 +1,4 @@
-"""Seal an AOT Mac runner. Ad-hoc builds pin the two embedded libraries in a kernel load constraint."""
+"""Seal an AOT Mac runner. Ad-hoc builds pin the embedded libraries in a kernel load constraint."""
 import argparse
 import os
 from pathlib import Path
@@ -13,9 +13,13 @@ LOCAL_RIGHTS = {"com.apple.security.cs.disable-library-validation": True}
 
 def host_libraries(app):
     directory = app / "Contents/Frameworks"
-    if {file.name for file in directory.iterdir()} != {name + ".framework" for name in FRAMEWORKS}:
+    names = FRAMEWORKS
+    with (app / "Contents/Info.plist").open("rb") as stream:
+        if plistlib.load(stream).get("Flux6UnifiedClient") is True:
+            names += ("objective_c", "rust_api", "sqlite3")
+    if {file.name for file in directory.iterdir()} != {name + ".framework" for name in names}:
         raise ValueError("Unexpected embedded framework in the Flutter release")
-    return [directory / (name + ".framework") for name in FRAMEWORKS]
+    return [directory / (name + ".framework") for name in names]
 
 
 def cdhash(path):
