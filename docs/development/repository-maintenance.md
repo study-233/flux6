@@ -545,3 +545,9 @@ Flutter 分析和 6 个相关测试文件的 58 项测试通过，覆盖无校�
 ## 2026-11-15 Homebrew 发布 Flux6 0.1.2
 
 [正式 Tap](https://github.com/study-233/homebrew-tap/commit/609aa8613149b211a448c14b6d7a3fbfc84a166c) 的 Cask 使用 0.1.2 build 13 的 Apple Silicon DMG，摘要取自已发布的 GitHub 附件。刷新该 Tap 后，本机 Homebrew 的 `brew upgrade --cask --dry-run study-233/tap/flux6` 列出 `0.1.1,12 -> 0.1.2,13`。本次验证覆盖升级识别，未执行应用替换。
+
+## 2026-11-20 本地缓存与任务分支清理
+
+维护脚本清理了 68.8 MiB 安装测试产物和 12.80 GiB 编译缓存，复查两组清单均为空。README 分支 `chore/readme-badges` 和 `fix/readme-star-history` 已分别随 PR #28、#29 合入主线，本地分支和失效的远端跟踪引用已移除。仓库检查和 9 项维护测试通过。本次验证未涉及客户端构建或设备安装。
+
+Windows FlClash 原型保存在本地分支 `feat/desktop-update-channels` 和归档标签 `archive/windows-flclash-prototype-20261115`，两者均指向 `9290f22`。旧发行草稿分支 `release/0.1.1-distribution` 已在本地删除，其末端提交 `d4d6426` 可从标签 `archive/distribution-build11-20261115` 恢复。
