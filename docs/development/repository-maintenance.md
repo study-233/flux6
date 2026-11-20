@@ -567,3 +567,5 @@ Windows FlClash 原型保存在本地分支 `feat/desktop-update-channels` 和�
 `flutter analyze --no-pub --no-fatal-infos`、`flutter test --no-pub test/unified_node_groups_test.dart`（1 项）和 `flutter build windows --release --no-pub` 均通过。已核对 EXE 的 AMD64 标识，包内 7 个分组的名称和成员顺序与共享夹具一致。启动后可见独立窗口和分组首屏。
 
 窗口退出验收失败。两次对本次启动的预览窗口发送 `WM_CLOSE`，进程均以 `0xC000041D` 异常退出，其中一次全程未截图。具体出错模块待定位。本轮仅覆盖统一客户端的合成数据预览，安装升级、系统集成和真实网络仍待验证。
+
+Windows 关闭故障的候选修复将离线预览引擎的销毁移到消息循环返回之后，先释放 Flutter 和插件，再结束 COM。验证脚本增加普通用户的插件目录联接回退和 `-CheckWindowExit`，只操作本次启动的预览进程。具体崩溃模块尚未从 Windows 调用栈确认，关闭修复等待同机复测。

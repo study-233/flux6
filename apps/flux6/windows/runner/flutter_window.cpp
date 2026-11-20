@@ -53,6 +53,12 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // This fixture owns one window. Tear down the engine after DispatchMessage
+  // returns so a synchronous close cannot destroy a plugin on its own stack.
+  if (message == WM_CLOSE) {
+    PostQuitMessage(0);
+    return 0;
+  }
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     WindowPluginForwardVisibility(*flutter_controller_, message, wparam,
@@ -67,7 +73,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 
   switch (message) {
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_) flutter_controller_->engine()->ReloadSystemFonts();
       break;
   }
 
