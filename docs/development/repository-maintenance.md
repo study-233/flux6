@@ -559,3 +559,11 @@ Windows FlClash 原型保存在本地分支 `feat/desktop-update-channels` 和�
 本机使用已有合成夹具运行了根 Go 配置与移动接口专项、Android 嵌套 Go 核心的 MASQUE 解析测试，以及 Mac 的 3 项 DesktopNodeCatalogTests，均通过。覆盖业务配置、28 个接入点的嵌入核心解析和 Mac 节点目录；统一工程构建、Windows 本机编译、安装升级和真实连接仍待验收。
 
 阶段二已建立[三端候选工程的组装与构建入口](../../apps/flux6/README.md)。Flutter 固定锁依赖解析、全工程分析和节点分组切换组件测试通过。Mac 已构建 arm64 独立预览并核对应用标识和深度签名；Android 调试 APK 已核对 arm64 ABI、独立包名和启动 Activity，并检查清单没有 VPN/代理服务。Windows x64 的测试与编译脚本已落地，原生结果待验。以上范围为隔离预览，未安装正式客户端或启动网络核心。
+
+## 2026-11-20 统一预览 Windows x64 验证
+
+在 Windows 11 25H2 x64（26200.9711）验证 `refactor/unified-client-baseline` 的 `7eb2e9b`。使用 Flutter 3.47.6、Go 1.27.3、Rust 1.99.0 编译。当前用户创建插件符号链接时权限不足，`scripts/unified/check-windows.ps1` 在首次依赖准备阶段停止。随后在同一临时工程按 Flutter 的插件清单创建 17 个目录联接，以 `flutter pub get --offline --enforce-lockfile` 复核依赖，确认锁文件与源工程的 SHA256 一致。为本次进程选用含 Windows MSVC 目标的 Rust 工具链，并设置 `NO_PROXY=127.0.0.1,localhost,::1` 供测试器连接本机。
+
+`flutter analyze --no-pub --no-fatal-infos`、`flutter test --no-pub test/unified_node_groups_test.dart`（1 项）和 `flutter build windows --release --no-pub` 均通过。已核对 EXE 的 AMD64 标识，包内 7 个分组的名称和成员顺序与共享夹具一致。启动后可见独立窗口和分组首屏。
+
+窗口退出验收失败。两次对本次启动的预览窗口发送 `WM_CLOSE`，进程均以 `0xC000041D` 异常退出，其中一次全程未截图。具体出错模块待定位。本轮仅覆盖统一客户端的合成数据预览，安装升级、系统集成和真实网络仍待验证。
