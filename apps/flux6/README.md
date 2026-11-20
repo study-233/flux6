@@ -23,6 +23,25 @@ flutter build apk --debug --target-platform android-arm64 --no-pub
 
 Mac 产物为候选目录中的 `build/macos/Build/Products/Release/Flux6 Preview.app`，标识为 `dev.flux6.unified.preview`。Android 产物为 `build/app/outputs/flutter-apk/app-debug.apk`，标识为 `dev.flux6.unified.preview.dev`。预览采用普通 FlutterActivity，清单移除了 VPN、代理服务和文件提供程序。
 
+在上述 Mac 候选目录中可以使用合成凭据验证配置准备。测试通过 Rust IPC 启动该次构建的 Go 核心，在临时目录渲染配置，检查 28 个接入点和校园分流规则后关闭核心。
+
+```bash
+FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR="$PWD/build/native_assets/macos" \
+  flutter test --no-pub test/unified_desktop_profile_test.dart
+```
+
+## Android 完整客户端候选
+
+从仓库根运行以下命令可构建包含 WARP 设置页、原生服务和 VPN 权限入口的调试包。它使用独立包名 `dev.flux6.unified.client.dev`，拥有自己的应用数据，使用现有 Android `ServiceState` 管理连接。真机授权与连接另行验收。
+
+```bash
+source scripts/android/env.sh
+candidate=$(python3 scripts/unified/prepare.py --android-client)
+cd "$candidate"
+flutter pub get --enforce-lockfile
+flutter build apk --debug --target-platform android-arm64 --no-pub
+```
+
 ## Windows x64
 
 在带 Visual Studio C++ 桌面开发、Flutter 3.47.6、Go 1.27 和 Rust 1.99 的 Windows 开发机上，从仓库根运行：
@@ -31,7 +50,7 @@ Mac 产物为候选目录中的 `build/macos/Build/Products/Release/Flux6 Previe
 .\scripts\unified\check-windows.ps1 -CheckWindowExit
 ```
 
-脚本组装同一工程、检查依赖锁、执行分析和公共节点页测试，再编译并显示候选 EXE 路径。普通用户缺少符号链接权限时，脚本按 Flutter 插件清单建立目录联接并离线复核锁文件。指定 `-CheckWindowExit` 后会启动独立预览、等待窗口可见、请求关闭并检查进程退出码。运行时需要保留对应 Release 目录中的 DLL 和 data。窗口类和二进制名称独立；预览入口加载合成分组。
+脚本检查依赖锁、执行分析和公共节点页测试，编译 Windows 预览，再通过本机命名管道运行配置准备测试。普通用户缺少符号链接权限时，脚本按 Flutter 插件清单建立目录联接并离线复核锁文件。指定 `-CheckWindowExit` 后会启动独立预览、等待窗口可见、请求关闭并检查进程退出码。全部通过后输出 EXE 路径。运行时需要保留对应 Release 目录中的 DLL 和 data。
 
 ## 来源和本地适配
 

@@ -44,13 +44,15 @@ function Test-WindowExit($executable) {
 }
 
 $previousNoProxy = $env:NO_PROXY
+$previousRustLibDir = $env:FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR
 Push-Location $candidate
 try {
     $env:NO_PROXY = (@($previousNoProxy, '127.0.0.1', 'localhost', '::1') -ne '') -join ','
     $pubLog = Join-Path $candidate 'pub-get.log'
-    flutter pub get --enforce-lockfile *> $pubLog
+    cmd.exe /d /c 'flutter pub get --enforce-lockfile >pub-get.log 2>&1'
+    $pubExit = $LASTEXITCODE
     Get-Content $pubLog
-    if ($LASTEXITCODE -ne 0) {
+    if ($pubExit -ne 0) {
         if (!(Test-Path '.flutter-plugins-dependencies') -or
             !(Select-String -Path $pubLog -Pattern 'requires symlink support|ERROR_PRIVILEGE_NOT_HELD|errno = 1314' -Quiet)) {
             throw 'Locked dependency preparation failed'
@@ -62,13 +64,20 @@ try {
     flutter analyze --no-pub --no-fatal-infos
     if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
     flutter test --no-pub test/unified_node_groups_test.dart
-    if ($LASTEXITCODE -ne 0) { throw 'Shared node page test failed' }
+    if ($LASTEXITCODE -ne 0) { throw 'Unified preview test failed' }
     flutter build windows --release --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'Windows x64 build failed' }
     $executable = Get-Item 'build/windows/x64/runner/Release/flux6-unified-preview.exe'
-    if ($CheckWindowExit) { Test-WindowExit $executable }
+    if ($CheckWindowExit) {
+        Test-WindowExit $executable
+        Write-Host 'Preview window closed with exit code 0.'
+    }
+    $env:FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR = (Join-Path $candidate 'build/native_assets/windows')
+    flutter test --no-pub test/unified_desktop_profile_test.dart
+    if ($LASTEXITCODE -ne 0) { throw 'Desktop profile preparation test failed' }
     $executable
 } finally {
+    $env:FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR = $previousRustLibDir
     $env:NO_PROXY = $previousNoProxy
     Pop-Location
 }
