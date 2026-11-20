@@ -119,9 +119,10 @@ HANDLE VerifiedInstaller(const std::wstring& path, std::string expected) {
 }
 std::optional<std::wstring> PickFile(HWND window, const std::string& kind, bool save, DWORD* failure) {
   std::vector<wchar_t> path(32768, L'\0');
-  if (save) wcscpy_s(path.data(), path.size(), L"freev6-ui-preferences.json");
+  if (save) wcscpy_s(path.data(), path.size(), kind == "logs" ? L"freev6.log" : L"freev6-ui-preferences.json");
   const wchar_t* filter = kind == "image" ? L"PNG / JPEG\0*.png;*.jpg;*.jpeg\0\0" :
-    kind == "yaml" ? L"YAML\0*.yaml;*.yml\0All files\0*.*\0\0" : L"JSON\0*.json\0\0";
+    kind == "yaml" ? L"YAML\0*.yaml;*.yml\0All files\0*.*\0\0" :
+    kind == "logs" ? L"Log\0*.log;*.txt\0All files\0*.*\0\0" : L"JSON\0*.json\0\0";
   OPENFILENAMEW dialog{};
   dialog.lStructSize = sizeof(dialog); dialog.hwndOwner = window; dialog.lpstrFilter = filter;
   dialog.lpstrFile = path.data(); dialog.nMaxFile = static_cast<DWORD>(path.size());

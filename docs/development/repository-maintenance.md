@@ -593,3 +593,7 @@ Mac 上通过 22 项 Flutter 测试，覆盖配置准备、设置页、核心服
 关闭探针按本次启动的 PID 和独立窗口类等待可见窗口，发送 `WM_CLOSE` 并检查退出码。全新候选的 `check-windows.ps1 -CheckWindowExit` 从锁定依赖、分析、节点测试和 x64 Release 构建，到关闭窗口和后续命名管道配置测试均通过。另行连续关闭三次普通预览，退出码均为 0。临时夹具实际调用原生托盘显示接口后，分别保持图标和先隐藏图标再关闭，两次退出码也均为 0。PowerShell 5.1 和 7 的关闭探针均通过。
 
 Windows 托盘、菜单、管理器及生命周期相关的 31 项 Flutter 回归通过。全插件测试额外暴露了三项旧的宿主兼容问题：两个 Linux 图标测试使用正斜杠断言，一个 macOS 源码断言依赖 LF 换行；这三项均在未修复的 `7eb2e9b` 候选上复现。安装升级和真实联网未测。
+
+## Windows 完整界面开发交接
+
+本分支在当前 Android 派生的 FlClash 源码上恢复归档 Windows 业务接入，复用现有 Windows LiveModel、Go helper 和原生 HostBridge。完整候选的入口、语言生成与验证命令见[候选工程](../../apps/flux6/README.md)。Windows 原生编译和真实会话验收由 Windows 开发分支继续。

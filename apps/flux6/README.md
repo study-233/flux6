@@ -59,3 +59,20 @@ macOS 和 Windows runner 来自 [FlClash v0.9.3 的固定提交](https://github.
 - Mac 调整应用标识、窗口与退出行为，移除上游 URL 注册及登录项接入。保留 SwiftPM 插件注册和构建核心的流程。
 - Windows 使用独立文件名、窗口类与标题，首帧显示窗口；预览省略代理清理、单实例激活以及核心和 helper 安装步骤。
 - Android 只在组装出的工程内使用候选包名和预览清单。正式 APK 构建继续使用原工程。
+
+## Windows 完整界面候选
+
+在 Windows 工作区根目录组装本分支的完整客户端。界面接入当前 Windows 的 Dart 业务模型和原生 helper，使用 FlClash 首页、节点页和设置。适配来源为归档提交 `9290f22`。组装时使用当前 Android 导出和已修复的托盘插件，增量合并 ARB。简体中文和英语有对应词条，其他语言沿用归档的英语回退。
+
+```powershell
+$client = python scripts/unified/prepare.py --windows-client
+Push-Location $client
+flutter pub get --enforce-lockfile
+dart run intl_utils:generate
+flutter analyze --no-pub --no-fatal-infos
+flutter test --no-pub --dart-define=SAFE_MODE=true --dart-define=FREEV6_OFFLINE=true test/freev6
+flutter build windows --release --no-pub --flavor live --dart-define=FREEV6_BACKEND=true
+Pop-Location
+```
+
+本轮交接包含 UI 与原生宿主源码。live 运行还须按 [Windows 构建说明](../windows/flutter_ui/DEVELOPMENT.md) 配齐 helper 和 GeoSite。当前 Windows 实机验证记录仅覆盖前一阶段的独立预览。

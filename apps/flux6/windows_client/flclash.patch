@@ -1,0 +1,419 @@
+--- a/lib/core/controller.dart
++++ b/lib/core/controller.dart
+@@ -30,6 +30,8 @@
+ 
+   @visibleForTesting
+   CoreController.scoped(this._interface);
++
++  CoreController.adapter(this._interface);
+ 
+   @visibleForTesting
+   static void resetInstance() {
+--- a/lib/views/dashboard/dashboard.dart
++++ b/lib/views/dashboard/dashboard.dart
+@@ -1,3 +1,4 @@
++import 'package:fl_clash/freev6/pages.dart';
+ import 'dart:math' as math;
+ 
+ import 'package:fl_clash/common/common.dart';
+@@ -19,7 +20,6 @@
+ 
+ // Narrower columns leave a pair of service cells too tight for a status, so
+ // the grid stacks them in one.
+-const _servicePairColumnMin = 290.0;
+ 
+ const _maxColumnWidth = 440.0;
+ 
+@@ -75,7 +75,10 @@
+             )
+           : null,
+       iconActions: [
+-        if (editable && !editing)
++        if (editable &&
++            !editing &&
++            !safeModeBuild &&
++            !const bool.fromEnvironment('FREEV6_BACKEND'))
+           IconButtonData(
+             glyph: AppGlyphs.edit,
+             tooltip: appLocalizations.editDashboard,
+@@ -167,13 +170,13 @@
+         final switches =
+             DashboardWidget.networkTakeover.platforms.contains(platform)
+             ? const [
+-                (1, NetworkTakeoverTile(TakeoverSwitch.systemProxy)),
+-                (1, NetworkTakeoverTile(TakeoverSwitch.tun)),
++                (1, FreeV6ConnectionTile()),
++                (1, FreeV6ConnectionTile(settings: true)),
+               ]
+             : const [(2, VpnTile())];
+         final half = columns ~/ 2;
+         final summaries = row([
+-          (half, const ConnectionStatsCard()),
++          (half, const FreeV6ActivityCard()),
+           (half, const ProxyGroupsSummaryCard()),
+         ]);
+         if (columns == 2) {
+@@ -201,11 +204,14 @@
+                 sized(controlHeight, row(switches)),
+                 sized(
+                   middleHeight,
+-                  row(const [(1, IntranetIpCard()), (1, ProfilesCard())]),
++                  row(const [(1, FreeV6UsageCard()), (1, FreeV6ProfileCard())]),
+                 ),
+                 sized(
+                   middleHeight,
+-                  row(const [(1, ServiceStatusCard()), (1, MemoryInfo())]),
++                  row(const [
++                    (1, FreeV6RuntimeCard(hotspot: true)),
++                    (1, FreeV6RuntimeCard()),
++                  ]),
+                 ),
+                 sized(summaryHeight, summaries),
+               ],
+@@ -228,15 +234,10 @@
+           sized(
+             middleHeight,
+             row([
+-              (1, const IntranetIpCard()),
+-              (1, const ProfilesCard()),
+-              (
+-                1,
+-                ServiceStatusCard(
+-                  columns: column >= _servicePairColumnMin * scale ? 2 : 1,
+-                ),
+-              ),
+-              (1, const MemoryInfo()),
++              (1, const FreeV6UsageCard()),
++              (1, const FreeV6ProfileCard()),
++              (1, const FreeV6RuntimeCard(hotspot: true)),
++              (1, const FreeV6RuntimeCard()),
+             ]),
+           ),
+         ];
+@@ -266,9 +267,7 @@
+                         children: const [
+                           Expanded(
+                             flex: 3,
+-                            child: RepaintBoundary(
+-                              child: ConnectionsTableCard(),
+-                            ),
++                            child: RepaintBoundary(child: FreeV6ActivityCard()),
+                           ),
+                           Expanded(
+                             flex: 2,
+--- a/lib/views/dashboard/widget_registry.dart
++++ b/lib/views/dashboard/widget_registry.dart
+@@ -1,3 +1,4 @@
++import 'package:fl_clash/freev6/pages.dart';
+ import 'package:fl_clash/common/common.dart';
+ import 'package:fl_clash/enum/enum.dart';
+ import 'package:fl_clash/ui/icons/icons.dart';
+@@ -11,12 +12,22 @@
+     DashboardWidget.outboundMode => const OutboundModeCard(),
+     DashboardWidget.vpnButton => const VpnCard(),
+     DashboardWidget.networkTakeover => const NetworkTakeoverCard(),
+-    DashboardWidget.serviceStatus => const ServiceStatusCard(),
+-    DashboardWidget.profiles => const ProfilesCard(),
++    DashboardWidget.serviceStatus => const FreeV6AdaptiveCard(
++      child: FreeV6RuntimeCard(hotspot: true),
++    ),
++    DashboardWidget.profiles => const FreeV6AdaptiveCard(
++      child: FreeV6ProfileCard(),
++    ),
+     DashboardWidget.proxyGroups => const ProxyGroupsCard(),
+-    DashboardWidget.connectionStats => const ConnectionStatsCard(),
+-    DashboardWidget.intranetIp => const IntranetIpCard(),
+-    DashboardWidget.memoryInfo => const MemoryInfo(),
++    DashboardWidget.connectionStats => const FreeV6AdaptiveCard(
++      child: FreeV6ActivityCard(),
++    ),
++    DashboardWidget.intranetIp => const FreeV6AdaptiveCard(
++      child: FreeV6UsageCard(),
++    ),
++    DashboardWidget.memoryInfo => const FreeV6AdaptiveCard(
++      child: FreeV6RuntimeCard(),
++    ),
+   };
+ 
+   Glyph get glyph => switch (this) {
+--- a/lib/views/dashboard/widgets/current_outbound.dart
++++ b/lib/views/dashboard/widgets/current_outbound.dart
+@@ -1,3 +1,5 @@
++import 'package:fl_clash/freev6/pages.dart';
++import 'package:fl_clash/freev6/session.dart';
+ import 'dart:math' as math;
+ 
+ import 'package:fl_clash/common/common.dart';
+@@ -204,7 +206,7 @@
+                   child: Center(
+                     child: _StartToggle(
+                       size: metrics.buttonSize,
+-                      enabled: hasProfile,
++                      enabled: hasProfile && watchFreeV6(ref).canConnectAction,
+                       running: isStart,
+                       suspended: suspended,
+                     ),
+@@ -314,6 +316,10 @@
+ 
+   @override
+   Widget build(BuildContext context) {
++    if (const bool.fromEnvironment('FREEV6_OFFLINE') ||
++        const bool.fromEnvironment('FREEV6_BACKEND')) {
++      return const FreeV6ExitLabel();
++    }
+     final colorScheme = context.colorScheme;
+     final style = DashboardText.figure(
+       context,
+@@ -587,7 +593,7 @@
+   }
+ }
+ 
+-class _Cells extends StatelessWidget {
++class _Cells extends ConsumerWidget {
+   const _Cells({
+     required this.quality,
+     required this.loading,
+@@ -601,7 +607,7 @@
+   final double gap;
+ 
+   @override
+-  Widget build(BuildContext context) {
++  Widget build(BuildContext context, WidgetRef ref) {
+     final appLocalizations = context.appLocalizations;
+     final organization = switch (quality) {
+       IpQuality(organization: final name?) when name.isNotEmpty => name,
+@@ -617,8 +623,12 @@
+         ),
+         Flexible(
+           child: _Cell(
+-            label: appLocalizations.ipOrganization,
+-            value: organization != null
++            label: appLocalizations.outboundMode,
++            value:
++                const bool.fromEnvironment('FREEV6_OFFLINE') ||
++                    const bool.fromEnvironment('FREEV6_BACKEND')
++                ? _CellText(watchFreeV6(ref).mode)
++                : organization != null
+                 ? _CellText(organization)
+                 : loading
+                 ? SkeletonText(width: 96, style: _cellStyle(context))
+--- a/lib/views/dashboard/widgets/outbound_mode.dart
++++ b/lib/views/dashboard/widgets/outbound_mode.dart
+@@ -1,3 +1,4 @@
++import 'package:fl_clash/freev6/session.dart';
+ import 'package:fl_clash/common/common.dart';
+ import 'package:fl_clash/enum/enum.dart';
+ import 'package:fl_clash/providers/providers.dart';
+@@ -28,6 +29,11 @@
+ 
+   @override
+   Widget build(BuildContext context, WidgetRef ref) {
++    final modes = Mode.values
++        .where(
++          (value) => value != Mode.direct || watchFreeV6(ref).allowDirectMode,
++        )
++        .toList();
+     final mode = ref.watch(
+       patchClashConfigProvider.select((state) => state.mode),
+     );
+@@ -44,12 +50,12 @@
+           const SizedBox(height: 12),
+           DashboardConnectedGroup(
+             children: [
+-              for (final (index, item) in Mode.values.indexed)
++              for (final (index, item) in modes.indexed)
+                 Expanded(
+                   child: DashboardConnectedButton(
+                     selected: item == mode,
+                     first: index == 0,
+-                    last: index == Mode.values.length - 1,
++                    last: index == modes.length - 1,
+                     outer: _outer,
+                     inner: 12,
+                     background: tone,
+@@ -95,6 +101,11 @@
+   @override
+   Widget build(BuildContext context, WidgetRef ref) {
+     final density = DashboardDensityScope.of(context);
++    final modes = Mode.values
++        .where(
++          (value) => value != Mode.direct || watchFreeV6(ref).allowDirectMode,
++        )
++        .toList();
+     final mode = ref.watch(
+       patchClashConfigProvider.select((state) => state.mode),
+     );
+@@ -131,12 +142,12 @@
+               child: DashboardConnectedGroup(
+                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                 children: [
+-                  for (final (index, item) in Mode.values.indexed)
++                  for (final (index, item) in modes.indexed)
+                     Expanded(
+                       child: DashboardConnectedButton(
+                         selected: item == mode,
+                         first: index == 0,
+-                        last: index == Mode.values.length - 1,
++                        last: index == modes.length - 1,
+                         outer: outer,
+                         inner: 10,
+                         background: DashboardColors.of(context).tone,
+--- a/lib/views/proxies/card.dart
++++ b/lib/views/proxies/card.dart
+@@ -119,7 +119,9 @@
+           checked: pinned,
+           onPressed: () => _handleSelect(ref),
+         ),
+-      if (addable)
++      if (addable &&
++          !const bool.fromEnvironment('FREEV6_OFFLINE') &&
++          !const bool.fromEnvironment('FREEV6_BACKEND'))
+         PopupMenuItem(
+           glyph: AppGlyphs.listAdd,
+           label: appLocalizations.addToLocalProxies,
+--- a/lib/views/proxies/proxies.dart
++++ b/lib/views/proxies/proxies.dart
+@@ -172,7 +172,7 @@
+           ),
+       ],
+       menuItems: picker ? const [] : _buildMenuItems(context, style),
+-      title: context.appLocalizations.proxies,
++      title: context.appLocalizations.freev6Nodes,
+       searchState: AppBarSearchState(onSearch: _onSearch),
+       body: switch (style.type) {
+         ProxiesType.tab => _tabView,
+--- a/lib/common/l10n_labels.dart
++++ b/lib/common/l10n_labels.dart
+@@ -10,9 +10,9 @@
+     final appLocalizations = currentAppLocalizations;
+     return switch (this) {
+       PageLabel.dashboard => appLocalizations.dashboard,
+-      PageLabel.proxies => appLocalizations.proxies,
++      PageLabel.proxies => appLocalizations.freev6Nodes,
+       PageLabel.profiles => appLocalizations.profiles,
+-      PageLabel.tools => appLocalizations.tools,
++      PageLabel.tools => appLocalizations.freev6Settings,
+       PageLabel.logs => appLocalizations.logs,
+       PageLabel.requests => appLocalizations.requests,
+       PageLabel.resources => appLocalizations.resources,
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -8,11 +8,13 @@
+ hooks:
+   user_defines:
+     setup:
+-      build_assets: true
++      build_assets: false
+     rust_api:
+-      build_assets: true
++      build_assets: false
+ 
+ dependencies:
++  freev6_windows:
++    path: ../../apps/windows/flutter_ui
+   flutter:
+     sdk: flutter
+   flutter_localizations:
+@@ -92,7 +94,12 @@
+   mocktail: ^1.0.5
+ 
+ flutter:
++  uses-material-design: true
+   assets:
++    - LICENSE
++    - assets/legal/
++    - plugins/prism_ui/LICENSE
++    - plugins/prism_ui/NOTICE
+     - assets/data/
+     - assets/fonts/
+     - assets/images/
+@@ -118,3 +125,7 @@
+   class_name: AppLocalizations
+   arb_dir: arb
+   output_dir: lib/l10n
++
++dependency_overrides:
++  prism_ui:
++    path: plugins/prism_ui
+--- a/pubspec.lock
++++ b/pubspec.lock
+@@ -547,6 +547,13 @@
+     description: flutter
+     source: sdk
+     version: "0.0.0"
++  freev6_windows:
++    dependency: "direct main"
++    description:
++      path: "../../apps/windows/flutter_ui"
++      relative: true
++    source: path
++    version: "0.5.3+0"
+   freezed:
+     dependency: "direct dev"
+     description:
+@@ -1722,5 +1729,5 @@
+     source: hosted
+     version: "2.2.4"
+ sdks:
+-  dart: ">=3.13.2 <4.0.0"
+-  flutter: ">=3.47.2"
++  dart: ">=3.13.5 <4.0.0"
++  flutter: ">=3.47.6"
+--- a/windows/runner/flutter_window.cpp
++++ b/windows/runner/flutter_window.cpp
+@@ -1,6 +1,7 @@
+ #include "flutter_window.h"
+ 
+ #include <optional>
++#include <window/window_plugin_runner.h>
+ 
+ #include "flutter/generated_plugin_registrant.h"
+ 
+@@ -69,6 +70,7 @@
+   }
+   // Give Flutter, including plugins, an opportunity to handle window messages.
+   if (flutter_controller_) {
++    WindowPluginForwardVisibility(*flutter_controller_, message, wparam, lparam);
+     std::optional<LRESULT> result =
+         flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
+                                                       lparam);
+@@ -79,7 +81,7 @@
+ 
+   switch (message) {
+     case WM_FONTCHANGE:
+-      flutter_controller_->engine()->ReloadSystemFonts();
++      if (flutter_controller_) flutter_controller_->engine()->ReloadSystemFonts();
+       break;
+   }
+ 
+--- a/windows/runner/main.cpp
++++ b/windows/runner/main.cpp
+@@ -37,6 +37,7 @@
+     CoUninitialize(); return EXIT_SUCCESS;
+   }
+ #endif
++  project.set_impeller_switch(flutter::ImpellerSwitch::Disabled);
+   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
+ 
+   FlutterWindow window(project, probe);
+@@ -47,15 +48,17 @@
+   }
+   window.SetQuitOnClose(true);
+ 
+-  ::MSG msg;
+-  while (::GetMessage(&msg, nullptr, 0, 0) > 0) {
++  ::MSG msg{};
++  BOOL result;
++  while ((result = ::GetMessage(&msg, nullptr, 0, 0)) > 0) {
+     ::TranslateMessage(&msg);
+     ::DispatchMessage(&msg);
+   }
+ 
++  window.Destroy();
+   ::CoUninitialize();
+ #if FREEV6_LIVE
+   if (singleton) CloseHandle(singleton);
+ #endif
+-  return probe && !window.probe_passed() ? EXIT_FAILURE : EXIT_SUCCESS;
++  return result == -1 || (probe && !window.probe_passed()) ? EXIT_FAILURE : EXIT_SUCCESS;
+ }

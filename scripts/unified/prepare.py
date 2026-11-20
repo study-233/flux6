@@ -11,37 +11,67 @@ APP = ROOT / 'apps/android'
 CANDIDATE = ROOT / 'apps/flux6'
 
 
-def prepare(android_client=False):
+def copy_tracked(source_dir, output):
+    tracked = subprocess.check_output(
+        ['git', 'ls-files', '-z', '--', source_dir.relative_to(ROOT)], cwd=ROOT
+    ).decode().split('\0')
+    for name in filter(None, tracked):
+        source = ROOT / name
+        relative = source.relative_to(source_dir)
+        if relative.parts[0] in {'.agents', 'AGENTS.md'}:
+            continue
+        target = output / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+
+
+def prepare(target):
     build = ROOT / 'build'
     build.mkdir(exist_ok=True)
     # core/go.mod imports the root Go module via ../../.. on all three targets.
-    prefix = 'unified-android-client-' if android_client else 'unified-preview-'
+    prefix = f'unified-{target}-'
     output = Path(tempfile.mkdtemp(prefix=prefix, dir=build))
     try:
-        tracked = subprocess.check_output(
-            ['git', 'ls-files', '-z', '--', 'apps/android'], cwd=ROOT
-        ).decode().split('\0')
-        for name in filter(None, tracked):
-            source = ROOT / name
-            relative = source.relative_to(APP)
-            if relative.parts[0] in {'.agents', 'AGENTS.md'}:
-                continue
-            target = output / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+        copy_tracked(APP, output)
         gradle = output / 'android/app/build.gradle.kts'
         original = gradle.read_text()
         production_id = 'applicationId = "dev.freev6.mobile"'
         if original.count(production_id) != 1:
             raise ValueError('Android application ID changed; check preview isolation')
-        package = 'dev.flux6.unified.client' if android_client else 'dev.flux6.unified.preview'
+        package = 'dev.flux6.unified.preview' if target == 'preview' else 'dev.flux6.unified.client'
         gradle.write_text(original.replace(production_id, f'applicationId = "{package}"'))
-        if not android_client:
+        if target == 'preview':
             add_preview(output)
+        elif target == 'windows-client':
+            add_windows_client(output)
     except BaseException:
         shutil.rmtree(output)
         raise
     return output
+
+
+def add_windows_client(output):
+    integration = CANDIDATE / 'windows_client'
+    copy_tracked(ROOT / 'apps/windows/flutter_ui/windows', output / 'windows')
+    subprocess.run(['git', 'apply', '--ignore-space-change', '--whitespace=nowarn',
+                    '--directory=' + output.relative_to(ROOT).as_posix(),
+                    integration / 'flclash.patch'], cwd=ROOT, check=True)
+    for directory in ('lib', 'test'):
+        shutil.copytree(integration / directory, output / directory, dirs_exist_ok=True)
+    # The normal Windows entry always negotiates the live native host.
+    shutil.copy2(integration / 'lib/live_main.dart', output / 'lib/main.dart')
+    legal = output / 'assets/legal'
+    legal.mkdir(exist_ok=True)
+    shutil.copy2(ROOT / 'LICENSE', legal / 'FreeV6-LICENSE.txt')
+    for arb in (output / 'arb').glob('intl_*.arb'):
+        source = integration / 'arb' / ('intl_zh_CN.arb' if arb.stem == 'intl_zh_CN' else 'intl_en.arb')
+        strings = json.loads(arb.read_text(encoding='utf-8'))
+        additions = json.loads(source.read_text(encoding='utf-8'))
+        for key, value in additions.items():
+            if key in strings and strings[key] != value:
+                raise ValueError(f'Conflicting translation in {arb.name}: {key}')
+            strings[key] = value
+        arb.write_text(json.dumps(strings, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
 def add_preview(output):
@@ -61,6 +91,9 @@ def add_preview(output):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--android-client', action='store_true',
-                        help='assemble the full Flutter app with Android VPN and isolated app ID')
-    print(prepare(parser.parse_args().android_client))
+    modes = parser.add_mutually_exclusive_group()
+    for platform in ('android', 'windows'):
+        modes.add_argument(f'--{platform}-client', dest='target', action='store_const',
+                           const=f'{platform}-client', help=f'assemble the full {platform} client')
+    parser.set_defaults(target='preview')
+    print(prepare(parser.parse_args().target))
