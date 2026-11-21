@@ -1,6 +1,6 @@
 # Windows Flutter 编译与验收
 
-源码已在 Mac 实现；Windows C++、PowerShell、NSIS、安装升级和真实网络尚未在此工作区执行。请在 Windows 上拉取包含 `refactor/windows-flutter` 提交的代码后验证。不要把 Dart 测试通过等同于原生验收。
+统一客户端已在 Windows 11 x64 完成 preview 和 live 原生构建。[统一候选打包入口](../../apps/flux6/README.md#windows-完整界面候选)为 `scripts/windows/build-flutter.ps1 -Unified`，其安装包用于下文第 2 至 4 节的设备验收。第 1 节的默认命令仍用于早期独立 Flutter 工程。当前的三端验收进度见[统一客户端迁移](unified-client.md)。
 
 ## 1. 工具与构建
 

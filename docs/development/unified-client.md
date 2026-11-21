@@ -31,7 +31,7 @@
 
 ## 阶段进度
 
-截至 2026-11-21，三端候选集中在 `feat/unified-windows-client` 的 `b896558`，其中包含 Android 和 macOS 公共提交 `65eabc6`。远端 `main` 位于 `dc2d402`，GitHub 最新正式发行仍为 [v0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2)。
+截至 2026-11-21，三端原生构建的最近一次 Windows 验证基线为 `feat/unified-windows-client` 的 `b896558`，其中包含 Android 和 macOS 公共提交 `65eabc6`。远端 `main` 位于 `dc2d402`，GitHub 最新正式发行仍为 [v0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2)。
 
 | 阶段 | 当前结果 |
 | --- | --- |
@@ -40,14 +40,14 @@
 | 3. 完整业务候选 | 三端均已构建。Android 和 Mac 使用同一 Dart 入口并复用 FlClash 首页导航与节点分组。Mac 保留原有 WARP 引导、配置、日志和设置页。Windows 从同一 FlClash 源码组装专用 live 入口，首页、节点和设置接入 Windows 模型与 Go helper。三端仍有各自的页面和状态实现。 |
 | 4. 原生接入 | Android 继续通过 ServiceState 驱动 VPN。Mac 隔离宿主已验证选点、连接、断开和退出重启。Windows x64 的 preview 与 live 已在 Windows 11 完成 Release 构建，离线用例覆盖动态控制端口和旧 helper 的 9090 回退。实机联网项目见下表。 |
 | 5. 升级与回退 | Android 与 Mac 已用已发布 0.1.2 做隔离升级和回退。Windows 已核对 live 目录中的程序、helper 与 GeoSite，统一候选的安装升级、偏好迁移和回退仍待验证。 |
-| 6. 正式切换 | Android 和 Mac 已有原身份签名候选及可重组装的对应源码。Windows 的统一构建产出 live Release 目录，现有安装包脚本仍指向原 Windows Flutter 工程。统一 Windows 安装包与对应源码的打包核对、合入主线及公开更新仍待完成。 |
+| 6. 正式切换 | Android 和 Mac 已有原身份签名候选及可重组装的对应源码。Windows 已提供统一 live 安装包、便携 ZIP 和对应源码的[打包入口](../../apps/flux6/README.md#windows-完整界面候选)。合成载荷打包和从源码 ZIP 重新组装已通过。Windows 原生打包验收、合入主线及公开更新仍待完成。 |
 
 ### 各平台的验证范围
 
 | 平台 | 已有验证 | 发布前待验 |
 | --- | --- | --- |
-| Android arm64 | API 35 离线模拟器上，旧版、同签名候选和回退后的旧版均能打开，应用目录内的合成文件保留。 | 真机 VPN 授权与撤销、锁屏、Wi-Fi 中断及重连。 |
-| macOS arm64 | 原生隔离会话及实际窗口启退通过。旧版能读回候选写入的设置、6 个加密链式节点和流量账本。临时钥匙串通过升级访问验证。 | 真实钥匙串授权、特权 XPC 服务升级、连断后的路由恢复。 |
+| Android arm64 | API 35 离线模拟器上，旧版、同签名候选和回退后的旧版均能打开，应用目录内的合成文件保留。53 项服务状态机测试通过，含 VPN 被撤权时的停服行为。 | 真机 VPN 授权与撤销、锁屏、Wi-Fi 中断及重连。 |
+| macOS arm64 | 原生隔离会话及实际窗口启退通过。旧版能读回候选写入的设置、6 个加密链式节点和流量账本。临时钥匙串通过升级访问验证。普通用户域的 XPC 身份与服务重启、签名候选的安装载荷校验通过。 | 真实钥匙串授权、特权 XPC 服务升级、连断后的路由恢复。 |
 | Windows x64 | Windows 11 25H2 本机通过 22 项统一客户端业务测试和 31 项模型与组件测试。隐藏宿主探针、合成预览显示及正常退出通过。已核对 preview 和 live 权限清单、AMD64 程序与 helper、GeoSite 散列。 | live 实际 UAC 确认与取消、旧版安装升级和回退、热点与真实网络恢复。 |
 
-验证细节见 [Android 与 Mac 记录](repository-maintenance.md#2026-11-21-android-与-macos-统一应用)、[Windows 本机记录](repository-maintenance.md#2026-11-21-windows-统一客户端原生接入)及 [Windows 原生验收清单](windows-flutter-acceptance.md)。
+验证细节见 [Android 与 Mac 记录](repository-maintenance.md#2026-11-21-android-与-macos-统一应用)、[Windows 本机记录](repository-maintenance.md#2026-11-21-windows-统一客户端原生接入)、[统一候选打包验证](repository-maintenance.md#2026-11-21-统一候选打包与隔离验收)及 [Windows 原生验收清单](windows-flutter-acceptance.md)。

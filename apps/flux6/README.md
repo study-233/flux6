@@ -70,6 +70,14 @@ macOS 和 Windows runner 来自 [FlClash v0.9.3 的固定提交](https://github.
 
 脚本恢复锁定依赖、生成本地化、运行分析和离线业务回归，然后构建使用合成数据的 preview 并运行隐藏宿主探针。`-CheckWindowExit` 会另外显示该预览并验证关闭后的退出码。最后构建 live 版本，将 `flux6-helper.exe` 和 `GeoSite.dat` 放入同一 Release 目录，并输出 `freev6-desktop.exe` 的位置。Pub 依赖已缓存时可加 `-OfflinePub`。手动验收前将整个 Release 目录复制到专用测试位置，按[原生验收清单](../../docs/development/windows-flutter-acceptance.md)验证安装与网络行为。
 
+从 Windows x64 的仓库根目录执行以下命令可打包统一 live 候选。环境需有 Git、Python、原生构建工具和 NSIS，`-MakeNsis` 可指定编译器路径。
+
+```powershell
+.\scripts\windows\build-flutter.ps1 -Unified
+```
+
+`dist/windows/<版本>-unified/` 包含 NSIS 安装包、便携 ZIP、对应源码 ZIP 和 `SHA256SUMS`。源码 ZIP 解压后可从 `Flux6-source` 目录执行同一命令。仅打便携包及源码时加 `-NoInstaller`。重建本地候选时加 `-Rebuild`，脚本在全部产物就绪后替换上一套，将上一套保存在本次构建工作目录的 `previous` 下。
+
 Windows 界面适配来自归档提交 `9290f22`。组装时使用当前 Android 导出和已修复的托盘插件，增量合并 ARB。简体中文和英语有对应词条，其他语言沿用归档的英语回退。
 
 ## Android 和 macOS 完整客户端

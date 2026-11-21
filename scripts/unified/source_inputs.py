@@ -16,10 +16,12 @@ def files(*roots):
     manifest = ROOT / MANIFEST
     if not manifest.is_file():
         manifest = ROOT / 'macOS-source-sha256.json'
+    if not manifest.is_file():
+        manifest = ROOT / 'windows-source-sha256.json'
     selected = []
     for name in json.loads(manifest.read_text(encoding='utf-8')):
         path = PurePosixPath(name)
-        if path.is_absolute() or '..' in path.parts or '\\' in name:
+        if path.is_absolute() or '..' in path.parts or '\\' in name or ':' in name:
             raise ValueError(f'Invalid archive source path: {name}')
         if any(path == PurePosixPath(root) or PurePosixPath(root) in path.parents for root in roots):
             selected.append(name)

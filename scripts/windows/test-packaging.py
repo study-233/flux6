@@ -3,6 +3,8 @@
 import gzip
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -24,6 +26,38 @@ class PackagingTest(unittest.TestCase):
                      'apps/windows/flutter_ui/vendor/flclash/LICENSE', 'scripts/windows/build-flutter.ps1',
                      'scripts/branding/generate-cats.py', 'scripts/branding/export-icons.cjs']:
             self.assertTrue(source.permitted(name), name)
+
+    def test_unified_archive_reconstructs_windows_app_in_an_unrelated_checkout(self):
+        with tempfile.TemporaryDirectory(prefix='flux6 unified source ') as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', root], check=True)
+            bundle = root / 'bundle'
+            assets = bundle / 'data/flutter_assets'
+            assets.mkdir(parents=True)
+            with gzip.open(assets / 'NOTICES.Z', 'wb') as stream:
+                stream.write(b'Fixture')
+            manifest = root / 'before.json'
+            snapshot = source.inventory(unified=True)
+            manifest.write_bytes(source.encoded(snapshot))
+            source.prepare(bundle, manifest, unified=True)
+            output = root / 'source.zip'
+            source.archive(bundle, output, unified=True)
+            with zipfile.ZipFile(output) as archive:
+                archive.extractall(root)
+            extracted = root / 'Flux6-source'
+            self.assertEqual(json.loads((extracted / 'windows-source-sha256.json').read_bytes()), snapshot)
+            for name in ('apps/android/core/Clash.Meta/test/config/example.org-key.pem', 'apps/windows/state/warp.json'):
+                self.assertNotIn(name, snapshot)
+            command = [sys.executable, 'scripts/unified/prepare.py', '--windows-client']
+            project = Path(subprocess.check_output(command, cwd=extracted, text=True).strip())
+            self.assertEqual((project / 'lib/main.dart').read_bytes(),
+                             (extracted / 'apps/flux6/windows_client/lib/live_main.dart').read_bytes())
+            self.assertIn('CoreController.adapter', (project / 'lib/core/controller.dart').read_text(encoding='utf-8'))
+            self.assertTrue((project / 'lib/providers/state/navigation.dart').is_file())
+            self.assertTrue((project / 'windows/runner/host_bridge.cpp').is_file())
+            strings = json.loads((project / 'arb/intl_en.arb').read_text(encoding='utf-8'))
+            additions = json.loads((extracted / 'apps/flux6/windows_client/arb/intl_en.arb').read_text(encoding='utf-8'))
+            self.assertEqual({key: strings[key] for key in additions}, additions)
 
     def test_bundle_notices_archive_and_mutation_detection(self):
         with tempfile.TemporaryDirectory(prefix='freev6-package-test-') as directory:

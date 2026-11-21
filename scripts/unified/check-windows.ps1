@@ -1,13 +1,15 @@
 param(
     [switch]$CheckWindowExit,
     [switch]$WindowsClient,
-    [switch]$OfflinePub
+    [switch]$OfflinePub,
+    [string]$Python = 'python',
+    [ref]$LiveReleaseDirectory
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '../..')
 $prepareArgs = @(if ($WindowsClient) { '--windows-client' })
-$candidate = python (Join-Path $root 'scripts/unified/prepare.py') @prepareArgs
+$candidate = & $Python (Join-Path $root 'scripts/unified/prepare.py') @prepareArgs
 if ($LASTEXITCODE -ne 0) { throw 'Could not prepare unified candidate' }
 
 function Initialize-PluginJunctions {
@@ -98,6 +100,7 @@ function Build-WindowsClient {
     $executable = Get-Item 'build/windows/x64/live/runner/Release/freev6-desktop.exe'
     & (Join-Path $root 'scripts/windows/build-helper.ps1') -BundleDirectory $executable.DirectoryName
     Copy-Item -LiteralPath (Join-Path $root 'GeoSite.dat') -Destination $executable.DirectoryName
+    if ($null -ne $LiveReleaseDirectory) { $LiveReleaseDirectory.Value = $executable.DirectoryName }
     $executable
 }
 

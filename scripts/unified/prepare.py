@@ -1,6 +1,7 @@
 """Assemble an isolated FlClash candidate from the shared tracked application sources."""
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -81,11 +82,13 @@ def add_client(output):
 def add_windows_client(output):
     integration = CANDIDATE / 'windows_client'
     copy_tracked(ROOT / 'apps/windows/flutter_ui/windows', output / 'windows')
+    # An extracted source ZIP may live inside another checkout. Apply paths
+    # relative to the generated project without inheriting that checkout's prefix.
     subprocess.run(['git', 'apply', '--ignore-space-change', '--whitespace=nowarn',
-                    '--directory=' + output.relative_to(ROOT).as_posix(),
-                    integration / 'flclash.patch'], cwd=ROOT, check=True)
+                    integration / 'flclash.patch'], cwd=output, check=True,
+                   env={**os.environ, 'GIT_CEILING_DIRECTORIES': str(output.parent)})
     for directory in ('lib', 'test'):
-        shutil.copytree(integration / directory, output / directory, dirs_exist_ok=True)
+        copy_tracked(integration / directory, output / directory)
     # The normal Windows entry always negotiates the live native host.
     shutil.copy2(integration / 'lib/live_main.dart', output / 'lib/main.dart')
     legal = output / 'assets/legal'

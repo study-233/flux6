@@ -615,3 +615,11 @@ Mac 隔离宿主的命令探针验证选点、连接、过期会话请求拒绝�
 [Windows 完整候选检查](../../apps/flux6/README.md#windows-完整界面候选)包含离线业务回归、预览宿主探针与 live x64 构建，并为 live 目录配齐 Go helper 和 GeoSite。Windows 本机的 Flutter 分析、22 项统一客户端业务测试和 31 项 Windows 模型与组件测试通过。合成夹具覆盖非默认端口上的节点、流量、测速，控制端口变更时迟到的旧响应，以及旧 helper 兼容。
 
 在 Windows 11 25H2 x64（26200.9711）上修复宿主的 MSVC 编译错误和 live 清单链接冲突。preview 和 live 均完成 Release 构建，隐藏探针通过，完整合成预览显示窗口后正常退出。已从 EXE 提取清单核对 preview 的 `asInvoker` 和 live 的 `requireAdministrator`，并检查 live 程序和 helper 的 AMD64 架构、helper 版本资源与 GeoSite 文件散列。检查使用按上游 SHA256 核对的本地 SQLite 缓存。实际 UAC 交互、安装升级、热点及真实网络恢复仍待专用测试环境验收。
+
+## 2026-11-21 统一候选打包与隔离验收
+
+Android arm64 离线运行 53 项服务状态机测试，通过 VPN 撤权时终止活动服务、Flutter 仍附着时撤权及未运行时忽略撤权的用例。Mac 已用用户域的临时 launchd 服务验证 XPC 双方身份、服务重启与客户端身份轮换。对现有签名统一候选验证了已签服务载荷、散列或签名异常的拒绝路径和普通用户的安装权限边界。真机 Android 网络切换和 macOS 特权安装、钥匙串交互及真实路由恢复仍待验收。
+
+Windows 统一候选使用 `scripts/windows/build-flutter.ps1 -Unified` 复用已通过 Windows x64 验证的 live 构建。可生成安装包、便携包、对应源码和散列。对应源码包含 FlClash 应用、Windows 适配补丁、翻译输入、宿主、helper 和打包脚本。归档绑定构建前的清单，生成 ZIP 时复核每个文件的 SHA256。
+
+本轮在 Mac 使用 PowerShell、NSIS 3.13 和合成载荷执行打包入口，核对便携包内容、安装器编译结果、源码清单及全部产物的 SHA256，并验证构建失败时保留上一套产物。源码 ZIP 在无 Git 元数据的目录里重新组装后，锁定依赖、本地化生成、Flutter 分析和 22 项离线业务回归通过。Windows 旧偏好导出的 3 项测试及客户端模型与基础组件的 25 项测试通过。真实 live 候选须在 Windows 生成并验证 UAC、安装升级、回退和联网恢复。
