@@ -623,3 +623,13 @@ Android arm64 离线运行 53 项服务状态机测试，通过 VPN 撤权时终
 Windows 统一候选使用 `scripts/windows/build-flutter.ps1 -Unified` 复用已通过 Windows x64 验证的 live 构建。可生成安装包、便携包、对应源码和散列。对应源码包含 FlClash 应用、Windows 适配补丁、翻译输入、宿主、helper 和打包脚本。归档绑定构建前的清单，生成 ZIP 时复核每个文件的 SHA256。
 
 本轮在 Mac 使用 PowerShell、NSIS 3.13 和合成载荷执行打包入口，核对便携包内容、安装器编译结果、源码清单及全部产物的 SHA256，并验证构建失败时保留上一套产物。源码 ZIP 在无 Git 元数据的目录里重新组装后，锁定依赖、本地化生成、Flutter 分析和 22 项离线业务回归通过。Windows 旧偏好导出的 3 项测试及客户端模型与基础组件的 25 项测试通过。真实 live 候选须在 Windows 生成并验证 UAC、安装升级、回退和联网恢复。
+
+## 2026-11-21 Windows x64 统一候选打包验证
+
+Windows 11 25H2 x64（26200.9711）从 `279eb30` 执行 `scripts/windows/build-flutter.ps1 -Unified`，使用 Flutter 3.47.6、Go 1.27.3 和 NSIS 3.13。Windows 模型与组件 31 项、统一界面 22 项测试以及两套 Flutter 分析通过。helper 和相关 Go 包的 test、vet 通过，另外运行的 3 项打包回归及 3 项旧偏好导出测试均通过。隐藏宿主探针通过，单独启动的离线预览显示窗口后以退出码 0 关闭。
+
+安装包、便携 ZIP 和对应源码 ZIP 均通过 SHA256 校验。分别解开 NSIS 和便携 ZIP，逐文件核对其中 94 个应用文件与候选目录一致。客户端和 helper 均为 AMD64，安装器与客户端的嵌入清单为 `requireAdministrator`，helper 为 `asInvoker`。源码 ZIP 中 3,246 个源码文件的散列与构建前清单及工作树一致。
+
+将交付的源码 ZIP 解压到没有自身 Git 元数据的目录，复用依赖缓存与 GeoSite，再次执行完整打包命令。helper 版本资源从源码生成，两次构建的源码 ZIP 具有相同的 SHA256（`1f6a4e9ecc406a8541a13ff7b17751f221e3e44eab14f9796cc1bd36fcc57c74`）。重建的便携包与安装器各自通过散列校验，其二进制散列与首次构建不同。
+
+本机 Go 编译线程曾在同步盘组件中等待，构建进程使用 `GODEBUG=asyncpreemptoff=1` 后完成。实际 UAC 确认与取消、旧版覆盖安装、偏好迁移、回退及真实联网恢复仍待隔离设备验收。

@@ -31,7 +31,7 @@
 
 ## 阶段进度
 
-截至 2026-11-21，三端原生构建的最近一次 Windows 验证基线为 `feat/unified-windows-client` 的 `b896558`，其中包含 Android 和 macOS 公共提交 `65eabc6`。远端 `main` 位于 `dc2d402`，GitHub 最新正式发行仍为 [v0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2)。
+截至 2026-11-21，最近一次 Windows 原生打包验证基线为 `feat/unified-windows-client` 的 `279eb30`，其中包含 Android 和 macOS 公共提交 `65eabc6`。远端 `main` 位于 `dc2d402`，GitHub 最新正式发行仍为 [v0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2)。
 
 | 阶段 | 当前结果 |
 | --- | --- |
@@ -40,7 +40,7 @@
 | 3. 完整业务候选 | 三端均已构建。Android 和 Mac 使用同一 Dart 入口并复用 FlClash 首页导航与节点分组。Mac 保留原有 WARP 引导、配置、日志和设置页。Windows 从同一 FlClash 源码组装专用 live 入口，首页、节点和设置接入 Windows 模型与 Go helper。三端仍有各自的页面和状态实现。 |
 | 4. 原生接入 | Android 继续通过 ServiceState 驱动 VPN。Mac 隔离宿主已验证选点、连接、断开和退出重启。Windows x64 的 preview 与 live 已在 Windows 11 完成 Release 构建，离线用例覆盖动态控制端口和旧 helper 的 9090 回退。实机联网项目见下表。 |
 | 5. 升级与回退 | Android 与 Mac 已用已发布 0.1.2 做隔离升级和回退。Windows 已核对 live 目录中的程序、helper 与 GeoSite，统一候选的安装升级、偏好迁移和回退仍待验证。 |
-| 6. 正式切换 | Android 和 Mac 已有原身份签名候选及可重组装的对应源码。Windows 已提供统一 live 安装包、便携 ZIP 和对应源码的[打包入口](../../apps/flux6/README.md#windows-完整界面候选)。合成载荷打包和从源码 ZIP 重新组装已通过。Windows 原生打包验收、合入主线及公开更新仍待完成。 |
+| 6. 正式切换 | Android 和 Mac 已有原身份签名候选及可重组装的对应源码。Windows 11 x64 已通过[原生打包验收](repository-maintenance.md#2026-11-21-windows-x64-统一候选打包验证)，生成 NSIS 安装包、便携 ZIP 和对应源码，核对了包内文件和散列。Windows 安装升级与回退、合入主线及公开更新仍待完成。 |
 
 ### 各平台的验证范围
 
