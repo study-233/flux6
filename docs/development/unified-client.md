@@ -31,9 +31,23 @@
 
 ## 阶段进度
 
-1. 基线对齐完成。主线、固定上游、归档原型和验收样本均已核对。
-2. 三端同源预览验证完成。[预览构建入口](../../apps/flux6/README.md)已提供三个目标，共用原有 Dart 模型、GroupTabs 和合成分组。Mac arm64、Android arm64 和 Windows x64 本机构建均通过。Windows 节点分组测试、首屏显示和关闭窗口均已通过，详见[退出修复与验证记录](repository-maintenance.md#2026-11-20-windows-托盘插件退出修复)。
-3. Android 与 macOS 已提供[同一 Flutter 入口的完整候选](../../apps/flux6/README.md)。Mac 与 Android 共用 FlClash 首页导航和分组控件。Android 使用原有 WARP 引导，Mac 通过原生宿主准备配置、选点、连接、读取状态和断开，主窗口及独立设置窗口共用原生会话。Windows 完整业务接入已交接到 `feat/unified-windows-client`。
-4. Android 的 VPN 服务与 ServiceState、Mac 的 AppKit、钥匙串、原 Go worker、XPC 服务和签名更新助手均保留在升级构建中。Mac 隔离宿主完成操作、过期请求、退出恢复与重启验证。Android 运营网络下的 VPN 撤权、锁屏与网络恢复，以及 Mac 真机授权和真实路由恢复仍需设备验收。
-5. Android 已在专用 API 35 模拟器上用正式 0.1.2 完成同签名覆盖和回退，核对启动和合成数据保留。Mac 已用正式 0.1.2 的包和新候选在隔离目录验证原有设置、加密链式配置、流量账本的双向兼容以及已签名包回退。
-6. 两端提供可选的原身份签名构建和对应源码打包路径。真实联网和升级验收完成后再启用正式构建及公开更新入口。
+截至 2026-11-21，三端候选集中在 `feat/unified-windows-client` 的 `b896558`，其中包含 Android 和 macOS 公共提交 `65eabc6`。远端 `main` 位于 `dc2d402`，GitHub 最新正式发行仍为 [v0.1.2](https://github.com/study-233/flux6/releases/tag/v0.1.2)。
+
+| 阶段 | 当前结果 |
+| --- | --- |
+| 1. 基线对齐 | 已核对主线、FlClash v0.9.3、归档 Windows 原型和共享验收样本。 |
+| 2. 同源预览 | Mac arm64、Android arm64、Windows x64 均完成本机构建；Windows 预览窗口退出修复已验证。见[三端预览入口](../../apps/flux6/README.md)。 |
+| 3. 完整业务候选 | 三端均已构建。Android 和 Mac 使用同一 Dart 入口并复用 FlClash 首页导航与节点分组。Mac 保留原有 WARP 引导、配置、日志和设置页。Windows 从同一 FlClash 源码组装专用 live 入口，首页、节点和设置接入 Windows 模型与 Go helper。三端仍有各自的页面和状态实现。 |
+| 4. 原生接入 | Android 继续通过 ServiceState 驱动 VPN。Mac 隔离宿主已验证选点、连接、断开和退出重启。Windows x64 的 preview 与 live 已在 Windows 11 完成 Release 构建，离线用例覆盖动态控制端口和旧 helper 的 9090 回退。实机联网项目见下表。 |
+| 5. 升级与回退 | Android 与 Mac 已用已发布 0.1.2 做隔离升级和回退。Windows 已核对 live 目录中的程序、helper 与 GeoSite，统一候选的安装升级、偏好迁移和回退仍待验证。 |
+| 6. 正式切换 | Android 和 Mac 已有原身份签名候选及可重组装的对应源码。Windows 的统一构建产出 live Release 目录，现有安装包脚本仍指向原 Windows Flutter 工程。统一 Windows 安装包与对应源码的打包核对、合入主线及公开更新仍待完成。 |
+
+### 各平台的验证范围
+
+| 平台 | 已有验证 | 发布前待验 |
+| --- | --- | --- |
+| Android arm64 | API 35 离线模拟器上，旧版、同签名候选和回退后的旧版均能打开，应用目录内的合成文件保留。 | 真机 VPN 授权与撤销、锁屏、Wi-Fi 中断及重连。 |
+| macOS arm64 | 原生隔离会话及实际窗口启退通过。旧版能读回候选写入的设置、6 个加密链式节点和流量账本。临时钥匙串通过升级访问验证。 | 真实钥匙串授权、特权 XPC 服务升级、连断后的路由恢复。 |
+| Windows x64 | Windows 11 25H2 本机通过 22 项统一客户端业务测试和 31 项模型与组件测试。隐藏宿主探针、合成预览显示及正常退出通过。已核对 preview 和 live 权限清单、AMD64 程序与 helper、GeoSite 散列。 | live 实际 UAC 确认与取消、旧版安装升级和回退、热点与真实网络恢复。 |
+
+验证细节见 [Android 与 Mac 记录](repository-maintenance.md#2026-11-21-android-与-macos-统一应用)、[Windows 本机记录](repository-maintenance.md#2026-11-21-windows-统一客户端原生接入)及 [Windows 原生验收清单](windows-flutter-acceptance.md)。
