@@ -16,7 +16,9 @@ try {
         }
     }
     $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    $entry = Get-ItemPropertyValue -Path $key -Name 'FreeV6' -ErrorAction SilentlyContinue
+    $entry = if (Test-Path -LiteralPath $key) {
+        (Get-Item -LiteralPath $key).GetValue('FreeV6')
+    }
     if ($entry -and ($entry.StartsWith('"' + $helper + '"', [StringComparison]::OrdinalIgnoreCase) -or
                     $entry.StartsWith('"' + $legacyHelper + '"', [StringComparison]::OrdinalIgnoreCase) -or
                     $entry.StartsWith('"' + $desktop + '"', [StringComparison]::OrdinalIgnoreCase))) {
