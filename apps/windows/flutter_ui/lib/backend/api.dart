@@ -158,20 +158,36 @@ class HelperApi {
 }
 
 class ControllerApi {
-  ControllerApi(this.transport, this.secret);
+  ControllerApi(this.transport);
   final Transport transport;
-  final String Function() secret;
+  ({int port, String secret})? _endpoint;
+
+  bool updateEndpoint(JsonMap? session) {
+    // Helpers predating dynamic port negotiation always bind 9090.
+    final port = session != null && !session.containsKey('controllerPort')
+        ? 9090
+        : session?['controllerPort'];
+    final secret = session?['controllerSecret'];
+    final next = port is int && port > 0 && port <= 65535
+        ? (port: port, secret: secret is String ? secret : '')
+        : null;
+    if (_endpoint == next) return false;
+    _endpoint = next;
+    return true;
+  }
+
   Future<JsonMap> call(
     List<String> path, {
     String method = 'GET',
     JsonMap? body,
     Map<String, String>? query,
   }) async {
-    final token = secret();
+    final endpoint = _endpoint;
+    if (endpoint == null) throw const ApiFailure('核心控制端口尚未就绪');
     final uri = Uri(
       scheme: 'http',
       host: '127.0.0.1',
-      port: 9090,
+      port: endpoint.port,
       pathSegments: path,
       queryParameters: query,
     );
@@ -180,7 +196,7 @@ class ControllerApi {
       uri,
       headers: {
         'Content-Type': 'application/json',
-        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (endpoint.secret.isNotEmpty) 'Authorization': 'Bearer ${endpoint.secret}',
       },
       body: body == null ? null : jsonEncode(body),
       timeout: const Duration(seconds: 8),

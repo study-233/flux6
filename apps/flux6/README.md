@@ -62,20 +62,15 @@ macOS 和 Windows runner 来自 [FlClash v0.9.3 的固定提交](https://github.
 
 ## Windows 完整界面候选
 
-在 Windows 工作区根目录组装本分支的完整客户端。界面接入当前 Windows 的 Dart 业务模型和原生 helper，使用 FlClash 首页、节点页和设置。适配来源为归档提交 `9290f22`。组装时使用当前 Android 导出和已修复的托盘插件，增量合并 ARB。简体中文和英语有对应词条，其他语言沿用归档的英语回退。
+在 Windows 工作区根目录运行以下命令，构建带 FlClash 首页、节点页和设置的 x64 候选。Windows 宿主和 Go helper 负责连接。默认控制端口 9090 被占用时，节点、测速和流量请求使用 helper 为当前会话分配的端口。
 
 ```powershell
-$client = python scripts/unified/prepare.py --windows-client
-Push-Location $client
-flutter pub get --enforce-lockfile
-dart run intl_utils:generate
-flutter analyze --no-pub --no-fatal-infos
-flutter test --no-pub --dart-define=SAFE_MODE=true --dart-define=FREEV6_OFFLINE=true test/freev6
-flutter build windows --release --no-pub --flavor live --dart-define=FREEV6_BACKEND=true
-Pop-Location
+.\scripts\unified\check-windows.ps1 -WindowsClient -CheckWindowExit
 ```
 
-本轮交接包含 UI 与原生宿主源码。live 运行还须按 [Windows 构建说明](../windows/flutter_ui/DEVELOPMENT.md) 配齐 helper 和 GeoSite。当前 Windows 实机验证记录仅覆盖前一阶段的独立预览。
+脚本恢复锁定依赖、生成本地化、运行分析和离线业务回归，然后构建使用合成数据的 preview 并运行隐藏宿主探针。`-CheckWindowExit` 会另外显示该预览并验证关闭后的退出码。最后构建 live 版本，将 `flux6-helper.exe` 和 `GeoSite.dat` 放入同一 Release 目录，并输出 `freev6-desktop.exe` 的位置。Pub 依赖已缓存时可加 `-OfflinePub`。手动验收前将整个 Release 目录复制到专用测试位置，按[原生验收清单](../../docs/development/windows-flutter-acceptance.md)验证安装与网络行为。
+
+Windows 界面适配来自归档提交 `9290f22`。组装时使用当前 Android 导出和已修复的托盘插件，增量合并 ARB。简体中文和英语有对应词条，其他语言沿用归档的英语回退。
 
 ## Android 和 macOS 完整客户端
 

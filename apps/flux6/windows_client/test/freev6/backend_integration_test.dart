@@ -159,7 +159,7 @@ void main() {
       );
       expect(
         f.transport.requests
-            .where((r) => r.uri.port == 9090)
+            .where((r) => r.uri.port == FixtureTransport.controllerPort)
             .every(
               (r) =>
                   r.headers['Authorization'] ==
@@ -221,7 +221,7 @@ void main() {
       expect(f.model.proxyTab, 'chain');
       expect(f.model.currentNode, '链式 · B');
       final write = f.transport.requests.lastWhere(
-        (r) => r.method == 'PUT' && r.uri.port == 9090,
+        (r) => r.method == 'PUT' && r.uri.port == FixtureTransport.controllerPort,
       );
       expect(write.uri.pathSegments, ['proxies', '🔗 链式代理']);
       expect(write.body['name'], '链式 · B');

@@ -168,8 +168,41 @@ void main() {
       isTrue,
     );
     final request = wire.requests.last;
+    expect(request.uri.port, 9090); // Legacy helper without controllerPort.
     expect(request.headers['Authorization'], 'Bearer controller-secret');
     expect(request.uri.pathSegments, ['proxies', '节点 / 0', 'delay']);
+  });
+  test('a new controller endpoint invalidates pending results and old credentials', () async {
+    final (model, wire, _) = await fixture(running: true);
+    await model.refreshNodes();
+    final delayed = Completer<WireReply>();
+    Object? port = 29401;
+    wire.intercept = (r) async {
+      if (r.uri.path.endsWith('/delay')) return delayed.future;
+      final reply = await wire.response(r);
+      if (r.uri.path != '/api/v1/status') return reply;
+      return WireReply(200, jsonEncode({
+        ...object(jsonDecode(reply.body)),
+        'controllerPort': port,
+        'controllerSecret': 'replacement',
+      }));
+    };
+    final stale = model.measure(wire.proxyNames.first);
+    await model.refreshStatus();
+    delayed.complete(const WireReply(200, '{"delay":10}'));
+    await stale;
+    expect(model.latency(wire.proxyNames.first), isNull);
+    await model.pollTraffic();
+    expect(wire.requests.last.uri.port, 29401);
+    expect(wire.requests.last.headers['Authorization'], 'Bearer replacement');
+    for (final invalid in <Object?>[0, 65536, null, '29401']) {
+      port = invalid;
+      await model.refreshStatus();
+      final count = wire.requests.length;
+      await model.pollTraffic();
+      expect(wire.requests.length, count);
+      expect(model.connected, isTrue);
+    }
   });
   test('401 refreshes both ephemeral token and port exactly once', () async {
     final wire = FixtureTransport();

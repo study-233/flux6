@@ -37,6 +37,7 @@ class FreeV6OfflineFixture {
 }
 
 class FixtureTransport extends Transport {
+  static const controllerPort = 29347;
   final requests = <FixtureRequest>[];
   final settings = <String, dynamic>{
     'mode': 'rule',
@@ -85,7 +86,7 @@ class FixtureTransport extends Transport {
         uri.port == 18213 &&
         uri.path.startsWith('/api/v1/');
     final controller =
-        uri.scheme == 'http' && uri.host == '127.0.0.1' && uri.port == 9090;
+        uri.scheme == 'http' && uri.host == '127.0.0.1' && uri.port == controllerPort;
     final campus =
         uri.toString() == 'https://api-ipv6.ip.sb/ip' && method == 'GET';
     if (!helper && !controller && !campus) {
@@ -133,6 +134,7 @@ class FixtureTransport extends Transport {
         return reply({
           'settings': settings,
           'proxy': {'running': running},
+          'controllerPort': running ? controllerPort : 0,
           'warp': {'registered': registered},
           'controllerSecret': 'offline-controller-token',
           'admin': true,
@@ -151,9 +153,13 @@ class FixtureTransport extends Transport {
         }
         return reply(settings);
       case '/proxy/start':
+        if (data['dynamicControllerPort'] != true) {
+          return reply({'error': 'fixture default port occupied'}, 409);
+        }
         running = true;
         return reply({
           'running': true,
+          'controllerPort': controllerPort,
           'controllerSecret': 'offline-controller-token',
           'hotspot': {},
         });

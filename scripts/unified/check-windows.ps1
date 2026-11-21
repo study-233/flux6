@@ -1,8 +1,13 @@
-param([switch]$CheckWindowExit)
+param(
+    [switch]$CheckWindowExit,
+    [switch]$WindowsClient,
+    [switch]$OfflinePub
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '../..')
-$candidate = python (Join-Path $root 'scripts/unified/prepare.py')
+$prepareArgs = @(if ($WindowsClient) { '--windows-client' })
+$candidate = python (Join-Path $root 'scripts/unified/prepare.py') @prepareArgs
 if ($LASTEXITCODE -ne 0) { throw 'Could not prepare unified candidate' }
 
 function Initialize-PluginJunctions {
@@ -24,7 +29,7 @@ function Initialize-PluginJunctions {
     }
 }
 
-function Test-WindowExit($executable) {
+function Test-WindowExit($executable, [string]$windowClass) {
     if (-not ('Flux6.PreviewWindow' -as [type])) {
         Add-Type -Namespace Flux6 -Name PreviewWindow -MemberDefinition @'
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -36,9 +41,9 @@ function Test-WindowExit($executable) {
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
 
-        public static bool CloseVisibleWindow(uint pid) {
+        public static bool CloseVisibleWindow(uint pid, string windowClass) {
             var window = IntPtr.Zero;
-            while ((window = FindWindowEx(IntPtr.Zero, window, "FLUX6_UNIFIED_PREVIEW_WINDOW", null)) != IntPtr.Zero) {
+            while ((window = FindWindowEx(IntPtr.Zero, window, windowClass, null)) != IntPtr.Zero) {
                 uint owner;
                 GetWindowThreadProcessId(window, out owner);
                 if (owner != pid || !IsWindowVisible(window)) continue;
@@ -58,7 +63,7 @@ function Test-WindowExit($executable) {
     $process = [Diagnostics.Process]::Start($start)
     try {
         $deadline = [DateTime]::UtcNow.AddSeconds(45)
-        while (-not [Flux6.PreviewWindow]::CloseVisibleWindow($process.Id)) {
+        while (-not [Flux6.PreviewWindow]::CloseVisibleWindow($process.Id, $windowClass)) {
             if ($process.HasExited) { throw "Preview exited before showing a window ($($process.ExitCode))" }
             if ([DateTime]::UtcNow -ge $deadline) { throw 'Timed out waiting for the visible preview window' }
             Start-Sleep -Milliseconds 200
@@ -71,13 +76,39 @@ function Test-WindowExit($executable) {
     }
 }
 
+function Build-WindowsClient {
+    $fixtureFlags = @('--dart-define=SAFE_MODE=true', '--dart-define=FREEV6_OFFLINE=true')
+    flutter test --no-pub @fixtureFlags test/freev6
+    if ($LASTEXITCODE -ne 0) { throw 'Windows client offline tests failed' }
+    flutter build windows --release --no-pub --flavor preview --target lib/fixture_main.dart @fixtureFlags
+    if ($LASTEXITCODE -ne 0) { throw 'Windows fixture build failed' }
+    $fixture = Get-Item 'build/windows/x64/preview/runner/Release/freev6-windows-preview.exe'
+    $probe = Start-Process -FilePath $fixture.FullName -WorkingDirectory $fixture.DirectoryName -ArgumentList '--host-probe' -WindowStyle Hidden -PassThru
+    try {
+        if (-not $probe.WaitForExit(30000)) { throw 'Windows fixture host probe timed out' }
+        if ($probe.ExitCode -ne 0) { throw "Windows fixture host probe failed ($($probe.ExitCode))" }
+    } finally {
+        if (-not $probe.HasExited) { $probe.Kill(); $probe.WaitForExit() }
+        $probe.Dispose()
+    }
+    if ($CheckWindowExit) { Test-WindowExit $fixture 'FLUTTER_RUNNER_WIN32_WINDOW' }
+    $version = (Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
+    flutter build windows --release --no-pub --flavor live --dart-define=FREEV6_BACKEND=true "--build-name=$version" --build-number=0
+    if ($LASTEXITCODE -ne 0) { throw 'Windows live client build failed' }
+    $executable = Get-Item 'build/windows/x64/live/runner/Release/freev6-desktop.exe'
+    & (Join-Path $root 'scripts/windows/build-helper.ps1') -BundleDirectory $executable.DirectoryName
+    Copy-Item -LiteralPath (Join-Path $root 'GeoSite.dat') -Destination $executable.DirectoryName
+    $executable
+}
+
 $previousNoProxy = $env:NO_PROXY
 $previousRustLibDir = $env:FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR
 Push-Location $candidate
 try {
     $env:NO_PROXY = (@($previousNoProxy, '127.0.0.1', 'localhost', '::1') -ne '') -join ','
     $pubLog = Join-Path $candidate 'pub-get.log'
-    cmd.exe /d /c 'flutter pub get --enforce-lockfile >pub-get.log 2>&1'
+    $pubCommand = if ($OfflinePub) { 'flutter pub get --offline --enforce-lockfile' } else { 'flutter pub get --enforce-lockfile' }
+    cmd.exe /d /c "$pubCommand >pub-get.log 2>&1"
     $pubExit = $LASTEXITCODE
     Get-Content $pubLog
     if ($pubExit -ne 0) {
@@ -89,15 +120,23 @@ try {
         flutter pub get --offline --enforce-lockfile
         if ($LASTEXITCODE -ne 0) { throw 'Locked dependency check failed after preparing plugin junctions' }
     }
+    if ($WindowsClient) {
+        dart run intl_utils:generate
+        if ($LASTEXITCODE -ne 0) { throw 'Windows localization generation failed' }
+    }
     flutter analyze --no-pub --no-fatal-infos
     if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
+    if ($WindowsClient) {
+        Build-WindowsClient
+        return
+    }
     flutter test --no-pub test/unified_node_groups_test.dart
     if ($LASTEXITCODE -ne 0) { throw 'Unified preview test failed' }
     flutter build windows --release --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'Windows x64 build failed' }
     $executable = Get-Item 'build/windows/x64/runner/Release/flux6-unified-preview.exe'
     if ($CheckWindowExit) {
-        Test-WindowExit $executable
+        Test-WindowExit $executable 'FLUX6_UNIFIED_PREVIEW_WINDOW'
         Write-Host 'Preview window closed with exit code 0.'
     }
     $env:FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR = (Join-Path $candidate 'build/native_assets/windows')

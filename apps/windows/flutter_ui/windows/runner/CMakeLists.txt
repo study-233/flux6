@@ -37,6 +37,10 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTT
 target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_compile_definitions(${BINARY_NAME} PRIVATE "FREEV6_LIVE=${FREEV6_LIVE}" "WIN32_LEAN_AND_MEAN" "_WIN32_WINNT=0x0A00" "WINVER=0x0A00")
 target_compile_options(${BINARY_NAME} PRIVATE /utf-8)
+if(FREEV6_LIVE)
+  # runner.live.manifest supplies the UAC level. Suppress link.exe's default asInvoker fragment.
+  target_link_options(${BINARY_NAME} PRIVATE /MANIFESTUAC:NO)
+endif()
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.

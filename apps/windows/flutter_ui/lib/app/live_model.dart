@@ -23,7 +23,7 @@ class LiveModel extends ClientModel {
     this.polling = true,
     this.pause = Future<void>.delayed,
   }) {
-    controller = ControllerApi(transport, () => _secret);
+    controller = ControllerApi(transport);
   }
   final HelperApi helper;
   final Transport transport;
@@ -65,7 +65,6 @@ class LiveModel extends ClientModel {
   final _timers = <Timer>[];
   StreamSubscription<String>? _subscription;
   String? _message, _current;
-  String _secret = '';
   bool _disposed = false, _connected = false, _busy = false, _online = false;
   bool _monthly = true, _knownStopped = false, _statusPolling = false;
   bool _nodesPolling = false, _trafficPolling = false, _writing = false;
@@ -266,8 +265,6 @@ class LiveModel extends ClientModel {
       final status = await helper.call('/status');
       if (_disposed) return;
       _online = true;
-      if (runGen == _runGen && !_busy)
-        _secret = status['controllerSecret']?.toString() ?? _secret;
       if (resources == _resourceGen && _registration == null)
         runtime['warpRegistered'] =
             object(status['warp'])['registered'] == true;
@@ -280,7 +277,7 @@ class LiveModel extends ClientModel {
       }
       if (runGen == _runGen && !_busy) {
         _knownStopped = object(status['proxy'])['running'] == false;
-        _setRunning(object(status['proxy'])['running'] == true);
+        _setRunning(object(status['proxy'])['running'] == true, status);
       }
       _notify();
     } catch (e) {
@@ -330,8 +327,9 @@ class LiveModel extends ClientModel {
     _current = null;
   }
 
-  void _setRunning(bool value) {
-    if (_connected == value) return;
+  void _setRunning(bool value, [JsonMap? session]) {
+    final endpointChanged = controller.updateEndpoint(value ? session : null);
+    if (_connected == value && !endpointChanged) return;
     _connected = value;
     _runGen++;
     _started = value ? DateTime.now() : null;
@@ -558,12 +556,12 @@ class LiveModel extends ClientModel {
           'mode': settings['mode'] ?? 'rule',
           'campusCidrs': settings['campusCidrs'] ?? [],
           'devMode': setting('devMode'),
+          'dynamicControllerPort': true,
         },
         timeout: const Duration(seconds: 90),
       );
-      _secret = response['controllerSecret']?.toString() ?? _secret;
       _knownStopped = false;
-      _setRunning(response['running'] == true);
+      _setRunning(response['running'] == true, response);
       if (!connected) throw const ApiFailure('组件未确认连接成功，请刷新状态后重试');
       final hotspot = object(response['hotspot']);
       _log('连接已建立');

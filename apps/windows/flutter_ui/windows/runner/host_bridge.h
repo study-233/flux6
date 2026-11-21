@@ -18,6 +18,7 @@ class HostBridge {
   static std::wstring Root();
   static bool AutostartAllowed();
  private:
+  bool LiveOperationsEnabled() const;
   bool StartHelper(std::string* error);
   void StopHelper();
   bool SetHotkey(bool enabled);

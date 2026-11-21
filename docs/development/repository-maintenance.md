@@ -607,3 +607,11 @@ Mac 隔离宿主的命令探针验证选点、连接、过期会话请求拒绝�
 统一工程的 23 项 Flutter 回归覆盖 WARP 准备、节点分组、菜单导航和节点页的原生设置入口。Mac 原有 Flutter 测试 31 项通过。使用临时钥匙串和本地 Sparkle 更新夹具验证了合成凭据的升级访问。Android 与 Mac 的对应源码包均已在无 Git 元数据的目录重新组装。
 
 验证覆盖隔离会话、安装兼容性和本地签名包。实际设备的 Android VPN 授权与撤销、锁屏重连，Mac 的钥匙串首次授权、特权服务升级与真实路由恢复，以及公开更新仍待验收。
+
+## 2026-11-21 Windows 统一客户端原生接入
+
+基于 `feat/unified-windows-client` 的交接提交 `9215fbe`，Windows Flutter 模型在启动时向现有 helper 请求动态控制端口，并在状态刷新时读取当前端口和凭据。端口或凭据变化会清除旧的节点和采样状态；旧 helper 省略端口字段时继续使用 9090。显式返回无效端口时暂停控制请求，保留 helper 报告的连接状态。
+
+[Windows 完整候选检查](../../apps/flux6/README.md#windows-完整界面候选)包含离线业务回归、预览宿主探针与 live x64 构建，并为 live 目录配齐 Go helper 和 GeoSite。Windows 本机的 Flutter 分析、22 项统一客户端业务测试和 31 项 Windows 模型与组件测试通过。合成夹具覆盖非默认端口上的节点、流量、测速，控制端口变更时迟到的旧响应，以及旧 helper 兼容。
+
+在 Windows 11 25H2 x64（26200.9711）上修复宿主的 MSVC 编译错误和 live 清单链接冲突。preview 和 live 均完成 Release 构建，隐藏探针通过，完整合成预览显示窗口后正常退出。已从 EXE 提取清单核对 preview 的 `asInvoker` 和 live 的 `requireAdministrator`，并检查 live 程序和 helper 的 AMD64 架构、helper 版本资源与 GeoSite 文件散列。检查使用按上游 SHA256 核对的本地 SQLite 缓存。实际 UAC 交互、安装升级、热点及真实网络恢复仍待专用测试环境验收。
