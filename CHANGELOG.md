@@ -1,5 +1,9 @@
 # Changelog
 
+## Flux6 [0.1.3] - 待发布
+
+桌面端的导航、节点选择与 Windows 升级方式见[发行说明](docs/releases/v0.1.3.md)。
+
 ## Flux6 [0.1.2] - 2026-11-15
 
 三端流量统计、Android 网速图表、macOS 启动更新及 Windows 节点选择的变化见[发行说明](docs/releases/v0.1.2.md)。
