@@ -38,7 +38,7 @@
 | 1. 基线对齐 | 已核对主线、FlClash v0.9.3、归档 Windows 原型和共享验收样本。 |
 | 2. 同源预览 | Mac arm64、Android arm64、Windows x64 均完成本机构建；Windows 预览窗口退出修复已验证。见[三端预览入口](../../apps/flux6/README.md)。 |
 | 3. 完整业务候选 | 三端均已构建。Android 和 Mac 使用同一 Dart 入口并复用 FlClash 首页导航与节点分组。Mac 保留原有 WARP 引导、配置、日志和设置页。Windows 从同一 FlClash 源码组装专用 live 入口，首页、节点和设置接入 Windows 模型与 Go helper。三端仍有各自的页面和状态实现。 |
-| 4. 原生接入 | Android 继续通过 ServiceState 驱动 VPN。Mac 已用独立 DNS 库和回环会话验证服务退出、崩溃恢复及更新前断开。Windows x64 的 preview 与 live 已在 Windows 11 完成 Release 构建，离线用例覆盖动态控制端口和旧 helper 的 9090 回退。实机联网项目见下表。 |
+| 4. 原生接入 | Android 17 真机通过锁屏、Wi-Fi 断开自动停服和手动重连。Mac 实机已完成特权服务升级和已有 WARP 凭据读取。Windows x64 的 preview 与 live 已在 Windows 11 完成 Release 构建，离线用例覆盖动态控制端口和旧 helper 的 9090 回退。各端剩余项目见下表。 |
 | 5. 升级与回退 | Android 与 Mac 已用已发布 0.1.2 做隔离升级和回退。Windows 11 已从正式 Tauri 0.1.2 自动覆盖升级，在原目录保留数据卸载并回退。修复后卸载登记唯一，旧版主程序散列恢复，独立 Dart 进程能读回四项合成偏好。旧 WebView 界面中的展示仍待核对。 |
 | 6. 正式切换 | Android 和 Mac 已从 `6d6ea22` 重新生成 APK、DMG、更新 ZIP 和各自的源码包。两个源码包均在 Git 工作区外重组装通过。Windows 11 x64 已通过[原生打包验收](repository-maintenance.md#2026-11-21-windows-x64-统一候选打包验证)，生成 NSIS 安装包、便携 ZIP 和对应源码，核对了包内文件和散列。Windows 安装与回退已通过。切换正式入口、合入主线和公开更新仍待设备验收后进行。正式分发时应从含安装器修复的同一提交生成整套产物。 |
 
@@ -46,8 +46,8 @@
 
 | 平台 | 已有验证 | 发布前待验 |
 | --- | --- | --- |
-| Android arm64 | API 35 离线模拟器上，旧版、同签名候选和回退后的旧版均能打开，同签名升级和回退都保留合成文件。升级后的界面读回旧版中文偏好，回退后的旧版界面读回日文偏好。53 项服务状态机测试通过，含 VPN 被撤权时的停服行为。 | 真机 VPN 授权与撤销、锁屏、Wi-Fi 中断及重连。 |
-| macOS arm64 | 原生隔离会话及实际窗口启退通过。旧版能读回候选写入的设置、6 个加密链式节点和流量账本。临时钥匙串通过升级访问验证。用户域 XPC、签名载荷和隔离 DNS 恢复已验证。签名更新只在测试会话恢复后安装，故障时保留旧版。 | 真实钥匙串授权、特权 XPC 服务升级、连断后的路由恢复。 |
+| Android arm64 | API 35 离线模拟器上，旧版、同签名候选和回退后的旧版均能打开，同签名升级和回退都保留合成文件。升级后的界面读回旧版中文偏好，回退后的旧版界面读回日文偏好。53 项服务状态机测试通过，含 VPN 被撤权时的停服行为。Android 17 真机确认升级保留授权、锁屏前后可联网、Wi-Fi 中断自动停服及重连恢复。 | 系统撤权和重新授权按用户选择跳过。 |
+| macOS arm64 | 原生隔离会话及实际窗口启退通过。旧版能读回候选写入的设置、6 个加密链式节点和流量账本。临时钥匙串通过升级访问验证。用户域 XPC、签名载荷和隔离 DNS 恢复已验证。签名更新只在测试会话恢复后安装，故障时保留旧版。macOS 27.2.1 实机通过特权服务升级并直接复用旧 WARP 凭据。 | 保留现有代理时提示「不支持网段」，实际连断及路由、DNS 恢复暂缓。钥匙串授权弹窗本机未触发。 |
 | Windows x64 | 22 项统一业务与 31 项模型和组件测试通过。原机验证安装器 UAC 同意及取消、卸载取消、自动识别含中文和空格的旧目录、卸载项冲突保护和同目录回退。三个数据目录的样本保留，四项合成偏好读回一致。 | 回退后旧 WebView 界面展示、live 客户端的实际联网、热点及网络恢复。 |
 
-本轮结果见[三端升级与恢复验收进展](repository-maintenance.md#2026-11-22-三端升级与恢复验收进展)。早期验证见 [Android 与 Mac 记录](repository-maintenance.md#2026-11-21-android-与-macos-统一应用)、[Windows 本机记录](repository-maintenance.md#2026-11-21-windows-统一客户端原生接入)、[统一候选打包验证](repository-maintenance.md#2026-11-21-统一候选打包与隔离验收)、[Windows 修复后安装与回退复验](repository-maintenance.md#2026-11-21-本机安装与回退复验)及 [Windows 原生验收清单](windows-flutter-acceptance.md)。
+本轮结果见[Android 与 macOS 实机验收](repository-maintenance.md#2026-11-22-android-与-macos-实机验收)和[三端升级与恢复验收进展](repository-maintenance.md#2026-11-22-三端升级与恢复验收进展)。早期验证见 [Android 与 Mac 记录](repository-maintenance.md#2026-11-21-android-与-macos-统一应用)、[Windows 本机记录](repository-maintenance.md#2026-11-21-windows-统一客户端原生接入)、[统一候选打包验证](repository-maintenance.md#2026-11-21-统一候选打包与隔离验收)、[Windows 修复后安装与回退复验](repository-maintenance.md#2026-11-21-本机安装与回退复验)及 [Windows 原生验收清单](windows-flutter-acceptance.md)。
