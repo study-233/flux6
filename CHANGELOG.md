@@ -1,6 +1,6 @@
 # Changelog
 
-## Flux6 [0.1.3] - 待发布
+## Flux6 [0.1.3] - 2026-11-24
 
 桌面端的导航、节点选择与 Windows 升级方式见[发行说明](docs/releases/v0.1.3.md)。
 

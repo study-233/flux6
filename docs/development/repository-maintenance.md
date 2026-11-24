@@ -711,3 +711,9 @@ GitHub 的 `v0.1.3` 草稿指向打包提交 `c4df703`。Windows x64 安装包�
 在全新的 Windows Server 2022 runner 上，从 GitHub 下载正式版 0.1.2 安装器和草稿中的 0.1.3 安装器。核对更新清单的版本、目标 URL 和安装包摘要后，将旧版装入含中文及空格的目录，再执行静默覆盖升级。安装后的卸载登记指向原目录，主程序版本为 `0.1.3+0`，helper 为 `0.1.3.0`。默认卸载清除了主程序和卸载登记，重装 0.1.2 后主程序散列与升级前一致。升级、卸载和回退后，`config`、`state`、`runtime` 三个目录中的合成样本均保持一致。[GitHub Actions 安装验收](https://github.com/study-233/flux6/actions/runs/45339458509)
 
 这次验收覆盖安装与数据保留。Windows 真实联网、热点和系统网络恢复仍待设备验证。按三端同步发布安排，GitHub Latest 继续指向 0.1.2，待 Android 和 macOS 正式签名产物齐备后再公开 0.1.3。
+
+## 2026-11-24 三端发布 0.1.3
+
+新加坡时间 14:54，三端共用的 [Flux6 0.1.3](https://github.com/study-233/flux6/releases/tag/v0.1.3) 公开并设为 Latest。`v0.1.3` 指向打包提交 `c4df703`。九份附件的 SHA256 与已核验文件一致。Android arm64 APK 通过 v2 签名验证，证书与历史正式版一致，包名为 `dev.freev6.mobile`，build 为 `2026112201`。Windows 更新清单绑定上节已完成升级与回退验收的安装包。
+
+使用 0.1.2 客户端的公钥验证了 macOS 清单和更新 ZIP 的 Ed25519 签名。清单指向 0.1.3 build 14，兼容来源 build 10 至 13，兼容信息与包内记录一致。确认公开 ZIP 可下载并复核其 SHA256 后，已部署[签名清单](https://github.com/study-233/flux6/commit/3ebd73ef95f5d2c27347b92f0a2a5ce90c7c722e)。公开更新地址返回的清单与发行附件逐字节一致。本次上线核验覆盖签名、附件和公网更新入口，安装与联网的实机覆盖范围见前述各平台验收记录。
