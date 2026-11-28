@@ -8,7 +8,6 @@ on:
       - 'scripts/site/**'
       - 'assets/branding/**'
       - 'docs/images/**'
-      - 'docs/compose/audits/2026-11-07-p5-p6/visual/offline-1232.png'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 

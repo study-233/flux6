@@ -31,6 +31,12 @@ export async function buildSite() {
   for (const [attribute, key] of [['name="description"', 'pageDescription'], ['property="og:title"', 'pageTitle'], ['property="og:description"', 'pageDescription']]) {
     html = html.replace(new RegExp(`(<meta ${attribute} content=")[^"]*`), `$1${escapeHtml(translate('zh', key))}`);
   }
+  html = html.replace(/data-installer="([^"]+)" href="#download"/g, (_, suffix) => {
+    const name = `Flux6-${release.tag.slice(1)}-${suffix}`;
+    const asset = release.assets.find(asset => asset.name === name);
+    if (!asset) throw new Error(`Missing installer: ${name}`);
+    return `href="${escapeHtml(asset.url)}"`;
+  });
   const versions = parseChangelog(changelogs.zh);
   if (versions[0]?.tag !== release.tag) throw new Error('Release metadata and changelog disagree');
   html = html.replace('<div class="timeline" id="timeline"></div>',
@@ -46,8 +52,8 @@ export async function buildSite() {
   for (const [input, output] of [
     ['assets/branding/icon.svg', 'favicon.svg'],
     ['assets/branding/128x128.png', 'icon.png'],
-    ['docs/compose/audits/2026-11-07-p5-p6/visual/offline-1232.png', 'assets/macos.png'],
-    ['docs/images/android-home.jpg', 'assets/android.jpg'],
+    ['docs/images/flux6-0.2.0-desktop.png', 'assets/macos.png'],
+    ['docs/images/flux6-0.2.0-android.png', 'assets/android.png'],
   ]) await fs.copyFile(path.join(ROOT, input), path.join(OUTPUT, output));
   await fs.writeFile(path.join(OUTPUT, 'assets/data.js'), `globalThis.Flux6Data = ${data};\n`);
   await fs.writeFile(path.join(OUTPUT, 'index.html'), html);

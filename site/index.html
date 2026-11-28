@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Flux6 — 让校园连接更轻盈</title>
-  <meta name="description" content="Flux6 是面向校园网络的开源 IPv6 客户端，支持 Apple Silicon Mac、ARM64 Android 设备和 Windows x64，提供节点选择、WARP 出口与连接管理。">
+  <title>Flux6 · macOS、Android 和 Windows 的 WARP 客户端</title>
+  <meta name="description" content="Flux6 是支持 MASQUE 的开源 WARP 客户端。macOS、Android 和 Windows 均可在首次启动时配置 WARP，并查看上传和下载用量。">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f3efea" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#181617" media="(prefers-color-scheme: dark)">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Flux6 — 让校园连接更轻盈">
-  <meta property="og:description" content="Flux6 是面向校园网络的开源 IPv6 客户端，支持 Apple Silicon Mac、ARM64 Android 设备和 Windows x64，提供节点选择、WARP 出口与连接管理。">
+  <meta property="og:title" content="Flux6 · macOS、Android 和 Windows 的 WARP 客户端">
+  <meta property="og:description" content="Flux6 是支持 MASQUE 的开源 WARP 客户端。macOS、Android 和 Windows 均可在首次启动时配置 WARP，并查看上传和下载用量。">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.png">
@@ -72,9 +72,9 @@
           <div class="hero-copy">
             <h1 class="display">
               <span class="line word" id="wordmark">Flux6</span>
-              <span class="line second" id="tagline"><span class="for" data-i18n="heroFor">适用于</span> <button class="reel" id="reel" type="button" aria-label="切换平台"><span class="reel-track" id="reel-track" aria-hidden="true"><span>Android</span><span>macOS</span></span><span class="sr" id="reel-current">Android</span></button></span>
+              <span class="line second" id="tagline"><span class="for" data-i18n="heroFor">适用于</span> <button class="reel" id="reel" type="button" aria-label="切换平台"><span class="reel-track" id="reel-track" aria-hidden="true"><span>Android</span><span>macOS</span><span>Windows</span></span><span class="sr" id="reel-current">Android</span></button></span>
             </h1>
-            <p class="lede" data-i18n="heroLede">让校园 IPv6 连接更轻盈。自动选择节点，管理 WARP 出口，连接状态一目了然。开源，无广告。</p>
+            <p class="lede" data-i18n="heroLede">首次启动自动配置 WARP。在支持 IPv6 的网络上连接，打开仪表盘即可查看上传和下载用量。</p>
             <div class="cta">
               <a class="btn primary" id="cta" href="#download">
                 <span class="ico-clip" aria-hidden="true"><svg class="ico-down" viewBox="0 0 20 20" width="20" height="20"><path d="M10 3.5v11m0 0-4.5-4.5m4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
@@ -92,16 +92,16 @@
 
         <figure class="preview">
           <div class="shot product-shots">
-            <img class="desktop-shot" src="assets/macos.png" width="1232" height="780" decoding="async" alt="Flux6 macOS 仪表盘" data-i18n-alt="previewAlt">
-            <img class="mobile-shot" src="assets/android.jpg" width="1200" height="2670" decoding="async" alt="Flux6 Android 仪表盘" data-i18n-alt="mobileAlt">
+            <img class="desktop-shot" src="assets/macos.png" width="2280" height="1728" decoding="async" alt="Flux6 桌面仪表盘与本月流量统计，使用示例数据" data-i18n-alt="previewAlt">
+            <img class="mobile-shot" src="assets/android.png" width="784" height="1640" decoding="async" alt="Flux6 Android 仪表盘与上下行占比，使用示例数据" data-i18n-alt="mobileAlt">
           </div>
         </figure>
 
         <ul class="facts" id="facts">
-          <li><b data-i18n="fact1Title">校园 IPv6</b><span data-i18n="fact1">为支持 IPv6 的校园网络而设计。</span></li>
-          <li><b data-i18n="fact2Title">自动选点</b><span data-i18n="fact2">查看节点延迟，自动选择合适的连接。</span></li>
-          <li><b data-i18n="fact3Title">WARP 出口</b><span data-i18n="fact3">连接状态与分流模式，集中管理。</span></li>
-          <li><b data-i18n="fact4Title">开源透明</b><span data-i18n="fact4">源码公开，改进可追溯，欢迎参与。</span></li>
+          <li><b data-i18n="fact1Title">WARP 配置</b><span data-i18n="fact1">首次启动同意设备注册后，自动生成配置。</span></li>
+          <li><b data-i18n="fact2Title">IPv6 网络</b><span data-i18n="fact2">支持具有 IPv6 出口的 Wi-Fi 和移动网络。</span></li>
+          <li><b data-i18n="fact3Title">流量图表</b><span data-i18n="fact3">比较本次连接、本月和累计的上下行用量。</span></li>
+          <li><b data-i18n="fact4Title">本地代理</b><span data-i18n="fact4">HTTP 和 SOCKS 默认使用 127.0.0.1:17890。</span></li>
         </ul>
       </div>
     </section>
@@ -114,30 +114,25 @@
           <p class="section-sub" id="dl-meta"></p>
           <p class="rail-text" data-i18n="dlLead">支持 Apple Silicon Mac、ARM64 Android 设备和 Windows x64，在下方选择你的平台。</p>
           <p class="rail-links">
-            <a id="windows-installer" href="https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-windows-x64-setup.exe">Windows x64 · EXE</a>
             <a href="https://github.com/study-233/flux6/releases" data-i18n="dlAll">在 GitHub 查看全部版本</a>
           </p>
         </div>
         <div class="dl">
-          <p class="release-note" data-i18n="releaseNote">Android 0.1.1 用户请手动覆盖安装 0.1.2，之后可在应用内更新。</p>
-          <noscript><p>选择安装包：<a href="https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-macos-arm64.dmg">macOS DMG</a> · <a href="https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-android-arm64.apk">Android APK</a>。系统要求：Apple Silicon / macOS 14+，或 ARM64 / Android 7.0+。</p></noscript>
+          <p class="release-note" data-i18n="releaseNote">从 0.1.x 升级前，请先断开并退出旧版。首次启动 0.2.0 会清空旧配置、凭据和用量历史。macOS 用户请下载 DMG 覆盖安装。</p>
+          <noscript><p>下载安装包：<a data-installer="macos-arm64.dmg" href="#download">macOS DMG</a> · <a data-installer="android-arm64.apk" href="#download">Android APK</a> · <a data-installer="windows-amd64-setup.exe" href="#download">Windows EXE</a>。</p></noscript>
           <div class="seg" id="platform-seg" role="tablist" aria-label="Platform">
             <span class="seg-ink" aria-hidden="true"></span>
             <button type="button" role="tab" id="tab-android" data-value="android" aria-controls="panel">Android</button>
             <button type="button" role="tab" id="tab-macos" data-value="macos" aria-controls="panel">macOS</button>
+            <button type="button" role="tab" id="tab-windows" data-value="windows" aria-controls="panel">Windows</button>
           </div>
           <div class="panel" id="panel" role="tabpanel">
             <div class="panel-top">
               <p class="panel-hint" id="panel-hint"></p>
-              <div class="seg seg-sm" id="arch-seg" role="tablist" aria-label="Architecture" hidden>
-                <span class="seg-ink" aria-hidden="true"></span>
-                <button type="button" role="tab" id="arch-x64" data-value="x64">x64</button>
-                <button type="button" role="tab" id="arch-arm64" data-value="arm64">ARM64</button>
-              </div>
             </div>
             <ul class="files" id="files"></ul>
             <p class="dl-error" id="dl-error" hidden></p>
-            <div class="extras" id="extras"></div>
+            <div class="extras"><div class="tip"><h3 data-i18n="tipSetupTitle">开始使用</h3><p data-i18n="tipSetup">首次启动同意设备注册，等 WARP 配置就绪后点击连接。</p></div></div>
           </div>
         </div>
       </div>
@@ -170,7 +165,7 @@
       <img class="glyph" src="favicon.svg" width="30" height="30" alt="">
       <div>
         <p class="foot-name">Flux6</p>
-        <p class="foot-text"><span data-i18n="footLicense">面向校园 IPv6 的开源客户端。</span> <span data-i18n="footUpdated">网页改编自 FlClash。</span></p>
+        <p class="foot-text"><span data-i18n="footLicense">面向 IPv6 网络的开源 WARP 客户端。</span> <span data-i18n="footUpdated">网页改编自 FlClash。</span></p>
       </div>
     </div>
     <nav class="foot-links" aria-label="Links">
