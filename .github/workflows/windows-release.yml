@@ -28,6 +28,8 @@ jobs:
           flutter-version: '3.50.1'
           channel: stable
           cache: true
+          # Restoring the Pub archive on Windows takes longer than fetching the locked packages.
+          pub-cache: false
       - name: Prepare Rust
         run: rustup default stable
       - name: Build unified Flutter client and installer
