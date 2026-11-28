@@ -775,3 +775,16 @@ Windows 版本源改为 `apps/windows/release.json`（候选 0.1.4 build 1），
 0.2.0 使用 FlClash v0.9.5 的固定源码和内置 MASQUE 核心。Android 使用 ServiceState，两端桌面使用 FlClash 自带服务。首次启动先清理旧版应用数据，在用户同意后准备 WARP 配置。仪表盘展示本次、本月和累计用量。旧服务的系统网络恢复数据仍由原服务管理。
 
 本机已完成根 Go 和嵌套 Go 的测试及 vet、Flutter 分析与全套回归、Android 宿主与服务的 Gradle 单元测试、Windows Rust 服务交叉类型检查。macOS 用合成凭据经本地 IPC 校验 28 个 MASQUE 接入点、初始用量和核心正常退出。真实账户注册、校园或蜂窝链路、系统 VPN 授权与真实套餐计费未测试。Windows 原生构建和安装器验证使用 Windows 工作流的运行结果。
+
+## 2026-11-28 · Windows 发布构建缓存
+
+`release/0.2.0` 的 Windows 发布任务缓存 Flutter 3.50.1 SDK。Pub 按锁文件获取依赖，本次直接获取用时 21 秒，单独恢复 Pub 缓存用时 38 秒。上传安装器和 ZIP 时关闭外层压缩，上传从 6 秒降到 3 秒。
+
+| 配置 | Flutter 准备 | 触发到完成 |
+| --- | ---: | ---: |
+| 改动前三次中位数（[第一次](https://github.com/study-233/flux6/actions/runs/46130127573)、[第二次](https://github.com/study-233/flux6/actions/runs/46132294253)、[第三次](https://github.com/study-233/flux6/actions/runs/46136484275)） | 1 分 31 秒 | 12 分 49 秒 |
+| [首次写入 SDK 和 Pub 缓存](https://github.com/study-233/flux6/actions/runs/46138478106) | 1 分 14 秒 | 10 分 39 秒 |
+| [SDK 和 Pub 均命中](https://github.com/study-233/flux6/actions/runs/46139440856) | 1 分 40 秒 | 12 分 34 秒 |
+| [最终配置，仅恢复 SDK](https://github.com/study-233/flux6/actions/runs/46140639689) | 1 分 07 秒 | 12 分 42 秒 |
+
+总耗时包含排队和作业收尾。三轮实验的测试、编译与打包步骤用时 7 分 03 秒至 9 分 37 秒，最终配置的单次结果比基线中位数快 7 秒。三个任务均通过静态分析、Flutter 测试、桌面原生冒烟测试、安装和卸载验证，并上传 Actions 附件。验证范围限于 GitHub 托管的 Windows x64 runner。
