@@ -1,49 +1,46 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/core/method.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class FreeV6Onboarding {
-  static const _key = 'freev6.onboardingSeen';
-
-  Future<bool> shouldShow({required bool hasProfiles}) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_key) == true) return false;
-    if (hasProfiles) {
-      await complete();
-      return false;
-    }
-    return true;
-  }
-
-  Future<void> complete() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!await prefs.setBool(_key, true)) {
-      throw StateError('Could not save onboarding state');
-    }
-  }
-}
-
 class FreeV6Storage {
   const FreeV6Storage();
 
   static const _channel = MethodChannel('dev.freev6.mobile/storage');
 
-  Future<String?> read() => _channel.invokeMethod<String>('read');
+  Future<String?> read() async {
+    if (!Platform.isWindows) return _channel.invokeMethod<String>('read');
+    final prefs = await SharedPreferences.getInstance();
+    final encrypted = prefs.getString('flux6.warp.dpapi');
+    if (encrypted == null) return null;
+    final clear = await _channel.invokeMethod<Uint8List>(
+      'unprotect',
+      base64Decode(encrypted),
+    );
+    if (clear == null) throw StateError('Credential store unavailable');
+    return utf8.decode(clear);
+  }
 
-  Future<void> write(String credentials) =>
-      _channel.invokeMethod<void>('write', credentials);
-
-  Future<Map<String, dynamic>> network({bool probe = false}) async =>
-      Map<String, dynamic>.from(
-        await _channel.invokeMapMethod<String, dynamic>('network', {
-              'probe': probe,
-            }) ??
-            {},
-      );
+  Future<void> write(String credentials) async {
+    if (!Platform.isWindows) {
+      return _channel.invokeMethod<void>('write', credentials);
+    }
+    final encrypted = await _channel.invokeMethod<Uint8List>(
+      'protect',
+      Uint8List.fromList(utf8.encode(credentials)),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    if (encrypted == null ||
+        !await prefs.setString('flux6.warp.dpapi', base64Encode(encrypted))) {
+      throw StateError('Credential store unavailable');
+    }
+  }
 }
+
+enum WarpPreparationStep { storage, registration, profile }
 
 class FreeV6Preparation {
   FreeV6Preparation(this.core, this.storage);
@@ -53,12 +50,17 @@ class FreeV6Preparation {
   String? _pendingCredentials;
   bool _preparing = false;
 
-  Future<String> prepare(List<String> campusTargets) async {
+  Future<String> prepare(
+    List<String> campusTargets, {
+    void Function(WarpPreparationStep)? onStep,
+  }) async {
     if (_preparing) throw StateError('Flux6 preparation is already running');
     _preparing = true;
     try {
+      onStep?.call(WarpPreparationStep.storage);
       var credentials = _pendingCredentials ?? await storage.read();
       if (credentials == null) {
+        onStep?.call(WarpPreparationStep.registration);
         credentials =
             await core.invokeMethod(
                   method: CoreMethod.freeV6Register,
@@ -68,9 +70,11 @@ class FreeV6Preparation {
         _pendingCredentials = credentials;
       }
       if (_pendingCredentials != null) {
+        onStep?.call(WarpPreparationStep.storage);
         await storage.write(credentials);
         _pendingCredentials = null;
       }
+      onStep?.call(WarpPreparationStep.profile);
       final profile =
           await core.invokeMethod(
                 method: CoreMethod.freeV6Profile,

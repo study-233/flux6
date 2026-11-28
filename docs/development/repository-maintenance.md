@@ -769,3 +769,13 @@ Windows 版本源改为 `apps/windows/release.json`（候选 0.1.4 build 1），
 在原生 PowerShell 中逐项核验清理路径、活动进程、运行数据及符号链接，移除四个旧工作树和过期构建、原型、重复候选缓存，共 48 个目标、约 21.10 GiB 文件。`build/uw` 改为 detached HEAD，保留已登记安装的 0.1.2 验收应用及其原目录；36 个验收与安装文件的 SHA256 清理前后一致。正在运行的独立预览、工具链、上游参考及签名和运行配置保留，未停止用户进程或卸载应用。
 
 已有 0.1.3 和 0.1.4 正式安装包及对应源码移至 `dist/release/v0.1.3/` 和 `dist/release/v0.1.4/`，七个保留文件逐一通过 SHA256 校验。0.1.4 发布与视觉证据保留在 `build/retained-evidence/0.1.4/`。本轮未生成新安装包、便携包或离线包，未修改 GitHub Release、Latest 或更新清单。维护记录为纯文档变更，跳过结构审查，使用仓库与链接检查；既有原生检查结果继续有效，不扩大安装或真实网络验收范围。
+
+## 2026-11-28 · 0.2.0 三端统一
+
+0.2.0 使用 FlClash v0.9.5 的固定源码和内置 MASQUE 核心。Android 使用 ServiceState，两端桌面使用 FlClash 自带服务。首次启动先清理旧版应用数据，在用户同意后准备 WARP 配置。仪表盘展示本次、本月和累计用量。旧服务的系统网络恢复数据仍由原服务管理。
+
+本机已完成根 Go 和嵌套 Go 的测试及 vet、Flutter 分析与全套回归、Android 宿主与服务的 Gradle 单元测试、Windows Rust 服务交叉类型检查。macOS 用合成凭据经本地 IPC 校验 28 个 MASQUE 接入点、初始用量和核心正常退出。真实账户注册、校园或蜂窝链路、系统 VPN 授权与真实套餐计费未测试。Windows 原生构建和安装器验证使用 Windows 工作流的运行结果。
+
+## 2026-11-28 · Flux6 0.2.0 正式发布
+
+GitHub Latest 已指向 [v0.2.0](https://github.com/study-233/flux6/releases/tag/v0.2.0)，标签对应提交 `5a83930`。七个附件的 SHA-256 已与本地产物核对。Mac 与 Android 构建号为 2026112803，Windows 为 3。Flutter 回归通过 5359 项，跳过 2 项。Mac 签名核心通过离线 IPC 测试，Windows 安装和卸载由[原生构建](https://github.com/study-233/flux6/actions/runs/46136484275)验证。macOS 从旧版通过 DMG 手动覆盖安装，本次未进行 Apple 公证。

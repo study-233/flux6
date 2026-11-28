@@ -31,9 +31,7 @@ Use the matching [repository skill](.agents/skills.md); load only the skill and 
 
 ## Implementation boundaries
 
-- Keep one authoritative owner for lifecycle and platform effects: macOS uses its Swift/AppKit host and XPC service,
-  Android uses `ServiceState`, and Windows uses its host and existing Go helper. UI state and callbacks must not
-  become a second lifecycle controller. Check rapid start/stop/restart, stale completion and exit paths when changing them.
+- Keep one lifecycle owner per platform. In 0.2.x Android uses ServiceState and the desktop targets use the FlClash desktop core and native services under apps/android. The Swift/XPC and standalone Windows Go helper are 0.1.x maintenance paths. UI state and callbacks must not become a second lifecycle controller.
 - Shared Go business code stays under its current module boundaries. A portable test passing does not prove each
   platform integration works; nested Android Go modules require their own checks.
 - Preserve the current platform UI and reuse its components, shape, typography and color tokens. Android-specific

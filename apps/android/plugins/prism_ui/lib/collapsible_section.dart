@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter/physics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:prism_ui/builder.dart';
 import 'package:prism_ui/context.dart';
@@ -15,8 +17,7 @@ import 'package:prism_ui/typography.dart';
 import 'inherited.dart';
 
 /// A titled section whose header folds its entries away. The entries unfold
-/// with the section, and the ones nearest the middle of what fits on screen
-/// fade in first.
+/// with the section as [UnfoldMotion] moves them.
 class SliverCollapsibleSection extends StatelessWidget {
   final String label;
   final int itemCount;
@@ -53,6 +54,9 @@ class CollapsibleGroup {
   final Object key;
   final String label;
   final int itemCount;
+
+  /// Takes the gap before the label only while it lays out wider than
+  /// nothing, so it can load what it shows on its own.
   final Widget? leading;
   final Widget? trailing;
 
@@ -73,8 +77,6 @@ class SliverCollapsibleGroups extends StatefulWidget {
   final bool collapsible;
   final bool initiallyExpanded;
 
-  /// Also orders the fade; a wrong guess shifts which entry leads it, not
-  /// what ends up shown.
   final double estimatedItemExtent;
 
   const SliverCollapsibleGroups({
@@ -97,8 +99,11 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
   static const _unfolding = -2;
 
   final _toggled = <Object>{};
-  final _motions = <Object, CurvedAnimation>{};
   final _controllers = <Object, AnimationController>{};
+
+  /// Keys the entries the unfolding shows, so they move between it and the
+  /// settled list without being built again at either end of the motion.
+  final _entryKeys = <Object, List<GlobalKey>>{};
 
   bool _isOpen(Object key, {required bool collapsible}) =>
       !collapsible || widget.initiallyExpanded != _toggled.contains(key);
@@ -106,11 +111,13 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
   void _move(Object key, {required bool open}) {
     final controller = _controllers[key] ??= AnimationController(
       vsync: this,
-      duration: UnfoldEntryTransition.duration,
       value: open ? 0 : 1,
     )..addStatusListener((status) => _settle(key, status));
-    _motions[key] ??= UnfoldEntryTransition.curveOf(controller);
-    open ? controller.forward() : controller.reverse();
+    UnfoldMotion.run(
+      controller,
+      open: open,
+      animate: !context.disableAnimations,
+    );
   }
 
   void _settle(Object key, AnimationStatus status) {
@@ -121,8 +128,10 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
     if (controller == null) {
       return;
     }
+    if (status.isDismissed) {
+      _entryKeys.remove(key);
+    }
     setState(() {});
-    _motions.remove(key)!.dispose();
     controller.dispose();
   }
 
@@ -138,6 +147,15 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
   @override
   void didUpdateWidget(SliverCollapsibleGroups oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final keys = {for (final group in widget.groups) group.key};
+    _entryKeys.removeWhere((key, _) => !keys.contains(key));
+    _controllers.removeWhere((key, controller) {
+      if (keys.contains(key)) {
+        return false;
+      }
+      controller.dispose();
+      return true;
+    });
     if (oldWidget.collapsible == widget.collapsible) {
       return;
     }
@@ -151,45 +169,41 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
 
   @override
   void dispose() {
-    for (final motion in _motions.values) {
-      motion.dispose();
-    }
     for (final controller in _controllers.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  Widget _buildEntry(BuildContext context, int group, int index) =>
-      ItemPositionProvider(
-        position: ItemPosition.get(index, widget.groups[group].itemCount),
-        child: widget.itemBuilder(context, group, index),
-      );
+  Widget _buildEntry(BuildContext context, int group, int index) {
+    final keys = _entryKeys[widget.groups[group].key];
+    return ItemPositionProvider(
+      key: keys != null && index < keys.length ? keys[index] : null,
+      position: ItemPosition.get(index, widget.groups[group].itemCount),
+      child: widget.itemBuilder(context, group, index),
+    );
+  }
+
+  int _unfoldingCount(BuildContext context, int group) => math.min(
+    widget.groups[group].itemCount,
+    MediaQuery.sizeOf(context).height ~/ kMinInteractiveDimension + 1,
+  );
 
   /// An entry is at least [kMinInteractiveDimension] tall, so these fill the
-  /// screen whatever lies past them.
+  /// screen whatever lies past them. They move as one block, its bottom
+  /// showing first, as [UnfoldMotion] has them.
   Widget _buildUnfolding(BuildContext context, int group) {
-    final count = widget.groups[group].itemCount;
-    final height = MediaQuery.sizeOf(context).height;
-    final visible = math.min(
-      count.toDouble(),
-      height / widget.estimatedItemExtent,
-    );
-    final unfolding = math.min(count, height ~/ kMinInteractiveDimension + 1);
-    final animation = _motions[widget.groups[group].key]!;
+    final unfolding = _unfoldingCount(context, group);
     return SizeTransition(
-      sizeFactor: animation,
-      alignment: Alignment.topCenter,
-      child: Column(
-        children: [
-          for (var index = 0; index < unfolding; index++)
-            UnfoldEntryTransition(
-              animation: animation,
-              index: index,
-              visibleCount: visible,
-              child: _buildEntry(context, group, index),
-            ),
-        ],
+      sizeFactor: _controllers[widget.groups[group].key]!,
+      alignment: Alignment.bottomCenter,
+      child: RepaintBoundary(
+        child: Column(
+          children: [
+            for (var index = 0; index < unfolding; index++)
+              _buildEntry(context, group, index),
+          ],
+        ),
       ),
     );
   }
@@ -197,7 +211,7 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
   Widget _buildHeader(CollapsibleGroup group) {
     final collapsible = widget.collapsible;
     final unfold =
-        _motions[group.key] ??
+        _controllers[group.key] ??
         (_isOpen(group.key, collapsible: collapsible)
             ? kAlwaysCompleteAnimation
             : kAlwaysDismissedAnimation);
@@ -228,9 +242,17 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
     final rows = <(int, int)>[];
     for (final (index, group) in widget.groups.indexed) {
       rows.add((index, _header));
-      if (_motions.containsKey(group.key)) {
+      final open = _isOpen(group.key, collapsible: collapsible);
+      if (open || _controllers.containsKey(group.key)) {
+        final keys = _entryKeys[group.key] ??= [];
+        final unfolding = _unfoldingCount(context, index);
+        while (keys.length < unfolding) {
+          keys.add(GlobalKey());
+        }
+      }
+      if (_controllers.containsKey(group.key)) {
         rows.add((index, _unfolding));
-      } else if (_isOpen(group.key, collapsible: collapsible)) {
+      } else if (open) {
         for (var item = 0; item < group.itemCount; item++) {
           rows.add((index, item));
         }
@@ -253,7 +275,8 @@ class _SliverCollapsibleGroupsState extends State<SliverCollapsibleGroups>
 }
 
 /// The header of a [SliverCollapsibleGroups] group, its chevron turning with
-/// [unfold] from pointing at the label to pointing down.
+/// [unfold] from pointing at the label to pointing down; without [onToggle]
+/// it has no chevron.
 class CollapsibleHeader extends StatefulWidget {
   final String label;
   final int count;
@@ -277,7 +300,7 @@ class CollapsibleHeader extends StatefulWidget {
 }
 
 class _CollapsibleHeaderState extends State<CollapsibleHeader> {
-  static final _turns = Tween<double>(begin: -0.25, end: 0);
+  static const _spacing = 8.0;
 
   late final _actions = <Type, Action<Intent>>{
     ActivateIntent: CallbackAction<ActivateIntent>(
@@ -293,6 +316,23 @@ class _CollapsibleHeaderState extends State<CollapsibleHeader> {
     final focused = collapsible && _focused;
     final leading = widget.leading;
     final trailing = widget.trailing;
+    final label = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: widget.label),
+          TextSpan(
+            text: ' ${widget.count}',
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppTextStyle.headline.of(context),
+    );
     return FocusableActionDetector(
       enabled: collapsible,
       actions: _actions,
@@ -315,27 +355,17 @@ class _CollapsibleHeaderState extends State<CollapsibleHeader> {
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Row(
-                  spacing: 8,
+                  spacing: _spacing,
                   children: [
-                    ?leading,
                     Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(text: widget.label),
-                            TextSpan(
-                              text: ' (${widget.count})',
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.normal,
-                              ),
+                      child: leading == null
+                          ? label
+                          : Row(
+                              children: [
+                                _LeadingGap(gap: _spacing, child: leading),
+                                Expanded(child: label),
+                              ],
                             ),
-                          ],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyle.headline.of(context),
-                      ),
                     ),
                     if (trailing != null)
                       DefaultTextStyle.merge(
@@ -345,14 +375,15 @@ class _CollapsibleHeaderState extends State<CollapsibleHeader> {
                             .copyWith(color: colorScheme.onSurfaceVariant),
                         child: trailing,
                       ),
-                    RotationTransition(
-                      turns: widget.unfold.drive(_turns),
-                      child: GlyphIcon(
-                        Glyphs.chevronDown,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
+                    if (collapsible)
+                      RotationTransition(
+                        turns: widget.unfold.drive(UnfoldMotion.chevronTurns),
+                        child: GlyphIcon(
+                          Glyphs.chevronDown,
+                          size: 20,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -364,47 +395,138 @@ class _CollapsibleHeaderState extends State<CollapsibleHeader> {
   }
 }
 
-/// An entry unfolding from under its list's header; the entries nearest the
-/// middle of the [visibleCount] that fit on screen fade in first.
-class UnfoldEntryTransition extends StatelessWidget {
-  static const duration = Duration(milliseconds: 240);
-  static const _fade = 0.5;
+class _LeadingGap extends SingleChildRenderObjectWidget {
+  final double gap;
 
-  final Animation<double> animation;
-  final int index;
-  final double visibleCount;
-  final Widget child;
-
-  const UnfoldEntryTransition({
-    super.key,
-    required this.animation,
-    required this.index,
-    required this.visibleCount,
-    required this.child,
-  });
-
-  static CurvedAnimation curveOf(AnimationController controller) =>
-      CurvedAnimation(
-        parent: controller,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
+  const _LeadingGap({required this.gap, required super.child});
 
   @override
-  Widget build(BuildContext context) {
-    final half = visibleCount / 2;
-    final distance = (half - index - 0.5).abs() / half;
-    final start = math.min(1.0, distance) * (1 - _fade);
-    return SlideTransition(
-      position: animation.drive(
-        Tween(begin: Offset(0, -index - 0.5), end: Offset.zero),
-      ),
-      child: FadeTransition(
-        opacity: animation.drive(
-          CurveTween(curve: Interval(start, start + _fade)),
-        ),
-        child: child,
-      ),
+  _RenderLeadingGap createRenderObject(BuildContext context) =>
+      _RenderLeadingGap(gap, Directionality.of(context));
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderLeadingGap renderObject,
+  ) {
+    renderObject
+      ..gap = gap
+      ..textDirection = Directionality.of(context);
+  }
+}
+
+/// Lays its child out with [gap] after it in reading order, or as nothing
+/// while the child is zero wide.
+class _RenderLeadingGap extends RenderShiftedBox {
+  _RenderLeadingGap(this._gap, this._textDirection) : super(null);
+
+  double _gap;
+  TextDirection _textDirection;
+
+  set gap(double value) {
+    if (_gap == value) {
+      return;
+    }
+    _gap = value;
+    markNeedsLayout();
+  }
+
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) {
+      return;
+    }
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  double _withGap(double width) => width > 0 ? width + _gap : 0;
+
+  BoxConstraints _childConstraints(BoxConstraints constraints) =>
+      constraints.loosen().deflate(EdgeInsets.only(right: _gap));
+
+  Size _sizeFor(BoxConstraints constraints, Size child) =>
+      constraints.constrain(Size(_withGap(child.width), child.height));
+
+  @override
+  double computeMinIntrinsicWidth(double height) =>
+      _withGap(child?.getMinIntrinsicWidth(height) ?? 0);
+
+  @override
+  double computeMaxIntrinsicWidth(double height) =>
+      _withGap(child?.getMaxIntrinsicWidth(height) ?? 0);
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) {
+    final child = this.child;
+    if (child == null) {
+      return constraints.smallest;
+    }
+    return _sizeFor(
+      constraints,
+      child.getDryLayout(_childConstraints(constraints)),
     );
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    child.layout(_childConstraints(constraints), parentUsesSize: true);
+    size = _sizeFor(constraints, child.size);
+    final start = _textDirection == TextDirection.rtl
+        ? size.width - child.size.width
+        : 0.0;
+    (child.parentData! as BoxParentData).offset = Offset(start, 0);
+  }
+}
+
+/// How a group's entries unfold from under its header and fold back, as
+/// iOS 27's outline list (`UICellAccessory.outlineDisclosure`) moves them.
+///
+/// The entries move as one block from behind the header, clipped at its
+/// bottom edge, so the block's bottom shows first; they neither fade nor
+/// stagger. What follows the group moves with the block's bottom, and the
+/// chevron turns from pointing at the label to pointing down.
+abstract final class UnfoldMotion {
+  /// UIKit's spring for the outline, read from its `CASpringAnimation`s:
+  /// critically damped, a 0.25 s response.
+  static const spring = SpringDescription(
+    mass: 1,
+    stiffness: 631.65,
+    damping: 50.27,
+  );
+
+  /// Ends the motion where UIKit's animation ends, 0.367 s from rest.
+  static const _tolerance = Tolerance(distance: 1e-3, velocity: 0.03);
+
+  static final chevronTurns = Tween<double>(begin: -0.25, end: 0);
+
+  /// Moves [controller] toward [open] from where it stands and as fast as it
+  /// moves, so a tap during the motion turns it around without a jolt.
+  static void run(
+    AnimationController controller, {
+    required bool open,
+    bool animate = true,
+  }) {
+    final target = open ? 1.0 : 0.0;
+    if (!controller.isAnimating && controller.value == target) {
+      return;
+    }
+    // Without motion it still runs, from the target: setting the value alone
+    // reports no status when it lands on the one a new controller starts with.
+    final simulation = SpringSimulation(
+      spring,
+      animate ? controller.value : target,
+      target,
+      animate ? controller.velocity : 0,
+      snapToEnd: true,
+      tolerance: _tolerance,
+    );
+    open
+        ? controller.animateWith(simulation)
+        : controller.animateBackWith(simulation);
   }
 }

@@ -1,5 +1,9 @@
 # Flux6 开发与仓库管理
 
+## 0.2.0 开发入口
+
+三端正式 runner 位于 `apps/android`。Flutter 版本为 3.50.1，公共 Dart 和嵌套 Go 模块随三端一起验证。使用原平台构建命令 `bash scripts/android/build-apk.sh`、`bash scripts/macos/build-app.sh` 和 `./scripts/windows/build-flutter.ps1`。自动注册和用量回归使用合成凭据与独立数据目录。下面的旧版 Flutter 宿主及统一候选组装脚本供维护历史版本。
+
 ## 平台与目录
 
 本仓库使用单仓库管理，平台目录表达平台差异，共享代码只维护一份。`main` 是唯一长期开发主线。

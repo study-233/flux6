@@ -1,286 +1,102 @@
-; Independent Flutter installer. No Tauri plugins or process-killing macros.
-; Inputs are prepared by scripts/windows/build-flutter.ps1.
+; Flux6 0.2 uses the FlClash Windows service. Its binaries must be in Program Files.
 Unicode true
 ManifestDPIAware true
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 !include MUI2.nsh
 !include LogicLib.nsh
-!include FileFunc.nsh
-!include nsDialogs.nsh
 !include x64.nsh
-!include WordFunc.nsh
-!define UNINSTALL_ROOT "Software\Microsoft\Windows\CurrentVersion\Uninstall"
-!define KEY "${UNINSTALL_ROOT}\Flux6"
-!define PREVIOUS_KEY "${UNINSTALL_ROOT}\FreeV6"
+!define KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Flux6"
 Name "Flux6"
 OutFile "${OUTPUT}"
-InstallDir "$LOCALAPPDATA\FreeV6"
+InstallDir "$PROGRAMFILES64\Flux6"
 VIProductVersion "${VERSION}.0"
 VIAddVersionKey "ProductName" "Flux6"
-VIAddVersionKey "FileDescription" "Flux6 Flutter Windows Installer"
+VIAddVersionKey "FileDescription" "Flux6 Windows Installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "Flux6 contributors"
 !define MUI_ICON "${REPO}\assets\branding\icon.ico"
 !define MUI_UNICON "${REPO}\assets\branding\icon.ico"
 !insertmacro MUI_PAGE_WELCOME
-Page custom Consent ConsentLeave
-!insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
-!define MUI_FINISHPAGE_RUN "$INSTDIR\freev6-desktop.exe"
-!define MUI_FINISHPAGE_RUN_NOTCHECKED
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
-UninstPage custom un.DataChoice
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "SimpChinese"
-Var ConsentControl
-Var DeleteData
-Var DeleteControl
-Var RegistryView
-Var Existing
-Var Relaunch
 
-!macro ReadUserLocation PRODUCT_KEY
-  ReadRegStr $0 HKCU "${PRODUCT_KEY}" "InstallLocation"
-  StrCpy $1 $0 1
-  ${If} $1 == '$\"'
-    StrCpy $0 $0 -1 1
-  ${EndIf}
-!macroend
-
-!macro InspectRegistration VIEW PRODUCT_KEY
-  SetRegView ${VIEW}
-  ReadRegStr $0 HKLM "${PRODUCT_KEY}" "InstallLocation"
-  ${If} $0 != ""
-    MessageBox MB_OK|MB_ICONSTOP "检测到系统范围的旧安装。请先按迁移说明备份并卸载旧程序（保留应用数据），再安装本版本。" /SD IDOK
-    Abort
-  ${EndIf}
-  !insertmacro ReadUserLocation "${PRODUCT_KEY}"
-  ${If} $0 != ""
-    ${If} $Existing == ""
-      StrCpy $Existing $0
-      StrCpy $RegistryView ${VIEW}
-    ${ElseIf} $Existing != $0
-      MessageBox MB_OK|MB_ICONSTOP "检测到多个 Flux6 安装目录。请先确认并备份需要保留的数据，然后再升级。" /SD IDOK
-      Abort
-    ${EndIf}
-    ReadRegStr $0 HKCU "${PRODUCT_KEY}" "DisplayVersion"
-    ${If} $0 != ""
-      ${VersionCompare} $0 "${VERSION}" $1
-      ${If} $1 == 1
-        MessageBox MB_OK|MB_ICONSTOP "已安装版本更新，已阻止降级。" /SD IDOK
-        Abort
-      ${EndIf}
-    ${EndIf}
-  ${EndIf}
-!macroend
-
-!macro RemoveOwnedRegistration VIEW PRODUCT_KEY
-  SetRegView ${VIEW}
-  !insertmacro ReadUserLocation "${PRODUCT_KEY}"
-  ${If} $0 == $INSTDIR
-    ClearErrors
-    DeleteRegKey HKCU "${PRODUCT_KEY}"
-    ${If} ${Errors}
+!macro CheckLocation
+  SetRegView 64
+  SetShellVarContext all
+  StrCpy $INSTDIR "$PROGRAMFILES64\Flux6"
+  ; An existing junction would redirect elevated file operations.
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR") i.r0'
+  ${If} $0 != -1
+    IntOp $0 $0 & 0x400
+    ${If} $0 != 0
       SetErrorLevel 20
-      Abort "无法清理当前安装目录的卸载项。"
+      Abort "安装目录是重解析点。"
     ${EndIf}
   ${EndIf}
 !macroend
 
-Function .onInit
-  ${IfNot} ${RunningX64}
-    MessageBox MB_OK|MB_ICONSTOP "此安装包需要 64 位 Windows。"
-    Abort
-  ${EndIf}
-  SetShellVarContext current
-  StrCpy $RegistryView 32
-  !insertmacro InspectRegistration 32 "${KEY}"
-  !insertmacro InspectRegistration 64 "${KEY}"
-  !insertmacro InspectRegistration 32 "${PREVIOUS_KEY}"
-  !insertmacro InspectRegistration 64 "${PREVIOUS_KEY}"
-  ${If} $Existing != ""
-    StrCpy $INSTDIR $Existing
-  ${EndIf}
-  ${If} $RegistryView == 32
-    SetRegView 32
-  ${Else}
-    SetRegView 64
-  ${EndIf}
-  StrCpy $Relaunch 0
-  ClearErrors
-  ${GetOptions} $CMDLINE "/FREEV6REL" $0
-  ${IfNot} ${Errors}
-    StrCpy $Relaunch 1
-  ${EndIf}
-FunctionEnd
-
-Function Consent
-  !insertmacro MUI_HEADER_TEXT "用户协议与隐私政策" "阅读并同意后继续"
-  nsDialogs::Create 1018
-  Pop $0
-  ${NSD_CreateLabel} 0 0 100% 54u "Flux6 为免费开源软件。此版本包含 GPLv3 视觉组件及其他开源依赖；各组件许可证随安装包提供。对应源码包应与本安装包一起分发。"
-  Pop $0
-  ${NSD_CreateLink} 0 62u 85u 16u "用户协议"
-  Pop $0
-  ${NSD_OnClick} $0 OpenAgreement
-  ${NSD_CreateLink} 100u 62u 85u 16u "隐私政策"
-  Pop $0
-  ${NSD_OnClick} $0 OpenPrivacy
-  ${NSD_CreateCheckbox} 0 100u 100% 20u "我已阅读并同意用户协议与隐私政策"
-  Pop $ConsentControl
-  nsDialogs::Show
-FunctionEnd
-Function ConsentLeave
-  ${NSD_GetState} $ConsentControl $0
-  ${If} $0 != ${BST_CHECKED}
-    MessageBox MB_OK|MB_ICONEXCLAMATION "请先阅读并勾选同意。"
-    Abort
-  ${EndIf}
-FunctionEnd
-Function OpenAgreement
-  Pop $0
-  ExecShell "open" "https://github.com/study-233/flux6/blob/main/docs/agreement.md"
-FunctionEnd
-Function OpenPrivacy
-  Pop $0
-  ExecShell "open" "https://github.com/study-233/flux6/blob/main/docs/privacy.md"
-FunctionEnd
-
-!macro Guard PREFIX
-Function ${PREFIX}Guard
+!macro PrepareFiles
   InitPluginsDir
   SetOutPath "$PLUGINSDIR"
   File /oname=check-install.ps1 "${REPO}\apps\windows\installer\check-install.ps1"
-  StrCpy $R8 0
-  retry:
-    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\check-install.ps1" -InstallRoot "$INSTDIR"'
-    Pop $R0
-    Pop $R1
-    ${If} $R0 == 0
-      Return
-    ${EndIf}
-    ${If} ${Silent}
-      ; The in-app updater launches us just before its owned helper exits.
-      IntOp $R8 $R8 + 1
-      ${If} $R0 == 10
-      ${AndIf} $R8 < 30
-        Sleep 1000
-        Goto retry
-      ${EndIf}
-      SetErrorLevel 10
-      Quit
-    ${EndIf}
-    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Flux6 或网络核心仍在运行，或无法检查进程。请从托盘退出并等待连接停止，然后重试。安装器不会强制结束进程。" /SD IDCANCEL IDRETRY retry
-    Abort
-FunctionEnd
-!macroend
-!insertmacro Guard ""
-!insertmacro Guard "un."
-
-!include "${REPO}\apps\windows\installer\helper-upgrade.nsh"
-
-Section "Flux6"
-  ${If} $Existing != ""
-  ${AndIf} $INSTDIR != $Existing
-    MessageBox MB_OK|MB_ICONSTOP "升级时请保持原安装目录，以保留配置和凭据。" /SD IDOK
-    Abort
-  ${EndIf}
-  Call Guard
-  SetOutPath "$INSTDIR"
-  ClearErrors
-  File /r "${BUNDLE}\*"
-  ${If} ${Errors}
-    SetErrorLevel 20
-    Abort "安装文件复制失败。请保留应用数据并重新运行安装器。"
-  ${EndIf}
-  Call MigrateLegacyHelper
-  ClearErrors
-  WriteUninstaller "$INSTDIR\uninstall.exe"
-  ${If} $RegistryView == 64
-    SetRegView 64
-  ${Else}
-    SetRegView 32
-  ${EndIf}
-  WriteRegStr HKCU "${KEY}" "DisplayName" "Flux6"
-  WriteRegStr HKCU "${KEY}" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKCU "${KEY}" "DisplayIcon" '$\"$INSTDIR\freev6-desktop.exe$\"'
-  WriteRegStr HKCU "${KEY}" "InstallLocation" '$\"$INSTDIR$\"'
-  WriteRegStr HKCU "${KEY}" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
-  WriteRegStr HKCU "${KEY}" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
-  WriteRegStr HKCU "${KEY}" "MainBinaryName" "freev6-desktop.exe"
-  WriteRegStr HKCU "${KEY}" "Publisher" "Flux6 contributors"
-  WriteRegDWORD HKCU "${KEY}" "NoModify" 1
-  WriteRegDWORD HKCU "${KEY}" "NoRepair" 1
-  ${If} ${Errors}
-    SetErrorLevel 20
-    Abort "无法登记卸载程序。请保留应用数据并重新运行安装器。"
-  ${EndIf}
-  !insertmacro RemoveOwnedRegistration 32 "${PREVIOUS_KEY}"
-  !insertmacro RemoveOwnedRegistration 64 "${PREVIOUS_KEY}"
-  ; Remove only the previous product shortcuts; preserve its install and data paths.
-  Delete "$DESKTOP\FreeV6.lnk"
-  Delete "$SMPROGRAMS\FreeV6\FreeV6.lnk"
-  RMDir "$SMPROGRAMS\FreeV6"
-  CreateDirectory "$SMPROGRAMS\Flux6"
-  CreateShortcut "$SMPROGRAMS\Flux6\Flux6.lnk" "$INSTDIR\freev6-desktop.exe"
-  CreateShortcut "$DESKTOP\Flux6.lnk" "$INSTDIR\freev6-desktop.exe"
-  ${If} ${Silent}
-  ${AndIf} $Relaunch == 1
-    Exec '"$INSTDIR\freev6-desktop.exe"'
-  ${EndIf}
-SectionEnd
-
-Function un.onInit
-  SetShellVarContext current
-  StrCpy $DeleteData 0
-FunctionEnd
-Function un.DataChoice
-  nsDialogs::Create 1018
-  Pop $0
-  ${NSD_CreateLabel} 0 0 100% 42u "默认保留配置、WARP 凭据、流量历史和运行核心，便于重新安装或回退。自启动项将撤销。"
-  Pop $0
-  ${NSD_CreateCheckbox} 0 58u 100% 20u "同时删除应用数据（无法恢复）"
-  Pop $DeleteControl
-  ${NSD_OnClick} $DeleteControl un.DataToggle
-  nsDialogs::Show
-FunctionEnd
-Function un.DataToggle
-  Pop $0
-  ${NSD_GetState} $DeleteControl $DeleteData
-FunctionEnd
-Section "Uninstall"
-  Call un.Guard
-  SetOutPath "$PLUGINSDIR"
-  File /oname=remove-autostart.ps1 "${REPO}\apps\windows\installer\remove-autostart.ps1"
-  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\remove-autostart.ps1" -InstallRoot "$INSTDIR"'
+  nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\check-install.ps1" -InstallRoot "$INSTDIR"'
   Pop $0
   Pop $1
   ${If} $0 != 0
-    SetErrorLevel 20
-    Abort "无法撤销自启动，已停止卸载。"
+    SetErrorLevel 10
+    Abort "请先在托盘中退出 Flux6，再重新运行安装程序。"
   ${EndIf}
-  ; Exact application-owned payload list generated from this build's bundle.
+  ; Only the registered service from the protected Flux6 bundle is eligible.
+  ReadRegStr $0 HKLM "SYSTEM\CurrentControlSet\Services\Flux6HelperService" "ImagePath"
+  ${If} $0 != ""
+    ${IfNot} ${FileExists} "$INSTDIR\Flux6HelperService.exe"
+      SetErrorLevel 20
+      Abort "请先从原安装中卸载 Flux6 服务。"
+    ${EndIf}
+    ExecWait '"$INSTDIR\Flux6HelperService.exe" uninstall' $1
+    ${If} $1 != 0
+      SetErrorLevel 20
+      Abort "无法卸载正在使用的 Flux6 服务。"
+    ${EndIf}
+  ${EndIf}
+!macroend
+
+Section "Flux6"
+  !insertmacro CheckLocation
+  !insertmacro PrepareFiles
+  SetOutPath "$INSTDIR"
+  ClearErrors
+  File /r "${BUNDLE}\*"
+  WriteUninstaller "$INSTDIR\uninstall.exe"
+  CreateShortcut "$SMPROGRAMS\Flux6.lnk" "$INSTDIR\freev6-desktop.exe"
+  WriteRegStr HKLM "${KEY}" "DisplayName" "Flux6"
+  WriteRegStr HKLM "${KEY}" "DisplayVersion" "${VERSION}"
+  WriteRegStr HKLM "${KEY}" "Publisher" "Flux6 contributors"
+  WriteRegStr HKLM "${KEY}" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKLM "${KEY}" "DisplayIcon" "$INSTDIR\freev6-desktop.exe"
+  WriteRegStr HKLM "${KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegStr HKLM "${KEY}" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S'
+  ${If} ${Errors}
+    SetErrorLevel 20
+    Abort "写入 Flux6 安装文件或登记信息失败。"
+  ${EndIf}
+SectionEnd
+
+Section "Uninstall"
+  !insertmacro CheckLocation
+  !insertmacro PrepareFiles
   ClearErrors
   !include "${UNINSTALL_FILES}"
   ${If} ${Errors}
     SetErrorLevel 20
-    Abort "部分程序文件仍被占用。请关闭相关程序后重新卸载，应用数据已保留。"
+    Abort "部分文件仍在使用，请退出 Flux6 后重试。"
   ${EndIf}
+  Delete "$SMPROGRAMS\Flux6.lnk"
   Delete "$INSTDIR\uninstall.exe"
-  Delete "$DESKTOP\Flux6.lnk"
-  Delete "$SMPROGRAMS\Flux6\Flux6.lnk"
-  RMDir "$SMPROGRAMS\Flux6"
-  !insertmacro RemoveOwnedRegistration 32 "${KEY}"
-  !insertmacro RemoveOwnedRegistration 64 "${KEY}"
-  ${If} $DeleteData == ${BST_CHECKED}
-    RMDir /r "$INSTDIR\config"
-    RMDir /r "$INSTDIR\state"
-    RMDir /r "$INSTDIR\runtime"
-    RMDir /r "$LOCALAPPDATA\dev.freev6.desktop"
-    RMDir /r "$APPDATA\dev.freev6.desktop"
-    Delete "$INSTDIR\freev6-update-setup.exe"
-  ${EndIf}
+  DeleteRegKey HKLM "${KEY}"
   RMDir "$INSTDIR"
 SectionEnd

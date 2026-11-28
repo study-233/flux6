@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fl_clash/common/freev6.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/core/method.dart';
+import 'package:fl_clash/core/spill.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class MemoryStorage extends FreeV6Storage {
@@ -34,6 +35,7 @@ class RecordingCore implements CoreHandlerInterface {
     required CoreMethod method,
     Object? arguments,
     Duration? timeout,
+    CoreResultModel? model,
   }) async {
     if (method == CoreMethod.freeV6Register) {
       registrations++;

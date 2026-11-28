@@ -2,7 +2,7 @@
 .glyph { object-fit: contain; }
 .stage { display: grid; place-items: center; }
 .stage img { width: min(75%, 240px); height: auto; }
-.product-shots { position: relative; aspect-ratio: 16 / 10; mask-image: none; -webkit-mask-image: none; }
+.product-shots { position: relative; aspect-ratio: 1.46; mask-image: none; -webkit-mask-image: none; }
 .desktop-shot { position: absolute; top: 4%; left: 0; width: 87%; height: auto; border-radius: 14px; box-shadow: 0 12px 40px rgb(38 33 34 / 12%); }
 .mobile-shot { position: absolute; right: 0; bottom: 0; width: 23%; height: auto; border-radius: 22px; box-shadow: 0 12px 32px rgb(38 33 34 / 18%); }
 .release-note { margin: 0 0 18px; color: var(--ink-2); font-size: 13px; line-height: 1.7; }

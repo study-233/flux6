@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/warp_setup.dart';
 import 'package:fl_clash/features/form/form.dart';
 import 'package:fl_clash/pages/scan.dart';
 import 'package:fl_clash/plugins/app.dart';
@@ -131,6 +132,12 @@ class AddProfileMenu extends ConsumerWidget {
       targetBuilder: builder,
       popupBuilder: (_) => PopupMenu(
         items: [
+          PopupMenuItem(
+            glyph: AppGlyphs.cloudDownload,
+            label: appLocalizations.warpProfile,
+            onPressed: () =>
+                unawaited(ref.read(warpSetupProvider.notifier).prepare()),
+          ),
           PopupMenuItem(
             glyph: AppGlyphs.qrCode,
             label: appLocalizations.qrcode,

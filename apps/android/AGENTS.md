@@ -5,7 +5,7 @@ Read the root `AGENTS.md` first. Current Android build and source information is
 - Use `flutter test`, not `dart test`, and run `flutter pub get`, `flutter analyze --no-fatal-infos` plus affected suites before completing code changes.
 - Do not edit generated models, providers, database or localization files manually; run the corresponding generators.
 - Android lifecycle remains owned by ServiceState. UI code must not add a second source of lifecycle truth.
-- Host tests still use shared desktop Core code and build hooks. Retain referenced support code even though desktop application runners have been removed.
+- macOS and Windows use their runners in this project since 0.2.0. Preserve the desktop Core, plugins, helper, and build hooks.
 - Preserve pinned upstream sources, licenses and local patch records. No Git submodule update or upstream release scripts apply to this source export.
 - Use the five shared [repository skills](../../.agents/skills.md) for core/platform, UI, localization, performance and structural review. There are no Android-local skill copies; Android-specific technical references remain in this directory's `.agents/`.
 - Use short-lived `feat/`, `fix/`, `refactor/`, `chore/` branches without a `codex/` prefix. Do not add agent co-author trailers.

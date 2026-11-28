@@ -5,11 +5,9 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/boot_record.dart';
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/exception.dart';
-import 'package:fl_clash/common/request.dart';
 import 'package:fl_clash/plugins/app.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -75,6 +73,30 @@ void main() {
       expect(requested, ['com.a', '', 'com.b']);
     },
   );
+
+  test('a package Android answers with the default icon has none of its '
+      'own', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          final packageName = call.arguments['packageName'] as String;
+          return packageName == 'com.own'
+              ? '/icons/com.own.webp'
+              : '/icons/default_icon.webp';
+        });
+
+    final app = App();
+    expect(app.getCachedOwnPackageIcon('com.own'), isNull);
+    final own = await app.getOwnPackageIcon('com.own');
+    expect(own, isNotNull);
+    expect(own, isNot(await app.getPackageIcon('')));
+    expect(app.getCachedOwnPackageIcon('com.own')?.icon, same(own));
+
+    expect(app.getCachedOwnPackageIcon('com.gone'), isNull);
+    expect(await app.getOwnPackageIcon('com.gone'), isNull);
+    expect(app.getCachedOwnPackageIcon('com.gone'), isNotNull);
+    expect(app.getCachedOwnPackageIcon('com.gone')?.icon, isNull);
+    expect(await app.getOwnPackageIcon(''), isNull);
+  });
 
   test(
     'asks Android for a bounded number of package icons at a time',
@@ -244,26 +266,6 @@ void main() {
     }
 
     Iterable<String> methods() => calls.map((call) => call.method);
-
-    test('downloads the release APK without a checksum asset', () async {
-      const name = 'Flux6-1.2.3-android-arm64.apk';
-      answerQueries([state(8, 100)]);
-
-      final path = await Request().downloadRelease(
-        tag: 'v1.2.3',
-        name: name,
-        directory: '/files',
-        android: App(),
-      );
-
-      expect(methods(), ['enqueueDownload', 'queryDownload']);
-      expect(
-        calls.first.arguments['url'],
-        'https://github.com/study-233/flux6/releases/download/v1.2.3/$name',
-      );
-      expect(calls.first.arguments['path'], path);
-      expect(path, p.join('/files', name));
-    });
 
     test('follows the system download until it completes', () async {
       answerQueries([state(2, 50), state(8, 100)]);

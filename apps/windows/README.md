@@ -1,5 +1,11 @@
 # Flux6 Windows
 
+## 0.2.0 构建
+
+从 [FlClash 派生工程](../android/FREEV6.md) 构建原生 Windows x64 runner、核心和 Flux6HelperService。安装版程序位于 Program Files 下的 Flux6 目录，TUN 服务按需申请系统授权。便携版支持普通用户启动核心和使用系统代理。凭据由当前 Windows 用户的 DPAPI 保护。
+
+在具备 Visual Studio C++、Flutter 3.50.1、Rust、Go 和 NSIS 的 Windows x64 环境运行 `./scripts/windows/build-flutter.ps1`。产物位于 `dist/windows/0.2.0-unified`。下面保留 0.1.x 的独立宿主与 Go helper 开发记录。
+
 当前正式 Windows 0.1.4 使用统一 Flutter 界面，恢复 FlClash 的常用页面并整合免流工具，见[Windows 适配说明](../flux6/windows_client/README.md)。本次通过 [0.1.4 发布页](https://github.com/study-233/flux6/releases/tag/v0.1.4) 手动下载安装，三端 Latest 保持 0.1.3。正式构建入口为 `scripts/windows/build-flutter.ps1`，版本来源为 `apps/windows/release.json`。
 
 下面的 Web/Tauri 开发与预览命令作为历史实现保留；不再用于当前发行包。

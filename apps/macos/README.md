@@ -1,5 +1,11 @@
 # Flux6 原生 Mac 客户端
 
+## 0.2.0 构建
+
+正式代码位于 [FlClash 派生工程](../android/FREEV6.md)，使用其中的 macOS runner 和内置核心。使用 Apple Silicon、Xcode 和 Flutter 3.50.1，在仓库根目录运行 `bash scripts/macos/build-app.sh`。生成的签名应用位于 `dist/macos/Flux6.app`。在对应源码提交上运行 `python3 scripts/macos/build-dmg.py --from-app dist/macos/Flux6.app` 构建 DMG、更新 ZIP 和源码包。
+
+原有 Swift/XPC 主机和 worker 可供维护 0.1.x。下面记录该版本的结构。
+
 当前 Mac 版面向 Apple Silicon（M 系列），最低支持目标为 macOS 14。首页、节点、配置、日志与独立设置窗口运行 Flutter + FlClash / Prism UI。AppKit 管理窗口、原生菜单与菜单栏入口，Swift 业务层和 Go worker 处理连接准备、WARP 凭据、规则与核心数据。正式宿主通过 XPC v6 接入启停、运行模式、节点和流量读取。断开及正常退出会等待网络恢复。[服务协议](../../shared/protocol/service-v6.md)
 
 首个公开正式版为 0.1.0，安装验收已于 2026-11-10 由用户确认完成，本次发行不进行 Apple 公证。版本以 [Info.plist](Resources/Info.plist) 为准，可从仓库根目录运行 `python3 scripts/version.py --platform macos` 查看。[首发准备](../../docs/releases/first-public-release.md) · [验收索引](../../docs/releases/macos-validation.md)

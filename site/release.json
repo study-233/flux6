@@ -1,60 +1,48 @@
 {
-  "tag": "v0.1.2",
-  "publishedAt": "2026-11-15T08:33:29Z",
+  "tag": "v0.2.0",
+  "publishedAt": "2026-11-28T11:06:36Z",
   "assets": [
     {
-      "name": "Flux6-0.1.2-android-arm64.apk",
-      "size": 61418805,
-      "digest": "sha256:c2905cdcbe1ea342ff33fbaa69a2f15e41dbd81840286e1ba31ba0aae3959c7a",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-android-arm64.apk"
+      "name": "Flux6-0.2.0-android-arm64.apk",
+      "size": 61463017,
+      "digest": "sha256:ab8735b437df751252b8729ac77e31258d1deaa8bec6c25e03849d952d4a387b",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-android-arm64.apk"
     },
     {
-      "name": "Flux6-0.1.2-android-source.tar.gz",
-      "size": 22692286,
-      "digest": "sha256:4a91fe90279f377a8051a82404d0f2ec77849c113a7c3de7c6d327a4fc64b9fd",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-android-source.tar.gz"
+      "name": "Flux6-0.2.0-b2026112803-arm64.zip",
+      "size": 56517518,
+      "digest": "sha256:dcd60a71a220a6484ddf831a68594b6332881af87df21602c0e4a09ed69f7ede",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-b2026112803-arm64.zip"
     },
     {
-      "name": "Flux6-0.1.2-macos-arm64.dmg",
-      "size": 21345374,
-      "digest": "sha256:dc6febd340b12b6c01ab8d7ea5592fae80eec5bce89164bdbc01143ce54b5e35",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-macos-arm64.dmg"
+      "name": "Flux6-0.2.0-macos-arm64.dmg",
+      "size": 62209694,
+      "digest": "sha256:eda88fbea103f585ae21063b0aeee29795b44535f4c7cf74b532ea4a5530f0b7",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-macos-arm64.dmg"
     },
     {
-      "name": "Flux6-0.1.2-macos-source.zip",
-      "size": 2267609,
-      "digest": "sha256:580c684f186a207e1317c369445f1309bee63e14f8a885e3778ebb8f8758738c",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-macos-source.zip"
+      "name": "Flux6-0.2.0-source.zip",
+      "size": 33616037,
+      "digest": "sha256:3059c15dfc77af9935c3a5a6f61a73e169282f1d36f80bfede756c2cd0a5051c",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-source.zip"
     },
     {
-      "name": "Flux6-0.1.2-windows-source.zip",
-      "size": 1262253,
-      "digest": "sha256:c020c39fc160757e5536631e2a92b588ce4a31837c79ecd340dd0e5b493037a2",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-windows-source.zip"
+      "name": "Flux6-0.2.0-windows-amd64-setup.exe",
+      "size": 42440214,
+      "digest": "sha256:b75daba023b52b859df06f984e6874e889845e10d3cb1f0dc8e94ff3e2fe5372",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-windows-amd64-setup.exe"
     },
     {
-      "name": "Flux6-0.1.2-windows-x64-setup.exe",
-      "size": 8672254,
-      "digest": "sha256:cd503e98d844f51889f43ecbe2150084c7a0894d9dfa0352b1405a8a378d70da",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6-0.1.2-windows-x64-setup.exe"
-    },
-    {
-      "name": "Flux6_0.1.2_13_arm64.zip",
-      "size": 18980357,
-      "digest": "sha256:661561dae6f8bb38ab1dff403ace4042d73bc6ed28333b600d01989958a458f4",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/Flux6_0.1.2_13_arm64.zip"
-    },
-    {
-      "name": "appcast-arm64.xml",
-      "size": 1528,
-      "digest": "sha256:147eb0e21424edaa8ecd0d9210d25e000e379ae5699c9e277d7f24614c9d4b76",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/appcast-arm64.xml"
+      "name": "Flux6-0.2.0-windows-amd64.zip",
+      "size": 64674877,
+      "digest": "sha256:e5dc010572eeee362ee47d9b6c4c64e66265eecae1a22b8c4cdb737c4e7c3d7b",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-windows-amd64.zip"
     },
     {
       "name": "version.json",
-      "size": 337,
-      "digest": "sha256:dfbdee63c35312039f6305f0d58e0120855bb0766ce08ee84a2c5a5ee1e0746f",
-      "url": "https://github.com/study-233/flux6/releases/download/v0.1.2/version.json"
+      "size": 205,
+      "digest": "sha256:803c2f22e9c625b2d03ea1001e2b78cd3aee3a66d8b3b12837be2876740d9e51",
+      "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/version.json"
     }
   ]
 }

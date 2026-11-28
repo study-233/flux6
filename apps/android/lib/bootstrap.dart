@@ -4,25 +4,23 @@ import 'dart:io';
 import 'package:fl_clash/common/boot_guard.dart';
 import 'package:fl_clash/common/boot_record.dart';
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/common/freev6.dart';
 import 'package:fl_clash/common/launch.dart';
+import 'package:fl_clash/common/warp_setup.dart';
+import 'package:fl_clash/common/release_reset.dart';
 import 'package:fl_clash/common/migration.dart';
 import 'package:fl_clash/common/tray.dart';
 import 'package:fl_clash/common/window.dart';
 import 'package:fl_clash/database/database.dart';
 import 'package:fl_clash/enum/enum.dart';
-import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/disclaimer.dart';
-import 'package:fl_clash/views/freev6/setup.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:prism_ui/prism_ui.dart' show BaseNavigator;
 import 'package:package_info_plus/package_info_plus.dart';
 
 class Bootstrap {
@@ -36,6 +34,7 @@ class Bootstrap {
   }
 
   BootDecision _bootDecision = const BootDecision();
+  Object? _resetMixedPort;
 
   Future<ProviderContainer> init(int version) async {
     globalState.appEnv = const String.fromEnvironment(
@@ -90,8 +89,14 @@ class Bootstrap {
     DynamicColorSeeds dynamicColor,
   ) async {
     await _claimDataDirectory();
+    await resetLegacyFlux6();
     globalState.packageInfo = await PackageInfo.fromPlatform();
+    final storedConfig = await preferences.getConfigMap();
+    _resetMixedPort = unusableMixedPort(storedConfig?['patchClashConfig']);
     var config = await migration.run();
+    if (_resetMixedPort != null) {
+      await preferences.saveConfig(config);
+    }
     _bootDecision = await bootGuard.evaluate(
       profileId: config.currentProfileId,
     );
@@ -108,7 +113,7 @@ class Bootstrap {
       brightness: WidgetsBinding.instance.platformDispatcher.platformBrightness,
       version: version,
       viewSize: Size.zero,
-      requests: FixedList(maxRequestsLength),
+      requests: ConnectionLog(maxRequestsLength),
       logs: FixedList(maxLogsLength),
       traffics: FixedList(trafficSampleLength),
       totalTraffic: const Traffic(),
@@ -129,7 +134,7 @@ class Bootstrap {
         );
     final profiles = await database.profilesDao.query().get();
     container.read(profilesProvider.notifier).reorder(profiles);
-    await AppLocalizations.load(
+    loadAppLocalizations(
       getLocaleForString(config.appSettingProps.locale) ??
           WidgetsBinding.instance.platformDispatcher.locale,
     );
@@ -155,7 +160,10 @@ class Bootstrap {
     unawaited(
       _container.read(profilesActionProvider.notifier).autoUpdateProfiles(),
     );
-    unawaited(clearUpdateDownloads());
+    unawaited(
+      _container.read(commonActionProvider.notifier).settleUpdateDownloads(),
+    );
+    unawaited(_container.read(commonActionProvider.notifier).autoCheckUpdate());
     unawaited(
       autoLaunch?.updateStatus(_container.read(appSettingProvider).autoLaunch),
     );
@@ -169,6 +177,12 @@ class Bootstrap {
       return;
     }
     await _showCrashRecoveryTip();
+    if (_resetMixedPort case final value?) {
+      dialogs.showMixedPortReset(
+        value,
+        _container.read(patchClashConfigProvider).mixedPort,
+      );
+    }
     await _container.read(coreActionProvider.notifier).startCore();
     if (!_bootDecision.isDegraded) {
       await _container.read(setupActionProvider.notifier).initStatus();
@@ -177,36 +191,12 @@ class Bootstrap {
     unawaited(_container.read(resourcesActionProvider.notifier).autoUpdate());
     unawaited(_container.read(mitmModulesActionProvider.notifier).autoUpdate());
     await bootGuard.markRunning();
-    unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
-    if (system.isAndroid) unawaited(_finishAndroidStartup());
-  }
-
-  Future<void> _finishAndroidStartup() async {
-    await _showFreeV6Onboarding();
-    await _container.read(commonActionProvider.notifier).autoCheckUpdate();
-  }
-
-  Future<void> _showFreeV6Onboarding() async {
-    try {
-      final onboarding = FreeV6Onboarding();
-      if (!await onboarding.shouldShow(
-        hasProfiles: _container.read(profilesProvider).isNotEmpty,
-      )) {
-        return;
-      }
-      final context = globalState.navigatorKey.currentContext;
-      if (context == null || !context.mounted) return;
-      await BaseNavigator.push<void>(
-        context,
-        const FreeV6View(mode: FreeV6ViewMode.onboarding),
-      );
-      await onboarding.complete();
-    } catch (_) {
-      commonPrint.log(
-        'Flux6 onboarding unavailable',
-        logLevel: LogLevel.warning,
+    if (!_bootDecision.isDegraded) {
+      unawaited(
+        _container.read(warpSetupProvider.notifier).prepare(automatic: true),
       );
     }
+    unawaited(_container.read(locationPermissionsProvider.notifier).refresh());
   }
 
   Future<void> _showCrashRecoveryTip() async {

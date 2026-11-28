@@ -1,5 +1,9 @@
 # Changelog
 
+## Flux6 [0.2.0] - 2026-11-28
+
+三端统一界面、首次启动自动配置 WARP、默认代理端口和图表用量统计见[发行说明](docs/releases/v0.2.0.md)。
+
 ## Flux6 [0.1.4] Windows - 2026-11-28
 
 FlClash 常用功能恢复、节点切换修复和自动优选界面优化见[发行说明](docs/releases/v0.1.4.md)。

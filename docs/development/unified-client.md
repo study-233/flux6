@@ -1,5 +1,11 @@
 # Flux6 统一客户端迁移
 
+## 0.2.0 实现
+
+Android arm64、macOS arm64 和 Windows x64 的当前构建入口都使用 `apps/android` 内的 FlClash v0.9.5 派生应用和固定版本的 mihomo。Android 使用 ServiceState，两个桌面端使用 FlClash 的原生运行机制。首次同意后自动准备 WARP 配置并写入本机凭据存储，连接由用户发起。默认接入点需要 IPv6 出口，客户端接受校园内外的可用网络。
+
+升级后从空的应用配置开始。桌面 0.1.x 的 XPC 服务、Windows Go helper、热点与自动启动配置的接管均已结束。升级前应先从原客户端断开连接并退出。以下为 0.1.x 候选项目的历史记录。
+
 目标是让 Windows x64、macOS arm64 和 Android arm64 从同一个 FlClash 派生工程构建。公共页面、状态和 Flux6 业务流程共用一份实现。各端正式入口按平台验收结果分别切换。
 
 ## 候选源码与选择依据

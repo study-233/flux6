@@ -1,5 +1,6 @@
 package com.follow.clash.plugins
 
+import com.follow.clash.LauncherIcons
 import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
@@ -14,6 +15,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.net.VpnService
 import android.os.Build
@@ -35,7 +37,6 @@ import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.follow.clash.R
-import com.follow.clash.LauncherIcons
 import com.follow.clash.SystemCaStore
 import com.follow.clash.common.Components
 import com.follow.clash.common.GlobalState
@@ -77,6 +78,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         PluginRegistry.RequestPermissionsResultListener(::onRequestPermissionsResultListener)
 
     private lateinit var channel: MethodChannel
+
+    private var networkWatcher: DefaultNetworkWatcher? = null
 
     private lateinit var flutterAssets: FlutterPlugin.FlutterAssets
 
@@ -192,6 +195,24 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
                 } catch (error: Exception) {
                     result.error("APP_ICON", "Unable to change app icon", null)
                 }
+            }
+
+            "watchNetwork" -> {
+                if (call.arguments == true) {
+                    networkWatcher?.start()
+                } else {
+                    networkWatcher?.stop()
+                }
+                result.success(true)
+            }
+
+            "getDeviceInfo" -> {
+                result.success(
+                    mapOf(
+                        "sdkInt" to Build.VERSION.SDK_INT,
+                        "isTelevision" to isTelevision,
+                    )
+                )
             }
 
             "moveTaskToBack" -> {
@@ -740,6 +761,13 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
         channel.setMethodCallHandler(this)
         flutterAssets = flutterPluginBinding.flutterAssets
         watchPackageChanges(flutterPluginBinding.applicationContext)
+        networkWatcher = flutterPluginBinding.applicationContext
+            .getSystemService(ConnectivityManager::class.java)
+            ?.let { connectivity ->
+                DefaultNetworkWatcher(connectivity) { state ->
+                    channel.invokeMethod("networkChanged", state)
+                }
+            }
         flutterPluginBinding.applicationContext.registerReceiverCompat(
             installStatusReceiver,
             IntentFilter(INSTALL_STATUS_ACTION),
@@ -758,6 +786,8 @@ class AppPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware 
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        networkWatcher?.stop()
+        networkWatcher = null
         packageChangeContext?.unregisterReceiver(packageChangeReceiver)
         packageChangeContext = null
         binding.applicationContext.unregisterReceiver(installStatusReceiver)

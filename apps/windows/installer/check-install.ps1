@@ -9,7 +9,7 @@ try {
         if ($process.ExecutablePath -and $process.ProcessId -ne $PID) {
             $path = [IO.Path]::GetFullPath($process.ExecutablePath)
             if ($path.StartsWith($target, [StringComparison]::OrdinalIgnoreCase) -and
-                ([IO.Path]::GetFileName($path) -match '^(freev6-desktop|flux6-helper|freev6-helper|mihomo.*)\.exe$')) {
+                ([IO.Path]::GetFileName($path) -match '^(freev6-desktop|flux6-helper|freev6-helper|FlClashCore|mihomo.*)\.exe$')) {
                 Write-Output 'Flux6 or its network core is still running. Exit from the tray first.'
                 exit 10
             }

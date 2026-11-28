@@ -58,9 +58,9 @@ void main() {
             .read(viewSizeProvider.notifier)
             .update((_) => Size(width, 844));
         final adapter = _UpdateAdapter();
-        final original = request.releaseDio.httpClientAdapter;
-        request.releaseDio.httpClientAdapter = adapter;
-        addTearDown(() => request.releaseDio.httpClientAdapter = original);
+        final original = request.dio.httpClientAdapter;
+        request.dio.httpClientAdapter = adapter;
+        addTearDown(() => request.dio.httpClientAdapter = original);
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
@@ -77,7 +77,7 @@ void main() {
           isFalse,
         );
         expect(adapter.paths, isEmpty);
-        final button = find.text('Check for updates');
+        final button = find.widgetWithText(TonalButton, 'Check for updates');
         await tester.ensureVisible(button);
         await tester.tap(button);
         await tester.pump(const Duration(milliseconds: 300));
@@ -87,7 +87,7 @@ void main() {
           'https://api.github.com/repos/study-233/flux6/releases/latest',
         ]);
         expect(container.read(loadingProvider(LoadingTag.checkUpdate)), isTrue);
-        expect(find.byType(ActivityIndicator), findsOneWidget);
+        expect(tester.widget<TonalButton>(button).onPressed, isNull);
         adapter.response.complete(
           ResponseBody.fromString(
             '{"tag_name":"v0.1.1"}',

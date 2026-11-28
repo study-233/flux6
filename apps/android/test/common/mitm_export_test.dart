@@ -93,7 +93,7 @@ void main() {
               as Map<String, Object?>;
       final log = har['log']! as Map<String, Object?>;
       expect(log['version'], '1.2');
-      expect(log['creator'], {'name': 'FlClash', 'version': '1.0.0'});
+      expect(log['creator'], {'name': 'Flux6', 'version': '1.0.0'});
       return (log['entries']! as List).single as Map<String, Object?>;
     }
 

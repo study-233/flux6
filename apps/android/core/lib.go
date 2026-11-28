@@ -48,12 +48,11 @@ func (th *TunHandler) start(fd int, stack, address, dns, options string) bool {
 	th.mu.Lock()
 	th.initHook()
 	th.mu.Unlock()
+	socketProtection.activate(th.callbacks.Protect)
 
-	// t.Start runs outside th.mu on purpose. The hook is live from initHook
-	// onwards, and a socket opened anywhere inside Start reaches handleProtect
-	// on this very goroutine — an RLock taken while this one holds the write
-	// lock deadlocks the start outright. Socket protection is already active;
-	// process resolution waits until th.listener is set below.
+	// t.Start runs outside th.mu on purpose: a socket opened anywhere inside
+	// Start reaches the hooks on this very goroutine, and the owner lookup's
+	// RLock would deadlock against a write lock held here.
 	tunListener := t.Start(fd, stack, address, dns, options)
 
 	th.mu.Lock()
@@ -75,23 +74,12 @@ func (th *TunHandler) close() {
 
 func (th *TunHandler) clear() {
 	th.removeHook()
+	socketProtection.deactivate()
 	if th.listener != nil {
 		_ = th.listener.Close()
 	}
 	th.callbacks = nil
 	th.listener = nil
-}
-
-// Flux6 refuses the dial if Wi-Fi binding fails. Falling back to Android's
-// default network here could move a running tunnel onto cellular data.
-func (th *TunHandler) handleProtect(fd int) bool {
-	th.mu.RLock()
-	defer th.mu.RUnlock()
-
-	if th.callbacks == nil {
-		return false
-	}
-	return th.callbacks.Protect(fd)
 }
 
 func (th *TunHandler) handleResolveProcess(source, target net.Addr) (int, string) {
@@ -123,20 +111,24 @@ func (th *TunHandler) handleResolveProcess(source, target net.Addr) (int, string
 var (
 	installHooksOnce sync.Once
 	activeTunHandler atomic.Pointer[TunHandler]
+	socketProtection = newSocketProtector()
 )
+
+// Set from load on, so no socket escapes it; mihomo then ignores
+// interface-name, routing-mark and tfo, as it always has under CMFA.
+// A refused protect never fails the dial: the socket waits for the next VPN.
+func init() {
+	dialer.DefaultSocketHook = func(network, address string, conn syscall.RawConn) error {
+		if platform.ShouldBlockConnection() {
+			return errBlocked
+		}
+		socketProtection.guard(conn)
+		return nil
+	}
+}
 
 func installHooks() {
 	installHooksOnce.Do(func() {
-		dialer.DefaultSocketHook = func(network, address string, conn syscall.RawConn) error {
-			if platform.ShouldBlockConnection() {
-				return errBlocked
-			}
-			th := activeTunHandler.Load()
-			if th == nil {
-				return nil
-			}
-			return protectSocket(conn, th.handleProtect)
-		}
 		process.DefaultPackageNameResolver = func(metadata *constant.Metadata) (string, error) {
 			th := activeTunHandler.Load()
 			if th == nil {

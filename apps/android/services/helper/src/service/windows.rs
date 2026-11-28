@@ -23,7 +23,7 @@ use windows_service::{
     service_manager::{ServiceManager, ServiceManagerAccess},
 };
 
-const SERVICE_NAME: &str = "FlClashHelperService";
+const SERVICE_NAME: &str = "Flux6HelperService";
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 const SERVICE_OPERATION_TIMEOUT: Duration = Duration::from_secs(10);
 const SERVICE_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -144,7 +144,37 @@ fn run_windows_service() -> Result<()> {
     Ok(())
 }
 
+fn installed_executable() -> Result<std::path::PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use std::os::windows::fs::MetadataExt;
+    use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+    use windows_sys::Win32::UI::Shell::{SHGetFolderPathW, CSIDL_PROGRAM_FILES};
+
+    let mut buffer = [0u16; 260];
+    let result =
+        unsafe { SHGetFolderPathW(0, CSIDL_PROGRAM_FILES as i32, 0, 0, buffer.as_mut_ptr()) };
+    anyhow::ensure!(result == 0, "cannot resolve Program Files");
+    let end = buffer
+        .iter()
+        .position(|item| *item == 0)
+        .context("invalid system path")?;
+    let dir = std::path::PathBuf::from(OsString::from_wide(&buffer[..end])).join("Flux6");
+    let installed = dir.join("Flux6HelperService.exe");
+    for path in [&dir, &installed] {
+        anyhow::ensure!(
+            path.symlink_metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+            "expected a protected Flux6 installation"
+        );
+    }
+    anyhow::ensure!(
+        std::env::current_exe()?.canonicalize()? == installed.canonicalize()?,
+        "install Flux6 in Program Files to use the service"
+    );
+    Ok(installed)
+}
+
 fn install_service(owner_pid: u32) -> Result<()> {
+    let executable_path = installed_executable()?;
     let owner_sid = process_sid(owner_pid)
         .with_context(|| format!("read the account of process {owner_pid}"))?;
     let manager = ServiceManager::local_computer(
@@ -154,7 +184,6 @@ fn install_service(owner_pid: u32) -> Result<()> {
     .context("open Windows service manager")?;
     remove_existing_service(&manager)?;
 
-    let executable_path = std::env::current_exe().context("resolve helper executable path")?;
     let service_info = ServiceInfo {
         name: OsString::from(SERVICE_NAME),
         display_name: OsString::from(SERVICE_NAME),

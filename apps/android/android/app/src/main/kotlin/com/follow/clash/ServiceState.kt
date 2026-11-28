@@ -37,6 +37,4 @@ object ServiceState {
     internal fun captureRequestToken(): RunRequest = machine.captureRequestToken()
 
     internal suspend fun handleServiceLost(token: RunRequest) = machine.handleServiceLost(token)
-
-    internal suspend fun handleRequiredNetworkLost(token: RunRequest) = machine.handleRequiredNetworkLost(token)
 }

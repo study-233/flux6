@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
-  const PLATFORMS = ['android', 'macos'];
-  const PLATFORM_NAMES = { android: 'Android', macos: 'macOS' };
+  const PLATFORMS = ['android', 'macos', 'windows'];
+  const PLATFORM_NAMES = { android: 'Android', macos: 'macOS', windows: 'Windows' };
   const PAGE = 15;
   const { REPO, FIRST_PAGE, parseChangelog, translate, formatDate, changelogMeta, timelineHtml } =
     globalThis.Flux6Site;
@@ -21,8 +21,7 @@
   const state = {
     lang: root.lang.startsWith('zh') ? 'zh' : 'en',
     platform: 'android',
-    arch: 'x64',
-    detected: { platform: null, arch: 'x64', ios: false },
+    detected: { platform: null },
     platformChosen: false,
     release: null,
     releaseFailed: false,
@@ -63,11 +62,6 @@
 
   const ICON_DOWN =
     '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 3.5v11m0 0-4.5-4.5m4.5 4.5 4.5-4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const ICON_COPY =
-    '<svg class="ico-copy" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="6.75" y="6.75" width="9.5" height="9.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13.25 4.75v-.5a1.5 1.5 0 0 0-1.5-1.5h-6.5a2.5 2.5 0 0 0-2.5 2.5v6.5a1.5 1.5 0 0 0 1.5 1.5h.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-  const ICON_CHECK =
-    '<svg class="ico-check" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="m4.5 10.5 3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
   const LANE_IN = [
     { opacity: 0, transform: 'translate(-16px, 9px)' },
     { opacity: 1, transform: 'none' },
@@ -96,25 +90,25 @@
     return `${(bytes / 1048576).toFixed(1)} MB`;
   }
 
-  function goArch(arch) {
-    return arch === 'arm64' ? 'arm64' : 'amd64';
-  }
-
   function buildsFor(platform) {
     if (platform === 'android') return [
       { filename: /-(?:android-arm64|Android)\.apk$/, kind: 'APK', title: 'ARM64', note: 'noteAndroidArm64', rec: true },
     ];
     if (platform === 'macos') return [
       { filename: /-(?:macos-arm64|macOS)\.dmg$/, kind: 'DMG', title: 'Apple Silicon', note: 'noteMacArm', rec: true },
-      { filename: /(?:_arm64|-macOS)\.zip$/, kind: 'ZIP', titleKey: 'macZip', note: 'noteMacZip' },
+      { filename: /-b\d+-arm64\.zip$/, kind: 'ZIP', titleKey: 'macZip', note: 'noteMacZip' },
+    ];
+    if (platform === 'windows') return [
+      { filename: /-windows-amd64-setup\.exe$/, kind: 'EXE', titleKey: 'windowsSetup', note: 'noteWindowsSetup', rec: true },
+      { filename: /-windows-amd64\.zip$/, kind: 'ZIP', titleKey: 'windowsPortable', note: 'noteWindowsPortable' },
     ];
     return [];
   }
 
-  function resolveBuilds(platform, arch) {
+  function resolveBuilds(platform) {
     const release = state.release;
     if (!release) return [];
-    return buildsFor(platform, arch)
+    return buildsFor(platform)
       .map((build) => {
         const asset = Array.from(release.assets.values()).find(({ name }) => build.filename.test(name));
         if (!asset) return null;
@@ -133,8 +127,10 @@
   async function detectDevice() {
     const ua = navigator.userAgent;
     const ios = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
-    const platform = /android/i.test(ua) ? 'android' : !ios && /macintosh|mac os x/i.test(ua) ? 'macos' : null;
-    return { platform, arch: 'arm64', ios: !platform };
+    if (/android/i.test(ua)) return { platform: 'android' };
+    if (/windows nt/i.test(ua)) return { platform: 'windows' };
+    if (!ios && /macintosh|mac os x/i.test(ua)) return { platform: 'macos' };
+    return { platform: null };
   }
 
   function localizedVersions() {
@@ -176,7 +172,6 @@
     $('#theme-toggle').setAttribute('aria-label', t('themeLabel'));
     $('#reel').setAttribute('aria-label', `${t('reelLabel')}: ${PLATFORM_NAMES[state.platform]}`);
     $('#platform-seg').setAttribute('aria-label', t('platformLabel'));
-    $('#arch-seg').setAttribute('aria-label', t('archLabel'));
   }
 
   function renderReleaseMeta() {
@@ -186,9 +181,6 @@
       heroText.textContent = t('heroRelease', release.tag);
       $('#hero-release').href = `#${release.tag}`;
       $('#dl-meta').textContent = t('dlMeta', release.version, formatDate(release.date, state.lang));
-      const windowsInstaller = release.assets.get(`Flux6-${release.version}-windows-x64-setup.exe`);
-      $('#windows-installer').hidden = !windowsInstaller;
-      if (windowsInstaller) $('#windows-installer').href = windowsInstaller.url;
     } else {
       heroText.textContent = t('heroReleaseLoading');
     }
@@ -246,9 +238,9 @@
     const title = $('#cta-title');
     const sub = $('#cta-sub');
     const note = $('#cta-note');
-    note.hidden = !state.detected.ios;
-    note.textContent = state.detected.ios ? t('ctaIos') : '';
-    const builds = state.detected.ios && !state.platformChosen ? [] : resolveBuilds(state.platform, state.arch);
+    note.hidden = Boolean(state.detected.platform);
+    note.textContent = !state.detected.platform ? t('ctaIos') : '';
+    const builds = !state.detected.platform && !state.platformChosen ? [] : resolveBuilds(state.platform);
     const pick = builds.find((b) => b.rec) || builds[0];
     if (!pick) {
       title.textContent = t('ctaChoose');
@@ -258,7 +250,6 @@
     }
     title.textContent = t('ctaDownload', PLATFORM_NAMES[state.platform]);
     const parts = [pick.short || pick.title];
-    if (state.platform === 'windows' || state.platform === 'linux') parts.unshift(state.arch === 'arm64' ? 'ARM64' : 'x64');
     if (pick.size) parts.push(formatSize(pick.size));
     sub.textContent = parts.join(' · ');
     sub.hidden = false;
@@ -339,53 +330,18 @@
     );
   }
 
-  function commandBlock(text) {
-    return el(
-      'div',
-      { class: 'cmd' },
-      el('pre', {}, el('code', { text })),
-      el(
-        'button',
-        {
-          class: 'copy',
-          type: 'button',
-          'aria-label': t('copy'),
-          onclick: (event) => copyText(text, event.currentTarget),
-        },
-        svg(ICON_COPY),
-        svg(ICON_CHECK),
-      ),
-    );
-  }
-
-  function tip(titleKey, textKey, ...extra) {
-    return el('div', { class: 'tip' }, el('h3', { text: t(titleKey) }), el('p', { text: t(textKey) }), ...extra);
-  }
-
-  function extrasFor(platform) {
-    if (platform === 'android') return [tip('tipSetupTitle', 'tipSetup')];
-    if (platform === 'macos') return [tip('tipBrewTitle', 'tipBrew', commandBlock('brew tap study-233/tap\nbrew install --cask study-233/tap/flux6'))];
-    return [];
-  }
-
   function renderPanel(withMotion) {
     const panel = $('#panel');
     const startHeight = panel.offsetHeight;
-    const hints = { android: 'hintAndroid', windows: 'hintWindows', macos: 'hintMacos', linux: 'hintLinux' };
+    const hints = { android: 'hintAndroid', windows: 'hintWindows', macos: 'hintMacos' };
     $('#panel-hint').textContent = t(hints[state.platform]);
     panel.setAttribute('aria-labelledby', `tab-${state.platform}`);
 
-    const archSeg = $('#arch-seg');
-    const archWasHidden = archSeg.hidden;
-    archSeg.hidden = !(state.platform === 'windows' || state.platform === 'linux');
-    if (!archSeg.hidden) selectTab(archSeg, state.arch, withMotion && !archWasHidden);
-
     const files = $('#files');
-    const builds = resolveBuilds(state.platform, state.arch);
+    const builds = resolveBuilds(state.platform);
     files.replaceChildren(...builds.map(fileRow));
     $('#dl-error').hidden = !state.releaseFailed;
     $('#dl-error').textContent = state.releaseFailed ? t('dlError') : '';
-    $('#extras').replaceChildren(...extrasFor(state.platform));
 
     if (!withMotion) return;
     const endHeight = panel.offsetHeight;
@@ -398,7 +354,7 @@
       if (resize) resize.onfinish = resize.oncancel = () => (panel.style.overflow = '');
       else panel.style.overflow = '';
     }
-    [...files.children, ...$('#extras').children].forEach((node, index) => {
+    [...files.children].forEach((node, index) => {
       animate(node, LANE_IN, { duration: 700, delay: 45 * index, easing: springEasing, fill: 'backwards' });
     });
   }
@@ -455,22 +411,12 @@
     const changed = platform !== state.platform;
     state.platform = platform;
     state.platformChosen = true;
-    if (platform === 'macos' || platform === 'windows' || platform === 'linux') {
-      state.arch = state.detected.platform === platform ? state.detected.arch : platform === 'macos' ? 'arm64' : 'x64';
-    }
     selectTab($('#platform-seg'), platform, true);
     if (from !== 'reel' && changed) reel.roll(platform);
     if (changed) field?.surge();
     $('#reel').setAttribute('aria-label', `${t('reelLabel')}: ${PLATFORM_NAMES[platform]}`);
     renderCta();
     renderPanel(changed);
-  }
-
-  function setArch(arch) {
-    if (arch === state.arch) return;
-    state.arch = arch;
-    renderCta();
-    renderPanel(true);
   }
 
   function matchVersion(version, query) {
@@ -738,7 +684,6 @@
     const url = new URL(link.dataset.base, location.href);
     if (state.platformChosen) {
       url.searchParams.set('platform', state.platform);
-      url.searchParams.set('arch', state.arch);
     }
     const query = state.query.trim();
     if (query) url.searchParams.set('q', query);
@@ -748,7 +693,7 @@
 
   function takeCarriedView() {
     const params = new URLSearchParams(location.search);
-    const view = { platform: params.get('platform'), arch: params.get('arch'), query: params.get('q') };
+    const view = { platform: params.get('platform'), query: params.get('q') };
     if (!['platform', 'arch', 'q'].some((key) => params.has(key))) return view;
     for (const key of ['platform', 'arch', 'q']) params.delete(key);
     const search = params.toString();
@@ -882,7 +827,6 @@
 
   function wireEvents() {
     wireTabs($('#platform-seg'), (value) => setPlatform(value));
-    wireTabs($('#arch-seg'), (value) => setArch(value));
 
     $('#reel').addEventListener('click', () => {
       const next = PLATFORMS[(PLATFORMS.indexOf(state.platform) + 1) % PLATFORMS.length];
@@ -946,7 +890,6 @@
       cancelAnimationFrame(resizeFrame);
       resizeFrame = requestAnimationFrame(() => {
         moveInk($('#platform-seg'), false);
-        moveInk($('#arch-seg'), false);
         reel.refit();
         followScroll();
       });
@@ -970,11 +913,9 @@
     const [device] = await Promise.all([detectDevice(), loadData()]);
     state.detected = device;
     state.platform = device.platform || 'macos';
-    state.arch = device.arch;
     if (PLATFORMS.includes(carried.platform)) {
       state.platform = carried.platform;
       state.platformChosen = true;
-      if (carried.arch === 'x64' || carried.arch === 'arm64') state.arch = carried.arch;
     }
     if (carried.query) {
       state.query = carried.query;

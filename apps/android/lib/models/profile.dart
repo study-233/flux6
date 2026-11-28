@@ -76,9 +76,8 @@ abstract class Profile with _$Profile {
     @Default(true) bool autoUpdate,
     @Default({}) Map<String, String> selectedMap,
     @Default({}) Set<String> unfoldSet,
-    @Default(ExtendType.standard) ExtendType extendType,
     int? scriptId,
-    String? matchTarget,
+    @Default({}) Map<String, String> exitTargets,
     int? order,
     @Default(ProfileOverrides())
     @JsonKey(fromJson: ProfileOverrides.safeFromJson)
@@ -203,15 +202,19 @@ extension ProfileExtension on Profile {
     Uint8List bytes, {
     required ValidateConfig validate,
   }) async {
-    final path = await appPath.tempFilePath;
-    final tempFile = File(path);
-    await tempFile.safeWriteAsBytes(bytes);
-    if (await validate(path, ageSecretKey) case final issue?) {
-      throw MessageException(issue);
+    final target = await _getFile(false);
+    await target.parent.create(recursive: true);
+    final staging = await target.parent.createTemp('.import-');
+    try {
+      final candidate = File('${staging.path}/profile.yaml');
+      await candidate.writeAsBytes(bytes, flush: true);
+      if (await validate(candidate.path, ageSecretKey) case final issue?) {
+        throw MessageException(issue);
+      }
+      await candidate.rename(target.path);
+    } finally {
+      await staging.delete(recursive: true);
     }
-    final mFile = await file;
-    await tempFile.copy(mFile.path);
-    await tempFile.safeDelete();
     return copyWith(lastUpdateDate: DateTime.now());
   }
 }

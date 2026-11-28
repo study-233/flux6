@@ -121,3 +121,11 @@ MACOS FLUTTER CLIENT
     Flutter 3.47.6. The release's generated package and asset licenses
     are included in Resources/Notices/Flutter-Package-Notices.txt.
     The Flutter framework license is in Resources/Notices/Flutter-LICENSE.txt.
+
+
+FLUX6 0.2 UNIFIED CLIENT
+The Android, macOS and Windows distributions include FlClash v0.9.5,
+its pinned mihomo fork and Prism UI. The combined client is distributed
+under GPL-3.0. See apps/android/LICENSE and apps/android/FREEV6.md for the
+source revisions and each upstream component's own license and notices.
+Earlier desktop entries above describe the 0.1.x distributions.

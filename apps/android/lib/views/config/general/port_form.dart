@@ -89,7 +89,7 @@ class _PortFormState extends ConsumerState<_PortForm> {
         .read(patchClashConfigProvider.notifier)
         .update(
           (state) => state.copyWith(
-            mixedPort: 7890,
+            mixedPort: defaultMixedPort,
             port: 0,
             socksPort: 0,
             redirPort: 0,
