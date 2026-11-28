@@ -700,6 +700,12 @@ void main() {
   });
 
   group('PatchClashConfig mixed port', () {
+    test('new configurations use 17890 and saved ports take precedence', () {
+      expect(const PatchClashConfig().mixedPort, 17890);
+      expect(PatchClashConfig.fromJson({}).mixedPort, 17890);
+      expect(PatchClashConfig.fromJson({'mixed-port': 7890}).mixedPort, 7890);
+    });
+
     test('a stored 0 or a part of a port reads as the default', () {
       for (final stored in <Object>[0, 0.5, -1, 70000, '7890']) {
         expect(

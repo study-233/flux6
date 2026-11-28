@@ -408,7 +408,7 @@ void main() {
         expect(
           banners,
           contains(
-            '[APP] banner: The mixed port cannot be 0, so it was set back to 7890',
+            '[APP] banner: The mixed port cannot be 0, so it was set back to $defaultMixedPort',
           ),
         );
       },

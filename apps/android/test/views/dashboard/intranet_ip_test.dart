@@ -66,7 +66,7 @@ void main() {
     await tester.pump();
 
     expect(container.read(patchClashConfigProvider).allowLan, isTrue);
-    expect(find.text('Port 7890'), findsOneWidget);
+    expect(find.text('Port 17890'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -96,7 +96,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Copy'));
     await tester.pump();
-    expect(copied, '192.168.1.23:7890');
+    expect(copied, '192.168.1.23:17890');
     await tester.pumpAndSettle();
   });
 

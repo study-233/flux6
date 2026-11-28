@@ -157,4 +157,18 @@ void main() {
     expect(config.redirPort, 0);
     expect(config.tproxyPort, 0);
   });
+
+  testWidgets('reset restores the Flux6 mixed port', (tester) async {
+    final container = await _openPortForm(tester);
+    container
+        .read(patchClashConfigProvider.notifier)
+        .update((config) => config.copyWith(mixedPort: 7890));
+    await tester.ensureVisible(find.text('Reset'));
+    await tester.tap(find.text('Reset'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Reset'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(patchClashConfigProvider).mixedPort, 17890);
+  });
 }

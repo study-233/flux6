@@ -1,3 +1,5 @@
+import 'package:fl_clash/models/clash_config.dart' show defaultMixedPort;
+
 enum YamlKind { scalar, map, list }
 
 /// Where a scalar's completions come from besides [YamlSchema.values].
@@ -127,7 +129,7 @@ const ruleTypes = {
   'SRC-IP-SUFFIX': '192.168.1.1/24',
   'DST-PORT': '443',
   'SRC-PORT': '7777',
-  'IN-PORT': '7890',
+  'IN-PORT': '$defaultMixedPort',
   'IN-TYPE': 'SOCKS/HTTP',
   'IN-USER': 'user',
   'IN-NAME': 'listener',
