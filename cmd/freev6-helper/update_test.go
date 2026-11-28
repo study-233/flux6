@@ -14,6 +14,28 @@ import (
 	"time"
 )
 
+func TestPackagedUpdateManifest(t *testing.T) {
+	path := os.Getenv("FLUX6_WINDOWS_UPDATE_MANIFEST")
+	if path == "" {
+		t.Skip("requires a packaged Windows installer and version.json")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := parseVersionJSON(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	installer, err := os.ReadFile(filepath.Join(filepath.Dir(path), info.Setup))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sha256Hex(installer) != info.SHA256 {
+		t.Fatal("packaged installer SHA-256 differs from version.json")
+	}
+}
+
 func TestHostAllowed(t *testing.T) {
 	allowed := []string{"github.com", "objects.githubusercontent.com", "gh-proxy.com",
 		"v6.gh-proxy.org", "v4.gh-proxy.org", "cdn.gh-proxy.org", "axisnow.gh-proxy.org"}

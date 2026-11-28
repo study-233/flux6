@@ -40,8 +40,8 @@
     },
     {
       "name": "version.json",
-      "size": 205,
-      "digest": "sha256:803c2f22e9c625b2d03ea1001e2b78cd3aee3a66d8b3b12837be2876740d9e51",
+      "size": 312,
+      "digest": "sha256:1b1eea2d76c0bc4a453921bbcbcee218dcc5f4bd49680dcdae3a39246325ace2",
       "url": "https://github.com/study-233/flux6/releases/download/v0.2.0/version.json"
     }
   ]

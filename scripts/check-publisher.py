@@ -8,6 +8,7 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "internal/publisher/publisher.go").read_text()
 repository = re.search(r'Repository\s*=\s*"([^"]+)"', source).group(1)
 expected = {
+    "scripts/windows/write-update-manifest.ps1": f"$repository = 'https://github.com/{repository}'",
     "apps/windows/web/app.js": f"const UPDATE_OWNER_REPO = '{repository}';",
     "apps/windows/web/index.html": f"@{repository}",
     "scripts/macos/github_channel.py": f'REPOSITORY = "{repository}"',
