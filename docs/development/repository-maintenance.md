@@ -759,3 +759,13 @@ Windows 版本源改为 `apps/windows/release.json`（候选 0.1.4 build 1），
 本机 preview/live x64 原生构建、独立预览宿主探针和 NSIS 打包通过。初次编译因本机 UCRT 注册路径指向不存在的目录失败，在当前构建进程显式设置正确的 SDK 根后完成；未改动系统 SDK 或注册表。安装器解包后的 94 个文件与构建目录逐字节一致，对应源码的 3,270 个文件与程序内清单一致。客户端为 `0.1.4+1`，helper 为 `0.1.4.1`，均为 AMD64。草稿中三个附件的 GitHub 摘要与本地验证值一致，随后公开发布。公开下载的 `version.json` 与本地逐字节一致，清单中的安装器下载地址返回 HTTP 200。
 
 本轮没有覆盖用户安装，也未进行真实校园网验证；0.1.3 原目录覆盖升级、实网选点及网络恢复仍以设备验收为准。本机记录在 `build/release014-build.log` 和 `build/release014-verification.json`，不进入发行源码。
+
+## 2026-11-28 合并主线与本机清理
+
+[PR #32](https://github.com/study-233/flux6/pull/32) 以合并提交 `d1bda63` 将统一客户端、0.1.3 发布历史和 Windows 0.1.4 修复合入 `main`，保留原提交关系。Windows 预览 CI 首次因 Python 默认 CP1252 无法读取中文夹具失败；仅在该任务设置 `PYTHONUTF8=1` 后，[Windows 原生预览检查](https://github.com/study-233/flux6/actions/runs/46101057791) 通过，[合并后的主线 CI](https://github.com/study-233/flux6/actions/runs/46102103204) 通过。该修复不改变客户端行为。
+
+核对提交归属后，删除本地及远端的 `feat/unified-windows-client`、`refactor/unified-client-baseline`、`release/0.1.3` 和 `fix/windows-flclash-experience`。用户确认不再需要的 `chore/verify-0.1.3-windows` 临时验收分支也已删除，未另建归档标签；其验收结论保留在上文。远端开发主线仅保留 `main`，部署数据分支 `macos-updates`、上游来源和发布标签不变。
+
+在原生 PowerShell 中逐项核验清理路径、活动进程、运行数据及符号链接，移除四个旧工作树和过期构建、原型、重复候选缓存，共 48 个目标、约 21.10 GiB 文件。`build/uw` 改为 detached HEAD，保留已登记安装的 0.1.2 验收应用及其原目录；36 个验收与安装文件的 SHA256 清理前后一致。正在运行的独立预览、工具链、上游参考及签名和运行配置保留，未停止用户进程或卸载应用。
+
+已有 0.1.3 和 0.1.4 正式安装包及对应源码移至 `dist/release/v0.1.3/` 和 `dist/release/v0.1.4/`，七个保留文件逐一通过 SHA256 校验。0.1.4 发布与视觉证据保留在 `build/retained-evidence/0.1.4/`。本轮未生成新安装包、便携包或离线包，未修改 GitHub Release、Latest 或更新清单。维护记录为纯文档变更，跳过结构审查，使用仓库与链接检查；既有原生检查结果继续有效，不扩大安装或真实网络验收范围。
