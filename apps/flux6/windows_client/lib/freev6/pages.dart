@@ -15,6 +15,8 @@ import 'session.dart';
 import 'forms.dart';
 import 'updates.dart';
 import 'licenses.dart';
+import 'network_settings.dart';
+import 'port_settings.dart';
 
 class FreeV6ConfigurationView extends ConsumerWidget {
   const FreeV6ConfigurationView({super.key});
@@ -202,6 +204,21 @@ class FreeV6SettingsView extends ConsumerWidget {
               title: Text(l.freev6Data),
               leading: const GlyphIcon(AppGlyphs.resources),
               widget: const FreeV6DataView(),
+            ),
+            ListItem(
+              title: Text(l.freev6Ports),
+              leading: const GlyphIcon(AppGlyphs.wifi),
+              onTap: model.busy
+                  ? null
+                  : () => showFormSheet(
+                      context: context,
+                      builder: (_) => const FreeV6PortForm(),
+                    ),
+            ),
+            ListItem.open(
+              title: Text(l.freev6NetworkSettings),
+              leading: const GlyphIcon(AppGlyphs.wifi),
+              widget: const FreeV6NetworkView(),
             ),
           ],
         ),

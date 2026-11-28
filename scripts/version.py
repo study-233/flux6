@@ -21,11 +21,8 @@ def versions(root=ROOT, platform=None):
         version, build = android[1].split('+', 1)
         data['android'] = {'version': version, 'build': build}
     if platform in (None, 'windows'):
-        windows = json.loads((root / 'apps/windows/src-tauri/tauri.conf.json').read_text())['version']
-        cargo = re.search(r'^version\s*=\s*"([^"]+)"', (root / 'apps/windows/src-tauri/Cargo.toml').read_text(), re.M)
-        if cargo is None or cargo[1] != windows:
-            raise ValueError('Windows Tauri and Cargo versions differ')
-        data['windows'] = {'version': windows, 'build': None}
+        manifest = json.loads((root / 'apps/windows/release.json').read_text())
+        data['windows'] = {'version': manifest['version'], 'build': manifest['build']}
     for platform, item in data.items():
         if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[\w.-]+)?', item['version']):
             raise ValueError(f'Invalid {platform} version')

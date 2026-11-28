@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
@@ -13,14 +14,21 @@ import 'package:fl_clash/providers/routed_probe.dart';
 import 'package:fl_clash/state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/widgets.dart' show Color;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:freev6_windows/app/client_model.dart' show ClientModel;
 import 'package:freev6_windows/app/live_model.dart' show LiveModel;
 import 'package:freev6_windows/app/preview_model.dart' show PreviewModel;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:prism_ui/prism_ui.dart' show ThemeMode, BannerLevel;
 
+import 'core_adapter.dart';
+import 'probes.dart';
+
+import 'package:fl_clash/providers/ip_quality.dart';
+
 const accessGroup = '接入点';
 const chainGroup = '链式代理';
+const automaticProxyName = '__Flux6_Automatic__';
 
 final freev6SessionProvider = Provider<FreeV6Session>(
   (ref) => throw StateError('FreeV6 session missing'),
@@ -61,25 +69,19 @@ class FreeV6Session {
     if (!model.preview && !backend) {
       throw ArgumentError('This target only accepts an offline FreeV6 model');
     }
-    final guard = GuardedCore(blockedCoreCalls);
+    coreAdapter = WindowsCoreAdapter(model);
     container = ProviderContainer(
       overrides: [
         freev6SessionProvider.overrideWithValue(this),
-        coreHandlerProvider.overrideWithValue(CoreController.adapter(guard)),
-        appSettingProvider.overrideWithBuild(
-          (_, _) => const AppSettingProps(
-            locale: 'zh_CN',
-            autoCheckUpdate: false,
-            openLogs: true,
-            dashboardWidgets: [
-              DashboardWidget.currentOutbound,
-              DashboardWidget.networkSpeed,
-              DashboardWidget.outboundMode,
-              DashboardWidget.profiles,
-              DashboardWidget.proxyGroups,
-            ],
-          ),
+        coreHandlerProvider.overrideWithValue(
+          CoreController.adapter(coreAdapter),
         ),
+        appSettingProvider.overrideWithBuild(
+          (_, _) => AppSettingProps.safeFromJson(
+            _preferenceObject('flclash-app-settings'),
+          ).copyWith(locale: 'zh_CN', autoCheckUpdate: false, openLogs: true),
+        ),
+        proxiesStyleSettingProvider.overrideWithBuild((_, _) => _proxyStyle()),
         profilesProvider.overrideWith(() => OfflineProfiles(this)),
         currentProfileIdProvider.overrideWithBuild((_, _) => 1),
         initProvider.overrideWithBuild((_, _) => true),
@@ -90,7 +92,8 @@ class FreeV6Session {
         logsProvider.overrideWith(() => FreeV6Logs(this)),
         setupActionProvider.overrideWith(() => FreeV6SetupAction(this)),
         proxiesActionProvider.overrideWith(() => FreeV6ProxiesAction(this)),
-        outboundIpProbeProvider.overrideWith(OfflineOutbound.new),
+        routeTrackerProvider.overrideWith(WindowsRouteTracker.new),
+        ipQualityProvider.overrideWith(windowsIpQuality),
         scriptsProvider.overrideWithBuild((_, _) => Stream.value(const [])),
         globalRulesProvider.overrideWithBuild((_, _) => Stream.value(const [])),
         iconSetsProvider.overrideWithBuild((_, _) => Stream.value(const [])),
@@ -104,13 +107,24 @@ class FreeV6Session {
     globalState.appEnv = 'stable';
     globalState.packageInfo = PackageInfo(
       appName: 'Flux6',
-      packageName: offline ? 'dev.freev6.windows.offline' : 'dev.freev6.windows',
+      packageName: offline
+          ? 'dev.freev6.windows.offline'
+          : 'dev.freev6.windows',
       version: model.runtime['appVersion']?.toString() ?? '',
       buildNumber: '0',
     );
     _hold = container.listen(configProvider, (_, _) {});
     model.addListener(sync);
     sync();
+    _appPreferences = container.listen(appSettingProvider, (_, next) {
+      _saveUi('flclash-app-settings', next.toJson());
+    });
+    _proxyPreferences = container.listen(proxiesStyleSettingProvider, (
+      _,
+      next,
+    ) {
+      _saveUi('flclash-proxy-style', next.toJson());
+    });
   }
   final ClientModel model;
   final bool backend, offline;
@@ -118,6 +132,57 @@ class FreeV6Session {
   String? batchGroup;
   late final ProviderContainer container;
   late final ProviderSubscription<Config> _hold;
+  ProviderSubscription<AppSettingProps>? _appPreferences;
+  ProviderSubscription<ProxiesStyleProps>? _proxyPreferences;
+  Timer? _preferenceTimer;
+  final _uiWrites = <String, String>{};
+  Future<void> _uiFlush = Future.value();
+
+  ProxiesStyleProps _proxyStyle() {
+    try {
+      return ProxiesStyleProps.fromJson(
+        _preferenceObject('flclash-proxy-style'),
+      );
+    } on Object {
+      return const ProxiesStyleProps();
+    }
+  }
+
+  Map<String, Object?>? _preferenceObject(String key) {
+    try {
+      final value = jsonDecode(model.preference(key, '{}'));
+      return value is Map ? Map<String, Object?>.from(value) : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  void _saveUi(String key, Map<String, dynamic> value) {
+    _uiWrites[key] = jsonEncode(value);
+    _preferenceTimer?.cancel();
+    _preferenceTimer = Timer(const Duration(milliseconds: 250), () {
+      unawaited(flushUiPreferences());
+    });
+  }
+
+  Future<void> flushUiPreferences() {
+    _preferenceTimer?.cancel();
+    return _uiFlush = _uiFlush.then((_) => _flushUi());
+  }
+
+  Future<void> _flushUi() async {
+    final writes = Map.of(_uiWrites);
+    _uiWrites.clear();
+    for (final entry in writes.entries) {
+      if (!await model.act('preferences.set', {
+        'key': entry.key,
+        'value': entry.value,
+      })) {
+        _uiWrites.putIfAbsent(entry.key, () => entry.value);
+      }
+    }
+  }
+
   final commands = <String>[];
   final blockedCoreCalls = <String>[];
   String group = accessGroup;
@@ -125,9 +190,14 @@ class FreeV6Session {
   bool _closed = false;
   bool _wasConnected = false;
   final _nodeCache = <String, List<String>>{};
+  late final WindowsCoreAdapter coreAdapter;
   final _selectionCache = <String, String?>{};
   Future<void> _nodeActions = Future.value();
   String? _appearanceKey;
+  int _connectionsRevision = -1;
+  Set<String> _activeRequestIds = {};
+  Object? _latestLog;
+  int _trafficRevision = -1;
 
   CoreStatus get _coreStatus =>
       model.preview || model.canConnectAction || model.busy
@@ -170,9 +240,12 @@ class FreeV6Session {
       hidden: false,
       name: accessGroup,
       now: _selectionCache[accessGroup],
-      all: (_nodeCache[accessGroup] ?? const <String>[])
-          .map((n) => Proxy(name: n, type: 'MASQUE'))
-          .toList(),
+      all: [
+        const Proxy(name: automaticProxyName, type: 'Flux6Auto'),
+        ...(_nodeCache[accessGroup] ?? const <String>[]).map(
+          (n) => Proxy(name: n, type: 'MASQUE'),
+        ),
+      ],
     ),
     if ((model.chain['count'] as num? ?? 0) > 0)
       Group(
@@ -180,9 +253,12 @@ class FreeV6Session {
         hidden: false,
         name: chainGroup,
         now: _selectionCache[chainGroup],
-        all: (_nodeCache[chainGroup] ?? const <String>[])
-            .map((n) => Proxy(name: n, type: 'SOCKS5'))
-            .toList(),
+        all: [
+          const Proxy(name: automaticProxyName, type: 'Flux6Auto'),
+          ...(_nodeCache[chainGroup] ?? const <String>[]).map(
+            (n) => Proxy(name: n, type: 'SOCKS5'),
+          ),
+        ],
       ),
   ];
 
@@ -190,8 +266,27 @@ class FreeV6Session {
     String action, [
     Map<String, dynamic> arguments = const {},
   ]) async {
+    if (action == 'app.quit' ||
+        action == 'update.install' ||
+        action == 'preferences.export' ||
+        action == 'preferences.import') {
+      await flushUiPreferences();
+      if (_uiWrites.isNotEmpty) return false;
+    }
     commands.add(action);
     final result = await model.act(action, arguments);
+    if (result && action == 'preferences.import') {
+      container
+          .read(appSettingProvider.notifier)
+          .update(
+            (_) => AppSettingProps.safeFromJson(
+              _preferenceObject('flclash-app-settings'),
+            ).copyWith(locale: 'zh_CN', autoCheckUpdate: false, openLogs: true),
+          );
+      container
+          .read(proxiesStyleSettingProvider.notifier)
+          .update((_) => _proxyStyle());
+    }
     if (result &&
         (action == 'chain.clear' || action == 'settings.reset') &&
         model.proxyTab == 'chain') {
@@ -209,19 +304,37 @@ class FreeV6Session {
       container.read(delayDataSourceProvider.notifier).value = {};
     }
     _wasConnected = model.connected;
+    _syncRequests();
     group = model.proxyTab == 'chain' ? chainGroup : accessGroup;
     _nodeCache[group] = model.nodes.toList();
-    _selectionCache[group] = model.currentNode ?? model.preferredNode;
+    _selectionCache[group] = model.connected
+        ? (model.preferredNode ?? automaticProxyName)
+        : null;
     if ((model.chain['count'] as num? ?? 0) == 0) {
       _nodeCache.remove(chainGroup);
       _selectionCache.remove(chainGroup);
     }
+    coreAdapter.syncRoute(
+      jsonEncode([
+        model.connected,
+        if (model is LiveModel) (model as LiveModel).downloadSession,
+        model.mode,
+        _selectionCache,
+        model.currentNode,
+        if (model is LiveModel) (model as LiveModel).nodeTools.activeNodes,
+      ]),
+    );
     container.read(coreStatusProvider.notifier).value = _coreStatus;
     _syncAppearance();
-    (container.read(profilesProvider.notifier) as OfflineProfiles).replace(
-      _profiles,
-    );
-    container.read(groupsProvider.notifier).value = _groups;
+    final profiles = _profiles, groups = _groups;
+    if (!listEquals(container.read(profilesProvider), profiles)) {
+      (container.read(profilesProvider.notifier) as OfflineProfiles).replace(
+        profiles,
+      );
+    }
+    if (!listEquals(container.read(groupsProvider), groups)) {
+      container.read(groupsProvider.notifier).value = groups;
+    }
     container.read(runTimeProvider.notifier).value = model.connected
         ? model.uptime.inMilliseconds
         : null;
@@ -240,25 +353,36 @@ class FreeV6Session {
       up: model.usageUpload,
       down: model.usageDownload,
     );
-    final up = model.uploadHistory, down = model.downloadHistory;
-    container.read(trafficsProvider.notifier).value = FixedList(
-      trafficSampleLength,
-      list: [
-        for (var i = 0; i < up.length && i < down.length; i++)
-          Traffic(up: up[i].round(), down: down[i].round()),
-      ],
-    );
-    container.read(logsProvider.notifier).value = FixedList(
-      maxLogsLength,
-      list: [
-        for (final log in model.logs.reversed)
-          Log(
-            logLevel: log.level == '警告' ? LogLevel.warning : LogLevel.info,
-            payload: log.message,
-            dateTime: log.time.toIso8601String(),
-          ),
-      ],
-    );
+    if (_trafficRevision != model.traffic.value) {
+      _trafficRevision = model.traffic.value;
+      final up = model.uploadHistory, down = model.downloadHistory;
+      container.read(trafficsProvider.notifier).value = FixedList(
+        trafficSampleLength,
+        list: [
+          for (var i = 0; i < up.length && i < down.length; i++)
+            Traffic(up: up[i].round(), down: down[i].round()),
+        ],
+      );
+    }
+    if (!identical(_latestLog, model.logs.firstOrNull)) {
+      _latestLog = model.logs.firstOrNull;
+      container.read(logsProvider.notifier).value = FixedList(
+        maxLogsLength,
+        list: [
+          for (final log in model.logs.reversed)
+            Log(
+              logLevel: switch (log.level) {
+                '警告' || 'warning' => LogLevel.warning,
+                'error' => LogLevel.error,
+                'debug' => LogLevel.debug,
+                _ => LogLevel.info,
+              },
+              payload: log.message,
+              dateTime: log.time.toIso8601String(),
+            ),
+        ],
+      );
+    }
     for (final node in model.nodes) {
       final value = model.latency(node);
       if (value != null) {
@@ -312,9 +436,43 @@ class FreeV6Session {
         .seed(accentColor: Color(0xff000000 | (accent ?? 0x007aff)));
   }
 
+  void _syncRequests() {
+    final live = model;
+    if (live is! LiveModel ||
+        live.connectionsRevision == _connectionsRevision) {
+      return;
+    }
+    _connectionsRevision = live.connectionsRevision;
+    final requests = container.read(requestsProvider.notifier);
+    final active = <String>{};
+    final traffic = <String, RequestTraffic>{};
+    for (final data in live.connections) {
+      try {
+        final request = TrackerInfo.fromJson(data);
+        active.add(request.id);
+        traffic[request.id] = (
+          upload: request.upload,
+          download: request.download,
+        );
+        if (!_activeRequestIds.contains(request.id)) {
+          requests.addRequest(request);
+          container.read(requestCountProvider.notifier).value++;
+        }
+      } on Object {
+        /* An incomplete core sample must not break the UI. */
+      }
+    }
+    requests.updateTraffic(traffic);
+    _activeRequestIds = active;
+  }
+
   void dispose() {
+    if (_closed) return;
     _closed = true;
     model.removeListener(sync);
+    _preferenceTimer?.cancel();
+    _appPreferences?.close();
+    _proxyPreferences?.close();
     _hold.close();
     container.dispose();
     model.dispose();
@@ -415,21 +573,25 @@ class FreeV6ProxiesAction extends ProxiesAction {
     required String proxyName,
   }) async {
     await session.inGroup(groupName, () async {
+      final automatic = proxyName == automaticProxyName;
       if (!session.model.canSelectNode ||
-          !session.model.nodes.contains(proxyName)) {
+          (!automatic && !session.model.nodes.contains(proxyName))) {
         return;
       }
       if (session.model.preview) {
-        session.commands.add('node.select');
-        session.model.selectNode(proxyName);
+        session.commands.add(automatic ? 'node.auto' : 'node.select');
+        session.model.selectNode(automatic ? null : proxyName);
       } else {
-        await session.act('node.select', {'name': proxyName});
+        await session.act(automatic ? 'node.auto' : 'node.select', {
+          if (!automatic) 'name': proxyName,
+        });
       }
     });
   }
 
   @override
   Future<void> proxyDelayTest(Proxy proxy, [String? testUrl]) async {
+    if (proxy.name == automaticProxyName) return;
     final groupName =
         session._nodeCache.entries
             .where((entry) => entry.value.contains(proxy.name))
@@ -485,6 +647,8 @@ class FreeV6SystemAction extends SystemAction {
   final FreeV6Session session;
   @override
   Future<void> handleExit([bool needSave = true]) async {
+    await session.flushUiPreferences();
+    if (session._uiWrites.isNotEmpty) return;
     if (session.model.preview) {
       if (session.model.connected) await session.model.toggleConnection();
       await windowPort?.close();

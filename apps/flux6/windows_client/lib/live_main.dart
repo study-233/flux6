@@ -3,8 +3,11 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/window.dart';
+import 'package:fl_clash/l10n/l10n.dart';
+import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/ui/ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freev6_windows/app/live_model.dart';
 import 'package:freev6_windows/backend/api.dart'
@@ -140,23 +143,96 @@ class _FreeV6BackendBootstrapState extends State<FreeV6BackendBootstrap> {
       );
     }
     return PrismApp(
-      title: 'FreeV6',
-      home: Center(
+      title: 'Flux6',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: seededColorScheme(
+          seedColor: const Color(defaultPrimaryColor),
+          brightness: Brightness.light,
+          style: ColorStyle.vivid,
+        ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: seededColorScheme(
+          seedColor: const Color(defaultPrimaryColor),
+          brightness: Brightness.dark,
+          style: ColorStyle.vivid,
+        ),
+      ),
+      locale: const Locale('zh', 'CN'),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        AppUiLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('zh', 'CN')],
+      home: FreeV6StartupView(
+        loading: loading,
+        error: error,
+        retry: initialize,
+        quit: quit,
+      ),
+    );
+  }
+}
+
+class FreeV6StartupView extends StatelessWidget {
+  const FreeV6StartupView({
+    super.key,
+    required this.loading,
+    this.error,
+    required this.retry,
+    required this.quit,
+  });
+  final bool loading;
+  final Object? error;
+  final VoidCallback retry, quit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.appLocalizations;
+    return Surface(
+      color: SurfaceLevel.page.colorOf(context.colorScheme),
+      child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('FreeV6'),
-              const SizedBox(height: 20),
-              if (loading)
-                const Text('正在连接本地组件…')
-              else ...[
-                Text('启动失败：$error'),
-                TextButton(onPressed: initialize, child: const Text('重试')),
-                TextButton(onPressed: quit, child: const Text('停止并退出')),
-              ],
-            ],
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const GlyphIcon(AppGlyphs.proxies, size: 40),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Flux6',
+                    style: AppTextStyle.title1.of(context, emphasized: true),
+                  ),
+                  const SizedBox(height: 20),
+                  if (loading) ...[
+                    const ActivityIndicator(),
+                    const SizedBox(height: 12),
+                    Text(
+                      l.freev6Starting,
+                      style: AppTextStyle.subheadline.of(context).toLight,
+                    ),
+                  ] else ...[
+                    Text(l.freev6StartFailed, textAlign: TextAlign.center),
+                    if (error != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '$error',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyle.footnote.of(context).toLight,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    TextButton(onPressed: retry, child: Text(l.freev6Retry)),
+                    TextButton(onPressed: quit, child: Text(l.freev6Quit)),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

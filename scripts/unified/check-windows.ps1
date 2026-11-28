@@ -2,6 +2,7 @@ param(
     [switch]$CheckWindowExit,
     [switch]$WindowsClient,
     [switch]$OfflinePub,
+    [switch]$SkipChecks,
     [string]$Python = 'python',
     [ref]$LiveReleaseDirectory
 )
@@ -80,8 +81,10 @@ function Test-WindowExit($executable, [string]$windowClass) {
 
 function Build-WindowsClient {
     $fixtureFlags = @('--dart-define=SAFE_MODE=true', '--dart-define=FREEV6_OFFLINE=true')
-    flutter test --no-pub @fixtureFlags test/freev6
-    if ($LASTEXITCODE -ne 0) { throw 'Windows client offline tests failed' }
+    if (-not $SkipChecks) {
+        flutter test --no-pub @fixtureFlags test/freev6
+        if ($LASTEXITCODE -ne 0) { throw 'Windows client offline tests failed' }
+    }
     flutter build windows --release --no-pub --flavor preview --target lib/fixture_main.dart @fixtureFlags
     if ($LASTEXITCODE -ne 0) { throw 'Windows fixture build failed' }
     $fixture = Get-Item 'build/windows/x64/preview/runner/Release/freev6-windows-preview.exe'
@@ -94,8 +97,8 @@ function Build-WindowsClient {
         $probe.Dispose()
     }
     if ($CheckWindowExit) { Test-WindowExit $fixture 'FLUTTER_RUNNER_WIN32_WINDOW' }
-    $version = (Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
-    flutter build windows --release --no-pub --flavor live --dart-define=FREEV6_BACKEND=true "--build-name=$version" --build-number=0
+    $releaseVersion = Get-Content (Join-Path $root 'apps/windows/release.json') -Raw | ConvertFrom-Json
+    flutter build windows --release --no-pub --flavor live --dart-define=FREEV6_BACKEND=true "--build-name=$($releaseVersion.version)" "--build-number=$($releaseVersion.build)"
     if ($LASTEXITCODE -ne 0) { throw 'Windows live client build failed' }
     $executable = Get-Item 'build/windows/x64/live/runner/Release/freev6-desktop.exe'
     & (Join-Path $root 'scripts/windows/build-helper.ps1') -BundleDirectory $executable.DirectoryName
@@ -127,8 +130,10 @@ try {
         dart run intl_utils:generate
         if ($LASTEXITCODE -ne 0) { throw 'Windows localization generation failed' }
     }
-    flutter analyze --no-pub --no-fatal-infos
-    if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
+    if (-not $SkipChecks) {
+        flutter analyze --no-pub --no-fatal-infos
+        if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
+    }
     if ($WindowsClient) {
         Build-WindowsClient
         return

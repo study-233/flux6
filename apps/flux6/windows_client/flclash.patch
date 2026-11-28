@@ -1,12 +1,12 @@
 --- a/lib/core/controller.dart
 +++ b/lib/core/controller.dart
 @@ -30,6 +30,8 @@
- 
+
    @visibleForTesting
    CoreController.scoped(this._interface);
 +
 +  CoreController.adapter(this._interface);
- 
+
    @visibleForTesting
    static void resetInstance() {
 --- a/lib/views/dashboard/dashboard.dart
@@ -14,29 +14,9 @@
 @@ -1,3 +1,4 @@
 +import 'package:fl_clash/freev6/pages.dart';
  import 'dart:math' as math;
- 
+
  import 'package:fl_clash/common/common.dart';
-@@ -19,7 +20,6 @@
- 
- // Narrower columns leave a pair of service cells too tight for a status, so
- // the grid stacks them in one.
--const _servicePairColumnMin = 290.0;
- 
- const _maxColumnWidth = 440.0;
- 
-@@ -75,7 +75,10 @@
-             )
-           : null,
-       iconActions: [
--        if (editable && !editing)
-+        if (editable &&
-+            !editing &&
-+            !safeModeBuild &&
-+            !const bool.fromEnvironment('FREEV6_BACKEND'))
-           IconButtonData(
-             glyph: AppGlyphs.edit,
-             tooltip: appLocalizations.editDashboard,
-@@ -167,13 +170,13 @@
+@@ -167,8 +168,8 @@
          final switches =
              DashboardWidget.networkTakeover.platforms.contains(platform)
              ? const [
@@ -47,13 +27,7 @@
                ]
              : const [(2, VpnTile())];
          final half = columns ~/ 2;
-         final summaries = row([
--          (half, const ConnectionStatsCard()),
-+          (half, const FreeV6ActivityCard()),
-           (half, const ProxyGroupsSummaryCard()),
-         ]);
-         if (columns == 2) {
-@@ -201,11 +204,14 @@
+@@ -201,7 +202,7 @@
                  sized(controlHeight, row(switches)),
                  sized(
                    middleHeight,
@@ -62,45 +36,17 @@
                  ),
                  sized(
                    middleHeight,
--                  row(const [(1, ServiceStatusCard()), (1, MemoryInfo())]),
-+                  row(const [
-+                    (1, FreeV6RuntimeCard(hotspot: true)),
-+                    (1, FreeV6RuntimeCard()),
-+                  ]),
-                 ),
-                 sized(summaryHeight, summaries),
-               ],
-@@ -228,15 +234,10 @@
+@@ -228,8 +229,8 @@
            sized(
              middleHeight,
              row([
 -              (1, const IntranetIpCard()),
 -              (1, const ProfilesCard()),
--              (
--                1,
--                ServiceStatusCard(
--                  columns: column >= _servicePairColumnMin * scale ? 2 : 1,
--                ),
--              ),
--              (1, const MemoryInfo()),
 +              (1, const FreeV6UsageCard()),
 +              (1, const FreeV6ProfileCard()),
-+              (1, const FreeV6RuntimeCard(hotspot: true)),
-+              (1, const FreeV6RuntimeCard()),
-             ]),
-           ),
-         ];
-@@ -266,9 +267,7 @@
-                         children: const [
-                           Expanded(
-                             flex: 3,
--                            child: RepaintBoundary(
--                              child: ConnectionsTableCard(),
--                            ),
-+                            child: RepaintBoundary(child: FreeV6ActivityCard()),
-                           ),
-                           Expanded(
-                             flex: 2,
+               (
+                 1,
+                 ServiceStatusCard(
 --- a/lib/views/dashboard/widget_registry.dart
 +++ b/lib/views/dashboard/widget_registry.dart
 @@ -1,3 +1,4 @@
@@ -108,43 +54,43 @@
  import 'package:fl_clash/common/common.dart';
  import 'package:fl_clash/enum/enum.dart';
  import 'package:fl_clash/ui/icons/icons.dart';
-@@ -11,12 +12,22 @@
+@@ -10,12 +11,16 @@
+     DashboardWidget.networkSpeed => const NetworkSpeedCard(),
      DashboardWidget.outboundMode => const OutboundModeCard(),
      DashboardWidget.vpnButton => const VpnCard(),
-     DashboardWidget.networkTakeover => const NetworkTakeoverCard(),
--    DashboardWidget.serviceStatus => const ServiceStatusCard(),
+-    DashboardWidget.networkTakeover => const NetworkTakeoverCard(),
++    DashboardWidget.networkTakeover => const FreeV6AdaptiveCard(child: FreeV6ConnectionTile()),
+     DashboardWidget.serviceStatus => const ServiceStatusCard(),
 -    DashboardWidget.profiles => const ProfilesCard(),
-+    DashboardWidget.serviceStatus => const FreeV6AdaptiveCard(
-+      child: FreeV6RuntimeCard(hotspot: true),
-+    ),
 +    DashboardWidget.profiles => const FreeV6AdaptiveCard(
 +      child: FreeV6ProfileCard(),
 +    ),
      DashboardWidget.proxyGroups => const ProxyGroupsCard(),
--    DashboardWidget.connectionStats => const ConnectionStatsCard(),
+     DashboardWidget.connectionStats => const ConnectionStatsCard(),
 -    DashboardWidget.intranetIp => const IntranetIpCard(),
--    DashboardWidget.memoryInfo => const MemoryInfo(),
-+    DashboardWidget.connectionStats => const FreeV6AdaptiveCard(
-+      child: FreeV6ActivityCard(),
-+    ),
 +    DashboardWidget.intranetIp => const FreeV6AdaptiveCard(
 +      child: FreeV6UsageCard(),
 +    ),
-+    DashboardWidget.memoryInfo => const FreeV6AdaptiveCard(
-+      child: FreeV6RuntimeCard(),
-+    ),
+     DashboardWidget.memoryInfo => const MemoryInfo(),
    };
- 
-   Glyph get glyph => switch (this) {
+
 --- a/lib/views/dashboard/widgets/current_outbound.dart
 +++ b/lib/views/dashboard/widgets/current_outbound.dart
-@@ -1,3 +1,5 @@
-+import 'package:fl_clash/freev6/pages.dart';
+@@ -1,3 +1,4 @@
 +import 'package:fl_clash/freev6/session.dart';
  import 'dart:math' as math;
- 
+
  import 'package:fl_clash/common/common.dart';
-@@ -204,7 +206,7 @@
+@@ -192,7 +193,7 @@
+                         const SizedBox(height: 16),
+                       _Cells(
+                         quality: quality,
+-                        loading: loading,
++                        loading: isStart && loading,
+                         active: isStart && !suspended,
+                         gap: metrics.cellGap,
+                       ),
+@@ -204,7 +205,7 @@
                    child: Center(
                      child: _StartToggle(
                        size: metrics.buttonSize,
@@ -153,50 +99,17 @@
                        running: isStart,
                        suspended: suspended,
                      ),
-@@ -314,6 +316,10 @@
- 
+@@ -314,6 +315,10 @@
+
    @override
    Widget build(BuildContext context) {
-+    if (const bool.fromEnvironment('FREEV6_OFFLINE') ||
-+        const bool.fromEnvironment('FREEV6_BACKEND')) {
-+      return const FreeV6ExitLabel();
++    if (!active) {
++      return Text(context.appLocalizations.freev6ProbeConnect,
++        style: DashboardText.label(context));
 +    }
      final colorScheme = context.colorScheme;
      final style = DashboardText.figure(
        context,
-@@ -587,7 +593,7 @@
-   }
- }
- 
--class _Cells extends StatelessWidget {
-+class _Cells extends ConsumerWidget {
-   const _Cells({
-     required this.quality,
-     required this.loading,
-@@ -601,7 +607,7 @@
-   final double gap;
- 
-   @override
--  Widget build(BuildContext context) {
-+  Widget build(BuildContext context, WidgetRef ref) {
-     final appLocalizations = context.appLocalizations;
-     final organization = switch (quality) {
-       IpQuality(organization: final name?) when name.isNotEmpty => name,
-@@ -617,8 +623,12 @@
-         ),
-         Flexible(
-           child: _Cell(
--            label: appLocalizations.ipOrganization,
--            value: organization != null
-+            label: appLocalizations.outboundMode,
-+            value:
-+                const bool.fromEnvironment('FREEV6_OFFLINE') ||
-+                    const bool.fromEnvironment('FREEV6_BACKEND')
-+                ? _CellText(watchFreeV6(ref).mode)
-+                : organization != null
-                 ? _CellText(organization)
-                 : loading
-                 ? SkeletonText(width: 96, style: _cellStyle(context))
 --- a/lib/views/dashboard/widgets/outbound_mode.dart
 +++ b/lib/views/dashboard/widgets/outbound_mode.dart
 @@ -1,3 +1,4 @@
@@ -205,7 +118,7 @@
  import 'package:fl_clash/enum/enum.dart';
  import 'package:fl_clash/providers/providers.dart';
 @@ -28,6 +29,11 @@
- 
+
    @override
    Widget build(BuildContext context, WidgetRef ref) {
 +    final modes = Mode.values
@@ -260,7 +173,13 @@
                          background: DashboardColors.of(context).tone,
 --- a/lib/views/proxies/card.dart
 +++ b/lib/views/proxies/card.dart
-@@ -119,7 +119,9 @@
+@@ -1,3 +1,5 @@
++import 'package:fl_clash/freev6/automatic_card.dart';
++import 'package:fl_clash/freev6/session.dart';
+ import 'package:fl_clash/common/common.dart';
+ import 'package:fl_clash/enum/enum.dart';
+ import 'package:fl_clash/models/models.dart';
+@@ -119,7 +121,9 @@
            checked: pinned,
            onPressed: () => _handleSelect(ref),
          ),
@@ -271,9 +190,58 @@
          PopupMenuItem(
            glyph: AppGlyphs.listAdd,
            label: appLocalizations.addToLocalProxies,
+@@ -130,6 +134,9 @@
+
+   @override
+   Widget build(BuildContext context, WidgetRef ref) {
++    if (proxy.name == automaticProxyName) {
++      return FreeV6AutomaticCard(groupName: groupName, type: type);
++    }
+     final measure = globalState.measure;
+     final isLoose = type == ProxyCardType.loose;
+     final delayText = _DelayText(
+@@ -174,6 +181,7 @@
+           );
+     return Consumer(
+       builder: (context, ref, _) {
++        final model = watchFreeV6(ref);
+         final inUse = ref.watch(
+           selectedProxyNameProvider(
+             groupName,
+@@ -201,7 +209,7 @@
+             radius: AppCorner.lg,
+             enterActionsOnRight: true,
+             key: key,
+-            onPressed: () => _handleSelect(ref),
++            onPressed: model.canSelectNode ? () => _handleSelect(ref) : null,
+             isSelected: inUse,
+             padding: const EdgeInsets.symmetric(horizontal: 12),
+             child: Column(
 --- a/lib/views/proxies/proxies.dart
 +++ b/lib/views/proxies/proxies.dart
-@@ -172,7 +172,7 @@
+@@ -11,11 +11,12 @@
+ import 'tab.dart';
+
+ class ProxiesView extends ConsumerStatefulWidget {
+-  const ProxiesView({super.key, this.picker = false});
++  const ProxiesView({super.key, this.picker = false, this.extraActions = const []});
+
+   /// Leaves the bar only its search and delay test, for picking a proxy from a
+   /// sheet.
+   final bool picker;
++  final List<IconButtonData> extraActions;
+
+   @override
+   ConsumerState<ProxiesView> createState() => _ProxiesViewState();
+@@ -162,6 +163,7 @@
+       primaryAction: primaryAction,
+       searchActions: [?primaryAction],
+       iconActions: [
++        ...widget.extraActions,
+         if (_isTab && !picker)
+           IconButtonData(
+             glyph: AppGlyphs.locate,
+@@ -172,7 +174,7 @@
            ),
        ],
        menuItems: picker ? const [] : _buildMenuItems(context, style),
@@ -307,7 +275,7 @@
      rust_api:
 -      build_assets: true
 +      build_assets: false
- 
+
  dependencies:
 +  freev6_windows:
 +    path: ../../apps/windows/flutter_ui
@@ -316,7 +284,7 @@
    flutter_localizations:
 @@ -92,7 +94,12 @@
    mocktail: ^1.0.5
- 
+
  flutter:
 +  uses-material-design: true
    assets:
@@ -363,12 +331,12 @@
 +++ b/windows/runner/flutter_window.cpp
 @@ -1,6 +1,7 @@
  #include "flutter_window.h"
- 
+
  #include <optional>
 +#include <window/window_plugin_runner.h>
- 
+
  #include "flutter/generated_plugin_registrant.h"
- 
+
 @@ -69,6 +70,7 @@
    }
    // Give Flutter, including plugins, an opportunity to handle window messages.
@@ -378,14 +346,14 @@
          flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
                                                        lparam);
 @@ -79,7 +81,7 @@
- 
+
    switch (message) {
      case WM_FONTCHANGE:
 -      flutter_controller_->engine()->ReloadSystemFonts();
 +      if (flutter_controller_) flutter_controller_->engine()->ReloadSystemFonts();
        break;
    }
- 
+
 --- a/windows/runner/main.cpp
 +++ b/windows/runner/main.cpp
 @@ -37,6 +37,7 @@
@@ -394,12 +362,12 @@
  #endif
 +  project.set_impeller_switch(flutter::ImpellerSwitch::Disabled);
    project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
- 
+
    FlutterWindow window(project, probe);
 @@ -47,15 +48,17 @@
    }
    window.SetQuitOnClose(true);
- 
+
 -  ::MSG msg;
 -  while (::GetMessage(&msg, nullptr, 0, 0) > 0) {
 +  ::MSG msg{};
@@ -408,7 +376,7 @@
      ::TranslateMessage(&msg);
      ::DispatchMessage(&msg);
    }
- 
+
 +  window.Destroy();
    ::CoUninitialize();
  #if FREEV6_LIVE
@@ -417,3 +385,30 @@
 -  return probe && !window.probe_passed() ? EXIT_FAILURE : EXIT_SUCCESS;
 +  return result == -1 || (probe && !window.probe_passed()) ? EXIT_FAILURE : EXIT_SUCCESS;
  }
+--- a/lib/views/dashboard/widgets/service_status.dart
++++ b/lib/views/dashboard/widgets/service_status.dart
+@@ -219,7 +219,7 @@
+     );
+     return DashboardCard(
+       semanticLabel: appLocalizations.serviceStatus,
+-      onTap: mobile ? openSheet : null,
++      onTap: openSheet,
+       child: Column(
+         crossAxisAlignment: CrossAxisAlignment.stretch,
+         mainAxisSize: mobile ? MainAxisSize.min : MainAxisSize.max,
+--- a/lib/views/proxies/list.dart
++++ b/lib/views/proxies/list.dart
+@@ -1,3 +1,4 @@
++import 'package:fl_clash/freev6/session.dart' show automaticProxyName;
+ import 'dart:math';
+
+ import 'package:fl_clash/common/common.dart';
+@@ -793,7 +794,7 @@
+       return const SizedBox.shrink();
+     }
+     return EmojiText(
+-      proxyName,
++      proxyName == automaticProxyName ? context.appLocalizations.freev6Automatic : proxyName,
+       maxLines: 1,
+       overflow: TextOverflow.ellipsis,
+       style: AppTextStyle.caption1.of(context, emphasized: true).toLight,

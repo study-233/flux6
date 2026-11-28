@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `apps/macos/` | Flutter 界面、Swift/AppKit 宿主、XPC 网络服务 | 继续开发 |
 | `apps/android/` | 基于 FlClash 的 Flutter、Android VPN 服务、嵌套 Go 核心 | 继续开发 |
-| `apps/windows/` | 当前 Web/Tauri 与独立 Flutter 迁移工程 | [Flutter 重构实施中](windows-flutter-refactor.md)，保留 Go helper；原生验证随后在 Windows 执行 |
+| `apps/windows/` | Windows 宿主与后端库，统一 Flutter UI 在 `apps/flux6/windows_client/` | [当前适配](../../apps/flux6/windows_client/README.md)，保留 Go helper |
 | `apps/ios/` | 平台说明、待确认事项 | 仅占位 |
 | `apps/openwrt/` | 路由器平台说明、待确认事项 | 仅占位 |
 | `cmd/`、`internal/`、`mobileapi/` | Go 程序、共享业务、移动端接口 | 共享维护 |

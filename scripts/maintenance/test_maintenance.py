@@ -27,19 +27,18 @@ class ReleaseLayoutTests(unittest.TestCase):
             root = Path(temporary)
             mac = root / 'apps/macos/Resources/Info.plist'
             android = root / 'apps/android/pubspec.yaml'
-            windows = root / 'apps/windows/src-tauri'
+            windows = root / 'apps/windows'
             mac.parent.mkdir(parents=True)
             android.parent.mkdir(parents=True)
             windows.mkdir(parents=True)
             mac.write_bytes(plistlib.dumps({'CFBundleShortVersionString': '0.1.0', 'CFBundleVersion': '9'}))
             android.write_text('version: 0.1.0+2026111005\n')
-            (windows / 'tauri.conf.json').write_text(json.dumps({'version': '0.1.0'}))
-            (windows / 'Cargo.toml').write_text('version = "0.1.0"\n')
+            (windows / 'release.json').write_text(json.dumps({'version': '0.1.0', 'build': '1'}))
             result = versions.versions(root)
             self.assertEqual({value['tag'] for value in result.values()}, {'v0.1.0'})
             self.assertEqual(result['macos']['build'], '9')
             self.assertEqual(result['android']['build'], '2026111005')
-            self.assertIsNone(result['windows']['build'])
+            self.assertEqual(result['windows']['build'], '1')
 
     def test_update_download_uses_the_shared_version_release(self):
         self.assertEqual(channel.download_base('0.1.0'),

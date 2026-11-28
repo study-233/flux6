@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:freev6_windows/app/live_model.dart';
 import 'package:freev6_windows/backend/api.dart';
+import 'package:freev6_windows/backend/node_tools.dart';
 import 'package:freev6_windows/platform/preferences_store.dart';
 import 'package:freev6_windows/platform/windows_host.dart';
 import 'package:freev6_windows/features/window_background.dart';
@@ -53,6 +54,7 @@ class FixtureTransport extends Transport {
           'proxy': {'running': running},
           'warp': {'registered': true},
           'controllerSecret': 'controller-secret',
+          'downloadSession': running ? 'fixture-session' : '',
           'admin': true,
         };
       case '/api/v1/runtime':
@@ -69,7 +71,11 @@ class FixtureTransport extends Transport {
         }
       case '/api/v1/proxy/start':
         running = true;
-        body = {'running': true, 'controllerSecret': 'controller-secret'};
+        body = {
+          'running': true,
+          'controllerSecret': 'controller-secret',
+          'downloadSession': 'fixture-session',
+        };
       case '/api/v1/proxy/stop':
         if (stopFails) {
           status = 500;
@@ -101,11 +107,18 @@ class FixtureTransport extends Transport {
         };
       case '/connections':
         body = {
+          'uploadTotal': 100,
+          'downloadTotal': 200,
           'connections': [
             {'upload': 100, 'download': 200},
           ],
         };
       default:
+        if (r.uri.path == '/api/v1/nodes/quality')
+          return const WireReply(
+            200,
+            '{"profile":"fixture-network","quality":{}}',
+          );
         if (r.uri.path.endsWith('/delay'))
           body = {'delay': 12};
         else if (r.method == 'PUT' && r.uri.port == 9090)
@@ -157,6 +170,65 @@ Future<(LiveModel, FixtureTransport, FixtureHost)> fixture({
 }
 
 void main() {
+  test('real HTTP preserves Unicode node selection in helper and controller requests', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final received = <({String path, String? authorization, JsonMap body})>[];
+    server.listen((request) async {
+      final text = await utf8.decoder.bind(request).join();
+      final body = text.isEmpty
+          ? <String, dynamic>{}
+          : object(jsonDecode(text));
+      received.add((
+        path: request.uri.path,
+        authorization: request.headers.value(HttpHeaders.authorizationHeader),
+        body: body,
+      ));
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'profile': 'fixture-network',
+          'quality': {'pinned': body['node'] ?? ''},
+        }),
+      );
+      await request.response.close();
+    });
+    final wire = IoTransport();
+    addTearDown(wire.close);
+    final helper = HelperApi(
+      wire,
+      () async => HelperCredentials(server.port, 'helper-fixture'),
+    );
+    final nodes = NodeTools(helper);
+    addTearDown(nodes.dispose);
+    for (final group in ['♻️ 自动选择', '🔗 链式代理']) {
+      nodes.bind('fixture-session', group);
+      await nodes.select(node: '节点 / B 🛰️');
+      expect(nodes.pinned, '节点 / B 🛰️');
+      expect(received.last.authorization, 'Bearer helper-fixture');
+      expect(received.last.body, {
+        'session': 'fixture-session',
+        'group': group,
+        'profile': 'fixture-network',
+        'mode': 'fixed',
+        'node': '节点 / B 🛰️',
+      });
+    }
+    final controller = ControllerApi(wire)
+      ..updateEndpoint({
+        'controllerPort': server.port,
+        'controllerSecret': 'controller-fixture',
+      });
+    await controller.call(
+      ['proxies', '🔗 链式代理'],
+      method: 'PUT',
+      body: {'name': '节点 / B 🛰️'},
+    );
+    expect(Uri.decodeComponent(received.last.path), '/proxies/🔗 链式代理');
+    expect(received.last.body, {'name': '节点 / B 🛰️'});
+    expect(received.last.authorization, 'Bearer controller-fixture');
+  });
+
   test('helper and controller use separate credentials and encode group/node paths', () async {
     final (model, wire, _) = await fixture(running: true);
     await model.refreshNodes();
@@ -167,43 +239,51 @@ void main() {
           .every((r) => r.headers['Authorization'] == 'Bearer helper-token'),
       isTrue,
     );
-    final request = wire.requests.last;
+    final request = wire.requests.lastWhere(
+      (r) => r.uri.path.endsWith('/delay'),
+    );
     expect(request.uri.port, 9090); // Legacy helper without controllerPort.
     expect(request.headers['Authorization'], 'Bearer controller-secret');
     expect(request.uri.pathSegments, ['proxies', '节点 / 0', 'delay']);
   });
-  test('a new controller endpoint invalidates pending results and old credentials', () async {
-    final (model, wire, _) = await fixture(running: true);
-    await model.refreshNodes();
-    final delayed = Completer<WireReply>();
-    Object? port = 29401;
-    wire.intercept = (r) async {
-      if (r.uri.path.endsWith('/delay')) return delayed.future;
-      final reply = await wire.response(r);
-      if (r.uri.path != '/api/v1/status') return reply;
-      return WireReply(200, jsonEncode({
-        ...object(jsonDecode(reply.body)),
-        'controllerPort': port,
-        'controllerSecret': 'replacement',
-      }));
-    };
-    final stale = model.measure(wire.proxyNames.first);
-    await model.refreshStatus();
-    delayed.complete(const WireReply(200, '{"delay":10}'));
-    await stale;
-    expect(model.latency(wire.proxyNames.first), isNull);
-    await model.pollTraffic();
-    expect(wire.requests.last.uri.port, 29401);
-    expect(wire.requests.last.headers['Authorization'], 'Bearer replacement');
-    for (final invalid in <Object?>[0, 65536, null, '29401']) {
-      port = invalid;
+  test(
+    'a new controller endpoint invalidates pending results and old credentials',
+    () async {
+      final (model, wire, _) = await fixture(running: true);
+      await model.refreshNodes();
+      final delayed = Completer<WireReply>();
+      Object? port = 29401;
+      wire.intercept = (r) async {
+        if (r.uri.path.endsWith('/delay')) return delayed.future;
+        final reply = await wire.response(r);
+        if (r.uri.path != '/api/v1/status') return reply;
+        return WireReply(
+          200,
+          jsonEncode({
+            ...object(jsonDecode(reply.body)),
+            'controllerPort': port,
+            'controllerSecret': 'replacement',
+          }),
+        );
+      };
+      final stale = model.measure(wire.proxyNames.first);
       await model.refreshStatus();
-      final count = wire.requests.length;
+      delayed.complete(const WireReply(200, '{"delay":10}'));
+      await stale;
+      expect(model.latency(wire.proxyNames.first), isNull);
       await model.pollTraffic();
-      expect(wire.requests.length, count);
-      expect(model.connected, isTrue);
-    }
-  });
+      expect(wire.requests.last.uri.port, 29401);
+      expect(wire.requests.last.headers['Authorization'], 'Bearer replacement');
+      for (final invalid in <Object?>[0, 65536, null, '29401']) {
+        port = invalid;
+        await model.refreshStatus();
+        final count = wire.requests.length;
+        await model.pollTraffic();
+        expect(wire.requests.length, count);
+        expect(model.connected, isTrue);
+      }
+    },
+  );
   test('401 refreshes both ephemeral token and port exactly once', () async {
     final wire = FixtureTransport();
     var credentials = 0;

@@ -104,6 +104,8 @@ class _FreeV6LifecycleState extends ConsumerState<FreeV6Lifecycle> {
           LogicalKeyboardKey.digit3,
           LogicalKeyboardKey.digit4,
           LogicalKeyboardKey.digit5,
+          LogicalKeyboardKey.digit6,
+          LogicalKeyboardKey.digit7,
         ].indexed)
           SingleActivator(key, control: true): () => ref
               .read(currentPageLabelProvider.notifier)
@@ -112,6 +114,8 @@ class _FreeV6LifecycleState extends ConsumerState<FreeV6Lifecycle> {
                   PageLabel.dashboard,
                   PageLabel.proxies,
                   PageLabel.profiles,
+                  PageLabel.requests,
+                  PageLabel.dns,
                   PageLabel.logs,
                   PageLabel.tools,
                 ][i],

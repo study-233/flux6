@@ -20,7 +20,12 @@ class LegacyPreferences {
     'freev6-halloween-force',
     'freev6-halloween-greeted',
   };
-  static const modernKeys = {...keys, 'reduce-motion'};
+  static const modernKeys = {
+    ...keys,
+    'reduce-motion',
+    'flclash-app-settings',
+    'flclash-proxy-style',
+  };
 
   factory LegacyPreferences.decode(String text) {
     if (text.length > maxBytes || utf8.encode(text).length > maxBytes) {
@@ -45,6 +50,14 @@ class LegacyPreferences {
     void choice(String key, Set<String> allowed) {
       if (values.containsKey(key) && !allowed.contains(values[key])) {
         throw FormatException('界面备份字段无效：$key');
+      }
+    }
+
+    for (final key in ['flclash-app-settings', 'flclash-proxy-style']) {
+      final value = values[key];
+      if (value != null &&
+          (value.length > 65536 || jsonDecode(value) is! Map)) {
+        throw FormatException('界面布局备份无效：$key');
       }
     }
 

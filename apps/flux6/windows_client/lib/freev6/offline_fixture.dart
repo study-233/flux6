@@ -26,7 +26,7 @@ class FreeV6OfflineFixture {
       store:
           preferences ??
           (MemoryPreferences()..values['freev6-guide-done'] = '1'),
-      version: '0.5.3',
+      version: '0.1.3',
       polling: polling,
       pause: (_) => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
@@ -54,11 +54,24 @@ class FixtureTransport extends Transport {
   bool running = false, present = true, registered = true, cloudLocked = false;
   bool stopFails = false, saveFails = false, closed = false;
   int samples = 0;
+  final networkOptions = <String, dynamic>{
+    'mixedPort': 7890,
+    'httpPort': 0,
+    'socksPort': 0,
+    'dnsPort': 1053,
+    'nameservers': [],
+    'dnsMode': 'fake-ip',
+    'tunStack': 'mixed',
+    'tunMtu': 0,
+    'logLevel': 'info',
+  };
+  bool connectionOpen = true;
   String campusAddress = '2001:da8::1';
   final chain = <String, dynamic>{'count': 0, 'names': <String>[]};
   final cloud = <String, dynamic>{'count': 0};
   final nodes = ['东区 / IPv6', '西区 · IPv6', '北区 · IPv6'];
-  final selections = <String, String>{'♻️ 自动选择': '东区 / IPv6'};
+  final selections = <String, String>{};
+  int poolSize = 4;
   Future<WireReply?> Function(FixtureRequest)? intercept;
 
   WireReply reply(Object data, [int status = 200]) =>
@@ -86,7 +99,9 @@ class FixtureTransport extends Transport {
         uri.port == 18213 &&
         uri.path.startsWith('/api/v1/');
     final controller =
-        uri.scheme == 'http' && uri.host == '127.0.0.1' && uri.port == controllerPort;
+        uri.scheme == 'http' &&
+        uri.host == '127.0.0.1' &&
+        uri.port == controllerPort;
     final campus =
         uri.toString() == 'https://api-ipv6.ip.sb/ip' && method == 'GET';
     if (!helper && !controller && !campus) {
@@ -104,6 +119,26 @@ class FixtureTransport extends Transport {
     if (campus) return WireReply(200, campusAddress);
     if (controller) {
       final path = uri.pathSegments;
+      if (path.first == 'connections' && method == 'DELETE') {
+        connectionOpen = false;
+        return const WireReply(204, '');
+      }
+      if (uri.path == '/rules') {
+        return reply({
+          'rules': [
+            {'type': 'Match', 'payload': '', 'proxy': 'WARP'},
+          ],
+        });
+      }
+      if (uri.path == '/dns/query') {
+        return reply({
+          'Status': 0,
+          'Answer': [
+            {'data': '2001:db8::1'},
+          ],
+        });
+      }
+      if (uri.path == '/cache/dns/flush') return const WireReply(204, '');
       if (path.length == 1 && path.first == 'proxies') {
         return reply({
           'proxies': {
@@ -122,13 +157,90 @@ class FixtureTransport extends Transport {
       if (path.length == 1 && path.first == 'connections') {
         samples++;
         return reply({
+          'uploadTotal': samples * 1024,
+          'downloadTotal': samples * 4096,
           'connections': [
-            {'upload': samples * 1024, 'download': samples * 8192},
+            if (connectionOpen)
+              {
+                'id': 'fixture-request',
+                'upload': samples * 1024,
+                'download': samples * 8192,
+                'start': '2026-11-27T01:00:00Z',
+                'metadata': {
+                  'host': 'example.invalid',
+                  'network': 'tcp',
+                  'process': 'fixture-browser',
+                  'destinationPort': '443',
+                  'sourceIP': '127.0.0.1',
+                },
+                'chains': ['WARP'],
+                'rule': 'Match',
+                'rulePayload': '',
+              },
           ],
         });
       }
     }
     final data = request.body;
+    if (uri.path == '/api/v1/nodes/delays') return reply({'ok': true});
+    if (uri.path == '/api/v1/network-options') {
+      if (method == 'PUT') networkOptions.addAll(data);
+      return reply(networkOptions);
+    }
+    if (uri.path == '/api/v1/diagnostics/probe') {
+      if (!running) return reply({'error': 'fixture disconnected'}, 409);
+      if (data['kind'] == 'ip') {
+        return reply({
+          'url': 'https://www.cloudflare.com/cdn-cgi/trace',
+          'body': 'ip=203.0.113.42\nloc=SG\n',
+          'delay': 35,
+        });
+      }
+      return reply({
+        'items': [
+          for (final name in data['names'] as List? ?? [])
+            {
+              'name': name,
+              'status': name == 'netflix' ? 'originals-only' : 'available',
+              'region': 'SG',
+              'delay': 42,
+              'checked-at': DateTime.now().millisecondsSinceEpoch,
+            },
+        ],
+      });
+    }
+    if (uri.path == '/api/v1/nodes/quality') {
+      final group =
+          request.body['group']?.toString() ??
+          uri.queryParameters['group'] ??
+          '♻️ 自动选择';
+      if (method == 'PUT') {
+        selections[group] = request.body['node']?.toString() ?? '';
+        poolSize = request.body['poolSize'] as int? ?? poolSize;
+      }
+      return reply({
+        'profile': 'fixture-network',
+        'session': running ? 'fixture-session' : '',
+        'candidates': group == '♻️ 自动选择' ? nodes : chain['names'],
+        if (group == '♻️ 自动选择') ...{
+          'poolSize': poolSize,
+          'activeNodes': (selections[group] ?? '').isEmpty
+              ? nodes.take(poolSize).toList()
+              : <String>[],
+        },
+        'quality': {
+          'pinned': selections[group] ?? '',
+          'samples': [],
+          'switches': [],
+        },
+      });
+    }
+    if (uri.path == '/api/v1/nodes/download') {
+      return reply({
+        'bytesPerSecond': 2500000,
+        'connections': request.body['connections'],
+      });
+    }
     switch (uri.path.replaceFirst('/api/v1', '')) {
       case '/status':
         return reply({
@@ -137,6 +249,7 @@ class FixtureTransport extends Transport {
           'controllerPort': running ? controllerPort : 0,
           'warp': {'registered': registered},
           'controllerSecret': 'offline-controller-token',
+          'downloadSession': running ? 'fixture-session' : '',
           'admin': true,
           'hotspot': {'enabled': settings['hotspotShare'] == true && running},
         });
@@ -161,6 +274,7 @@ class FixtureTransport extends Transport {
           'running': true,
           'controllerPort': controllerPort,
           'controllerSecret': 'offline-controller-token',
+          'downloadSession': running ? 'fixture-session' : '',
           'hotspot': {},
         });
       case '/proxy/stop':

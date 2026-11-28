@@ -135,6 +135,8 @@ void main() {
             PageLabel.dashboard,
             PageLabel.proxies,
             PageLabel.profiles,
+            PageLabel.requests,
+            PageLabel.dns,
             PageLabel.logs,
             PageLabel.tools,
           ]) {

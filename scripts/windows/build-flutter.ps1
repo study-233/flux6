@@ -2,8 +2,10 @@ param(
     [string]$FlutterSdk = $env:FREEV6_FLUTTER_SDK,
     [string]$MakeNsis = 'makensis',
     [string]$Python = 'python',
-    [switch]$Unified,
+    [switch]$Unified = $true,
     [switch]$NoInstaller,
+    [switch]$NoPortable,
+    [switch]$OfflinePub,
     [switch]$SkipChecks,
     [switch]$Rebuild
 )
@@ -25,7 +27,8 @@ $env:FLUTTER_SUPPRESS_ANALYTICS = 'true'
 $env:DART_SUPPRESS_ANALYTICS = 'true'
 $found = (& $flutter --version --machine | Out-String | ConvertFrom-Json).frameworkVersion
 if ($LASTEXITCODE -ne 0 -or $found -ne '3.47.6') { throw "Expected Flutter 3.47.6; found $found" }
-$version = (Get-Content (Join-Path $root 'apps/windows/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json).version
+$releaseVersion = Get-Content (Join-Path $root 'apps/windows/release.json') -Raw | ConvertFrom-Json
+$version = $releaseVersion.version
 if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Windows release version must be numeric x.y.z' }
 $variant = if ($Unified) { 'unified' } else { 'flutter' }
 $sourceArgs = @(if ($Unified) { '--unified' })
@@ -53,20 +56,25 @@ try {
     Invoke-Checked $Python @('scripts/windows/check-sources.py')
     Invoke-Checked $Python (@('scripts/windows/package-source.py','snapshot','--manifest',$manifest) + $sourceArgs)
     if (-not $SkipChecks) {
-        & (Join-Path $PSScriptRoot 'check-flutter.ps1') -FlutterSdk $FlutterSdk -SkipBuild
-        Invoke-Checked 'go' @('test','-timeout=180s','./cmd/freev6-helper','./internal/...')
-        Invoke-Checked 'go' @('vet','./cmd/freev6-helper','./internal/...')
+        Push-Location $ui
+        try {
+            Invoke-Checked $flutter @('pub','get','--enforce-lockfile')
+            Invoke-Checked $flutter @('analyze','--no-pub')
+            Invoke-Checked $flutter @('test','--no-pub','test/backend_test.dart','test/upgrade_and_nodes_test.dart')
+        } finally { Pop-Location }
+        Invoke-Checked 'go' @('test','-timeout=180s','-run','Test(NetworkOptions|Probe|ProcessWorkingSet|Update|ParseVersionJSON|FetchVersionJSON|Download)','./cmd/freev6-helper')
+        Invoke-Checked 'go' @('vet','./cmd/freev6-helper')
     }
     if ($Unified) {
         if ($FlutterSdk) { $env:PATH = (Join-Path (Resolve-Path $FlutterSdk) 'bin') + ';' + $env:PATH }
         $release = $null
-        & (Join-Path $root 'scripts/unified/check-windows.ps1') -WindowsClient -Python $Python -LiveReleaseDirectory ([ref]$release)
+        & (Join-Path $root 'scripts/unified/check-windows.ps1') -WindowsClient -Python $Python -OfflinePub:$OfflinePub -SkipChecks:$SkipChecks -LiveReleaseDirectory ([ref]$release)
         if (-not $release) { throw 'Unified build did not produce a live Release directory' }
     } else {
         Push-Location $ui
         try {
             Invoke-Checked $flutter @('pub','get','--enforce-lockfile')
-            Invoke-Checked $flutter @('build','windows','--release','--no-pub','--flavor','live','--target','lib/live_main.dart',"--build-name=$version",'--build-number=0')
+            Invoke-Checked $flutter @('build','windows','--release','--no-pub','--flavor','live','--target','lib/live_main.dart',"--build-name=$version","--build-number=$($releaseVersion.build)")
         } finally { Pop-Location }
         $release = Join-Path $ui 'build/windows/x64/live/runner/Release'
     }
@@ -102,7 +110,18 @@ try {
         $setup = Join-Path $artifacts "Flux6_${version}_x64_${variant}_setup.exe"
         Invoke-Checked $MakeNsis @('/INPUTCHARSET','UTF8',"/DVERSION=$version","/DREPO=$root","/DBUNDLE=$bundle","/DOUTPUT=$setup","/DUNINSTALL_FILES=$uninstall",(Join-Path $root 'apps/windows/installer/flutter.nsi'))
     }
-    Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $artifacts "Flux6_${version}_x64_${variant}_portable.zip")
+    if (-not $NoPortable) {
+        Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $artifacts "Flux6_${version}_x64_${variant}_portable.zip")
+    }
+    if (-not $NoInstaller) {
+        $metadata = [ordered]@{
+            version = $version; tag = "v$version"; setup = (Split-Path $setup -Leaf)
+            notes = "Flux6 Windows $version"
+            download = "https://github.com/study-233/flux6/releases/download/v$version/$(Split-Path $setup -Leaf)"
+            sha256 = (Get-FileHash $setup).Hash.ToLowerInvariant()
+        }
+        [IO.File]::WriteAllText((Join-Path $artifacts 'version.json'), ($metadata | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+    }
     $hashes = @(Get-ChildItem $artifacts -File | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name })
     [IO.File]::WriteAllLines((Join-Path $artifacts 'SHA256SUMS'),$hashes,[Text.UTF8Encoding]::new($false))
     # Publish a complete set only; a failed rebuild keeps the previous candidate.

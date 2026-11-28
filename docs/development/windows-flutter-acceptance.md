@@ -1,61 +1,33 @@
-# Windows Flutter 编译与验收
+# Windows 0.1.3 升级与功能验收
 
-统一客户端已在 Windows 11 x64 完成 preview 和 live 原生构建。[统一候选打包入口](../../apps/flux6/README.md#windows-完整界面候选)为 `scripts/windows/build-flutter.ps1 -Unified`，其安装包用于下文第 2 至 4 节的设备验收。第 1 节的默认命令仍用于早期独立 Flutter 工程。当前的三端验收进度见[统一客户端迁移](unified-client.md)。
+本轮以正式 0.1.3 的统一 Flutter 客户端为基线，候选版本为 0.1.4。只覆盖 Windows；共享 Android/macOS 源码不变。功能边界见[当前适配](../../apps/flux6/windows_client/README.md)。以前的 Tauri 迁移、卸载和回退结果保留在[维护记录](repository-maintenance.md)，不重复执行。
 
-## 1. 工具与构建
+## 构建
 
-本轮目标为 Windows 10/11 x64。准备 Flutter **3.47.6**、Visual Studio 的“使用 C++ 的桌面开发”（含 Windows SDK/CMake）、Go（go.mod 要求至少 1.25，允许 Go 自动选择所需工具链）、Python 3.10+ 和 NSIS 3。使用普通 PowerShell 执行构建即可，运行正式应用时会申请管理员权限。Flutter 环境见[官方 Windows 设置说明](https://docs.flutter.dev/platform-integration/windows/setup)。不需要 Rust/Tauri 来编译新客户端。
-
-从仓库根目录执行：
+准备 Flutter 3.47.6、Visual Studio C++ 桌面开发、Windows SDK、Go、Python 和 NSIS。在仓库根运行：
 
 ```powershell
 $env:FREEV6_FLUTTER_SDK = 'C:\tools\flutter'
-& "$env:FREEV6_FLUTTER_SDK\bin\flutter.bat" doctor -v
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check-flutter.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\build-flutter.ps1 -MakeNsis 'C:\Program Files (x86)\NSIS\makensis.exe'
+.\scripts\windows\build-flutter.ps1 -MakeNsis 'C:\Program Files (x86)\NSIS\makensis.exe'
 ```
 
-`check-flutter.ps1` 执行 Dart 分析/测试、构建独立预览和隐藏宿主探针。探针不启动 helper，且只结束自己超时的测试进程。`build-flutter.ps1` 执行 Flutter/Go 检查、正式 `live` flavor 构建、helper/GeoSite 准备、许可证与对应源码、NSIS 和 SHA256 打包；不启动应用或代理。依赖和 GeoSite 首次准备需要下载。
+默认组装完整 FlClash Windows 界面，输出 `dist/windows/0.1.4-unified/`。版本取自 `apps/windows/release.json`。构建不会启动真实核心、安装应用或发布；`-SkipChecks` 仅用于复用未失效的本轮检查结果。
 
-产物目录为 `dist/windows/0.5.3-flutter/`（版本从现有 Windows 版本源读取），包含安装包、portable ZIP、对应源码 ZIP 和 SHA256SUMS。没有 NSIS 时可加 `-NoInstaller` 先生成 portable ZIP；解压到稳定测试目录，保留全部 DLL 和 data/。不要直接在可清理的 build 缓存中长期使用，运行配置和 WARP 凭据会放在程序旁的 config/state/runtime。
+仅发布安装版时传入 `-NoPortable`，跳过便携 ZIP；保留正式安装器、对应源码和更新清单。
 
-重复构建未发布候选可加 `-Rebuild`；脚本遇到运行数据会停止，不能用此选项删除用户数据。`-SkipChecks` 仅用于排查构建，结果不算完成验收。发布仍须版本升级、签名/发行检查及人工授权，脚本不会自动推送或发布。
+## 保留的检查
 
-## 2. 安装与偏好迁移
+1. 后端和统一工程的依赖锁、分析，以及受影响的 `flutter test`。新增回归集中在累计流量、旧响应丢弃、偏好保存和外部核心适配。
+2. Windows helper 网络选项的验证/保存、生成配置字段保留、工作集读取及 `go vet`。共享 Go 未修改时不重复全平台矩阵。
+3. Windows x64 live/preview 构建、隔离 preview 的宿主探针、代表性界面检查和对应源码打包验证。
+4. 0.1.3 原格式偏好文件升级，核对主题、引导/公告记录、流量历史以及新增布局键保存。
 
-1. 在旧版停止连接并从托盘退出，备份原安装目录的 config/state/runtime 到仓库外的私有位置；其中有凭据，不上传 GitHub。
-2. 执行 `scripts/windows/inspect-legacy.ps1 -Output <仓库外路径>`，对照旧安装范围、目录、版本和卸载项。该脚本不读取凭据内容。
-3. 如需 UI 历史，在包含本次导出入口的旧 Web/Tauri 版本里选择“设置 → 界面偏好备份 → 导出 JSON”。旧发行二进制若没有此入口，需要先构建/安装带该入口的最后一版 Tauri；不能在普通浏览器打开 HTML 来读取已安装 WebView 的 localStorage。
-4. JSON 仅包含主题/动态色/纯黑/背景/壁纸、引导、跳过版本、公告已读、流量、季节偏好。原有已发布旧二进制无法被新 Flutter 自动读取；未导出的 UI 历史不会自动出现。旧 WebView profile 保留，可稍后回退导出。
-5. 在 Windows 安装候选，再从新界面“设置 → 数据 → 导入界面备份”导入。失败保留原值；成功保存到原安装目录的 `state/flutter-ui.json`，保留 `.bak`。重复导入为覆盖指定偏好，不会累加流量。旧版导出使用格式 v1；Flutter 导出的 v2 另外保留“减少动态效果”，两种格式均可导入。
-6. 比较 WARP 注册、链式/备用配置、设置和流量历史，重启后再比较。新客户端不复制或重建 helper 凭据文件。
+不新增只重复界面常量的测试，不做 0.1.2 迁移、全新安装、卸载或降级矩阵。已通过且未受后续改动影响的结果复用。
 
-上述安装器兼容场景已在 Windows 11 25H2 x64 完成。全量构建及源码重建基线为 `279eb30`，原目录升级、默认保留数据卸载及回退使用修复 `356d784` 后的安装器。安装器 UAC 已验证同意和取消，偏好从回退目录的文件读回。后续设备验收关注旧 WebView 中的实际展示及 live 的联网、热点和恢复行为。见[原机复验记录](repository-maintenance.md#2026-11-21-本机安装与回退复验)。
+## 真实环境验收
 
-在测试安装上复验注册表兼容时，将 Tauri 0.1.2 装到带中文和空格的自定义目录，运行候选安装器时省略 `/D`。确认原目录中的程序已升级，卸载项只有 `Flux6`。若预先存在同目录的早期候选项 `FreeV6`，升级后该项应消失；指向不同目录或标明更高版本时，安装应失败并保留原登记。关闭自启动并确认 Run 键下没有 `FreeV6` 值，再按默认选项卸载、重装旧版，核对三个数据目录和已写盘的偏好。
+在用户指定的 Windows 验收环境执行一次 0.1.3 原目录升级。先停止连接、从托盘退出，备份原目录的 `config/`、`state/`、`runtime/`；备份包含凭据，不上传。覆盖安装后核对 WARP 注册、校园规则、链式配置、节点历史、主题与流量，不需要导出 WebView 偏好。
 
-## 3. 原生功能清单
+连接校园网后验证启动/停止、节点固定与恢复自动、延迟/下载测速与取消、链式代理、连接关闭、DNS 诊断、规则和日志。DNS/TUN 修改后重连验证；停止及退出后确认 DNS/热点恢复。连同托盘、F6 和自启动各做一次关键操作即可。
 
-逐项记录 Windows 版本/架构、源码提交、构建命令、实际结果和必要的脱敏日志。
-
-| 范围 | 验收内容 |
-| --- | --- |
-| 启动 | UAC 成功/取消，首次/已有配置启动，进程名 `flux6-helper.exe`、文件描述 `Flux6 Helper`，helper 缺失/提前退出可见错误，重复启动恢复已有窗口 |
-| 窗口 | 720×480、常用 DPI 与多屏；最小化/最大化/缩放；关闭隐藏托盘、托盘恢复/退出；Explorer 重启后托盘恢复 |
-| F6 | 显示隐藏窗口、占用冲突报错与开关回滚；退出后释放 |
-| 自启动 | 设置成功/失败回滚、重登录、静默开/关、Task Manager 禁用；只影响当前安装的任务和 Run 项 |
-| 网络 | 缺核心、WARP 注册失败、非教育网 IPv6、离线恢复、启动重试；连接/停止、DNS/热点恢复；失败时不假报已退出 |
-| 节点 | 接入/链式分组、中文与斜杠名称、切换失败、6 路测速、测试中停止/切换页签，旧响应不回填 |
-| 配置 | 订阅 URL/文件、错误格式、校园绕过列表、备用配置门户与公告门禁、关闭门禁时的行为 |
-| 外观 | 系统/浅/深、动态取色、纯黑、壁纸、玻璃、Mica/Acrylic 与 Windows 10 回退、减少动态效果、10/31 季节反馈 |
-| 数据 | 流量跨重启、界面 JSON 导出/导入、无效/过大备份拒绝、不携带 helper token、重置设置保留 WARP/UI 历史 |
-| 下载更新 | 核心下载错误/重试；更新版本/忽略、SHA256 错误、停止失败阻止安装、安装器无法启动保留窗口、静默成功重启 |
-| 安装 | 全新/同版覆盖/旧版升级/拒绝降级，HKCU 32/64 视图，路径带空格和中文；旧 helper 退出后升级，确认旧文件移除、自启动路径更新且保留任务管理器禁用状态；运行时阻止覆盖，不产生重复卸载项 |
-| 卸载回退 | 默认保留数据、明确勾选才删除数据、自启撤销；用旧安装包恢复时 helper 数据仍可读取，旧 WebView 偏好仍在 |
-| 许可源码 | 包内 NOTICES、Flutter NOTICES、FlClash GPLv3、Prism/Go 许可、源码 ZIP 和清单一致；从源码 ZIP 可重新构建 |
-
-真实联网和网络恢复由使用者在自己的 Windows 验收环境手动执行；仓库自动检查不会改动系统网络，也不会停止用户已有进程。C++ bridge 探针只验证平台通道，不能代替上表。
-
-## 4. 切换条件
-
-本轮保留 Tauri 生产入口、版本源及旧源码。W1–W4 的源码/本机检查与上面的 Windows 待验项目分别记录。待 Windows 编译、系统行为和安装迁移通过后，W5 才切换正式构建/版本检查，并在单独提交中删除旧 Web/Tauri；不要提前发布候选到稳定更新地址。
+仓库检查使用合成数据和隔离预览，不会覆盖用户安装或改动系统网络。离线测试、文件兼容和原生构建通过不能代替本节；未执行项必须在交付中明确标注。

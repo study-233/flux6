@@ -16,7 +16,8 @@ TREES = ('apps/windows/', 'scripts/windows/', 'scripts/branding/', 'cmd/', 'inte
 FILES = {'LICENSE', 'README.md', 'THIRD-PARTY.txt', 'go.mod', 'go.sum', 'notice.json',
          'docs/agreement.md', 'docs/privacy.md', 'docs/development/windows-flutter-refactor.md',
          'docs/development/windows-flutter-acceptance.md', 'docs/development/repository-maintenance.md',
-         'docs/development/README.md', 'scripts/version.py', 'AGENTS.md', '.gitattributes', '.gitignore'}
+         'docs/development/README.md', 'scripts/version.py', 'AGENTS.md', '.gitattributes', '.gitignore',
+         '.github/workflows/windows-release.yml'}
 FORBIDDEN = {'build', 'dist', '.dart_tool', 'ephemeral', 'target', 'state', 'runtime', '.git'}
 PRIVATE = {'.key', '.pem', '.p12', '.p8', '.jks', '.keystore', '.exe', '.dll', '.syso'}
 

@@ -103,6 +103,8 @@ func main() {
 	mux.HandleFunc("/api/v1/runtime/download", h.downloadRuntime)
 	mux.HandleFunc("/api/v1/runtime/download/progress", h.runtimeDownloadProgress)
 	mux.HandleFunc("/api/v1/settings", h.settings)
+	mux.HandleFunc("/api/v1/network-options", h.networkOptions)
+	mux.HandleFunc("/api/v1/diagnostics/probe", h.diagnosticProbe)
 	mux.HandleFunc("/api/v1/settings/reset", h.resetSettings)
 	mux.HandleFunc("/api/v1/proxy/start", h.startProxy)
 	mux.HandleFunc("/api/v1/proxy/stop", h.stopProxy)
@@ -169,6 +171,10 @@ func (h *helper) status(writer http.ResponseWriter, request *http.Request) {
 		controllerSecret = ""
 	}
 	session, controllerPort := h.downloads.connection(pid, running)
+	var coreRSS uint64
+	if running {
+		coreRSS = processWorkingSet(pid)
+	}
 	if running && controllerPort == 0 {
 		// A restarted helper may be observing a core launched before this process.
 		controllerPort = recoverControllerPort(filepath.Join(h.root, "state", "mihomo.yaml"), pid)
@@ -194,6 +200,7 @@ func (h *helper) status(writer http.ResponseWriter, request *http.Request) {
 		"controllerSecret": controllerSecret,
 		"controllerPort":   controllerPort,
 		"downloadSession":  session,
+		"coreRss":          coreRSS,
 	})
 }
 
@@ -468,7 +475,12 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 		}
 		cloudNodes = profile.Nodes
 	}
-	if err := mihomo.CheckProxyListenPorts(); err != nil {
+	options, err := h.loadNetworkOptions()
+	if err != nil {
+		writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "网络设置读取失败，请检查端口及 DNS/TUN 设置", "code": "network-options"})
+		return
+	}
+	if err := options.checkListenPorts(); err != nil {
 		// code 供前端精准提示（toast），error 文本保留给日志排障。
 		writeJSON(writer, http.StatusConflict, map[string]string{"error": err.Error() + "; please close other proxy/DNS software first", "code": "port-conflict"})
 		return
@@ -535,6 +547,11 @@ func (h *helper) startProxy(writer http.ResponseWriter, request *http.Request) {
 	})
 	if err != nil {
 		writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	config, err = applyNetworkOptions(config, options)
+	if err != nil {
+		writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "网络设置无效，请检查 DNS/TUN 设置后重试", "code": "network-options"})
 		return
 	}
 	configPath := filepath.Join(stateDir, "mihomo.yaml")

@@ -4,7 +4,10 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/ui/icons/icons.dart';
 import 'package:fl_clash/views/dashboard/dashboard.dart';
 import 'package:fl_clash/views/logs.dart';
-import 'package:fl_clash/views/proxies/proxies.dart';
+import 'package:fl_clash/views/connection/requests.dart';
+
+import 'diagnostics.dart';
+import 'node_tools_view.dart';
 
 import 'pages.dart';
 
@@ -22,12 +25,22 @@ class FreeV6Navigation implements NavigationPort {
     NavigationItem(
       glyph: AppGlyphs.proxies,
       label: PageLabel.proxies,
-      builder: (_) => const ProxiesView(),
+      builder: (_) => const FreeV6NodesView(),
     ),
     NavigationItem(
       glyph: AppGlyphs.profiles,
       label: PageLabel.profiles,
       builder: (_) => const FreeV6ConfigurationView(),
+    ),
+    NavigationItem(
+      glyph: AppGlyphs.requests,
+      label: PageLabel.requests,
+      builder: (_) => const RequestsView(),
+    ),
+    NavigationItem(
+      glyph: AppGlyphs.dns,
+      label: PageLabel.dns,
+      builder: (_) => const FreeV6DnsView(),
     ),
     NavigationItem(
       glyph: AppGlyphs.logs,

@@ -1,6 +1,8 @@
 # Flux6 Windows
 
-当前 Windows 客户端使用原版 Material Web 界面、Tauri 窗口与 Go helper。当前阶段优先在 Windows 本机编译和预览原版，Flutter 重写暂缓。
+当前正式 Windows 0.1.3 已使用统一 Flutter 界面。本次 0.1.4 候选恢复 FlClash 的常用页面并整合免流工具，见[Windows 适配说明](../flux6/windows_client/README.md)。正式构建入口为 `scripts/windows/build-flutter.ps1`，版本来源为 `apps/windows/release.json`。
+
+下面的 Web/Tauri 开发与预览命令作为历史实现保留；不再用于当前发行包。
 
 在 Windows 开发环境，从本目录运行 `cargo tauri dev` 或 `cargo tauri build`。Tauri 的构建钩子调用仓库根 `scripts/windows/build-helper.ps1`，生成 Go sidecar 并准备 GeoSite 数据。完整说明见 [Tauri 工程](src-tauri/README.md) 和 [统一开发指南](../../docs/development/README.md)。
 
@@ -42,7 +44,7 @@ try {
 
 准备 Flutter 3.47.6、Visual Studio C++ 桌面开发、Go、Python 和 NSIS，执行 `scripts/windows/check-flutter.ps1` 与 `scripts/windows/build-flutter.ps1`。详细命令、旧版数据迁移和原生待验项目见 [Windows 验收手册](../../docs/development/windows-flutter-acceptance.md)。新客户端构建不依赖 Rust。
 
-## 现有 Tauri 本地验证与发布
+## 历史 Tauri 本地验证与发布
 
 正式包由 [Windows 发行工作流](../../.github/workflows/windows-release.yml) 在 GitHub Actions 的 Windows x64 主机构建；也可在 Windows 本地复现。从仓库根目录运行：
 

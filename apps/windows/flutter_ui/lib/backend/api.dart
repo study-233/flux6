@@ -21,6 +21,9 @@ class WireReply {
 }
 
 abstract class Transport {
+  Transport fork() => this;
+  Stream<JsonMap> watch(Uri uri, Map<String, String> headers) =>
+      const Stream.empty();
   Future<WireReply> send(
     String method,
     Uri uri, {
@@ -32,6 +35,28 @@ abstract class Transport {
 }
 
 class IoTransport extends Transport {
+  @override
+  Transport fork() => IoTransport();
+  @override
+  Stream<JsonMap> watch(Uri uri, Map<String, String> headers) async* {
+    final client = HttpClient()..findProxy = ((_) => 'DIRECT');
+    WebSocket? socket;
+    try {
+      socket = await WebSocket.connect(
+        uri.toString(),
+        headers: headers,
+        customClient: client,
+      ).timeout(const Duration(seconds: 8));
+      await for (final frame in socket) {
+        if (frame is! String || frame.length > 1024 * 1024) continue;
+        yield object(jsonDecode(frame));
+      }
+    } finally {
+      await socket?.close();
+      client.close(force: true);
+    }
+  }
+
   final HttpClient _client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 8)
     ..findProxy = ((_) => 'DIRECT');
@@ -54,7 +79,8 @@ class IoTransport extends Transport {
         }
         request!.followRedirects = false;
         headers.forEach((k, v) => request!.headers.set(k, v));
-        if (body != null) request!.write(body);
+        // JSON contains localized group names; HttpClientRequest.write defaults to Latin-1.
+        if (body != null) request!.add(utf8.encode(body));
         final response = await request!.close();
         final bytes = <int>[];
         await for (final chunk in response) {
@@ -128,6 +154,7 @@ class HelperApi {
     String path, {
     String method = 'GET',
     JsonMap? body,
+    Map<String, String>? query,
     Duration timeout = const Duration(seconds: 20),
   }) async {
     final auth = _cached ??= await credentials();
@@ -138,6 +165,7 @@ class HelperApi {
         host: '127.0.0.1',
         port: current.port,
         path: '/api/v1$path',
+        queryParameters: query,
       ),
       headers: {
         'Content-Type': 'application/json',
@@ -161,6 +189,24 @@ class ControllerApi {
   ControllerApi(this.transport);
   final Transport transport;
   ({int port, String secret})? _endpoint;
+
+  Stream<JsonMap> watch(String path, {Map<String, String>? query}) {
+    final endpoint = _endpoint;
+    if (endpoint == null) return const Stream.empty();
+    return transport.watch(
+      Uri(
+        scheme: 'ws',
+        host: '127.0.0.1',
+        port: endpoint.port,
+        path: path,
+        queryParameters: query,
+      ),
+      {
+        if (endpoint.secret.isNotEmpty)
+          'Authorization': 'Bearer ${endpoint.secret}',
+      },
+    );
+  }
 
   bool updateEndpoint(JsonMap? session) {
     // Helpers predating dynamic port negotiation always bind 9090.
@@ -196,7 +242,8 @@ class ControllerApi {
       uri,
       headers: {
         'Content-Type': 'application/json',
-        if (endpoint.secret.isNotEmpty) 'Authorization': 'Bearer ${endpoint.secret}',
+        if (endpoint.secret.isNotEmpty)
+          'Authorization': 'Bearer ${endpoint.secret}',
       },
       body: body == null ? null : jsonEncode(body),
       timeout: const Duration(seconds: 8),
