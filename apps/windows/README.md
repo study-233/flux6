@@ -1,6 +1,6 @@
 # Flux6 Windows
 
-当前正式 Windows 0.1.3 已使用统一 Flutter 界面。本次 0.1.4 候选恢复 FlClash 的常用页面并整合免流工具，见[Windows 适配说明](../flux6/windows_client/README.md)。正式构建入口为 `scripts/windows/build-flutter.ps1`，版本来源为 `apps/windows/release.json`。
+当前正式 Windows 0.1.4 使用统一 Flutter 界面，恢复 FlClash 的常用页面并整合免流工具，见[Windows 适配说明](../flux6/windows_client/README.md)。本次通过 [0.1.4 发布页](https://github.com/study-233/flux6/releases/tag/v0.1.4) 手动下载安装，三端 Latest 保持 0.1.3。正式构建入口为 `scripts/windows/build-flutter.ps1`，版本来源为 `apps/windows/release.json`。
 
 下面的 Web/Tauri 开发与预览命令作为历史实现保留；不再用于当前发行包。
 
