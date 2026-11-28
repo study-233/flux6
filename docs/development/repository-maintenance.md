@@ -786,3 +786,9 @@ GitHub Latest 已指向 [v0.2.0](https://github.com/study-233/flux6/releases/tag
 0.2.0 的 Windows 更新清单补齐了旧版要求的完整安装包下载地址。Windows 打包工作流现在用旧版解析器读取实际生成的清单，核对安装包的 SHA-256 后才上传构建产物。
 
 在 Mac 上用 0.1.3 的解析代码复现了旧清单报错，并验证修正版和公开下载的安装包。其余六个发行附件的 GitHub ID 和摘要已复核。此次验证覆盖更新检查与下载文件校验，未在 Windows 桌面上操作安装向导。
+
+## 2026-11-28 · 退役 Windows 迁移期工作流
+
+0.2.0 正式客户端从 `apps/android` 构建。旧节点分组原型的 Windows 预览工作流已移除，需要复查原型时可按[本地预览说明](../../apps/flux6/README.md)运行。0.1.3 暂存安装包的一次性校验已完成，临时分支已删除，GitHub 上的工作流也已停用。历史日志见[原型预览](https://github.com/study-233/flux6/actions/runs/46101057791)和[安装包校验](https://github.com/study-233/flux6/actions/runs/45339458509)。
+
+现行入口为 [CI](../../.github/workflows/ci.yml)、[官网部署](../../.github/workflows/pages.yml)和 [Windows 发布构建](../../.github/workflows/windows-release.yml)。主分支的必需检查为 `checks`，正式 Windows 任务负责构建并验证安装器。
