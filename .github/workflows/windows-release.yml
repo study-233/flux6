@@ -39,6 +39,9 @@ jobs:
         shell: pwsh
         run: |
           $setup = Get-ChildItem 'dist/windows/*-unified/*-setup.exe'
+          $env:FLUX6_WINDOWS_UPDATE_MANIFEST = Join-Path $setup.DirectoryName 'version.json'
+          go test ./cmd/freev6-helper -run '^TestPackagedUpdateManifest$' -count=1 -v
+          if ($LASTEXITCODE -ne 0) { throw 'Windows update manifest verification failed' }
           $app = Join-Path $env:ProgramFiles 'Flux6'
           if (Test-Path $app) { throw "Install directory is already in use" }
           $proc = Start-Process $setup.FullName '/S' -Wait -PassThru

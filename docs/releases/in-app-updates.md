@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | macOS arm64 | 2026112803 | 下载正式 DMG，覆盖安装到「应用程序」。旧版 Sparkle 通道依赖 Swift/XPC 服务与 worker 的兼容清单，0.2.0 改用新的桌面服务。 |
 | Android arm64 | 2026112803 | 使用正式发行 APK 覆盖安装，签名身份与旧版一致。 |
-| Windows x64 | 3 | 使用正式安装程序，Latest 的 `version.json` 包含安装包名称与 SHA-256。 |
+| Windows x64 | 3 | 在 0.1.3 设置中检查更新。Latest 的 `version.json` 提供安装包文件名、对应版本的完整下载地址和 SHA-256，供旧版校验。 |
 
 ## 0.1.x 历史通道
 

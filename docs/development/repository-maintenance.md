@@ -779,3 +779,10 @@ Windows 版本源改为 `apps/windows/release.json`（候选 0.1.4 build 1），
 ## 2026-11-28 · Flux6 0.2.0 正式发布
 
 GitHub Latest 已指向 [v0.2.0](https://github.com/study-233/flux6/releases/tag/v0.2.0)，标签对应提交 `5a83930`。七个附件的 SHA-256 已与本地产物核对。Mac 与 Android 构建号为 2026112803，Windows 为 3。Flutter 回归通过 5359 项，跳过 2 项。Mac 签名核心通过离线 IPC 测试，Windows 安装和卸载由[原生构建](https://github.com/study-233/flux6/actions/runs/46136484275)验证。macOS 从旧版通过 DMG 手动覆盖安装，本次未进行 Apple 公证。
+
+
+## Windows 0.1.3 更新至 0.2.0
+
+0.2.0 的 Windows 更新清单补齐了旧版要求的完整安装包下载地址。Windows 打包工作流现在用旧版解析器读取实际生成的清单，核对安装包的 SHA-256 后才上传构建产物。
+
+在 Mac 上用 0.1.3 的解析代码复现了旧清单报错，并验证修正版和公开下载的安装包。其余六个发行附件的 GitHub ID 和摘要已复核。此次验证覆盖更新检查与下载文件校验，未在 Windows 桌面上操作安装向导。

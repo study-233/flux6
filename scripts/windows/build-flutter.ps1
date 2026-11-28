@@ -68,8 +68,7 @@ try {
         [IO.File]::WriteAllLines($uninstall,$lines,[Text.UTF8Encoding]::new($true))
         $setup = Join-Path $output "Flux6-$version-windows-amd64-setup.exe"
         Invoke-Checked $MakeNsis @('/INPUTCHARSET','UTF8',"/DVERSION=$version","/DREPO=$root","/DBUNDLE=$bundle","/DOUTPUT=$setup","/DUNINSTALL_FILES=$uninstall",(Join-Path $root 'apps/windows/installer/flutter.nsi'))
-        $metadata = @{ version=$version; tag="v$version"; setup=(Split-Path $setup -Leaf); notes="Flux6 $version"; sha256=(Get-FileHash $setup -Algorithm SHA256).Hash.ToLowerInvariant() }
-        [IO.File]::WriteAllText((Join-Path $output 'version.json'),($metadata | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+        & (Join-Path $PSScriptRoot 'write-update-manifest.ps1') -Version $version -Installer $setup
     }
     Invoke-Checked git @('-C',$root,'archive','--format=zip','--prefix=Flux6/',"--output=$(Join-Path $output "Flux6-$version-source.zip")",'HEAD')
     New-Item -ItemType Directory -Force (Split-Path $destination) | Out-Null
