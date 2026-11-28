@@ -792,3 +792,7 @@ GitHub Latest 已指向 [v0.2.0](https://github.com/study-233/flux6/releases/tag
 0.2.0 正式客户端从 `apps/android` 构建。旧节点分组原型的 Windows 预览工作流已移除，需要复查原型时可按[本地预览说明](../../apps/flux6/README.md)运行。0.1.3 暂存安装包的一次性校验已完成，临时分支已删除，GitHub 上的工作流也已停用。历史日志见[原型预览](https://github.com/study-233/flux6/actions/runs/46101057791)和[安装包校验](https://github.com/study-233/flux6/actions/runs/45339458509)。
 
 现行入口为 [CI](../../.github/workflows/ci.yml)、[官网部署](../../.github/workflows/pages.yml)和 [Windows 发布构建](../../.github/workflows/windows-release.yml)。主分支的必需检查为 `checks`，正式 Windows 任务负责构建并验证安装器。
+
+## 2026-11-28 · 精简项目首页
+
+[首页](../../README.md)删去了与[发行说明](../releases/v0.2.0.md)重复的操作细节，简化了下载表和许可证索引。四个下载文件名已与 GitHub 0.2.0 正式版附件核对。本次仅调整文档，验证范围为仓库结构、文档链接和截图路径。
