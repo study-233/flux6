@@ -15,7 +15,6 @@ import 'layout.dart';
 import 'style.dart';
 import 'widget_registry.dart';
 import 'widgets/widgets.dart';
-import 'widgets/warp_usage.dart';
 
 // Narrower columns leave a pair of service cells too tight for a status, so
 // the grid stacks them in one.
@@ -77,7 +76,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
           ? appLocalizations.editDashboard
           : appLocalizations.dashboard,
       actions: [
-        if (!editing) const WarpUsageButton(),
         if (!editing) const LiveStatusButton(),
         if (editable && !editing)
           AppBarActionButton(
@@ -152,6 +150,7 @@ class _DesktopDashboard extends StatelessWidget {
     final topHeight = (compact ? 176 : 208) * scale;
     final controlHeight = (compact ? 56 : 64) * scale;
     final middleHeight = (compact ? 152 : 176) * scale;
+    final usageHeight = (compact ? 116 : 132) * scale;
     final tablesHeight = connectionsTableMinHeight(density, scale);
     final summaryHeight = (compact ? 112 : 120) * scale;
     return LayoutBuilder(
@@ -188,7 +187,8 @@ class _DesktopDashboard extends StatelessWidget {
         final half = columns ~/ 2;
         final summaries = row([
           (half, const ConnectionStatsCard()),
-          (half, const ProxyGroupsSummaryCard()),
+          if (columns == 4) (1, const WarpUsageCard()),
+          (1, const ProxyGroupsSummaryCard()),
         ]);
         if (columns == 2) {
           return SingleChildScrollView(
@@ -221,6 +221,7 @@ class _DesktopDashboard extends StatelessWidget {
                   middleHeight,
                   row(const [(1, ServiceStatusCard()), (1, MemoryInfo())]),
                 ),
+                sized(usageHeight, const WarpUsageCard()),
                 sized(summaryHeight, summaries),
               ],
             ),
@@ -274,22 +275,11 @@ class _DesktopDashboard extends StatelessWidget {
                   ...rows,
                   if (tablesFit)
                     Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: gap,
-                        children: const [
-                          Expanded(
-                            flex: 3,
-                            child: RepaintBoundary(
-                              child: ConnectionsTableCard(),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: RepaintBoundary(child: ProxyGroupsCard()),
-                          ),
-                        ],
-                      ),
+                      child: row(const [
+                        (2, ConnectionsTableCard()),
+                        (1, WarpUsageCard()),
+                        (1, ProxyGroupsCard()),
+                      ]),
                     )
                   else if (fills)
                     Expanded(child: summaries)

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
@@ -7,6 +9,8 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/dashboard/widgets/traffic.dart';
 import 'package:fl_clash/views/dashboard/widgets/warp_usage.dart';
+import 'package:fl_clash/views/dashboard/widgets/warp_usage_chart.dart';
+import 'package:fl_clash/views/dashboard/widgets/warp_usage_details.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,9 +45,13 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  Future<void> pumpCard(WidgetTester tester, Widget card) async {
-    container.read(viewSizeProvider.notifier).value = _size;
-    tester.view.physicalSize = _size;
+  Future<void> pumpCard(
+    WidgetTester tester,
+    Widget card, {
+    Size size = _size,
+  }) async {
+    container.read(viewSizeProvider.notifier).value = size;
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -74,27 +82,90 @@ void main() {
     ),
   );
 
-  testWidgets('dashboard usage opens session, month and lifetime counters', (
-    tester,
-  ) async {
-    when(() => core.getTrafficUsage(any())).thenAnswer(
-      (_) async => (
-        month: const Traffic(up: 1024, down: 3072),
-        total: const Traffic(up: 2048, down: 6144),
-      ),
-    );
+  testWidgets('the usage chart switches periods and keeps the active period '
+      'when counters update', (tester) async {
+    const month = Traffic(up: 1024, down: 3072);
+    const lifetime = Traffic(up: 5120, down: 7168);
+    const session = Traffic(up: 128, down: 384);
+    when(
+      () => core.getTrafficUsage(any()),
+    ).thenAnswer((_) async => (month: month, total: lifetime));
     container.read(initProvider.notifier).value = true;
-    container.read(totalTrafficProvider.notifier).value = const Traffic(
-      up: 128,
-      down: 128,
-    );
-    await pumpCard(tester, const WarpUsageButton());
-    final button = find.text('This month ${_traffic(4096)}');
-    await tester.tap(button);
+    container.read(totalTrafficProvider.notifier).value = session;
+
+    await pumpCard(tester, const WarpUsageCard());
+    expect(find.text(_traffic(month.speed)), findsOneWidget);
+    await tester.tap(find.text('Traffic usage'));
     await tester.pumpAndSettle();
-    expect(find.text('This session  ${_traffic(256)}'), findsOneWidget);
-    expect(find.text('This month  ${_traffic(4096)}'), findsOneWidget);
-    expect(find.text('All time  ${_traffic(8192)}'), findsOneWidget);
+
+    final details = find.byType(WarpUsageDetails);
+    final ring = find.descendant(of: details, matching: find.byType(UsageRing));
+    final legend = find.descendant(
+      of: details,
+      matching: find.byType(UsageLegend),
+    );
+    void expectPeriod(Traffic traffic) {
+      expect(
+        find.descendant(of: ring, matching: find.text(_traffic(traffic.speed))),
+        findsOneWidget,
+      );
+      for (final bytes in [traffic.up, traffic.down]) {
+        expect(
+          find.descendant(of: legend, matching: find.text(_traffic(bytes))),
+          findsOneWidget,
+        );
+      }
+    }
+
+    Future<void> select(String label) async {
+      final choice = find.descendant(
+        of: find.byWidgetPredicate((widget) => widget is SegmentedControl),
+        matching: find.text(label),
+      );
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+    }
+
+    expectPeriod(month);
+    await select('All time');
+    expectPeriod(lifetime);
+    await select('This session');
+    expectPeriod(session);
+    const updated = Traffic(up: 896, down: 1536);
+    container.read(totalTrafficProvider.notifier).value = updated;
+    await tester.pump();
+    expectPeriod(updated);
+    expect(tester.takeException(), isNull);
+    await teardownCard(tester);
+  });
+
+  testWidgets('a narrow usage card distinguishes an unread counter from zero '
+      'with enlarged text', (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.5;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final response = Completer<({Traffic month, Traffic total})>();
+    when(() => core.getTrafficUsage(any())).thenAnswer((_) => response.future);
+    container.read(initProvider.notifier).value = true;
+    await pumpCard(tester, const WarpUsageCard(), size: const Size(320, 600));
+    expect(find.text('—'), findsWidgets);
+    expect(find.text(_traffic(0)), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    response.complete((month: const Traffic(), total: const Traffic()));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text(_traffic(0)), findsWidgets);
+    await tester.tap(find.text('Traffic usage'));
+    await tester.pumpAndSettle();
+    final ring = find.descendant(
+      of: find.byType(WarpUsageDetails),
+      matching: find.byType(UsageRing),
+    );
+    expect(
+      find.descendant(of: ring, matching: find.text(_traffic(0))),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
     await teardownCard(tester);
   });
 

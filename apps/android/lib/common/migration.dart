@@ -91,7 +91,7 @@ class Migration {
 
   /// One-off setting changes for upgrades, apart from [currentVersion], which
   /// backups carry and an older app refuses when it is newer than its own.
-  static const upgradeVersion = 5;
+  static const upgradeVersion = 6;
 
   static const Map<int, Config Function(Config config)> _upgrades = {
     1: _resetThemeColors,
@@ -99,7 +99,19 @@ class Migration {
     3: _followSystemColors,
     4: _turnOffSidebarBlur,
     5: _fixFormerDefaultHosts,
+    6: _addUsageCard,
   };
+
+  static Config _addUsageCard(Config config) {
+    final cards = config.appSettingProps.dashboardWidgets;
+    if (cards.contains(DashboardWidget.warpUsage)) return config;
+    final anchor = cards.contains(DashboardWidget.networkSpeed)
+        ? DashboardWidget.networkSpeed
+        : DashboardWidget.currentOutbound;
+    final updated = [...cards]
+      ..insert(cards.indexOf(anchor) + 1, DashboardWidget.warpUsage);
+    return config.copyWith.appSettingProps(dashboardWidgets: updated);
+  }
 
   Future<Config> run() async {
     final configMap = await _store.getConfigMap();

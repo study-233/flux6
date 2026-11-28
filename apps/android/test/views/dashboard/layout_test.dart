@@ -130,7 +130,12 @@ void main() {
     expect(memory.top, service.top);
     expect(memory.left, closeTo(service.right + 16, 0.01));
     expect(table.top, intranet.bottom + 16);
-    expect(table.width / groups.width, closeTo(1.5, 0.01));
+    final usage = rectOf(tester, WarpUsageCard);
+    expect(usage.left, closeTo(service.left, 0.01));
+    expect(usage.top, table.top);
+    expect(usage.width, closeTo(groups.width, 0.01));
+    expect(table.width, closeTo(current.width, 0.01));
+    expect(groups.left, closeTo(memory.left, 0.01));
     expect(groups.top, table.top);
     expect(table.bottom, 824 - 24);
     expect(scrollExtentOf(tester), 0);
