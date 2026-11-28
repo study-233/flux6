@@ -37,7 +37,7 @@ def check():
         if not (windows / relative).exists():
             errors.append(f'Missing Windows bundle input: {relative}')
     vendor = ROOT / 'apps/macos/flutter_ui/vendor'
-    inventory = json.loads((vendor / 'UPSTREAM.json').read_text())['Prism UI']
+    inventory = json.loads((ROOT / 'apps/android/plugins/prism_ui.upstream.json').read_text())
     mobile = ROOT / 'apps/android/plugins/prism_ui'
     for name, expected in inventory['files'].items():
         original = mobile / name

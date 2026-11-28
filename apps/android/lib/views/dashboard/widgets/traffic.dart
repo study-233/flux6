@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/widgets.dart';
 
 import 'card.dart';
-import 'network_speed_chart.dart';
 
 const _minSpeedScale = 8 * 1024.0;
 
@@ -38,14 +37,18 @@ enum TrafficDirection {
       : context.appLocalizations.download;
 }
 
+String _speedUnit(TrafficShow show) => '${show.unit}/s';
+
 class _Figure extends StatelessWidget {
   const _Figure({
     required this.show,
+    required this.unit,
     required this.style,
     required this.unitStyle,
   });
 
   final TrafficShow show;
+  final String unit;
   final AppTextStyle style;
   final AppTextStyle unitStyle;
 
@@ -59,7 +62,7 @@ class _Figure extends StatelessWidget {
             style: DashboardText.figure(context, style),
           ),
           TextSpan(
-            text: ' ${show.unit}/s',
+            text: ' $unit',
             style: DashboardText.unit(context, unitStyle),
           ),
         ],
@@ -119,7 +122,6 @@ class SpeedCard extends ConsumerWidget {
     return DashboardCard(
       padding: EdgeInsets.zero,
       semanticLabel: direction.labelOf(context),
-      onTap: () => _showTrafficUsage(context),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
@@ -169,6 +171,7 @@ class SpeedCard extends ConsumerWidget {
                 SizedBox(height: compact ? 6 : 10),
                 _Figure(
                   show: speed,
+                  unit: _speedUnit(speed),
                   style: compact
                       ? AppTextStyle.largeTitle
                       : AppTextStyle.display,
@@ -176,7 +179,7 @@ class SpeedCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  appLocalizations.trafficSessionUsage(dashboardTraffic(total)),
+                  appLocalizations.trafficTotal(dashboardTraffic(total)),
                   maxLines: 1,
                   style: DashboardText.label(context),
                 ),
@@ -189,11 +192,7 @@ class SpeedCard extends ConsumerWidget {
   }
 }
 
-Color _seriesColor(BuildContext context, TrafficDirection direction) =>
-    direction == TrafficDirection.upload
-    ? context.colorScheme.tertiary
-    : context.colorScheme.primary;
-
+/// The phone's single card: both directions side by side.
 class NetworkSpeedCard extends ConsumerWidget {
   const NetworkSpeedCard({super.key});
 
@@ -204,59 +203,26 @@ class NetworkSpeedCard extends ConsumerWidget {
     final latest = traffics.list.safeLast(const Traffic());
     return DashboardCard(
       semanticLabel: context.appLocalizations.networkSpeed,
-      onTap: () => _showTrafficUsage(context),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DashboardCardHeader(
             glyph: AppGlyphs.speed,
             title: context.appLocalizations.networkSpeed,
-            chevron: true,
           ),
           const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final half = (constraints.maxWidth - 12) / 2;
-              final width = half >= MediaQuery.textScalerOf(context).scale(112)
-                  ? half
-                  : constraints.maxWidth;
-              return Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  for (final direction in TrafficDirection.values)
-                    SizedBox(
-                      key: ValueKey(direction),
-                      width: width,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _DirectionLabel(direction),
-                          const SizedBox(height: 2),
-                          _Figure(
-                            show: direction.of(latest).traffic,
-                            style: AppTextStyle.title2,
-                            unitStyle: AppTextStyle.footnote,
-                          ),
-                          Text(
-                            context.appLocalizations.trafficSessionUsage(
-                              dashboardTraffic(direction.of(total)),
-                            ),
-                            style: DashboardText.label(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          NetworkSpeedChart(
-            window: traffics,
-            minimumScale: _minSpeedScale,
-            uploadColor: _seriesColor(context, TrafficDirection.upload),
-            downloadColor: _seriesColor(context, TrafficDirection.download),
+          Row(
+            spacing: 10,
+            children: [
+              for (final direction in TrafficDirection.values)
+                Expanded(
+                  child: _SpeedTile(
+                    direction: direction,
+                    speed: direction.of(latest),
+                    total: direction.of(total),
+                    traffics: traffics,
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -264,184 +230,100 @@ class NetworkSpeedCard extends ConsumerWidget {
   }
 }
 
-class _DirectionLabel extends StatelessWidget {
-  const _DirectionLabel(this.direction, {this.value});
-
-  final TrafficDirection direction;
-  final String? value;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _seriesColor(context, direction);
-    final dashed = value == null && direction == TrafficDirection.upload;
-    final mark = SizedBox(
-      height: 3,
-      width: dashed ? 7 : 16,
-      child: DecoratedBox(
-        decoration: ShapeDecoration(shape: AppShape.full, color: color),
-      ),
-    );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        mark,
-        if (dashed) ...[const SizedBox(width: 2), mark],
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            [direction.labelOf(context), ?value].join(' '),
-            style: DashboardText.label(context),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-void _showTrafficUsage(BuildContext context) {
-  showSheet<void>(context: context, builder: (_) => const _TrafficUsageSheet());
-}
-
-class _TrafficUsageSheet extends ConsumerStatefulWidget {
-  const _TrafficUsageSheet();
-
-  @override
-  ConsumerState<_TrafficUsageSheet> createState() => _TrafficUsageSheetState();
-}
-
-class _TrafficUsageSheetState extends ConsumerState<_TrafficUsageSheet>
-    with WidgetsBindingObserver, ActivePollingMixin<_TrafficUsageSheet> {
-  ({Traffic month, Traffic total})? _usage;
-
-  @override
-  Duration get pollInterval => const Duration(seconds: 2);
-
-  @override
-  Future<void> poll(PollGuard isCurrent) async {
-    final onlyProxy = ref.read(appSettingProvider).onlyStatisticsProxy;
-    final usage = await ref
-        .read(coreHandlerProvider)
-        .getTrafficUsage(onlyProxy);
-    if (isCurrent() && usage != _usage) setState(() => _usage = usage);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = context.appLocalizations;
-    final usage = _usage;
-    final scale = math.max(usage?.month.speed ?? 0, usage?.total.speed ?? 0);
-    return Scaffold(
-      title: labels.trafficUsage,
-      body: ListView(
-        shrinkWrap: true,
-        padding: EdgeInsets.fromLTRB(
-          16,
-          context.contentTopPadding,
-          16,
-          context.bottomInset + 16,
-        ),
-        children: [
-          _UsageBar(
-            title: labels.trafficThisMonth,
-            traffic: usage?.month,
-            scale: scale,
-          ),
-          const SizedBox(height: 12),
-          _UsageBar(
-            title: labels.trafficAllTime,
-            traffic: usage?.total,
-            scale: scale,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UsageBar extends StatelessWidget {
-  const _UsageBar({
-    required this.title,
-    required this.traffic,
-    required this.scale,
+/// Keeps one shape at every width, growing only when the text needs more. The
+/// chart fills the tile under the title row, behind the figure and the total.
+class _SpeedTile extends StatelessWidget {
+  const _SpeedTile({
+    required this.direction,
+    required this.speed,
+    required this.total,
+    required this.traffics,
   });
 
-  final String title;
-  final Traffic? traffic;
-  final num scale;
+  final TrafficDirection direction;
+  final num speed;
+  final num total;
+  final FixedList<Traffic> traffics;
+
+  static const _aspectRatio = 1.45;
+  static const _padding = EdgeInsets.fromLTRB(16, 14, 16, 12);
+  static const _titleGap = 4.0;
+  static const _bleed = 2.0;
 
   @override
   Widget build(BuildContext context) {
-    final sample = traffic;
-    return Semantics(
-      container: true,
-      child: DashboardBlock(
-        radius: DashboardCorner.block,
-        color: DashboardColors.of(context).card,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(title, style: DashboardText.rowTitle(context)),
-                ),
-                Flexible(
-                  child: Semantics(
-                    label: context.appLocalizations.total,
-                    child: Text(
-                      sample == null ? '—' : dashboardTraffic(sample.speed),
-                      style: DashboardText.figure(context, AppTextStyle.title3),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRSuperellipse(
-              borderRadius: AppRadius.full,
-              child: ColoredBox(
-                color: DashboardColors.of(context).tone,
-                child: SizedBox(
-                  height: 10,
-                  child: LayoutBuilder(
-                    builder: (context, bounds) => Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (sample != null && scale > 0)
-                          for (final direction in TrafficDirection.values)
-                            SizedBox(
-                              width:
-                                  bounds.maxWidth *
-                                  (direction.of(sample) / scale),
-                              child: ColoredBox(
-                                color: _seriesColor(context, direction),
-                              ),
-                            ),
-                      ],
-                    ),
-                  ),
+    final color = direction.glyphColorOf(context);
+    final show = speed.traffic;
+    final scale = DashboardDensityScope.scaleOf(context);
+    final chartTop =
+        _padding.top + _titleGap + AppTextStyle.footnote.leading * scale;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxWidth / _aspectRatio,
+          ),
+          clipBehavior: Clip.antiAlias,
+          decoration: ShapeDecoration(
+            color: DashboardColors.of(context).tone,
+            shape: AppShape.all(DashboardCorner.mobileBlock),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                left: -_bleed,
+                right: -_bleed,
+                top: chartTop,
+                bottom: -_bleed,
+                child: RepaintBoundary(
+                  child: _SpeedChart(direction: direction, traffics: traffics),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 20,
-              runSpacing: 4,
-              children: [
-                for (final direction in TrafficDirection.values)
-                  _DirectionLabel(
-                    direction,
-                    value: sample == null
-                        ? '—'
-                        : dashboardTraffic(direction.of(sample)),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+              Padding(
+                padding: _padding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      spacing: 4,
+                      children: [
+                        GlyphIcon(direction.glyph, size: 16, color: color),
+                        Flexible(
+                          child: Text(
+                            direction.labelOf(context),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyle.footnote
+                                .of(context, emphasized: true)
+                                .copyWith(
+                                  color: context.colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: _titleGap),
+                    _Figure(
+                      show: show,
+                      unit: _speedUnit(show),
+                      style: AppTextStyle.title1,
+                      unitStyle: AppTextStyle.footnote,
+                    ),
+                    Text(
+                      context.appLocalizations.trafficTotal(
+                        dashboardTraffic(total),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: DashboardText.label(context),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

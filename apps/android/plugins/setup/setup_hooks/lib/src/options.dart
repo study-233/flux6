@@ -35,7 +35,7 @@ class BuildConfig {
     coreName: 'FlClashCore',
     outputDir: 'libclash',
     helperDir: 'services/helper',
-    helperName: 'FlClashHelperService',
+    helperName: 'Flux6HelperService',
   );
 
   static BuildConfig load({required String rootDir}) {

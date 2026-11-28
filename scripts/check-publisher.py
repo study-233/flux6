@@ -15,7 +15,7 @@ expected = {
 }
 errors = []
 if (root / "apps/android").is_dir():
-    expected["apps/android/lib/common/constant.dart"] = f"const updateRepository = '{repository}';"
+    expected["apps/android/lib/common/constant.dart"] = f"const repository = '{repository}';"
 if (root / "apps/macos").is_dir():
     try:
         channel = json.loads((root / "apps/macos/Resources/update-channel.json").read_text())

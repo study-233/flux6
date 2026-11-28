@@ -9,7 +9,6 @@ import 'package:fl_clash/views/access.dart';
 import 'package:fl_clash/views/backup_and_restore.dart';
 import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/views/hotkey.dart';
-import 'package:fl_clash/views/freev6/setup.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +26,20 @@ class ToolsView extends ConsumerStatefulWidget {
 }
 
 class _ToolViewState extends ConsumerState<ToolsView> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = sheetScrollController(context);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Widget _buildNavigationMenuItem(NavigationItem navigationItem) {
     return ListItem.open(
       leading: GlyphIcon(navigationItem.glyph),
@@ -68,24 +81,6 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       appSettingProvider.select((state) => state.developerMode),
     );
     final items = [
-      if (system.isAndroid)
-        generateSection(
-          title: 'Flux6',
-          items: [
-            ListItem.open(
-              leading: const GlyphIcon(AppGlyphs.profiles),
-              title: Text(context.appLocalizations.freev6SetupTitle),
-              widget: const FreeV6View(),
-              forceFull: true,
-            ),
-            ListItem.open(
-              leading: const GlyphIcon(AppGlyphs.wifi),
-              title: Text(context.appLocalizations.freev6NetworkTitle),
-              widget: const FreeV6View(mode: FreeV6ViewMode.diagnostics),
-              forceFull: true,
-            ),
-          ],
-        ),
       Consumer(
         builder: (_, ref, _) {
           final state = ref.watch(moreToolsSelectorStateProvider);
@@ -105,11 +100,10 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       body: Builder(
         builder: (context) => PrismListView(
           key: toolsStoreKey,
+          controller: _controller,
           itemCount: items.length,
           itemBuilder: (_, index) => items[index],
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
+          padding: context.listInsets.page(
             top: context.sectionsTopPadding,
             bottom: 20 + context.bottomInset,
           ),
@@ -136,14 +130,18 @@ class _LocaleItem extends ConsumerWidget {
     return ListItem<Locale?>.options(
       leading: const GlyphIcon(AppGlyphs.language),
       title: Text(context.appLocalizations.language),
-      options: [null, ...AppLocalizations.delegate.supportedLocales],
+      options: [null, ...AppLocalizations.supportedLocales],
       onChanged: (Locale? locale) {
         ref
             .read(appSettingProvider.notifier)
             .update((state) => state.copyWith(locale: locale?.toString()));
       },
       textBuilder: (locale) => _getLocaleString(context, locale),
-      value: currentLocale,
+      value: currentLocale == null
+          ? null
+          : basicLocaleListResolution([
+              currentLocale,
+            ], AppLocalizations.supportedLocales),
     );
   }
 }

@@ -6,7 +6,7 @@ cd "$FREEV6_ROOT"
 version="$(python3 scripts/version.py --platform android --field version)"
 build="$(python3 scripts/version.py --platform android --field build)"
 output="${FREEV6_OUTPUT_DIR:-$FREEV6_ROOT/dist/android/$version-b$build}"
-artifact="Flux6-$version-b$build-arm64.apk"
+artifact="Flux6-$version-android-arm64.apk"
 if [[ -e "$output/$artifact" || -e "$output/APK-SHA256SUMS" ]]; then
   printf 'Release output already exists: %s\n' "$output" >&2
   exit 1
@@ -51,7 +51,7 @@ fi
 project="$FREEV6_ROOT/apps/android"
 if [[ "${1:-}" == --unified ]]; then
   shift
-  project="$(python3 scripts/unified/prepare.py --upgrade-client)"
+  # The production app already contains the shared client.
 fi
 cd "$project"
 flutter pub get --offline --enforce-lockfile || flutter pub get --enforce-lockfile

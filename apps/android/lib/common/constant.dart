@@ -10,7 +10,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:flutter/widgets.dart';
 
 const appName = 'Flux6';
-const appHelperService = 'FlClashHelperService';
+const appHelperService = 'Flux6HelperService';
 const coreManifestName = 'manifest.json';
 const browserUa =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -32,9 +32,10 @@ const watchExecution = false;
 
 const safeModeBuild = bool.fromEnvironment('SAFE_MODE');
 
-/// The bundled core has no MITM, so this stays off until one that has it ships.
-/// Not const so tests can cover both states.
-bool mitmFeature = const bool.fromEnvironment('FEATURE_MITM');
+/// Gates what only the Concord core of the rs line can serve, such as MITM.
+/// The rs line strips each check with `tool/strip_rs_feature.dart` instead of
+/// turning it on, so a check must take a form that tool reads.
+const rsFeature = false;
 
 const disclaimerVersion = 1;
 
@@ -66,18 +67,23 @@ const delayTimedOutValue = -1;
 
 const probeTimeoutDuration = Duration(seconds: 10);
 
-/// Outlasts the Core's one-second pick poll (`routePollInterval` in
-/// core/route.go), so groups re-picking on neighbouring polls cost one route
-/// check.
+/// The window a checked move opens, whose later moves are checked together
+/// when it ends. Outlasts the Core's one-second pick poll (`routePollInterval`
+/// in core/route.go), so groups re-picking on neighbouring polls cost one
+/// route check more.
 const probeSettleDuration = Duration(milliseconds: 1500);
 
 /// Spans a config load, whose providers, rule sets and url-test picks land
 /// over a few seconds, so an exit moving with each costs one probe more.
 const probeThrottleDuration = Duration(seconds: 5);
 
-/// Covers a start, which moves the route three times within about 150 ms
-/// (`proxied`, then the listeners, then the Android TUN).
+/// Covers a burst of resets: a network switch reports more than once, and a
+/// launch applies the config and starts the listeners back to back.
 const probeMoveSettleDuration = Duration(milliseconds: 300);
+
+/// How long after a failure that came back early a watched probe target is
+/// asked the once more that confirms it.
+const probeConfirmDelay = Duration(seconds: 1);
 
 const downloadTimeoutDuration = Duration(seconds: 20);
 
@@ -100,6 +106,9 @@ const coreConnectionWaitDuration = Duration(seconds: 10);
 const maxConcurrentDelayTests = 32;
 const maxConcurrentImports = 4;
 const maxConcurrentIconLoads = 8;
+
+/// The largest well an app's icon fills: a desktop detail header's.
+const appIconExtent = 52.0;
 
 const renderThrottleDuration = Duration(milliseconds: 300);
 const defaultUpdateDuration = Duration(days: 1);
@@ -128,9 +137,7 @@ const configKey = 'config';
 const systemDnsRecordKey = 'system_dns_record';
 const bootRecordKey = 'boot_record';
 const appliedConfigMd5Key = 'applied_config_md5';
-const defaultSystemDnsFallback = '223.5.5.5';
-const repository = 'chen08209/FlClash';
-const updateRepository = 'study-233/flux6';
+const repository = 'study-233/flux6';
 const maxMobileWidth = 600;
 const maxLaptopWidth = 840;
 const defaultTestUrl = 'https://www.gstatic.com/generate_204';
@@ -179,7 +186,6 @@ const maxLogsLength = 5000;
 const maxRequestsLength = 2000;
 const maxDnsQueriesLength = 3000;
 const pausedMaxLogsLength = maxLogsLength * 2;
-const pausedMaxRequestsLength = maxRequestsLength * 2;
 const pausedMaxDnsQueriesLength = maxDnsQueriesLength * 2;
 
 const trafficSampleLength = 30;

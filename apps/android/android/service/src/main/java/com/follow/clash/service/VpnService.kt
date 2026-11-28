@@ -3,14 +3,10 @@ package com.follow.clash.service
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.net.ProxyInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.os.ParcelFileDescriptor
 import androidx.core.content.getSystemService
 import com.follow.clash.common.AccessControlMode
 import com.follow.clash.common.GlobalState
@@ -33,8 +29,6 @@ class VpnService : SystemVpnService(), ManagedService {
     private val binder = LocalBinder()
     private val tunLock = Any()
     private var tunRunning = false
-    private var wifiCallback: ConnectivityManager.NetworkCallback? = null
-    var onWifiLost: (() -> Unit)? = null
 
     override fun onDestroy() {
         try {
@@ -48,21 +42,6 @@ class VpnService : SystemVpnService(), ManagedService {
         getSystemService<ConnectivityManager>()
     }
     private val uidPackageNameMap = ConcurrentHashMap<Int, String>()
-
-    private fun wifiNetwork(): Network? = connectivity?.allNetworks?.firstOrNull { network ->
-        val capabilities = connectivity?.getNetworkCapabilities(network)
-        capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true &&
-            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-    }
-
-    private fun protectOnWifi(fd: Int): Boolean {
-        val network = wifiNetwork() ?: return false
-        if (!protect(fd)) return false
-        return runCatching {
-            ParcelFileDescriptor.fromFd(fd).use { network.bindSocket(it.fileDescriptor) }
-            true
-        }.getOrDefault(false)
-    }
 
     private fun resolveUid(
         protocol: Int,
@@ -144,10 +123,7 @@ class VpnService : SystemVpnService(), ManagedService {
     }
 
     private fun handleStart(options: VpnOptions) {
-        val network = wifiNetwork() ?: error("Flux6 requires Wi-Fi")
-        observeWifi(network)
         val fd = with(Builder()) {
-            setUnderlyingNetworks(arrayOf(network))
             addAddressAndRoutes(options)
             addDnsServers(options)
             setMtu(options.tunMtu)
@@ -184,7 +160,7 @@ class VpnService : SystemVpnService(), ManagedService {
                 check(
                     Core.startTun(
                         fd = fd,
-                        protect = this::protectOnWifi,
+                        protect = this::protect,
                         resolveUid = this::resolveUid,
                         resolvePackage = this::resolvePackage,
                         stack = options.stack,
@@ -198,27 +174,6 @@ class VpnService : SystemVpnService(), ManagedService {
                 throw error
             }
         }
-    }
-
-    private fun observeWifi(activeWifi: Network) {
-        val lost = onWifiLost
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onLost(network: Network) {
-                if (network == activeWifi) {
-                    // ServiceState remains the only owner of lifecycle transitions.
-                    lost?.invoke()
-                }
-            }
-        }
-        requireNotNull(connectivity).registerNetworkCallback(
-            NetworkRequest.Builder()
-                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-                .build(),
-            callback,
-        )
-        wifiCallback = callback
-        check(wifiNetwork() == activeWifi) { "Wi-Fi changed while starting Flux6" }
     }
 
     private fun Builder.addAddressAndRoutes(options: VpnOptions) {
@@ -320,11 +275,6 @@ class VpnService : SystemVpnService(), ManagedService {
 
     private fun cleanup() {
         try {
-            wifiCallback?.let { callback ->
-                runCatching { connectivity?.unregisterNetworkCallback(callback) }
-                wifiCallback = null
-            }
-            onWifiLost = null
             modules.stop()
         } finally {
             stopTun()

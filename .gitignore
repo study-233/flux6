@@ -7,6 +7,7 @@ apps/windows/src-tauri/gen/
 /config/
 /runtime/
 *.exe
+!/apps/android/windows/EnableLoopback.exe
 *.test
 
 /state/

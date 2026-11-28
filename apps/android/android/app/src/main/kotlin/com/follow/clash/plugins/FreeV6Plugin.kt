@@ -1,17 +1,12 @@
 package com.follow.clash.plugins
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import java.net.Inet6Address
-import java.net.InetAddress
-import java.net.InetSocketAddress
 import java.security.KeyStore
 import java.util.concurrent.Executors
 import javax.crypto.Cipher
@@ -53,6 +48,14 @@ class FreeV6Plugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             try {
                 val preferences = context.getSharedPreferences("freev6-secrets", Context.MODE_PRIVATE)
                 when (call.method) {
+                    "clearLegacy" -> {
+                        check(preferences.edit().clear().commit())
+                        KeyStore.getInstance("AndroidKeyStore").apply {
+                            load(null)
+                            if (containsAlias(KEY_ALIAS)) deleteEntry(KEY_ALIAS)
+                        }
+                        result.success(null)
+                    }
                     "read" -> {
                         val record = preferences.getString("warp", null)
                         if (record == null) {
@@ -74,43 +77,10 @@ class FreeV6Plugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                         check(preferences.edit().putString("warp", "${encode(cipher.iv)}:${encode(encrypted)}").commit())
                         result.success(null)
                     }
-                    "network" -> {
-                        val manager = context.getSystemService(ConnectivityManager::class.java)
-                        val candidates = manager.allNetworks.filter { network ->
-                            val caps = manager.getNetworkCapabilities(network)
-                            caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true &&
-                                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-                        }.map { network ->
-                            val properties = manager.getLinkProperties(network)
-                            network to FreeV6NetworkState(
-                                wifi = true,
-                                addresses = properties?.linkAddresses.orEmpty().map { it.address },
-                                defaultRoute = properties?.routes.orEmpty().any {
-                                    it.isDefaultRoute && it.destination.address is Inet6Address
-                                },
-                            )
-                        }
-                        val selected = candidates.firstOrNull()
-                        val state = selected?.second ?: FreeV6NetworkState(false, emptyList(), false)
-                        val report = state.toMap().toMutableMap()
-                        if (call.argument<Boolean>("probe") == true && state.ready && selected != null) {
-                            val probes = listOf("2001:da8:d800::1043", "2606:4700:4700::1111").map { host ->
-                                val reachable = runCatching {
-                                    selected.first.socketFactory.createSocket().use { socket ->
-                                        socket.connect(InetSocketAddress(InetAddress.getByName(host), 443), 2500)
-                                    }
-                                }.isSuccess
-                                mapOf("host" to host, "reachable" to reachable)
-                            }
-                            report["probes"] = probes
-                            report["reachable"] = probes.any { it["reachable"] == true }
-                        }
-                        result.success(report)
-                    }
                     else -> result.notImplemented()
                 }
             } catch (_: Exception) {
-                result.error("freev6_storage", "Flux6 secure storage or network check failed", null)
+                result.error("freev6_storage", "Flux6 secure storage failed", null)
             }
         }
     }

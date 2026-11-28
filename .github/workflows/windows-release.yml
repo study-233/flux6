@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 50
+    timeout-minutes: 90
     env:
       PYTHONUTF8: '1'
       NO_PROXY: '127.0.0.1,localhost,::1'
@@ -21,17 +21,34 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: apps/android/core/go.mod
+          cache-dependency-path: apps/android/core/go.sum
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.6'
+          flutter-version: '3.50.1'
           channel: stable
+      - name: Prepare Rust
+        run: rustup default stable
       - name: Build unified Flutter client and installer
         shell: pwsh
         run: |
           python scripts/version.py --platform windows
           if ($LASTEXITCODE -ne 0) { throw 'Invalid Windows release version' }
           ./scripts/windows/build-flutter.ps1 -MakeNsis 'C:\Program Files (x86)\NSIS\makensis.exe'
+      - name: Verify installer on disposable Windows runner
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem 'dist/windows/*-unified/*-setup.exe'
+          $app = Join-Path $env:ProgramFiles 'Flux6'
+          if (Test-Path $app) { throw "Install directory is already in use" }
+          $proc = Start-Process $setup.FullName '/S' -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "Installer failed with $($proc.ExitCode)" }
+          $version = (Get-Item "$app/freev6-desktop.exe").VersionInfo.ProductVersion
+          if ($version -notmatch '^0\.2\.0(?:[+.].*)?$') { throw "Unexpected installed version $version" }
+          $manifest = Get-Content "$app/manifest.json" -Raw | ConvertFrom-Json
+          if ((Get-FileHash "$app/FlClashCore.exe").Hash -ine $manifest.coreSha256) { throw "Installed core digest mismatch" }
+          $proc = Start-Process "$app/uninstall.exe" "/S _?=$app" -Wait -PassThru
+          if ($proc.ExitCode -ne 0 -or (Test-Path "$app/freev6-desktop.exe")) { throw "Uninstall failed" }
       - uses: actions/upload-artifact@v4
         with:
           name: flux6-windows-x64

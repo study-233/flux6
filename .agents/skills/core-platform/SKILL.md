@@ -11,6 +11,8 @@ platform guide. Paths below are repository-relative. Identify the actual owner a
 
 ## Ownership and contracts
 
+Flux6 0.2.x ships the Android, macOS and Windows runners in `apps/android`. Both desktop platforms use the native FlClash lifecycle. The separate XPC and Go helper entries below describe the 0.1.x hosts.
+
 | Area | Authoritative boundary and references |
 | --- | --- |
 | Shared business | `cmd/`, `internal/`, `mobileapi/` and root `go.mod`; platform adapters consume existing Go business interfaces |
@@ -19,7 +21,7 @@ platform guide. Paths below are repository-relative. Identify the actual owner a
 | Windows | Current Tauri or candidate native Flutter host talks to the existing `cmd/freev6-helper/` and shared Go; [migration boundaries](../../../docs/development/windows-flutter-refactor.md), [acceptance](../../../docs/development/windows-flutter-acceptance.md) |
 
 Android's retained `lib/core/desktop/`, plugins and `services/helper/` support shared code and host tests. They are not
-the Flux6 macOS XPC service or Windows Go helper. Retain them when referenced; do not restore removed upstream runners.
+the Flux6 macOS XPC service or Windows Go helper. Retain the corresponding native service for each supported version.
 
 ## Change safely at the owner
 

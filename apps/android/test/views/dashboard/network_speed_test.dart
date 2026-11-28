@@ -5,8 +5,9 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
-import 'package:fl_clash/views/dashboard/widgets/network_speed_chart.dart';
 import 'package:fl_clash/views/dashboard/widgets/traffic.dart';
+import 'package:fl_clash/views/dashboard/widgets/warp_usage.dart';
+import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,6 +67,37 @@ void main() {
   void addTraffic(Traffic traffic) =>
       container.read(trafficsProvider.notifier).addTraffic(traffic);
 
+  Finder tileOf(String label) => find.ancestor(
+    of: find.text(label),
+    matching: find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_SpeedTile',
+    ),
+  );
+
+  testWidgets('dashboard usage opens session, month and lifetime counters', (
+    tester,
+  ) async {
+    when(() => core.getTrafficUsage(any())).thenAnswer(
+      (_) async => (
+        month: const Traffic(up: 1024, down: 3072),
+        total: const Traffic(up: 2048, down: 6144),
+      ),
+    );
+    container.read(initProvider.notifier).value = true;
+    container.read(totalTrafficProvider.notifier).value = const Traffic(
+      up: 128,
+      down: 128,
+    );
+    await pumpCard(tester, const WarpUsageButton());
+    final button = find.text('This month ${_traffic(4096)}');
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.text('This session  ${_traffic(256)}'), findsOneWidget);
+    expect(find.text('This month  ${_traffic(4096)}'), findsOneWidget);
+    expect(find.text('All time  ${_traffic(8192)}'), findsOneWidget);
+    await teardownCard(tester);
+  });
+
   testWidgets('reads each direction\'s speed and session total', (
     tester,
   ) async {
@@ -78,87 +110,58 @@ void main() {
 
     await pumpCard(tester, const NetworkSpeedCard());
 
-    final upload = find.byKey(const ValueKey(TrafficDirection.upload));
-    final download = find.byKey(const ValueKey(TrafficDirection.download));
+    final upload = tileOf('Upload');
+    final download = tileOf('Download');
     Finder inTile(Finder tile, String text) =>
         find.descendant(of: tile, matching: find.textContaining(text));
     expect(inTile(upload, '${_traffic(1024)}/s'), findsOneWidget);
-    expect(inTile(upload, 'This session ${_traffic(5120)}'), findsOneWidget);
+    expect(inTile(upload, 'Total ${_traffic(5120)}'), findsOneWidget);
     expect(inTile(download, '${_traffic(3072)}/s'), findsOneWidget);
-    expect(inTile(download, 'This session ${_traffic(6144)}'), findsOneWidget);
+    expect(inTile(download, 'Total ${_traffic(6144)}'), findsOneWidget);
     expect(find.textContaining(_traffic(4096)), findsNothing);
 
     await teardownCard(tester);
   });
 
-  testWidgets('opens monthly and all-time usage from the network speed card', (
+  testWidgets('a phone tile keeps its ratio and charts under its title', (
     tester,
   ) async {
-    when(() => core.getTrafficUsage(false)).thenAnswer(
-      (_) async => (
-        month: const Traffic(up: 1024, down: 2048),
-        total: const Traffic(up: 4096, down: 8192),
-      ),
-    );
     await pumpCard(tester, const NetworkSpeedCard());
-    await tester.tap(find.text('Network speed'));
-    await tester.pumpAndSettle();
-    expect(find.text('This month'), findsOneWidget);
-    expect(find.text('All time'), findsOneWidget);
-    expect(find.text(_traffic(3072)), findsOneWidget);
-    expect(find.text(_traffic(12288)), findsOneWidget);
-    expect(find.text('Upload ${_traffic(1024)}'), findsOneWidget);
-    expect(find.text('Download ${_traffic(8192)}'), findsOneWidget);
+
+    for (final label in ['Upload', 'Download']) {
+      final tile = tileOf(label);
+      final rect = tester.getRect(tile);
+      expect(rect.height, closeTo(rect.width / 1.45, 0.5));
+
+      final chart = tester.getRect(
+        find.descendant(of: tile, matching: find.byType(LineChart)),
+      );
+      final title = tester.getRect(
+        find.descendant(of: tile, matching: find.text(label)),
+      );
+      expect(chart.top, greaterThanOrEqualTo(title.bottom));
+      expect(chart.bottom, greaterThanOrEqualTo(rect.bottom));
+    }
+
     await teardownCard(tester);
   });
 
-  testWidgets(
-    'the phone chart scales to the higher direction and resets on clear',
-    (tester) async {
-      addTraffic(const Traffic(up: 12 * 1024, down: 1024));
-      await pumpCard(tester, const NetworkSpeedCard());
-      final chart = find.byType(NetworkSpeedChart);
-      Finder axis(num bytes) => find.descendant(
-        of: chart,
-        matching: find.text('${_traffic(bytes)}/s'),
-      );
-      expect(axis(16 * 1024), findsOneWidget);
+  testWidgets('a phone tile grows rather than clip a scaled up total', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-      addTraffic(const Traffic(up: 1024, down: 24 * 1024));
-      await tester.pump();
-      expect(axis(32 * 1024), findsOneWidget);
+    await pumpCard(tester, const NetworkSpeedCard());
 
-      container.read(trafficsProvider.notifier).clear();
-      await tester.pump();
-      expect(axis(8 * 1024), findsOneWidget);
-      expect(find.textContaining(_traffic(24 * 1024)), findsNothing);
-      await teardownCard(tester);
-    },
-  );
+    final rect = tester.getRect(tileOf('Upload'));
+    expect(rect.height, greaterThan(rect.width / 1.45 + 1));
+    final total = tester.getRect(find.textContaining('Total').first);
+    expect(total.bottom, lessThanOrEqualTo(rect.bottom));
+    expect(tester.takeException(), isNull);
 
-  testWidgets(
-    'both readings stay above the trend with large text on a narrow phone',
-    (tester) async {
-      tester.platformDispatcher.textScaleFactorTestValue = 2;
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await pumpCard(tester, const NetworkSpeedCard());
-      tester.view.physicalSize = const Size(320, 800);
-      await tester.pump();
-      final upload = tester.getRect(
-        find.byKey(const ValueKey(TrafficDirection.upload)),
-      );
-      final download = tester.getRect(
-        find.byKey(const ValueKey(TrafficDirection.download)),
-      );
-      expect(download.top, greaterThanOrEqualTo(upload.bottom));
-      expect(
-        tester.getRect(find.byType(NetworkSpeedChart)).top,
-        greaterThanOrEqualTo(download.bottom),
-      );
-      expect(tester.takeException(), isNull);
-      await teardownCard(tester);
-    },
-  );
+    await teardownCard(tester);
+  });
 
   testWidgets('a desktop card keeps its peak to the window it charts', (
     tester,

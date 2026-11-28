@@ -4,69 +4,72 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:fl_clash/common/app_update.dart';
+import 'package:fl_clash/common/release_asset.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('selfUpdateAssetSuffix', () {
+  String? nameOn(Abi abi, {required bool replaceable}) {
+    final asset = selfUpdateAssetFor(abi, replaceable: replaceable);
+    return asset == null ? null : updateAssetName('v0.9.4', asset);
+  }
+
+  group('selfUpdateAssetFor', () {
     test('names the APK built for the running ABI', () {
       expect(
-        selfUpdateAssetSuffix(Abi.androidArm64, windowsInstalled: false),
-        'android-arm64.apk',
+        nameOn(Abi.androidArm64, replaceable: false),
+        'Flux6-0.9.4-android-arm64.apk',
       );
       expect(
-        selfUpdateAssetSuffix(Abi.androidArm, windowsInstalled: false),
-        isNull,
+        nameOn(Abi.androidArm, replaceable: false),
+        'Flux6-0.9.4-android-armv7.apk',
       );
       expect(
-        selfUpdateAssetSuffix(Abi.androidX64, windowsInstalled: false),
-        isNull,
+        nameOn(Abi.androidX64, replaceable: false),
+        'Flux6-0.9.4-android-amd64.apk',
       );
     });
 
     test('names the Windows installer only for an installed build', () {
       expect(
-        selfUpdateAssetSuffix(Abi.windowsX64, windowsInstalled: true),
-        'windows-amd64-setup.exe',
+        nameOn(Abi.windowsX64, replaceable: true),
+        'Flux6-0.9.4-windows-amd64-setup.exe',
       );
       expect(
-        selfUpdateAssetSuffix(Abi.windowsArm64, windowsInstalled: true),
-        'windows-arm64-setup.exe',
+        nameOn(Abi.windowsArm64, replaceable: true),
+        'Flux6-0.9.4-windows-arm64-setup.exe',
       );
-      expect(
-        selfUpdateAssetSuffix(Abi.windowsX64, windowsInstalled: false),
-        isNull,
-      );
+      expect(nameOn(Abi.windowsX64, replaceable: false), isNull);
     });
 
-    test('leaves macOS and Linux to the release page', () {
-      for (final abi in [
-        Abi.macosArm64,
-        Abi.macosX64,
-        Abi.linuxX64,
-        Abi.linuxArm64,
-      ]) {
-        expect(selfUpdateAssetSuffix(abi, windowsInstalled: true), isNull);
+    test('names the macOS dmg only for a bundle the updater can replace', () {
+      expect(
+        nameOn(Abi.macosArm64, replaceable: true),
+        'Flux6-0.9.4-macos-arm64.dmg',
+      );
+      expect(
+        nameOn(Abi.macosX64, replaceable: true),
+        'Flux6-0.9.4-macos-amd64.dmg',
+      );
+      expect(nameOn(Abi.macosArm64, replaceable: false), isNull);
+    });
+
+    test('leaves Linux to the release page', () {
+      for (final abi in [Abi.linuxX64, Abi.linuxArm64]) {
+        expect(nameOn(abi, replaceable: true), isNull);
       }
     });
   });
 
-  test('releaseAssetName drops the tag prefix', () {
-    expect(
-      releaseAssetName('v0.9.3', 'android-arm64.apk'),
-      'Flux6-0.9.3-android-arm64.apk',
-    );
-  });
+  test('asks for the files a rebuild tag published', () {
+    final asset = selfUpdateAssetFor(Abi.androidArm64, replaceable: false)!;
 
-  test('Android ARM64 updates use the Flux6 release APK', () {
-    final suffix = selfUpdateAssetSuffix(
-      Abi.androidArm64,
-      windowsInstalled: false,
-    )!;
-    final name = releaseAssetName('v0.1.1', suffix);
-    expect(name, 'Flux6-0.1.1-android-arm64.apk');
     expect(
-      releaseAssetUri('v0.1.1', name).toString(),
-      'https://github.com/study-233/flux6/releases/download/v0.1.1/$name',
+      updateAssetName('v0.9.4-pre.1+2', asset),
+      'Flux6-0.9.4-pre.1.2-android-arm64.apk',
+    );
+    expect(
+      updateChecksumsName('v0.9.4-pre.1+2'),
+      'Flux6-0.9.4-pre.1.2-SHA256SUMS',
     );
   });
 
@@ -76,10 +79,10 @@ void main() {
 
     test('reads the entry sha256sum wrote for a file', () {
       final sums =
-          '$digest  ./Flux6-0.9.2-android-arm64.apk\n'
-          '${'0' * 64}  ./Flux6-0.9.2-windows-amd64-setup.exe\n';
+          '$digest  Flux6-0.9.5-android-arm64.apk\n'
+          '${'0' * 64}  Flux6-0.9.5-windows-amd64-setup.exe\n';
 
-      expect(releaseChecksum(sums, 'Flux6-0.9.2-android-arm64.apk'), digest);
+      expect(releaseChecksum(sums, 'Flux6-0.9.5-android-arm64.apk'), digest);
     });
 
     test('accepts the binary marker, upper case and CRLF', () {
@@ -89,7 +92,7 @@ void main() {
     });
 
     test('answers null for a file the listing does not name', () {
-      expect(releaseChecksum('$digest  ./other.apk\n', 'FlClash.apk'), isNull);
+      expect(releaseChecksum('$digest  other.apk\n', 'FlClash.apk'), isNull);
       expect(releaseChecksum('not a listing', 'FlClash.apk'), isNull);
     });
   });
@@ -104,12 +107,5 @@ void main() {
       await fileSha256(file.path),
       sha256.convert(utf8.encode('package')).toString(),
     );
-  });
-
-  test('windowsUpdateArguments installs silently on behalf of a pid', () {
-    final arguments = windowsUpdateArguments(4242).split(' ');
-
-    expect(arguments, containsAll(['/SILENT', '/SUPPRESSMSGBOXES']));
-    expect(arguments, contains('/updatefrom=4242'));
   });
 }

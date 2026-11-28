@@ -1,5 +1,11 @@
 # FreeV6 平台边界
 
+## 0.2.0 平台边界
+
+三端应用、仪表盘与 WARP 配置协调逻辑由 `apps/android/lib` 提供。共享 WARP 业务仍在根 Go 模块，由嵌套的核心 RPC 调用。Android 使用 ServiceState 与 VpnService，macOS 使用 FlClash 桌面核心和其原生授权流程，Windows 使用 FlClash 桌面核心和按需安装的 Flux6HelperService。每个会话只有一个生命周期所有者。iOS 与 OpenWrt 继续保留占位。
+
+以下为 0.1.x 的服务边界及被替换的入口。
+
 FreeV6 在一个仓库维护 macOS、Android、Windows。iOS、OpenWrt 仅占位；Windows 已完成 [Flutter 重构准备](../development/windows-flutter-refactor.md)，当前产品入口仍为 Tauri。
 
 | 平台 | 源码 | 系统能力所有者 | 当前状态 |

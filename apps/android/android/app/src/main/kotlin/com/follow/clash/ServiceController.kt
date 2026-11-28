@@ -95,15 +95,7 @@ object ServiceController {
         }
 
         val currentBinding = binding ?: return@withLock false
-        val request = ServiceState.captureRequestToken()
-        val result = currentBinding.useService { service ->
-            if (service is VpnService) {
-                service.onWifiLost = {
-                    GlobalState.launch { ServiceState.handleRequiredNetworkLost(request) }
-                }
-            }
-            service.start()
-        }
+        val result = currentBinding.useService { service -> service.start() }
         if (result.isFailure) {
             GlobalState.log("Unable to start background service: ${result.exceptionOrNull()}")
             currentBinding.stopIfConnected()
