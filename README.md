@@ -7,26 +7,24 @@
     <a href="https://github.com/study-233/flux6/releases"><img src="https://img.shields.io/github/downloads/study-233/flux6/total" alt="发行附件总下载量" /></a>
   </p>
 
-[🌐 官网](https://study-233.github.io/flux6/) · [↓ 下载](#下载安装) · [发行说明](docs/releases/v0.2.0.md) · [💬 反馈](https://github.com/study-233/flux6/issues) · [📖 开发文档](docs/development/README.md)
+[🌐 官网](https://study-233.github.io/flux6/) · [↓ 下载](#下载安装) · [发行说明](CHANGELOG.md) · [💬 反馈](https://github.com/study-233/flux6/issues) · [📖 开发文档](docs/development/README.md)
 
 </div>
 
-## Flux6 0.2.0
+## 界面
 
 <p align="center">
-  <a href="docs/images/flux6-0.2.0-desktop.png"><img src="docs/images/flux6-0.2.0-desktop.png" alt="Flux6 桌面仪表盘" width="65%" /></a>
-  <a href="docs/images/flux6-0.2.0-android.png"><img src="docs/images/flux6-0.2.0-android.png" alt="Flux6 Android 仪表盘" width="23%" /></a>
+  <a href="https://study-233.github.io/flux6/assets/macos.png"><img src="https://study-233.github.io/flux6/assets/macos.png" alt="Flux6 桌面仪表盘" width="65%" /></a>
+  <a href="https://study-233.github.io/flux6/assets/android.png"><img src="https://study-233.github.io/flux6/assets/android.png" alt="Flux6 Android 仪表盘" width="23%" /></a>
 </p>
 
 ## 下载安装
 
-| 平台 | 0.2.0 下载 |
+| 平台 | [下载最新版](https://github.com/study-233/flux6/releases/latest) |
 | --- | --- |
-| macOS 14 及以上 · Apple Silicon | [DMG](https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-macos-arm64.dmg)（项目签名，未经 Apple 公证） |
-| Android 7.0 及以上 · ARM64 | [APK](https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-android-arm64.apk) |
-| Windows x64 | [安装程序](https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-windows-amd64-setup.exe) · [便携 ZIP](https://github.com/study-233/flux6/releases/download/v0.2.0/Flux6-0.2.0-windows-amd64.zip)（完整解压后运行） |
-
-**从 0.1.x 升级前，请先断开连接并退出旧版。** 首次运行 0.2.0 会清空旧配置、凭据和用量历史。macOS 用户请使用上方 DMG 覆盖安装。
+| macOS 14 及以上 · Apple Silicon | DMG（项目签名，未经 Apple 公证） |
+| Android 7.0 及以上 · ARM64 | APK |
+| Windows x64 | 安装程序 · 便携 ZIP（完整解压后运行） |
 
 ## 致谢
 
