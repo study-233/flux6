@@ -27,6 +27,7 @@ jobs:
         with:
           flutter-version: '3.50.1'
           channel: stable
+          cache: true
       - name: Prepare Rust
         run: rustup default stable
       - name: Build unified Flutter client and installer
@@ -54,3 +55,4 @@ jobs:
           name: flux6-windows-x64
           path: dist/windows/*-unified/*
           if-no-files-found: error
+          compression-level: 0
