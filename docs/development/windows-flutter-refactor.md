@@ -1,4 +1,6 @@
-# Windows Flutter 重构实施方案
+# Windows Flutter 重构实施方案（历史记录）
+
+当前 0.1.3 之后的实施范围和构建入口见[Windows FlClash 适配](../../apps/flux6/windows_client/README.md)；下面保留最初的迁移决策，不作为当前验收要求。
 
 2026-11-10 已确认：Windows 改用 Flutter + Windows 原生宿主，替换 Web UI / Tauri；首期保留 Go helper、现有网络实现和权限机制。界面风格及页面结构对齐当前 macOS 端，保留 Windows 原有功能，不以 Mac 全部功能为首期交付范围。
 

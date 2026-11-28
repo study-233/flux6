@@ -1,6 +1,6 @@
 # Windows Flutter 开发
 
-本工程使用 Flutter 3.47.6，已实现独立预览和真实 `live` 入口。默认入口为独立演示程序 `freev6-windows-preview.exe`，只操作内存合成数据，不启动 helper、不申请管理员权限。正式 Windows 产品仍由上层 Tauri 工程构建。
+本工程使用 Flutter 3.47.6，已实现独立预览和真实 `live` 入口。默认入口为独立演示程序 `freev6-windows-preview.exe`，只操作内存合成数据，不启动 helper、不申请管理员权限。正式 Windows 产品从[统一适配工程](../../flux6/windows_client/README.md)组装，本工程提供后端库和原生宿主。下面的独立工程命令仅用于宿主开发。
 
 Mac 上从仓库根执行：
 
@@ -38,6 +38,6 @@ Windows 完整构建：
 .\scripts\windows\build-flutter.ps1 -MakeNsis 'C:\Program Files (x86)\NSIS\makensis.exe'
 ```
 
-工具准备、产物、旧版偏好迁移、测试环境和分项验收见 [Windows 验收手册](../../../docs/development/windows-flutter-acceptance.md)。脚本不会启动真实应用或代理；用户在 Windows 完成编译与安装验证。默认生产 Tauri 入口暂时保留，W5 切换需原生验收通过。
+工具准备、产物、旧版偏好迁移、测试环境和分项验收见 [Windows 验收手册](../../../docs/development/windows-flutter-acceptance.md)。脚本不会启动真实应用或代理；用户在 Windows 完成编译与安装验证。正式入口已经采用统一 Flutter 工程；旧 Tauri 源码保留。
 
 `live` 产物位于 `build/windows/x64/live/runner/Release/`。因 Flutter 工具以首个静态 BINARY_NAME 推断调试程序名，默认 `flutter run` 用于预览；真实版本通过上述脚本构建并直接启动产物，不使用 `flutter run --flavor live`。

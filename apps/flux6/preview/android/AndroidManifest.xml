@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application android:label="Flux6 Preview" android:icon="@mipmap/cat_cow"
+        android:allowBackup="false">
+        <activity android:name="io.flutter.embedding.android.FlutterActivity"
+            android:theme="@style/LaunchTheme" android:exported="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <meta-data android:name="flutterEmbedding" android:value="2" />
+        <service android:name="com.follow.clash.service.VpnService" tools:node="remove" />
+        <service android:name="com.follow.clash.service.ProxyService" tools:node="remove" />
+        <provider android:name="com.follow.clash.service.FilesProvider" tools:node="remove" />
+    </application>
+</manifest>

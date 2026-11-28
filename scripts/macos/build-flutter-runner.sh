@@ -5,11 +5,18 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 destination="${1:?supply an empty destination Flux6.app}"
 work="${FREEV6_RUNNER_WORK:-$root/build/macos-release-runner}"
 project="$work/macos/flutter_ui"
+target=lib/live_main.dart
+if [ "${FREEV6_UNIFIED_CLIENT:-}" = 1 ]; then
+    source "$root/scripts/android/env.sh"
+    project="$(python3 "$root/scripts/unified/prepare.py" --upgrade-client)"
+    target=lib/main.dart
+    export FLUTTER_SWIFT_PACKAGE_MANAGER=true
+fi
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export PUB_CACHE="${PUB_CACHE:-$root/build/flutter-toolchain/pub-cache}"
 export FLUTTER_SUPPRESS_ANALYTICS=true DART_SUPPRESS_ANALYTICS=true CI=true FLUTTER_MACOS_ARM64_ONLY=true
 sdk="$(bash "$root/scripts/macos/build-flutter-preview.sh" --prepare | tail -1)"
-mkdir -p "$project"
+mkdir -p "$project" "$work/macos"
 # The local SwiftPM reference is two directories above the Xcode project.
 # SwiftPM builds its own targets separately from the Runner's xcconfig. Specialize only its copy
 # of FreeV6Host so fixture transports, scenario channels and QA factory never enter the release.
@@ -24,8 +31,24 @@ for member in Sources Tests; do
     fi
     ln -sfn "$root/apps/macos/$member" "$work/macos/$member"
 done
-/usr/bin/rsync -a --delete --exclude '.dart_tool' --exclude 'build' --exclude '.DS_Store' \
-    --exclude '/macos/Flutter/ephemeral' --exclude 'xcuserdata' "$root/apps/macos/flutter_ui/" "$project/"
+if [ "$target" = lib/main.dart ]; then
+    # Keep the production Swift package specialization (including its exclusions)
+    # even when the Flutter project sits beside the root Go module.
+    python3 - "$project/macos/Runner.xcodeproj/project.pbxproj" "$work/macos" <<'PYPROJECT'
+import json, os, sys
+from pathlib import Path
+file = Path(sys.argv[1])
+relative = os.path.relpath(sys.argv[2], file.parent.parent)
+package = 'relativePath = "../../../apps/macos";'
+source = file.read_text()
+if source.count(package) != 1:
+    raise SystemExit('Unified host package reference not found')
+file.write_text(source.replace(package, f'relativePath = {json.dumps(relative)};'))
+PYPROJECT
+else
+    /usr/bin/rsync -a --delete --exclude '.dart_tool' --exclude 'build' --exclude '.DS_Store' \
+        --exclude '/macos/Flutter/ephemeral' --exclude 'xcuserdata' "$root/apps/macos/flutter_ui/" "$project/"
+fi
 # Use Flux6's existing app icon for the shipping bundle rather than the Flutter template.
 for size in 16 32 64 128 256 512 1024; do
     /usr/bin/sips -z "$size" "$size" "$root/assets/branding/icon.png" --out \
@@ -39,17 +62,19 @@ CONFIG
 version="$(/usr/bin/plutil -extract CFBundleShortVersionString raw -o - "$root/apps/macos/Resources/Info.plist")"
 build="$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$root/apps/macos/Resources/Info.plist")"
 cd "$project"
-"$sdk/bin/flutter" pub get --enforce-lockfile
-"$sdk/bin/flutter" build macos --release --no-pub --target lib/live_main.dart --build-name "$version" --build-number "$build"
+"$sdk/bin/flutter" pub get --offline --enforce-lockfile || "$sdk/bin/flutter" pub get --enforce-lockfile
+"$sdk/bin/flutter" build macos --release --no-pub --target "$target" --build-name "$version" --build-number "$build"
 built="$project/build/macos/Build/Products/Release/Flux6.app"
 /usr/bin/ditto "$built" "$destination"
 python3 - "$destination/Contents/Info.plist" "$root/apps/macos/Resources/Info.plist" <<'PY'
-import plistlib, sys
+import os, plistlib, sys
 from pathlib import Path
 file = Path(sys.argv[1])
 info = plistlib.loads(file.read_bytes())
 assert info["CFBundleIdentifier"] == "dev.freev6.desktop" and info["NSMainNibFile"] == "MainMenu"
 info.update(plistlib.loads(Path(sys.argv[2]).read_bytes()))
+if os.environ.get("FREEV6_UNIFIED_CLIENT") == "1":
+    info["Flux6UnifiedClient"] = True
 file.write_bytes(plistlib.dumps(info))
 PY
 for framework in "$destination"/Contents/Frameworks/*.framework; do

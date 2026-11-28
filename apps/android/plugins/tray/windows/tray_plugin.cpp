@@ -142,10 +142,6 @@ TrayPlugin::~TrayPlugin() {
   registrar_->UnregisterTopLevelWindowProcDelegate(window_proc_id_);
 }
 
-HWND TrayPlugin::MainWindow() {
-  return ::GetAncestor(registrar_->GetView()->GetNativeWindow(), GA_ROOT);
-}
-
 void TrayPlugin::SendEvent(const char* name,
                            const flutter::EncodableValue& arguments) {
   channel_->InvokeMethod(name,
@@ -154,7 +150,6 @@ void TrayPlugin::SendEvent(const char* name,
 
 bool TrayPlugin::ApplyIcon(bool add) {
   icon_data_.cbSize = sizeof(NOTIFYICONDATAW);
-  icon_data_.hWnd = MainWindow();
   icon_data_.uID = kTrayIconId;
   icon_data_.uCallbackMessage = kTrayCallbackMessage;
   icon_data_.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
@@ -224,6 +219,12 @@ bool TrayPlugin::Show(const flutter::EncodableMap& arguments) {
     return false;
   }
 
+  auto* view = registrar_->GetView();
+  const HWND owner =
+      view ? ::GetAncestor(view->GetNativeWindow(), GA_ROOT) : nullptr;
+  if (!owner) {
+    return false;
+  }
   const HICON loaded = static_cast<HICON>(::LoadImageW(
       nullptr, Utf16FromUtf8(*icon_path).c_str(), IMAGE_ICON,
       ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON),
@@ -231,6 +232,8 @@ bool TrayPlugin::Show(const flutter::EncodableMap& arguments) {
   if (loaded == nullptr) {
     return false;
   }
+  // The Flutter view can be gone by the time the plugin removes the icon.
+  icon_data_.hWnd = owner;
   if (icon_data_.hIcon != nullptr) {
     ::DestroyIcon(icon_data_.hIcon);
   }
@@ -263,7 +266,7 @@ bool TrayPlugin::Show(const flutter::EncodableMap& arguments) {
 }
 
 void TrayPlugin::ScheduleRestore() {
-  ::SetTimer(MainWindow(), kRestoreTimerId, kRestoreIntervalMilliseconds,
+  ::SetTimer(icon_data_.hWnd, kRestoreTimerId, kRestoreIntervalMilliseconds,
              nullptr);
 }
 
@@ -271,14 +274,16 @@ void TrayPlugin::ScheduleRestore() {
 void TrayPlugin::RestoreIcon() {
   if (ApplyIcon(false) || ApplyIcon(true)) {
     visible_ = true;
-    ::KillTimer(MainWindow(), kRestoreTimerId);
+    ::KillTimer(icon_data_.hWnd, kRestoreTimerId);
   } else {
     ScheduleRestore();
   }
 }
 
 void TrayPlugin::Hide() {
-  ::KillTimer(MainWindow(), kRestoreTimerId);
+  if (icon_data_.hWnd != nullptr) {
+    ::KillTimer(icon_data_.hWnd, kRestoreTimerId);
+  }
   if (icon_requested_) {
     ::Shell_NotifyIconW(NIM_DELETE, &icon_data_);
   }
@@ -302,7 +307,7 @@ bool TrayPlugin::OpenMenu() {
     return false;
   }
 
-  const HWND window = MainWindow();
+  const HWND window = icon_data_.hWnd;
   POINT cursor;
   ::GetCursorPos(&cursor);
 
@@ -343,7 +348,7 @@ std::optional<LRESULT> TrayPlugin::HandleWindowProc(HWND window,
     return std::nullopt;
   }
 
-  if (message == WM_TIMER && wparam == kRestoreTimerId) {
+  if (message == WM_TIMER && wparam == kRestoreTimerId && icon_requested_) {
     RestoreIcon();
     return 0;
   }

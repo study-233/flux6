@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/yourname/freev6/internal/app"
@@ -13,14 +14,20 @@ import (
 
 func RegisterWarp(ctx context.Context) (string, error) {
 	client := warp.NewClient(&http.Client{Timeout: 20 * time.Second})
-	device, err := client.Register(ctx, "Flux6 Android")
+	name := "Flux6"
+	switch runtime.GOOS {
+	case "android":
+		name = "Flux6 Android"
+	case "darwin":
+		name = "Flux6 macOS"
+	case "windows":
+		name = "Flux6 Windows"
+	}
+	credential, err := app.RegisterWarp(ctx, client, name, nil)
 	if err != nil {
 		return "", err
 	}
-	if err := warp.ValidateDevice(device); err != nil {
-		return "", err
-	}
-	data, err := json.Marshal(device)
+	data, err := json.Marshal(credential.Device)
 	return string(data), err
 }
 

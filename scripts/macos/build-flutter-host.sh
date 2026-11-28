@@ -4,13 +4,14 @@ set -euo pipefail
 if [ "$#" -eq 0 ]; then
     exec bash "$(dirname "$0")/build-flutter-preview.sh" --host
 fi
-if [ "$#" -ne 1 ] || [ "$1" != "--qa-clone" ]; then
-    echo "usage: $0 [--qa-clone]" >&2; exit 2
+if [ "$#" -ne 1 ] || { [ "$1" != "--qa-clone" ] && [ "$1" != "--unified-qa-clone" ]; }; then
+    echo "usage: $0 [--qa-clone|--unified-qa-clone]" >&2; exit 2
 fi
 # Every QA run receives a unique sandbox and NSUserDefaults domain. Only the QA
 # bundle contains the consent fixture; the delivered integration app never does.
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 source="$root/build/macos-ui/Flux6 Flutter Integration.app"
+if [ "$1" = "--unified-qa-clone" ]; then source="$root/build/macos-ui/Flux6 Unified Integration.app"; fi
 codesign --verify --deep --strict "$source"
 stage="$(mktemp -d "$root/build/macos-ui/host-qa.XXXXXX")"
 bundle="$stage/Flux6 Flutter QA.app"

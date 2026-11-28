@@ -119,9 +119,10 @@ HANDLE VerifiedInstaller(const std::wstring& path, std::string expected) {
 }
 std::optional<std::wstring> PickFile(HWND window, const std::string& kind, bool save, DWORD* failure) {
   std::vector<wchar_t> path(32768, L'\0');
-  if (save) wcscpy_s(path.data(), path.size(), L"freev6-ui-preferences.json");
+  if (save) wcscpy_s(path.data(), path.size(), kind == "logs" ? L"freev6.log" : L"freev6-ui-preferences.json");
   const wchar_t* filter = kind == "image" ? L"PNG / JPEG\0*.png;*.jpg;*.jpeg\0\0" :
-    kind == "yaml" ? L"YAML\0*.yaml;*.yml\0All files\0*.*\0\0" : L"JSON\0*.json\0\0";
+    kind == "yaml" ? L"YAML\0*.yaml;*.yml\0All files\0*.*\0\0" :
+    kind == "logs" ? L"Log\0*.log;*.txt\0All files\0*.*\0\0" : L"JSON\0*.json\0\0";
   OPENFILENAMEW dialog{};
   dialog.lStructSize = sizeof(dialog); dialog.hwndOwner = window; dialog.lpstrFilter = filter;
   dialog.lpstrFile = path.data(); dialog.nMaxFile = static_cast<DWORD>(path.size());
@@ -146,6 +147,7 @@ bool HostBridge::AutostartAllowed() {
     L"FreeV6", RRF_RT_REG_BINARY, nullptr, value, &size);
   return status != ERROR_SUCCESS || size == 0 || value[0] == 2;
 }
+bool HostBridge::LiveOperationsEnabled() const { return FREEV6_LIVE && !probe_; }
 bool HostBridge::should_show() const { return !probe_ && (!FREEV6_LIVE || !tray_ || !SettingsFlag("silentStart")); }
 HostBridge::HostBridge(flutter::BinaryMessenger* messenger, HWND window, bool probe) : window_(window), probe_(probe) {
   channel_ = std::make_unique<flutter::MethodChannel<EncodableValue>>(messenger,
@@ -160,7 +162,7 @@ HostBridge::HostBridge(flutter::BinaryMessenger* messenger, HWND window, bool pr
     } else if (method == "finishProbe" && probe_) {
       probe_passed_ = BoolArg(args, "ok"); exiting_ = true;
       result->Success(); PostMessageW(window_, WM_CLOSE, 0, 0);
-    } else if (!FREEV6_LIVE || probe_) {
+    } else if (!LiveOperationsEnabled()) {
       result->Error("preview", "Live operations are disabled in preview/probe mode");
     } else if (method == "bootstrap") {
       std::string error;
@@ -230,7 +232,7 @@ HostBridge::HostBridge(flutter::BinaryMessenger* messenger, HWND window, bool pr
       exiting_ = true; result->Success(); PostMessageW(window_,WM_CLOSE,0,0);
     } else result->NotImplemented();
   });
-  if (FREEV6_LIVE && !probe_) {
+  if (LiveOperationsEnabled()) {
     taskbar_created_ = RegisterWindowMessageW(L"TaskbarCreated");
     AddTray(); SetTimer(window_,kPoll,500,nullptr);
   }
@@ -256,7 +258,7 @@ void HostBridge::AddTray() {
   wcscpy_s(icon.szTip,kTitle); tray_=Shell_NotifyIconW(NIM_ADD,&icon) != FALSE;
 }
 std::optional<LRESULT> HostBridge::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam) {
-  if (!FREEV6_LIVE || probe_) return std::nullopt;
+  if (!LiveOperationsEnabled()) return std::nullopt;
   if (message == taskbar_created_ && taskbar_created_ != 0) { AddTray(); return 0; }
   if (message == WM_HOTKEY && wparam == kHotkey) { Show(); return 0; }
   if (message == WM_TIMER && wparam == kPoll) { PollHelper(); return 0; }

@@ -13,7 +13,21 @@ import 'live/live_model.dart';
 import 'live/nodes_page.dart';
 import 'live/pages.dart';
 
-Future<void> main(List<String> arguments) async {
+typedef HostNavigationBuilder =
+    Widget Function(
+      List<Widget> pages,
+      int index,
+      ValueChanged<int> onSelect,
+      VoidCallback onQuit,
+    );
+
+Future<void> main(List<String> arguments) => runMacHost(arguments);
+
+Future<void> runMacHost(
+  List<String> arguments, {
+  HostNavigationBuilder? navigation,
+  NodeGroupBuilder? nodeGroups,
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('dev.freev6.host/v1');
   String role = arguments.contains('/settings') ? 'settings' : 'main';
@@ -25,12 +39,25 @@ Future<void> main(List<String> arguments) async {
     /* A detached host can be retried in place. */
   }
   final model = LiveModel(windowRole: role);
-  runApp(HostApplication(model: model));
+  runApp(
+    HostApplication(
+      model: model,
+      navigation: navigation,
+      nodeGroups: nodeGroups,
+    ),
+  );
   unawaited(model.start());
 }
 
 class HostApplication extends StatefulWidget {
-  const HostApplication({super.key, required this.model});
+  const HostApplication({
+    super.key,
+    required this.model,
+    this.navigation,
+    this.nodeGroups,
+  });
+  final HostNavigationBuilder? navigation;
+  final NodeGroupBuilder? nodeGroups;
   final LiveModel model;
   @override
   State<HostApplication> createState() => _HostApplicationState();
@@ -74,14 +101,26 @@ class _HostApplicationState extends State<HostApplication> {
     title: 'Flux6',
     appearance: appearance,
     reduceMotion: reduced,
-    home: _HostWindow(key: ObjectKey(widget.model), model: widget.model),
+    home: _HostWindow(
+      key: ObjectKey(widget.model),
+      model: widget.model,
+      navigation: widget.navigation,
+      nodeGroups: widget.nodeGroups,
+    ),
   );
 }
 
 enum _Tool { settings, layout, prepare, notices, scenarios }
 
 class _HostWindow extends StatefulWidget {
-  const _HostWindow({super.key, required this.model});
+  const _HostWindow({
+    super.key,
+    required this.model,
+    this.navigation,
+    this.nodeGroups,
+  });
+  final HostNavigationBuilder? navigation;
+  final NodeGroupBuilder? nodeGroups;
   final LiveModel model;
   @override
   State<_HostWindow> createState() => _HostWindowState();
@@ -113,7 +152,10 @@ class _HostWindowState extends State<_HostWindow>
   LiveModel get model => widget.model;
   // IndexedStack preserves State. Reuse the child widget as well so switching
   // destinations does not rebuild hidden node cards, charts or form fields.
-  late final nodesPage = LiveNodesPage(model: model);
+  late final nodesPage = LiveNodesPage(
+    model: model,
+    groupBuilder: widget.nodeGroups,
+  );
   late final dashboardPages = {
     for (final needsPreparation in [false, true])
       needsPreparation: PreviewDashboard(
@@ -263,6 +305,92 @@ class _HostWindowState extends State<_HostWindow>
     );
   }
 
+  Widget _header() {
+    final palette = prism.Theme.of(context).colorScheme;
+    return SizedBox(
+      key: header,
+      height: 68,
+      child: Padding(
+        padding: EdgeInsetsDirectional.only(
+          start: widget.navigation == null ? 18 : 84,
+          end: 14,
+          top: 7,
+        ),
+        child: Row(
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                destinations[page].label,
+                style: TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.6,
+                  color: palette.onSurface,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (event) {
+                  if (event.buttons == 1)
+                    unawaited(model.platform('startDragging'));
+                },
+                child: const SizedBox.expand(),
+              ),
+            ),
+            if (page != 0 || hidden || model.needsPreparation)
+              TextButton.icon(
+                onPressed: model.needsPreparation
+                    ? () => openTool(_Tool.prepare)
+                    : model.canConnectAction
+                    ? model.toggleConnection
+                    : null,
+                icon: const Icon(Icons.power_settings_new_rounded, size: 18),
+                label: Text(
+                  model.needsPreparation ? '准备服务' : model.connectionAction,
+                ),
+              )
+            else
+              Tooltip(
+                message: model.phaseLabel,
+                child: Semantics(
+                  label: '连接状态：${model.phaseLabel}',
+                  child: CircleAvatar(
+                    radius: 15,
+                    backgroundColor: model.connected
+                        ? const Color(0xff96f598)
+                        : palette.surfaceContainerHighest,
+                    child: Icon(
+                      model.connected
+                          ? Icons.check_rounded
+                          : Icons.remove_rounded,
+                      size: 18,
+                      color: model.connected
+                          ? const Color(0xff195d25)
+                          : palette.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            if (widget.navigation != null)
+              IconButton(
+                tooltip: '设置（⌘,）',
+                onPressed: () => openTool(_Tool.settings),
+                icon: const Icon(Icons.settings_outlined),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _modeHint() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 18),
+    child: Text(model.modeHint!),
+  );
+
   Widget _error() {
     final text = model.message ?? model.state['error']?.toString();
     if (text == null || text.isEmpty) return const SizedBox.shrink();
@@ -356,6 +484,30 @@ class _HostWindowState extends State<_HostWindow>
             autofocus: true,
             child: LayoutBuilder(
               builder: (context, box) {
+                final navigation = widget.navigation;
+                if (navigation != null) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _header(),
+                      _error(),
+                      if (model.modeHint != null) _modeHint(),
+                      Expanded(
+                        child: navigation(
+                          [
+                            dashboardPages[model.needsPreparation]!,
+                            nodesPage,
+                            configurationPages[page == 2]!,
+                            logPages[page == 3]!,
+                          ],
+                          page,
+                          showPage,
+                          () => model.platform('quit'),
+                        ),
+                      ),
+                    ],
+                  );
+                }
                 final expanded = expandedOverride ?? box.maxWidth >= 1080;
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -449,94 +601,9 @@ class _HostWindowState extends State<_HostWindow>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(
-                            key: header,
-                            height: 68,
-                            child: Padding(
-                              padding: const EdgeInsetsDirectional.only(
-                                start: 18,
-                                end: 14,
-                                top: 7,
-                              ),
-                              child: Row(
-                                children: [
-                                  Semantics(
-                                    header: true,
-                                    child: Text(
-                                      destinations[page].label,
-                                      style: TextStyle(
-                                        fontSize: 23,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: -.6,
-                                        color: palette.onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Listener(
-                                      behavior: HitTestBehavior.opaque,
-                                      onPointerDown: (event) {
-                                        if (event.buttons == 1)
-                                          unawaited(
-                                            model.platform('startDragging'),
-                                          );
-                                      },
-                                      child: const SizedBox.expand(),
-                                    ),
-                                  ),
-                                  if (page != 0 ||
-                                      hidden ||
-                                      model.needsPreparation)
-                                    TextButton.icon(
-                                      onPressed: model.needsPreparation
-                                          ? () => openTool(_Tool.prepare)
-                                          : model.canConnectAction
-                                          ? model.toggleConnection
-                                          : null,
-                                      icon: const Icon(
-                                        Icons.power_settings_new_rounded,
-                                        size: 18,
-                                      ),
-                                      label: Text(
-                                        model.needsPreparation
-                                            ? '准备服务'
-                                            : model.connectionAction,
-                                      ),
-                                    )
-                                  else
-                                    Tooltip(
-                                      message: model.phaseLabel,
-                                      child: Semantics(
-                                        label: '连接状态：${model.phaseLabel}',
-                                        child: CircleAvatar(
-                                          radius: 15,
-                                          backgroundColor: model.connected
-                                              ? const Color(0xff96f598)
-                                              : palette.surfaceContainerHighest,
-                                          child: Icon(
-                                            model.connected
-                                                ? Icons.check_rounded
-                                                : Icons.remove_rounded,
-                                            size: 18,
-                                            color: model.connected
-                                                ? const Color(0xff195d25)
-                                                : palette.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          _header(),
                           _error(),
-                          if (model.modeHint != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                              ),
-                              child: Text(model.modeHint!),
-                            ),
+                          if (model.modeHint != null) _modeHint(),
                           Expanded(
                             child: FadeTransition(
                               opacity: enter,

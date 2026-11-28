@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `apps/macos/` | Flutter 界面、Swift/AppKit 宿主、XPC 网络服务 | 继续开发 |
 | `apps/android/` | 基于 FlClash 的 Flutter、Android VPN 服务、嵌套 Go 核心 | 继续开发 |
-| `apps/windows/` | 当前 Web/Tauri 与独立 Flutter 迁移工程 | [Flutter 重构实施中](windows-flutter-refactor.md)，保留 Go helper；原生验证随后在 Windows 执行 |
+| `apps/windows/` | Windows 宿主与后端库，统一 Flutter UI 在 `apps/flux6/windows_client/` | [当前适配](../../apps/flux6/windows_client/README.md)，保留 Go helper |
 | `apps/ios/` | 平台说明、待确认事项 | 仅占位 |
 | `apps/openwrt/` | 路由器平台说明、待确认事项 | 仅占位 |
 | `cmd/`、`internal/`、`mobileapi/` | Go 程序、共享业务、移动端接口 | 共享维护 |
@@ -18,7 +18,7 @@
 | `scripts/` | 各端构建、验证与维护脚本 | 从仓库根目录调用 |
 | `build/`、`dist/` | 工具缓存和临时构建、分发产物 | 不进 Git |
 
-业务复用以已有 Go 模块和协议为边界。UI、权限、服务生命周期、系统网络适配由各平台负责。暂不引入跨平台“大一统”框架，也不为 iOS/OpenWrt 添加空工程、依赖或 CI。
+正式版通过已有 Go 模块和协议共享业务，UI、权限、服务生命周期和系统网络适配由各平台负责。下一代客户端将从完整 FlClash 工程构建三个目标，共享 Flutter 应用、状态与业务流程。当前来源、验收范围和切换进度见[统一客户端迁移](unified-client.md)。iOS 和 OpenWrt 继续预留。
 
 ## AI 代理规范与技能
 

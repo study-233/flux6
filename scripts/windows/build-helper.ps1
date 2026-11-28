@@ -13,10 +13,12 @@ try {
     New-Item -ItemType Directory -Force $directory | Out-Null
     $temporary = Join-Path $directory "$name.build.exe"
     # Corresponding-source archives omit compiled objects, including the version resource.
-    if (-not (Test-Path -LiteralPath 'cmd/freev6-helper/rsrc_windows_amd64.syso')) {
+    $release = Get-Content (Join-Path $root 'apps/windows/release.json') -Raw | ConvertFrom-Json
+    $resourceVersion = "$($release.version).$($release.build)"
+    if ($BundleDirectory -or -not (Test-Path -LiteralPath 'cmd/freev6-helper/rsrc_windows_amd64.syso')) {
         Push-Location 'cmd/freev6-helper'
         try {
-            go run github.com/tc-hib/go-winres@v0.3.3 make --in winres/winres.json --arch amd64
+            go run github.com/tc-hib/go-winres@v0.3.3 make --in winres/winres.json --arch amd64 --product-version $resourceVersion --file-version $resourceVersion
             if ($LASTEXITCODE -ne 0) { throw 'Go helper resource generation failed' }
         } finally { Pop-Location }
     }

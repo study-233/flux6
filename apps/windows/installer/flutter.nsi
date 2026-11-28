@@ -10,7 +10,9 @@ SetCompressor /SOLID lzma
 !include nsDialogs.nsh
 !include x64.nsh
 !include WordFunc.nsh
-!define KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\FreeV6"
+!define UNINSTALL_ROOT "Software\Microsoft\Windows\CurrentVersion\Uninstall"
+!define KEY "${UNINSTALL_ROOT}\Flux6"
+!define PREVIOUS_KEY "${UNINSTALL_ROOT}\FreeV6"
 Name "Flux6"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\FreeV6"
@@ -39,6 +41,54 @@ Var RegistryView
 Var Existing
 Var Relaunch
 
+!macro ReadUserLocation PRODUCT_KEY
+  ReadRegStr $0 HKCU "${PRODUCT_KEY}" "InstallLocation"
+  StrCpy $1 $0 1
+  ${If} $1 == '$\"'
+    StrCpy $0 $0 -1 1
+  ${EndIf}
+!macroend
+
+!macro InspectRegistration VIEW PRODUCT_KEY
+  SetRegView ${VIEW}
+  ReadRegStr $0 HKLM "${PRODUCT_KEY}" "InstallLocation"
+  ${If} $0 != ""
+    MessageBox MB_OK|MB_ICONSTOP "检测到系统范围的旧安装。请先按迁移说明备份并卸载旧程序（保留应用数据），再安装本版本。" /SD IDOK
+    Abort
+  ${EndIf}
+  !insertmacro ReadUserLocation "${PRODUCT_KEY}"
+  ${If} $0 != ""
+    ${If} $Existing == ""
+      StrCpy $Existing $0
+      StrCpy $RegistryView ${VIEW}
+    ${ElseIf} $Existing != $0
+      MessageBox MB_OK|MB_ICONSTOP "检测到多个 Flux6 安装目录。请先确认并备份需要保留的数据，然后再升级。" /SD IDOK
+      Abort
+    ${EndIf}
+    ReadRegStr $0 HKCU "${PRODUCT_KEY}" "DisplayVersion"
+    ${If} $0 != ""
+      ${VersionCompare} $0 "${VERSION}" $1
+      ${If} $1 == 1
+        MessageBox MB_OK|MB_ICONSTOP "已安装版本更新，已阻止降级。" /SD IDOK
+        Abort
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
+!macroend
+
+!macro RemoveOwnedRegistration VIEW PRODUCT_KEY
+  SetRegView ${VIEW}
+  !insertmacro ReadUserLocation "${PRODUCT_KEY}"
+  ${If} $0 == $INSTDIR
+    ClearErrors
+    DeleteRegKey HKCU "${PRODUCT_KEY}"
+    ${If} ${Errors}
+      SetErrorLevel 20
+      Abort "无法清理当前安装目录的卸载项。"
+    ${EndIf}
+  ${EndIf}
+!macroend
+
 Function .onInit
   ${IfNot} ${RunningX64}
     MessageBox MB_OK|MB_ICONSTOP "此安装包需要 64 位 Windows。"
@@ -46,44 +96,17 @@ Function .onInit
   ${EndIf}
   SetShellVarContext current
   StrCpy $RegistryView 32
-  SetRegView 32
-  ReadRegStr $Existing HKCU "${KEY}" "InstallLocation"
-  ${If} $Existing == ""
-    SetRegView 64
-    ReadRegStr $Existing HKCU "${KEY}" "InstallLocation"
-    ${If} $Existing != ""
-      StrCpy $RegistryView 64
-    ${Else}
-      SetRegView 32
-    ${EndIf}
-  ${EndIf}
+  !insertmacro InspectRegistration 32 "${KEY}"
+  !insertmacro InspectRegistration 64 "${KEY}"
+  !insertmacro InspectRegistration 32 "${PREVIOUS_KEY}"
+  !insertmacro InspectRegistration 64 "${PREVIOUS_KEY}"
   ${If} $Existing != ""
-    ; Tauri writes quotes around InstallLocation.
-    StrCpy $0 $Existing 1
-    ${If} $0 == '$\"'
-      StrCpy $Existing $Existing -1 1
-    ${EndIf}
     StrCpy $INSTDIR $Existing
-  ${Else}
-    ; Machine-wide installations need a reviewed migration, not a second entry.
-    SetRegView 32
-    ReadRegStr $0 HKLM "${KEY}" "InstallLocation"
-    SetRegView 64
-    ReadRegStr $1 HKLM "${KEY}" "InstallLocation"
-    ${If} $0 != ""
-    ${OrIf} $1 != ""
-      MessageBox MB_OK|MB_ICONSTOP "检测到系统范围的旧安装。请先按迁移说明备份并卸载旧程序（保留应用数据），再安装本版本。" /SD IDOK
-      Abort
-    ${EndIf}
-    SetRegView 32
   ${EndIf}
-  ReadRegStr $0 HKCU "${KEY}" "DisplayVersion"
-  ${If} $0 != ""
-    ${VersionCompare} $0 "${VERSION}" $1
-    ${If} $1 == 1
-      MessageBox MB_OK|MB_ICONSTOP "已安装版本更新，已阻止降级。" /SD IDOK
-      Abort
-    ${EndIf}
+  ${If} $RegistryView == 32
+    SetRegView 32
+  ${Else}
+    SetRegView 64
   ${EndIf}
   StrCpy $Relaunch 0
   ClearErrors
@@ -173,6 +196,7 @@ Section "Flux6"
     Abort "安装文件复制失败。请保留应用数据并重新运行安装器。"
   ${EndIf}
   Call MigrateLegacyHelper
+  ClearErrors
   WriteUninstaller "$INSTDIR\uninstall.exe"
   ${If} $RegistryView == 64
     SetRegView 64
@@ -189,6 +213,12 @@ Section "Flux6"
   WriteRegStr HKCU "${KEY}" "Publisher" "Flux6 contributors"
   WriteRegDWORD HKCU "${KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${KEY}" "NoRepair" 1
+  ${If} ${Errors}
+    SetErrorLevel 20
+    Abort "无法登记卸载程序。请保留应用数据并重新运行安装器。"
+  ${EndIf}
+  !insertmacro RemoveOwnedRegistration 32 "${PREVIOUS_KEY}"
+  !insertmacro RemoveOwnedRegistration 64 "${PREVIOUS_KEY}"
   ; Remove only the previous product shortcuts; preserve its install and data paths.
   Delete "$DESKTOP\FreeV6.lnk"
   Delete "$SMPROGRAMS\FreeV6\FreeV6.lnk"
@@ -242,10 +272,8 @@ Section "Uninstall"
   Delete "$DESKTOP\Flux6.lnk"
   Delete "$SMPROGRAMS\Flux6\Flux6.lnk"
   RMDir "$SMPROGRAMS\Flux6"
-  SetRegView 32
-  DeleteRegKey HKCU "${KEY}"
-  SetRegView 64
-  DeleteRegKey HKCU "${KEY}"
+  !insertmacro RemoveOwnedRegistration 32 "${KEY}"
+  !insertmacro RemoveOwnedRegistration 64 "${KEY}"
   ${If} $DeleteData == ${BST_CHECKED}
     RMDir /r "$INSTDIR\config"
     RMDir /r "$INSTDIR\state"

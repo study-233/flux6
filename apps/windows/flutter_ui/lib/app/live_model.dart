@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 
 import '../backend/api.dart' hide JsonMap;
+import '../backend/node_tools.dart';
 import '../dashboard_model.dart';
 import '../platform/legacy_preferences.dart';
 import '../platform/preferences_store.dart';
@@ -23,7 +24,8 @@ class LiveModel extends ClientModel {
     this.polling = true,
     this.pause = Future<void>.delayed,
   }) {
-    controller = ControllerApi(transport, () => _secret);
+    controller = ControllerApi(transport);
+    nodeTools = NodeTools(helper)..addListener(_notify);
   }
   final HelperApi helper;
   final Transport transport;
@@ -33,6 +35,17 @@ class LiveModel extends ClientModel {
   final bool polling;
   final Future<void> Function(Duration) pause;
   late final ControllerApi controller;
+  late final NodeTools nodeTools;
+  final JsonMap networkOptions = {};
+  String _downloadSession = '';
+  final List<JsonMap> connections = [];
+  int connectionsRevision = 0;
+  StreamSubscription<JsonMap>? _coreLogs;
+  StreamSubscription<JsonMap>? _memoryStream;
+  int _logGeneration = 0;
+  Timer? _logRetry;
+  Timer? _logNotify;
+  int sessionUpload = 0, sessionDownload = 0;
   @override
   Stream<String> get events => host.events;
   @override
@@ -65,7 +78,6 @@ class LiveModel extends ClientModel {
   final _timers = <Timer>[];
   StreamSubscription<String>? _subscription;
   String? _message, _current;
-  String _secret = '';
   bool _disposed = false, _connected = false, _busy = false, _online = false;
   bool _monthly = true, _knownStopped = false, _statusPolling = false;
   bool _nodesPolling = false, _trafficPolling = false, _writing = false;
@@ -75,6 +87,7 @@ class LiveModel extends ClientModel {
   int _settingsGen = 0, _runGen = 0, _nodeGen = 0, _autoGen = 0;
   int _resourceGen = 0;
   int _lastUp = 0, _lastDown = 0;
+  String get downloadSession => _downloadSession;
   DateTime? _started, _sampleTime;
   JsonMap _stats = {
     'total': {'up': 0, 'down': 0},
@@ -99,7 +112,7 @@ class LiveModel extends ClientModel {
   @override
   bool get canChangeMode => !busy && !_writing;
   @override
-  bool get canSelectNode => connected && !busy;
+  bool get canSelectNode => connected && !busy && !nodeTools.selecting;
   @override
   bool get monthly => _monthly;
   @override
@@ -125,7 +138,8 @@ class LiveModel extends ClientModel {
   @override
   String? get currentNode => _current;
   @override
-  String? get preferredNode => _current;
+  String? get preferredNode =>
+      nodeTools.pinned.isEmpty ? null : nodeTools.pinned;
   @override
   List<String> get nodes => List.unmodifiable(_nodes);
   @override
@@ -157,14 +171,89 @@ class LiveModel extends ClientModel {
     if (!_disposed) notifyListeners();
   }
 
-  void _log(String value, {bool warning = false}) {
+  void _log(
+    String value, {
+    bool warning = false,
+    bool immediate = true,
+    String? level,
+  }) {
     if (_disposed) return;
     _logs.insert(
       0,
-      PreviewLog(DateTime.now(), value, level: warning ? '警告' : '信息'),
+      PreviewLog(
+        DateTime.now(),
+        value,
+        level: level ?? (warning ? '警告' : '信息'),
+      ),
     );
     if (_logs.length > 300) _logs.removeLast();
-    _notify();
+    if (immediate) {
+      _notify();
+    } else {
+      _logNotify ??= Timer(const Duration(milliseconds: 100), () {
+        _logNotify = null;
+        _notify();
+      });
+    }
+  }
+
+  void _listenLogs() {
+    _coreLogs?.cancel();
+    _memoryStream?.cancel();
+    _logRetry?.cancel();
+    final generation = ++_logGeneration;
+    if (!connected || !polling || _disposed) return;
+    void retry() {
+      if (!_disposed && connected && generation == _logGeneration) {
+        _logRetry = Timer(const Duration(seconds: 5), _listenLogs);
+      }
+    }
+
+    _coreLogs = controller
+        .watch(
+          '/logs',
+          query: {
+            'level': networkOptions['logLevel'] == 'debug' ? 'debug' : 'info',
+          },
+        )
+        .listen(
+          (entry) {
+            if (_disposed || generation != _logGeneration) return;
+            final level = entry['type']?.toString() ?? 'info';
+            var payload = entry['payload']?.toString() ?? '';
+            if (payload.isEmpty) return;
+            payload = payload.replaceAll(
+              RegExp(
+                r'(authorization|private[-_]?key|password|secret|token)\s*[:=]\s*(?:Bearer\s+)?[^\s,;]+',
+                caseSensitive: false,
+              ),
+              '[redacted]',
+            );
+            payload = payload.replaceAll(
+              RegExp(r'://[^/\s@]+@'),
+              '://[redacted]@',
+            );
+            _log(
+              '[核心/$level] $payload',
+              warning: level == 'warning' || level == 'error',
+              immediate: false,
+              level: level,
+            );
+          },
+          onError: (Object _) => retry(),
+          onDone: retry,
+          cancelOnError: true,
+        );
+    _memoryStream = controller
+        .watch('/memory')
+        .listen(
+          (entry) {
+            if (_disposed || generation != _logGeneration) return;
+            runtime['coreMemory'] = entry['inuse'];
+          },
+          onError: (Object _) {},
+          cancelOnError: true,
+        );
   }
 
   void _failure(Object error) {
@@ -266,13 +355,12 @@ class LiveModel extends ClientModel {
       final status = await helper.call('/status');
       if (_disposed) return;
       _online = true;
-      if (runGen == _runGen && !_busy)
-        _secret = status['controllerSecret']?.toString() ?? _secret;
       if (resources == _resourceGen && _registration == null)
         runtime['warpRegistered'] =
             object(status['warp'])['registered'] == true;
       runtime['admin'] = status['admin'];
       runtime['hotspot'] = status['hotspot'];
+      runtime['coreRss'] = status['coreRss'];
       if (settingsGen == _settingsGen && !_writing) {
         settings
           ..clear()
@@ -280,7 +368,7 @@ class LiveModel extends ClientModel {
       }
       if (runGen == _runGen && !_busy) {
         _knownStopped = object(status['proxy'])['running'] == false;
-        _setRunning(object(status['proxy'])['running'] == true);
+        _setRunning(object(status['proxy'])['running'] == true, status);
       }
       _notify();
     } catch (e) {
@@ -301,6 +389,7 @@ class LiveModel extends ClientModel {
     for (final pair in [
       ('/runtime', runtime),
       ('/chain-proxy', chain),
+      ('/network-options', networkOptions),
       ('/notice', <String, dynamic>{}),
       ('/cloud-config', cloud),
     ]) {
@@ -330,17 +419,30 @@ class LiveModel extends ClientModel {
     _current = null;
   }
 
-  void _setRunning(bool value) {
-    if (_connected == value) return;
+  void _setRunning(bool value, [JsonMap? session]) {
+    final endpointChanged = controller.updateEndpoint(value ? session : null);
+    final nextSession = value
+        ? (session?['downloadSession']?.toString() ?? '')
+        : '';
+    final sessionChanged = nextSession != _downloadSession;
+    _downloadSession = nextSession;
+    nodeTools.bind(_downloadSession, _group);
+    if (_connected == value && !endpointChanged && !sessionChanged) return;
     _connected = value;
     _runGen++;
     _started = value ? DateTime.now() : null;
     _sampleTime = null;
     _lastUp = 0;
     _lastDown = 0;
+    sessionUpload = sessionDownload = 0;
+    runtime['coreMemory'] = 0;
+    if (!value) runtime['coreRss'] = 0;
+    connections.clear();
+    connectionsRevision++;
     _uploads.clear();
     _downloads.clear();
     _clearNodes();
+    _listenLogs();
     if (!_disposed) traffic.value++;
     _notify();
   }
@@ -351,13 +453,25 @@ class LiveModel extends ClientModel {
     final generation = _nodeGen, run = _runGen, group = _group;
     try {
       final data = await controller.call(['proxies']);
+      await nodeTools.refresh();
       if (_disposed || generation != _nodeGen || run != _runGen || !connected)
         return;
       final info = object(object(data['proxies'])[group]);
       _nodes
         ..clear()
-        ..addAll((info['all'] as List? ?? []).whereType<String>());
-      _current = info['now'] as String?;
+        ..addAll(
+          nodeTools.candidates.isNotEmpty
+              ? nodeTools.candidates
+              : (info['all'] as List? ?? []).whereType<String>().where(
+                  (name) => !name.startsWith('__Flux6_'),
+                ),
+        );
+      final selected = nodeTools.pinned.isNotEmpty
+          ? nodeTools.pinned
+          : info['now'] as String?;
+      _current = selected != null && !selected.startsWith('__Flux6_')
+          ? selected
+          : null;
       _notify();
     } catch (_) {
       /* transient controller startup/stop; status remains authoritative */
@@ -373,20 +487,28 @@ class LiveModel extends ClientModel {
     try {
       final data = await controller.call(['connections']);
       if (_disposed || generation != _runGen || !connected) return;
-      var up = 0, down = 0;
-      for (final connection in (data['connections'] as List? ?? [])) {
-        final value = object(connection);
-        up += (value['upload'] as num? ?? 0).toInt();
-        down += (value['download'] as num? ?? 0).toInt();
-      }
+      connections
+        ..clear()
+        ..addAll((data['connections'] as List? ?? []).map(object));
+      connectionsRevision++;
+      final upValue = data['uploadTotal'], downValue = data['downloadTotal'];
+      if (upValue is! num ||
+          downValue is! num ||
+          !upValue.isFinite ||
+          !downValue.isFinite ||
+          upValue < 0 ||
+          downValue < 0)
+        return;
+      final up = upValue.toInt(), down = downValue.toInt();
       final now = DateTime.now();
       final elapsed = _sampleTime == null
           ? 1.0
           : math.max(.001, now.difference(_sampleTime!).inMilliseconds / 1000);
-      final du = _lastUp > 0 ? math.max(0, up - _lastUp) : 0;
-      // Keep the legacy accounting baseline: both counters start after an
-      // upload sample, rather than silently changing migrated usage totals.
-      final dd = _lastUp > 0 ? math.max(0, down - _lastDown) : 0;
+      final reset = _sampleTime == null || up < _lastUp || down < _lastDown;
+      final du = reset ? 0 : up - _lastUp;
+      final dd = reset ? 0 : down - _lastDown;
+      sessionUpload = up;
+      sessionDownload = down;
       _lastUp = up;
       _lastDown = down;
       _sampleTime = now;
@@ -558,12 +680,13 @@ class LiveModel extends ClientModel {
           'mode': settings['mode'] ?? 'rule',
           'campusCidrs': settings['campusCidrs'] ?? [],
           'devMode': setting('devMode'),
+          'dynamicControllerPort': true,
+          'adaptiveAccessPool': true,
         },
         timeout: const Duration(seconds: 90),
       );
-      _secret = response['controllerSecret']?.toString() ?? _secret;
       _knownStopped = false;
-      _setRunning(response['running'] == true);
+      _setRunning(response['running'] == true, response);
       if (!connected) throw const ApiFailure('组件未确认连接成功，请刷新状态后重试');
       final hotspot = object(response['hotspot']);
       _log('连接已建立');
@@ -704,25 +827,54 @@ class LiveModel extends ClientModel {
   Future<void> measure(String node) async {
     if (!canMeasure || !_nodes.contains(node) || !_measuring.add(node)) return;
     final generation = _nodeGen, run = _runGen;
+    final scope = nodeTools.scope();
     _notify();
-    var delay = 5000;
-    try {
-      final result = await controller.call(
-        ['proxies', node, 'delay'],
-        query: {
-          'timeout': '5000',
-          'url': 'http://www.gstatic.com/generate_204',
-        },
-      );
-      delay = (result['delay'] as num? ?? 5000).toInt();
-    } catch (_) {
-      /* timeout is represented by 5000 */
+    final samples = <int>[];
+    var timeouts = 0;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      if (_disposed || generation != _nodeGen || run != _runGen || !connected)
+        return;
+      try {
+        final result = await controller.call(
+          ['proxies', node, 'delay'],
+          query: {
+            'timeout': '5000',
+            'url': 'http://www.gstatic.com/generate_204',
+          },
+        );
+        final value = (result['delay'] as num? ?? -1).toInt();
+        if (value > 0 && value < 5000) {
+          samples.add(value);
+        } else {
+          timeouts++;
+        }
+      } catch (_) {
+        timeouts++;
+      }
     }
     if (_disposed || generation != _nodeGen || run != _runGen || !connected)
       return;
     _measuring.remove(node);
+    samples.sort();
+    final delay = samples.isEmpty ? -1 : samples[samples.length ~/ 2];
     _delays[node] = delay;
     _notify();
+    if (scope['profile'] != null) {
+      try {
+        await helper.call(
+          '/nodes/delays',
+          method: 'POST',
+          body: {
+            ...scope,
+            'delays': {node: delay > 0 ? delay : 5000},
+            'timeouts': {node: timeouts},
+            'attempts': 3,
+          },
+        );
+      } catch (error) {
+        if (!_disposed && run == _runGen) _log('延迟记录未保存：$error', warning: true);
+      }
+    }
   }
 
   Future<void> _measureAll() async {
@@ -740,6 +892,8 @@ class LiveModel extends ClientModel {
     await Future.wait(
       List.generate(math.min(6, queue.length), (_) => worker()),
     );
+    if (!_disposed && run == _runGen && generation == _nodeGen)
+      await nodeTools.refresh();
   }
 
   Future<String?> _pick(String kind, {bool save = false}) async =>
@@ -778,6 +932,7 @@ class LiveModel extends ClientModel {
   Future<bool> act(String action, [JsonMap arguments = const {}]) async {
     final exclusive = {
       'settings.save',
+      'network.save',
       'settings.reset',
       'chain.import',
       'chain.file',
@@ -793,7 +948,8 @@ class LiveModel extends ClientModel {
       _failure('另一项操作正在进行，请稍后重试');
       return false;
     }
-    if (_disposed || !_pending.add(action)) return false;
+    if (_disposed || (action != 'preferences.set' && !_pending.add(action)))
+      return false;
     if (exclusive) {
       _exclusive = true;
       _resourceGen++;
@@ -813,28 +969,52 @@ class LiveModel extends ClientModel {
         case 'settings.save':
           _autoGen++;
           await _saveSettings(arguments);
+        case 'network.save':
+          final saved = await helper.call(
+            '/network-options',
+            method: 'PUT',
+            body: {...networkOptions, ...arguments},
+          );
+          networkOptions
+            ..clear()
+            ..addAll(saved);
+          _log(connected ? '网络设置已保存，重新连接后生效' : '网络设置已保存');
         case 'preferences.set':
           await _preference(
             arguments['key'] as String,
             arguments['value'] as String,
           );
-          await _appearance();
+          if ({
+            'freev6-theme',
+            'freev6-bg-mode',
+            'freev6-pure-black',
+            'freev6-dynamic-color',
+          }.contains(arguments['key']))
+            await _appearance();
         case 'node.group':
           proxyTab = arguments['tab'] == 'chain' ? 'chain' : 'access';
+          nodeTools.bind(_downloadSession, _group);
           _clearNodes();
           await refreshNodes();
         case 'node.select':
           final gen = ++_nodeGen, run = _runGen;
           _measuring.clear();
-          await controller.call(
-            ['proxies', _group],
-            method: 'PUT',
-            body: {'name': arguments['name']},
-          );
+          await nodeTools.select(node: arguments['name'] as String);
           if (gen == _nodeGen && run == _runGen && connected) {
             _current = arguments['name'] as String;
             _log('接入点已切换');
           }
+        case 'node.auto':
+          await nodeTools.select(poolSize: arguments['poolSize'] as int?);
+          await refreshNodes();
+        case 'nodes.download':
+          await nodeTools.download(
+            arguments['name'] is String
+                ? [arguments['name'] as String]
+                : List.of(_nodes),
+          );
+        case 'nodes.cancel':
+          nodeTools.cancelDownload();
         case 'nodes.measure':
           await _measureAll();
         case 'chain.import' ||
@@ -995,6 +1175,18 @@ class LiveModel extends ClientModel {
           await host.call('external.open', arguments);
         case 'logs.clear':
           _logs.clear();
+        case 'logs.export':
+          final path = await _pick('logs', save: true);
+          if (path == null) return false;
+          await File(path).writeAsString(
+            _logs.reversed
+                .map(
+                  (log) =>
+                      '${log.time.toIso8601String()} [${log.level}] ${log.message}',
+                )
+                .join('\n'),
+            flush: true,
+          );
         default:
           throw ApiFailure('未知操作：$action');
       }
@@ -1020,7 +1212,12 @@ class LiveModel extends ClientModel {
       timer.cancel();
     }
     _subscription?.cancel();
+    nodeTools.dispose();
+    _coreLogs?.cancel();
+    _memoryStream?.cancel();
+    _logRetry?.cancel();
     transport.close();
+    _logNotify?.cancel();
     traffic.dispose();
     super.dispose();
   }

@@ -7,7 +7,7 @@ foreach ($registry in @(
     'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
     'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*')) {
     $entries += @(Get-ItemProperty $registry -ErrorAction SilentlyContinue |
-        Where-Object { $_.DisplayName -eq 'FreeV6' -or $_.DisplayName -eq 'freev6' } |
+        Where-Object { $_.PSChildName -in 'Flux6','FreeV6' -or $_.DisplayName -in 'Flux6','FreeV6' } |
         Select-Object PSChildName, DisplayName, DisplayVersion, InstallLocation, UninstallString)
 }
 $result = [ordered]@{

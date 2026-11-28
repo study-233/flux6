@@ -14,69 +14,26 @@ jobs:
     timeout-minutes: 50
     env:
       PYTHONUTF8: '1'
+      NO_PROXY: '127.0.0.1,localhost,::1'
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.x'
-      - name: Check release version and helper
+          go-version-file: go.mod
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+      - name: Build unified Flutter client and installer
         shell: pwsh
         run: |
-          $version = python scripts/version.py --platform windows --field version
-          if ($LASTEXITCODE -ne 0) { throw 'Inconsistent Windows version' }
-          if (!(Select-String -LiteralPath apps/windows/web/index.html -SimpleMatch "Flux6 v$version</span>" -Quiet)) { throw 'Web version mismatch' }
-          "VERSION=$version" >> $env:GITHUB_ENV
-          node --test scripts/windows/test-web-runtime.mjs
-          if ($LASTEXITCODE -ne 0) { throw 'Web tests failed' }
-          go test -timeout=180s -run 'Test(Update|ParseVersionJSON|FetchVersionJSON|Download)' ./cmd/freev6-helper
-          if ($LASTEXITCODE -ne 0) { throw 'Helper tests failed' }
-          go install github.com/tc-hib/go-winres@v0.3.3
-          if ($LASTEXITCODE -ne 0) { throw 'Helper resource tool unavailable' }
-          Set-Location cmd/freev6-helper
-          go-winres make --in winres/winres.json --arch amd64 --product-version "$version.0" --file-version "$version.0"
-      - name: Prepare pinned GeoSite resource
-        shell: pwsh
-        run: |
-          $catalog = Get-Content internal/mihomo/geodata-assets.json -Raw | ConvertFrom-Json
-          $asset = $catalog.assets | Where-Object name -eq 'GeoSite.dat'
-          Invoke-WebRequest "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/$($catalog.revision)/$($asset.sourceName)" -OutFile GeoSite.dat
-          if ((Get-FileHash GeoSite.dat).Hash -ne $asset.sha256) { throw 'Unexpected GeoSite digest' }
-      - name: Build Tauri x64 NSIS installer
-        working-directory: apps/windows
-        run: npx --yes --package=@tauri-apps/cli@2.11.4 -- tauri build --bundles nsis -- --locked
-      - name: Verify installation and generate update metadata
-        shell: pwsh
-        run: |
-          $setups = @(Get-ChildItem 'apps/windows/src-tauri/target/release/bundle/nsis/*-setup.exe')
-          if ($setups.Count -ne 1) { throw 'Expected one Tauri installer' }
-          $stage = New-Item -ItemType Directory dist/windows -Force
-          $name = "Flux6-$env:VERSION-windows-x64-setup.exe"
-          $exe = Join-Path $stage $name
-          Copy-Item $setups[0].FullName $exe
-          $root = Join-Path $env:RUNNER_TEMP 'Flux6 Install'
-          $install = Start-Process -FilePath $exe -ArgumentList "/S /D=$root" -PassThru
-          if (!$install.WaitForExit(120000) -or $install.ExitCode -ne 0) { throw 'Installer smoke test failed' }
-          $desktop = Get-Item "$root/freev6-desktop.exe"
-          if ($desktop.VersionInfo.ProductVersion -notmatch "^$([regex]::Escape($env:VERSION))([.+].*)?$") { throw 'Installed version mismatch' }
-          if (!(Test-Path "$root/flux6-helper.exe") -or (Get-FileHash "$root/GeoSite.dat").Hash -ne (Get-FileHash GeoSite.dat).Hash) { throw 'Installed payload mismatch' }
-
-          $tag = "v$env:VERSION"
-          $info = [ordered]@{
-            version = $env:VERSION; tag = $tag; setup = $name
-            notes = "Flux6 Windows $env:VERSION (Tauri x64)"
-            download = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/$name"
-            sha256 = (Get-FileHash $exe).Hash.ToLowerInvariant()
-          }
-          $info | ConvertTo-Json | Set-Content "$stage/version.json" -Encoding utf8NoBOM
-          $source = "Flux6-$env:VERSION-windows-source.zip"
-          git archive --format=zip --prefix=Flux6-source/ -o "$stage/$source" HEAD -- apps/windows/src-tauri apps/windows/installer/helper-upgrade.nsh apps/windows/web cmd internal scripts/windows scripts/version.py assets/branding third_party shared go.mod go.sum docs/agreement.md docs/privacy.md LICENSE README.md THIRD-PARTY.txt .github/workflows/windows-release.yml
-          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
-          $sums = Get-ChildItem $stage -File | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName).Hash.ToLowerInvariant() + '  ' + $_.Name }
-          $sums | Set-Content "$stage/Windows-SHA256SUMS" -Encoding utf8NoBOM
+          python scripts/version.py --platform windows
+          if ($LASTEXITCODE -ne 0) { throw 'Invalid Windows release version' }
+          ./scripts/windows/build-flutter.ps1 -MakeNsis 'C:\Program Files (x86)\NSIS\makensis.exe'
       - uses: actions/upload-artifact@v4
         with:
           name: flux6-windows-x64
-          path: dist/windows/*
+          path: dist/windows/*-unified/*
           if-no-files-found: error

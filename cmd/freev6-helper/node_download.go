@@ -30,6 +30,8 @@ const (
 )
 
 type downloadChannel struct {
+	probeContext                              context.Context
+	stopProbes                                context.CancelFunc
 	session, group, address, password, secret string
 	controller                                netip.AddrPort
 	latencyGroup, network                     string
@@ -176,6 +178,12 @@ func (d *nodeDownloads) activate(c *downloadChannel) {
 	d.activateLocked(c)
 }
 func (d *nodeDownloads) activateLocked(c *downloadChannel) {
+	if d.channel != nil && d.channel.stopProbes != nil {
+		d.channel.stopProbes()
+	}
+	if c != nil {
+		c.probeContext, c.stopProbes = context.WithCancel(context.Background())
+	}
 	if d.cancel != nil {
 		d.cancel()
 	}

@@ -62,6 +62,7 @@ import FreeV6System
         let qaPrefix = base + ".qa."
         let directory: String
         if identifier == base { directory = base + "-integration" }
+        else if identifier == base + ".unified" { directory = identifier }
         else if identifier.hasPrefix(qaPrefix),
                 let id = UUID(uuidString: String(identifier.dropFirst(qaPrefix.count))),
                 identifier.dropFirst(qaPrefix.count).lowercased() == id.uuidString.lowercased() {
